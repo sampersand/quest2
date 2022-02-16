@@ -1,0 +1,8 @@
+[workspace]
+members = [
+	"value",
+]
+
+
+# [profile.release]
+# lto = true
