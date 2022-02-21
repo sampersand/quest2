@@ -1,23 +1,27 @@
-bitflags::bitflags! {
-	#[repr(transparent)]
-	pub struct BaseFlags: AtomicU64 {
-		const USER1     = 0b0000_0001;
-		const USER2     = 0b0000_0010;
-		const USER3     = 0b0000_0100;
-		const USER4     = 0b0000_1000;
+use std::sync::atomic::{AtomicU32, Ordering};
 
-		const FROZEN    = 0b0001_0000;
-	}
-}
+#[derive(Debug)]
+pub struct BaseFlags(AtomicU32);
 
 impl BaseFlags {
-	fn as_atomic(&self) -> &AtomicU64 {
-		unsafe {
-			std::mem::transmute::<&BaseFlags, &AtomicU64>(self)
-		}
+	pub const USER1: u32         = 0b00000000_00000001;
+	pub const USER2: u32         = 0b00000000_00000010;
+	pub const USER3: u32         = 0b00000000_00000100;
+	pub const USER4: u32         = 0b00000000_00001000;
+
+	pub const FROZEN: u32        = 0b00000000_00010000;
+	pub const MUT_BORROWED: u32  = 0b00000000_00100000;
+	pub const MANY_PARENTS: u32  = 0b00000000_01000000;
+
+	pub fn insert(&self, flag: u32) {
+		self.0.fetch_or(flag, Ordering::SeqCst);
 	}
 
-	pub fn is_frozen(&self) -> bool {
-		self.as_atomic().loa
+	pub fn contains(&self, flag: u32) -> bool {
+		self.0.load(Ordering::SeqCst) & flag != 0
+	}
+
+	pub fn remove(&self, flag: u32) {
+		self.0.fetch_and(!flag, Ordering::SeqCst);
 	}
 }

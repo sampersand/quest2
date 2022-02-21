@@ -1,121 +1,111 @@
-use std::collections::HashMap;
-use crate::{Value, Gc};
+use crate::{Gc, Attributes};
 use std::alloc;
-use std::mem::{size_of, align_of};
-use std::marker::PhantomData;
+use std::mem::MaybeUninit;
+use std::ptr;
+use std::cell::UnsafeCell;
 use std::any::TypeId;
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 mod flags;
-pub use flags::Flags;
+mod parents;
+
+pub use flags::BaseFlags;
+pub(crate) use parents::Parents;
 
 #[repr(C, align(8))]
-pub struct ValueBase<T: 'static> {
-	parent: Option<Value>,
-	attributes: Option<Box<HashMap<String, Value>>>,
+pub struct Allocated<T: 'static> {
+	parents: UnsafeCell<Parents>, // TODO: make me an array
+	attributes: Option<Box<Attributes>>,
 	typeid: TypeId,
-	flags: BaseFlags, // these can be used by anyone.
-	_data: PhantomData<T>
+	flags: BaseFlags,
+	borrows: AtomicU32,
+	data: UnsafeCell<MaybeUninit<T>>
 }
 
-const fn layout_for<T: 'static>() -> alloc::Layout {
-	let mut size = size_of::<ValueBase<T>>() + size_of::<T>();
+assert_eq_size!(Allocated<()>, [u64; 4]);
+assert_eq_align!(Allocated<()>, u64);
 
-	let align =
-		if align_of::<ValueBase<T>>() >= align_of::<T>() {
-			align_of::<ValueBase<T>>()
-		} else {
-			size += align_of::<T>() - align_of::<ValueBase<T>>(); // we need padding
-			align_of::<T>()
-		};
+impl<T: 'static> Allocated<T> {
+	pub fn new(data: T) -> *mut Self {
+		unsafe {
+			let this = Self::allocate();
 
-	match alloc::Layout::from_size_align(size, align) {
-		Ok(value) => value,
-		Err(_err) => panic!("cannot create layout")
+			(*this).data_mut().write(data);
+
+			this
+		}
 	}
-}
 
-impl<T: 'static> ValueBase<T> {
-	/// safety: you must initialize `T` by calling to `.inner_ptr_mut()` and then writing to it
+	/// Safety: you must initialize `T` by calling to `.inner_ptr_mut()` and then writing to it
 	/// before you can actually use it or you `drop` it.
 	pub unsafe fn allocate() -> *mut Self {
-		let layout = layout_for::<T>();
+		let layout = alloc::Layout::new::<Self>();
 
 		// Since we `alloc_zeroed`, `parent` is valid (as it's zero, which is `None`),
 		// and `attribtues` is valid (as it's zero, which is also `None`).
-		let ptr = alloc::alloc_zeroed(layout) as *mut Self;
+		let ptr = alloc::alloc_zeroed(layout).cast::<Self>();
 
+		// Everything else is default initialized to zero.
 		(*ptr).typeid = TypeId::of::<T>();
 
 		ptr
 	}
 
-	pub unsafe fn upcast(ptr: &T) -> &Self {
-		&*((ptr as *const _ as *const u8).offset(size_of::<Self>() as _) as *const Self)
+	pub fn data_mut(&mut self) -> &mut MaybeUninit<T> {
+		unsafe {
+			&mut *self.data.get()
+		}
+	}
+
+	pub fn data(&self) -> &MaybeUninit<T> {
+		unsafe {
+			&*self.data.get()
+		}
+	}
+
+	pub(crate) unsafe fn upcast(ptr: *const T) -> *const Self {
+		container_of::container_of!(ptr, Self, data)
+	}
+
+	pub(crate) unsafe fn upcast_mut(ptr: *mut T) -> *mut Self {
+		container_of::container_of!(ptr, Self, data)
 	}
 
 	pub fn inner_typeid(&self) -> TypeId {
 		self.typeid
 	}
 
-	pub fn flags(&self) -> BaseFlags {
-		self.flags
-	}
-
-	pub fn flags_mut(&mut self) -> &mut BaseFlags {
-		&mut self.flags
+	pub fn flags(&self) -> &BaseFlags {
+		&self.flags
 	}
 
 	pub fn inner(&self) -> Gc<T> {
-		Gc::new(std::ptr::NonNull::new(self.inner_ptr() as *mut _).unwrap())
-	}
-
-	pub fn inner_ptr(&self) -> *const T {
-		sa::assert_eq_size!(ValueBase<()>, [u64; 4]);
-		sa::assert_eq_align!(ValueBase<()>, [u64; 4]);
-
-		let mut end_ptr =
-			unsafe {
-				// safety: we're within an allocated object.
-				(self as *const _ as *const u8).offset(size_of::<Self>() as _)
-			};
-
-		if align_of::<ValueBase<T>>() < align_of::<T>() {
-			end_ptr = 
-				unsafe {
-					end_ptr.offset((align_of::<T>() - align_of::<ValueBase<T>>()) as _)
-				};
-		}
-
-		end_ptr as *const T
-	}
-
-	pub fn inner_ptr_mut(&mut self) -> *mut T {
-		self.inner_ptr() as *mut T
-	}
-}
-
-impl<T: 'static> AsRef<T> for ValueBase<T> {
-	fn as_ref(&self) -> &T {
 		unsafe {
-			&*self.inner_ptr()
+			let data_ptr = self.data().as_ptr();
+			let nonnull_data_ptr = ptr::NonNull::new_unchecked(data_ptr as *mut _);
+			Gc::new(nonnull_data_ptr)
 		}
+	}
+
+	pub(crate) fn get_borrows(&self) -> usize {
+		self.borrows.load(Ordering::Relaxed) as usize
+	}
+
+	pub(crate) fn add_one_to_borrows(&self) {
+		let prev = self.borrows.fetch_add(1, Ordering::Relaxed);
+		debug_assert_ne!(prev, u32::MAX);
+	}
+
+	pub(crate) fn remove_one_from_borrows(&self) {
+		let prev = self.borrows.fetch_sub(1, Ordering::Relaxed);
+		debug_assert_ne!(prev, 0);
 	}
 }
 
-impl<T: 'static> AsMut<T> for ValueBase<T> {
-	fn as_mut(&mut self) -> &mut T {
-		unsafe {
-			&mut *self.inner_ptr_mut()
-		}
-	}
-}
-
-impl<T: 'static> Drop for ValueBase<T> {
+impl<T: 'static> Drop for Allocated<T> {
 	fn drop(&mut self) {
 		unsafe {
-			self.inner_ptr_mut().drop_in_place();
-			alloc::dealloc(self as *mut _ as _, layout_for::<T>());
+			alloc::dealloc(self as *mut _ as _, alloc::Layout::new::<Self>());
 		}
 	}
 }
