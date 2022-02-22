@@ -1,6 +1,11 @@
-mod value;
+extern crate static_assertions as sa;
 
+mod value;
+mod base;
+mod gc;
 pub mod ty;
+
+pub use gc::Gc;
 pub use value::{Value, AnyValue};
 
 pub unsafe trait Convertible : Into<Value<Self>> {
