@@ -251,7 +251,7 @@ impl From<&'_ str> for Gc<Text> {
 	}
 }
 
-impl From<&'_ str> for crate::Value {
+impl From<&'_ str> for crate::Value<Text> {
 	fn from(string: &str) -> Self {
 		Text::from_str(string).into()
 	}

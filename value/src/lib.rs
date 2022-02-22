@@ -1,28 +1,25 @@
-#[macro_use]
-extern crate static_assertions;
+mod value;
 
+pub mod ty;
+pub use value::{Value, AnyValue};
 
-pub use value::Value;
-use base::Allocated;
-
-mod gc;
-pub use gc::Gc;
-
-mod err;
-pub use err::{Error, Result};
-
-mod attr;
-pub use attr::Attributes;
-pub mod base;
-pub mod kinds;
-pub mod value;
-
-pub trait QuestValue : std::fmt::Debug {
-	fn parents(&self) -> &[Value];
-	fn unique_id(&self) -> u64;
-	fn attrs(&self) -> &Attributes;
+pub unsafe trait Convertible : Into<Value<Self>> {
+	fn is_a(value: AnyValue) -> bool;
+	fn downcast(value: AnyValue) -> Option<Value<Self>> {
+		if Self::is_a(value) {
+			Some(unsafe { std::mem::transmute(value) })
+		} else {
+			None
+		}
+	}
 }
 
-// fn main() {
-//     println!("Hello, world!");
-// }
+mod private {
+	use super::*;
+
+	pub trait Immediate : Convertible + Copy {
+		fn get(value: Value<Self>) -> Self;
+	}
+}
+
+pub use private::Immediate;

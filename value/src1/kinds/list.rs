@@ -1,5 +1,5 @@
 use crate::base::{Allocated, BaseFlags};
-use crate::Value;
+use crate::{AnyValue};
 use std::alloc;
 use crate::Gc;
 use std::fmt::{self, Debug, Formatter};
@@ -15,21 +15,21 @@ pub union List {
 struct AllocatedList {
 	len: usize,
 	cap: usize,
-	ptr: *mut Value
+	ptr: *mut AnyValue
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct EmbeddedList {
 	len: usize, // might as well yknow.
-	buf: [Value; MAX_EMBEDDED_LEN]
+	buf: [AnyValue; MAX_EMBEDDED_LEN]
 }
 
 const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedList>() - std::mem::size_of::<usize>();
 const FLAG_EMBEDDED: u32 = BaseFlags::USER1;
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
-	alloc::Layout::array::<Value>(cap).unwrap()
+	alloc::Layout::array::<AnyValue>(cap).unwrap()
 }
 
 impl List {
@@ -68,25 +68,25 @@ impl List {
 		unsafe { &Gc::new(self.into()) }.flags().contains(FLAG_EMBEDDED)
 	}
 
-	pub fn as_ptr(&self) -> *const Value {
+	pub fn as_ptr(&self) -> *const AnyValue {
 		if self.is_embedded() {
-			unsafe { self.embed.buf.as_ptr() as *const Value }
+			unsafe { self.embed.buf.as_ptr() as *const AnyValue }
 		} else {
-			unsafe { self.alloc.ptr as *const Value }
+			unsafe { self.alloc.ptr as *const AnyValue }
 		}
 	}
 
-	pub fn as_mut_ptr(&mut self) -> *mut Value {
-		self.as_ptr() as *mut Value
+	pub fn as_mut_ptr(&mut self) -> *mut AnyValue {
+		self.as_ptr() as *mut AnyValue
 	}
 
-	pub fn as_slice(&self) -> &[Value] {
+	pub fn as_slice(&self) -> &[AnyValue] {
 		unsafe {
 			std::slice::from_raw_parts(self.as_ptr(), self.len())
 		}
 	}
 
-	pub fn as_mut_slice(&mut self) -> &mut [Value] {
+	pub fn as_mut_slice(&mut self) -> &mut [AnyValue] {
 		unsafe {
 			std::slice::from_raw_parts_mut(self.as_mut_ptr(), self.len())
 		}
@@ -134,7 +134,7 @@ impl List {
 
 		unsafe {
 			let len = self.embed.len as usize;
-			let ptr = alloc::alloc(layout).cast::<Value>();
+			let ptr = alloc::alloc(layout).cast::<AnyValue>();
 			std::ptr::copy(self.embed.buf.as_ptr(), ptr, len);
 
 			self.alloc = AllocatedList { len, cap: new_cap, ptr };
@@ -143,13 +143,13 @@ impl List {
 		}
 	}
 
-	fn mut_end_ptr(&mut self) -> *mut Value {
+	fn mut_end_ptr(&mut self) -> *mut AnyValue {
 		unsafe {
 			self.as_mut_ptr().offset(self.len() as isize)
 		}
 	}
 
-	pub fn push(&mut self, value: Value) {
+	pub fn push(&mut self, value: AnyValue) {
 		if self.len() == self.capacity() {
 			self.allocate_more(1);
 		}
@@ -160,7 +160,7 @@ impl List {
 		}
 	}
 
-	pub fn extend_from_slice(&mut self, slice: &[Value]) {
+	pub fn extend_from_slice(&mut self, slice: &[AnyValue]) {
 		if self.len() + slice.len() > self.capacity() {
 			self.allocate_more(slice.len());
 		}
@@ -173,14 +173,14 @@ impl List {
 	}
 }
 
-impl AsRef<[Value]> for List {
-	fn as_ref(&self) -> &[Value] {
+impl AsRef<[AnyValue]> for List {
+	fn as_ref(&self) -> &[AnyValue] {
 		self.as_slice()
 	}
 }
 
-impl AsMut<[Value]> for List {
-	fn as_mut(&mut self) -> &mut [Value] {
+impl AsMut<[AnyValue]> for List {
+	fn as_mut(&mut self) -> &mut [AnyValue] {
 		self.as_mut_slice()
 	}
 }

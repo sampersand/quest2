@@ -1,9 +1,9 @@
-use crate::{Value, Gc, Result, list::List};
+use crate::{AnyValue, Gc, Result};
 
 #[allow(unused)]
 pub(crate) union Parents {
-	singular: Option<Value>,
-	many: Gc<List>
+	singular: Option<AnyValue>,
+	many: Gc<()>
 }
 
 assert_eq_size!(Parents, u64);
@@ -11,7 +11,7 @@ assert_eq_align!(Parents, u64);
 
 impl Parents {
 	#[allow(unused)]
-	pub(crate) unsafe fn as_slice(&self, is_singular: bool) -> Result<&[Value]> {
+	pub(crate) unsafe fn as_slice(&self, is_singular: bool) -> Result<&[AnyValue]> {
 		todo!()
 		// if is_singular {
 		// 	Ok(self.singular
