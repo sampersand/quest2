@@ -14,6 +14,8 @@ impl From<Float> for Value<Float> {
 }
 
 unsafe impl Convertible for Float {
+	type Inner = Self;
+
 	#[inline]
 	fn is_a(value: AnyValue) -> bool {
 		(value.bits() & 3) == 2

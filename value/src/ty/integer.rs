@@ -19,6 +19,8 @@ impl From<Integer> for Value<Integer> {
 }
 
 unsafe impl Convertible for Integer {
+	type Inner = Self;
+
 	#[inline]
 	fn is_a(value: AnyValue) -> bool {
 		(value.bits() & 1) == 1

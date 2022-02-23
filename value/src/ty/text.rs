@@ -1,6 +1,7 @@
 use crate::Gc;
-use crate::base::{Base, Flags};
+use crate::base::Flags;
 use std::alloc;
+use std::fmt::{self, Debug, Display, Formatter};
 
 mod builder;
 pub use builder::Builder;
@@ -35,15 +36,9 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 
 impl Text {
 	pub fn from_str(inp: &str) -> Gc<Self> {
-		let mut this = Self::with_capacity(inp.len());
-
-		unsafe {
-			let this = &mut *this.as_mut_unchecked();
-			std::ptr::copy(inp.as_ptr(), this.as_mut_ptr(), inp.len());
-			this.set_len(inp.len());
-		}
-
-		this
+		let mut builder = Self::builder(inp.len());
+		builder.write(inp);
+		builder.finish()
 	}
 
 	pub fn new() -> Gc<Self> {
@@ -51,20 +46,18 @@ impl Text {
 	}
 
 	pub fn with_capacity(cap: usize) -> Gc<Self> {
-		unsafe {
-			let mut builder = Base::<Self>::allocate();
+		let builder = Self::builder(cap);
 
-			if cap <= MAX_EMBEDDED_LEN {
-				builder.base().flags().insert(FLAG_EMBEDDED);
-			} else {
-				// FIXME: this is shouldn't be using `assume_init` but i have no wifi
-				let mut this = builder.data().assume_init_mut();
-				this.alloc.cap = cap;
-				this.alloc.ptr = alloc::alloc(alloc_ptr_layout(cap))
-			}
+		// Nothing to do, as the default state is valid.
+		builder.finish()
+	}
 
-			builder.finish()
-		}
+	pub fn builder(cap: usize) -> Builder {
+		Builder::new(cap)
+	}
+
+	pub fn is_embedded(&self) -> bool {
+		unsafe { Gc::from_ref(self) }.flags().contains(FLAG_EMBEDDED)
 	}
 
 	pub unsafe fn set_len(&mut self, new: usize) {
@@ -76,86 +69,24 @@ impl Text {
 		}
 	}
 
-	pub fn is_embedded(&self) -> bool {
-		true // FIXME
+	pub fn len(&self) -> usize {
+		if self.is_embedded() {
+			unsafe { self.embed.len as usize }
+		} else {
+			unsafe { self.alloc.len }
+		}
 	}
 
-	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
+	pub fn cap(&self) -> usize {
 		if self.is_embedded() {
-			self.embed.buf.as_mut_ptr()
+			MAX_EMBEDDED_LEN
 		} else {
-			self.alloc.ptr
+			unsafe { self.alloc.cap }
 		}
 	}
 }
-/*use crate::base::{Base, Flags};
-use std::alloc;
-use crate::Gc;
-use std::fmt::{self, Debug, Display, Formatter};
 
 impl Text {
-	pub fn new() -> Gc<Self> {
-		Self::with_capacity(0)
-	}
-
-	pub fn from_str(string: &str) -> Gc<Self> {
-		let text = Self::with_capacity(string.len());
-		unsafe {
-			&mut (*text.as_mut_ptr_unchecked())
-		}.push_str(string);
-		text
-	}
-
-	pub fn with_capacity(cap: usize) -> Gc<Self> {
-		let base = unsafe {
-			&mut *Base::<Self>::allocate()
-		};
-
-		if cap <= MAX_EMBEDDED_LEN {
-			base.flags().insert(FLAG_EMBEDDED);
-		} else {
-			unsafe {
-				let ptr = base.data_mut().as_mut_ptr();
-
-				std::ptr::addr_of_mut!((*ptr).alloc.cap).write(cap);
-				std::ptr::addr_of_mut!((*ptr).alloc.ptr).write(alloc::alloc(alloc_ptr_layout(cap)));
-			}
-		}
-
-		base.inner()
-	}
-
-	pub unsafe fn set_len(&mut self, len: usize) {
-		if self.is_embedded() {
-			self.embed.len = len as u8;
-		} else {
-			self.alloc.len = len;
-		}
-	}
-
-	pub fn resize(&mut self, capacity: usize) {
-		let _ = capacity;
-		// if capacity < MAX_EMBEDDED_LEN {
-		// 	if self.is_embedded() {
-		// 		unsafe {
-		// 			self.set_len(capacity); // truncate it.
-		// 		}
-		// 		return; // you dont 
-		// 	}
-		// }
-		// TODO
-
-		// if capacity < MAX_EMBEDDED_LEN {
-		// 	if self.is_embedded() {
-		// 		return; // allocating
-		// 	}
-		// }
-	}
-
-	pub fn is_embedded(&self) -> bool {
-		unsafe { &Gc::new(self.into()) }.flags().contains(FLAG_EMBEDDED)
-	}
-
 	pub fn as_ptr(&self) -> *const u8 {
 		if self.is_embedded() {
 			unsafe { self.embed.buf.as_ptr() }
@@ -164,10 +95,9 @@ impl Text {
 		}
 	}
 
-	pub fn as_mut_ptr(&mut self) -> *mut u8 {
+	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
 		self.as_ptr() as *mut u8
 	}
-
 
 	pub fn as_bytes(&self) -> &[u8] {
 		unsafe {
@@ -175,7 +105,6 @@ impl Text {
 		}
 	}
 
-	// safety: don't modify to make it an invalid `str`.
 	pub unsafe fn as_mut_bytes(&mut self) -> &mut [u8] {
 		std::slice::from_raw_parts_mut(self.as_mut_ptr(), self.len())
 	}
@@ -191,26 +120,9 @@ impl Text {
 			std::str::from_utf8_unchecked_mut(self.as_mut_bytes())
 		}
 	}
-
-	pub fn len(&self) -> usize {
-		if self.is_embedded() {
-			unsafe { self.embed.len as usize }
-		} else {
-			unsafe { self.alloc.len }
-		}
-	}
-
-	pub fn capacity(&self) -> usize {
-		if self.is_embedded() {
-			MAX_EMBEDDED_LEN
-		} else {
-			unsafe {
-				self.alloc.cap
-			}
-		}
-	}
 }
 
+/*
 impl Text {
 	fn allocate_more(&mut self, required_len: usize) {
 		if !self.is_embedded() {
@@ -276,6 +188,7 @@ impl Text {
 		}
 	}
 }
+*/
 
 impl AsRef<str> for Text {
 	fn as_ref(&self) -> &str {
@@ -318,4 +231,3 @@ impl From<&'_ str> for crate::Value<Text> {
 		Text::from_str(string).into()
 	}
 }
-*/

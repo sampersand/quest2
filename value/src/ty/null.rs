@@ -14,6 +14,8 @@ impl From<Null> for Value<Null> {
 }
 
 unsafe impl Convertible for Null {
+	type Inner = Self;
+
 	fn is_a(value: AnyValue) -> bool {
 		value.bits() == Value::NULL.bits()
 	}

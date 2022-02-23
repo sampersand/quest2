@@ -53,7 +53,7 @@ impl AnyValue {
 	}
 
 	#[inline]
-	pub fn downcast<T: crate::Convertible>(self) -> Option<Value<T>> {
+	pub fn downcast<T: crate::Convertible<Inner=I>, I>(self) -> Option<Value<I>> {
 		T::downcast(self)
 	}
 }

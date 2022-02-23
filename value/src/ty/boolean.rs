@@ -18,6 +18,8 @@ impl From<Boolean> for Value<Boolean> {
 }
 
 unsafe impl Convertible for Boolean {
+	type Inner = Self;
+
 	fn is_a(value: AnyValue) -> bool {
 		value.bits() == Value::TRUE.bits() || value.bits() == Value::FALSE.bits()
 	}
