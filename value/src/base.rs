@@ -1,9 +1,8 @@
 use std::mem::MaybeUninit;
 use std::any::TypeId;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32};
 use std::cell::UnsafeCell;
-use std::alloc;
-use crate::Gc;
+
 
 mod flags;
 mod parents;
@@ -27,12 +26,21 @@ pub struct Header {
 }
 
 #[repr(C, align(8))]
+#[derive(Debug)]
 pub struct Base<T: 'static> {
 	header: Header,
 	data: UnsafeCell<MaybeUninit<T>>
 }
 
 impl<T: HasParents + 'static> Base<T> {
+	pub fn new(data: T) -> crate::Gc<T> {
+		unsafe {
+			let mut builder = Self::allocate();
+			builder.data_mut().write(data);
+			builder.finish()
+		}
+	}
+
 	pub unsafe fn allocate() -> Builder<T> {
 		Self::allocate_with_parents(T::parents())
 	}
@@ -77,5 +85,11 @@ impl Header {
 
 	pub const fn flags(&self) -> &Flags {
 		&self.flags
+	}
+}
+
+impl<T> Drop for Base<T> {
+	fn drop(&mut self) {
+		// TODO: drop data.
 	}
 }

@@ -14,17 +14,21 @@ impl From<Float> for Value<Float> {
 }
 
 unsafe impl Convertible for Float {
-	type Inner = Self;
+	type Output = Self;
 
 	#[inline]
 	fn is_a(value: AnyValue) -> bool {
 		(value.bits() & 3) == 2
 	}
+
+	fn get(value: Value<Self>) -> Self::Output {
+		Self::from_bits(value.bits() & !3)
+	}
 }
 
-impl Immediate for Float {
-	#[inline]
-	fn get(value: Value<Self>) -> Self {
-		Self::from_bits(value.bits() & !3)
+impl crate::base::HasParents for Float {
+	fn parents() -> crate::base::Parents {
+		// TODO
+		crate::base::Parents::NONE
 	}
 }

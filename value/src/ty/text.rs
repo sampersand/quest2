@@ -9,7 +9,7 @@ pub use builder::Builder;
 #[repr(C)]
 pub union Text {
 	alloc: AllocatedText,
-	embed: EmbeddedText
+	embed: EmbeddedText,
 }
 
 #[repr(C)]
@@ -210,7 +210,17 @@ impl Drop for Text {
 
 impl Debug for Text {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "Text({:?})", self.as_str())
+		if f.alternate() {
+			f.write_str("Text(")?;
+		}
+
+		Debug::fmt(self.as_str(), f)?;
+
+		if f.alternate() {
+			f.write_str(")")?;
+		}
+
+		Ok(())
 	}
 }
 
@@ -226,8 +236,16 @@ impl From<&'_ str> for Gc<Text> {
 	}
 }
 
-impl From<&'_ str> for crate::Value<Text> {
+impl From<&'_ str> for crate::Value<Gc<Text>> {
 	fn from(string: &str) -> Self {
 		Text::from_str(string).into()
 	}
 }
+
+impl crate::base::HasParents for Text {
+	fn parents() -> crate::base::Parents {
+		// TODO
+		crate::base::Parents::NONE
+	}
+}
+

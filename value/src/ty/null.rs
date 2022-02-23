@@ -1,10 +1,11 @@
 pub use crate::{Value, Convertible, Immediate, AnyValue};
+use std::fmt::{self, Debug, Formatter};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Null;
 
 impl Value<Null> {
-	pub const NULL: Self = unsafe { Self::from_bits_unchecked(0b001_100) };
+	pub const NULL: Self = unsafe { Self::from_bits_unchecked(0b011_100) };
 }
 
 impl From<Null> for Value<Null> {
@@ -14,16 +15,26 @@ impl From<Null> for Value<Null> {
 }
 
 unsafe impl Convertible for Null {
-	type Inner = Self;
+	type Output = Self;
 
 	fn is_a(value: AnyValue) -> bool {
 		value.bits() == Value::NULL.bits()
 	}
+
+	fn get(_: Value<Self>) -> Self::Output {
+		Self
+	}
 }
 
-impl Immediate for Null {
-	#[inline]
-	fn get(_: Value<Self>) -> Self {
-		Self
+impl crate::base::HasParents for Null {
+	fn parents() -> crate::base::Parents {
+		// TODO
+		crate::base::Parents::NONE
+	}
+}
+
+impl Debug for Null {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		write!(f, "null")
 	}
 }

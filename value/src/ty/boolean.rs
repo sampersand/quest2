@@ -18,15 +18,13 @@ impl From<Boolean> for Value<Boolean> {
 }
 
 unsafe impl Convertible for Boolean {
-	type Inner = Self;
+	type Output = Self;
 
 	fn is_a(value: AnyValue) -> bool {
 		value.bits() == Value::TRUE.bits() || value.bits() == Value::FALSE.bits()
 	}
-}
 
-impl Immediate for Boolean {
-	fn get(value: Value<Self>) -> Self {
+	fn get(value: Value<Self>) -> Self::Output {
 		value.bits() == Value::TRUE.bits()
 	}
 }

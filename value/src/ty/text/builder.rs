@@ -1,16 +1,10 @@
 use super::{Text, MAX_EMBEDDED_LEN, FLAG_EMBEDDED};
-use crate::base::{Base, HasParents, Builder as BaseBuilder};
+use crate::base::{Base, Builder as BaseBuilder};
 
 pub struct Builder {
 	bb: BaseBuilder<Text>,
 	ptr: *mut u8,
 	cap: usize
-}
-
-impl HasParents for Text {
-	fn parents() -> crate::base::Parents {
-		crate::base::Parents::NONE
-	}
 }
 
 impl Builder {
