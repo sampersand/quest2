@@ -1,4 +1,4 @@
-pub use crate::{Value, Convertible, Immediate, AnyValue};
+pub use crate::{AnyValue, Convertible, Immediate, Value};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]

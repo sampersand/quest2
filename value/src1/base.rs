@@ -43,7 +43,7 @@ impl<T: 'static> Allocated<T> {
 
 		// Since we `alloc_zeroed`, `parent` is valid (as it's zero, which is `None`),
 		// and `attribtues` is valid (as it's zero, which is also `None`).
-		let ptr = alloc::alloc_zeroed(layout).cast::<Self>();
+		let ptr = crate::alloc_zeroed(layout).cast::<Self>();
 
 		// Everything else is default initialized to zero.
 		(*ptr).typeid = TypeId::of::<T>();

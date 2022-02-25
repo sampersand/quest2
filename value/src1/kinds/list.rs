@@ -49,7 +49,7 @@ impl List {
 				let ptr = base.data_mut().as_mut_ptr();
 
 				std::ptr::addr_of_mut!((*ptr).alloc.cap).write(cap);
-				std::ptr::addr_of_mut!((*ptr).alloc.ptr).write(alloc::alloc(alloc_ptr_layout(cap)).cast());
+				std::ptr::addr_of_mut!((*ptr).alloc.ptr).write(crate::alloc(alloc_ptr_layout(cap)).cast());
 			}
 		}
 
@@ -134,7 +134,7 @@ impl List {
 
 		unsafe {
 			let len = self.embed.len as usize;
-			let ptr = alloc::alloc(layout).cast::<AnyValue>();
+			let ptr = crate::alloc(layout).cast::<AnyValue>();
 			std::ptr::copy(self.embed.buf.as_ptr(), ptr, len);
 
 			self.alloc = AllocatedList { len, cap: new_cap, ptr };

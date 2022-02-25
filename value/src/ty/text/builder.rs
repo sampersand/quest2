@@ -1,10 +1,10 @@
-use super::{Text, MAX_EMBEDDED_LEN, FLAG_EMBEDDED};
+use super::{Text, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
 use crate::base::{Base, Builder as BaseBuilder};
 
 pub struct Builder {
 	bb: BaseBuilder<Text>,
 	ptr: *mut u8,
-	cap: usize
+	cap: usize,
 }
 
 impl Builder {
@@ -12,7 +12,7 @@ impl Builder {
 		let mut this = Self {
 			bb: unsafe { Base::<Text>::allocate() },
 			ptr: std::ptr::null_mut(),
-			cap
+			cap,
 		};
 
 		if cap <= MAX_EMBEDDED_LEN {
@@ -26,7 +26,7 @@ impl Builder {
 				alloc.cap = cap;
 
 				let layout = super::alloc_ptr_layout(cap);
-				alloc.ptr = std::alloc::alloc(layout);
+				alloc.ptr = crate::alloc(layout);
 				this.ptr = alloc.ptr;
 
 				if alloc.ptr.is_null() {
@@ -55,13 +55,9 @@ impl Builder {
 
 	pub fn len(&self) -> usize {
 		if self.is_embedded() {
-			unsafe {
-				self.bb.data().assume_init_ref().embed.len as usize
-			}
+			unsafe { self.bb.data().assume_init_ref().embed.len as usize }
 		} else {
-			unsafe {
-				self.bb.data().assume_init_ref().alloc.len
-			}
+			unsafe { self.bb.data().assume_init_ref().alloc.len }
 		}
 	}
 
@@ -69,8 +65,19 @@ impl Builder {
 		self.cap
 	}
 
+	pub unsafe fn bb_mut(&mut self) -> &mut BaseBuilder<Text> {
+		&mut self.bb
+	}
+
+	pub unsafe fn flags(&self) -> &crate::base::Flags {
+		self.bb.flags()
+	}
+
 	pub fn write(&mut self, inp: &str) {
-		assert!(inp.len() + self.len() <= self.cap(), "overflow initialization");
+		assert!(
+			inp.len() + self.len() <= self.cap(),
+			"overflow initialization"
+		);
 
 		unsafe {
 			std::ptr::copy(inp.as_ptr(), self.ptr, inp.len());
@@ -80,8 +87,6 @@ impl Builder {
 
 	pub fn finish(self) -> crate::Gc<Text> {
 		// We know this is safe, as any `unsafe` operations need to be completed correctly.
-		unsafe {
-			self.bb.finish()
-		}
+		unsafe { self.bb.finish() }
 	}
 }

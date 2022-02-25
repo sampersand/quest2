@@ -1,7 +1,7 @@
 use crate::AnyValue;
 
 pub union Parents {
-	single: Option<AnyValue>
+	single: Option<AnyValue>,
 }
 
 impl Parents {

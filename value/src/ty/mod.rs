@@ -1,13 +1,13 @@
-mod integer;
-mod float;
-mod null;
 mod boolean;
-mod text;
+mod float;
+mod integer;
 mod list;
+mod null;
+mod text;
 
-pub use integer::Integer;
-pub use float::Float;
-pub use null::Null;
 pub use boolean::Boolean;
-pub use text::Text;
+pub use float::Float;
+pub use integer::Integer;
 pub use list::List;
+pub use null::Null;
+pub use text::Text;

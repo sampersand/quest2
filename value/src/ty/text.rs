@@ -29,7 +29,8 @@ struct EmbeddedText {
 
 const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedText>() - std::mem::size_of::<u8>();
 const FLAG_EMBEDDED: u32 = Flags::USER1;
-const FLAG_SHARED: u32 = Flags::USER2;
+const FLAG_SHARED: u32   = Flags::USER2;
+const FLAG_NOFREE: u32   = Flags::USER3;
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 	alloc::Layout::array::<u8>(cap).unwrap()
@@ -42,32 +43,57 @@ impl Text {
 		builder.finish()
 	}
 
+	pub fn from_static_str(inp: &'static str) -> Gc<Self> {
+		unsafe {
+			let mut bb = crate::base::Base::<Text>::allocate();
+
+			bb.flags().insert(FLAG_NOFREE);
+			let mut data = bb.data_mut().assume_init_mut();
+			data.alloc.ptr = inp.as_ptr() as *mut u8;
+			data.alloc.len = inp.len();
+			data.alloc.cap = data.alloc.len; // capacity = length
+
+			bb.finish()
+		}
+	}
+
 	pub fn new() -> Gc<Self> {
 		Self::with_capacity(0)
 	}
 
 	pub fn with_capacity(cap: usize) -> Gc<Self> {
-		let builder = Self::builder(cap);
-
 		// Nothing to do, as the default state is valid.
-		builder.finish()
+		Self::builder(cap).finish()
 	}
 
 	pub fn builder(cap: usize) -> Builder {
 		Builder::new(cap)
 	}
 
-	pub fn is_embedded(&self) -> bool {
-		unsafe { Gc::from_ref(self) }.flags().contains(FLAG_EMBEDDED)
+	fn has_flag(&self, flag: u32) -> bool {
+		unsafe { Gc::from_ref(self) }.flags().contains(flag)
 	}
 
-	pub fn is_shared(&self) -> bool {
-		unsafe { Gc::from_ref(self) }.flags().contains(FLAG_SHARED)
+	fn remove_flag(&self, flag: u32) {
+		unsafe { Gc::from_ref(self) }.flags().remove(flag);
+	}
+
+	fn is_embedded(&self) -> bool {
+		self.has_flag(FLAG_EMBEDDED)
+	}
+
+	fn is_shared(&self) -> bool {
+		self.has_flag(FLAG_SHARED)
+	}
+
+	fn is_nofree(&self) -> bool {
+		self.has_flag(FLAG_NOFREE)
 	}
 
 	pub unsafe fn set_len(&mut self, new: usize) {
 		if self.is_embedded() {
 			assert!(new <= MAX_EMBEDDED_LEN);
+
 			self.embed.len = new as u8;
 		} else {
 			self.alloc.len = new;
@@ -92,22 +118,37 @@ impl Text {
 }
 
 impl Text {
+	unsafe fn duplicate_alloc_ptr(&mut self, cap: usize) {
+		debug_assert!(!self.is_embedded());
+
+		let old_ptr = self.alloc.ptr;
+		self.alloc.ptr = crate::alloc(alloc_ptr_layout(cap));
+		self.alloc.cap = cap;
+		std::ptr::copy(old_ptr, self.alloc.ptr, self.alloc.len);
+	}
+
 	pub fn as_ptr(&self) -> *const u8 {
 		if self.is_embedded() {
-			unsafe { self.embed.buf.as_ptr() }
+			unsafe { &self.embed.buf }.as_ptr()
 		} else {
 			unsafe { self.alloc.ptr as *const u8 }
 		}
 	}
 
 	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
-		if self.is_shared() {
-			// Note that we don't `drop`, self, as we dont have unique control over it.
-			std::ptr::copy(self.deep_clone().as_ptr(), self as *mut Self, 1);
-			// FIXME
+		if self.is_embedded() {
+			return self.embed.buf.as_mut_ptr();
 		}
 
-		return self.as_ptr() as *mut u8
+		if self.is_nofree() || self.is_shared() {
+			// Both static Rust strings (`FLAG_NOFREE`) and shared strings (`FLAG_SHARED`) don't allow
+			// us to write to their pointer. As such, we need to duplicate the `alloc.ptr` field, which
+			// gives us ownership of it. Afterwards, we have to remove the relevant flags.
+			self.duplicate_alloc_ptr(self.alloc.len);
+			self.remove_flag(FLAG_NOFREE | FLAG_SHARED);
+		}
+
+		self.alloc.ptr
 	}
 
 	pub fn as_bytes(&self) -> &[u8] {
@@ -126,6 +167,7 @@ impl Text {
 		}
 	}
 
+	#[inline]
 	pub fn as_mut_str(&mut self) -> &mut str {
 		unsafe {
 			std::str::from_utf8_unchecked_mut(self.as_mut_bytes())
@@ -133,13 +175,20 @@ impl Text {
 	}
 
 	pub fn clone(&self) -> Gc<Self> {
-		// if self.is_embedded() {
-		// 	return self.deep_clone();
-		// }
-		
-		let gc = unsafe { Gc::from_ref(self) };
-		gc.flags().insert(FLAG_SHARED);
-		gc
+		if self.is_embedded() {
+			return self.deep_clone();
+		}
+
+		unsafe {
+			// For allocated strings, you can actually one-for-one copy the body,
+			// as we now have `FLAG_SHARED` marked.
+			Gc::from_ref(self).flags().insert(FLAG_SHARED);
+
+			let mut bb = crate::base::Base::<Text>::allocate();
+			bb.flags().insert(FLAG_SHARED);
+			std::ptr::copy(self as *const Self, bb.data_mut().as_mut_ptr(), 1);
+			bb.finish()
+		}
 	}
 
 	pub fn deep_clone(&self) -> Gc<Self> {
@@ -150,39 +199,44 @@ impl Text {
 }
 
 impl Text {
-	fn allocate_more(&mut self, required_len: usize) {
-		if !self.is_embedded() {
-			let alloc = unsafe { &mut self.alloc };
-			let orig_layout = alloc_ptr_layout(alloc.cap);
-
-			alloc.cap *= 2;
-			if alloc.cap < required_len {
-				alloc.cap += required_len;
-			}
-
-			alloc.ptr = unsafe {
-				alloc::realloc(alloc.ptr, orig_layout, alloc.cap)
-			};
-			// TODO: check for return value
-
-			return;
-		}
+	fn allocate_more_embeded(&mut self, required_len: usize) {
+		debug_assert!(self.is_embedded());
 
 		let mut new_cap = MAX_EMBEDDED_LEN * 2;
 		if new_cap < required_len {
-			new_cap += required_len;
+			new_cap = required_len;
 		}
 
 		let layout = alloc_ptr_layout(new_cap);
 
 		unsafe {
 			let len = self.embed.len as usize;
-			let ptr = alloc::alloc(layout);
+			let ptr = crate::alloc(layout);
 			std::ptr::copy(self.embed.buf.as_ptr(), ptr, len);
 
 			self.alloc = AllocatedText { len, cap: new_cap, ptr };
 
-			Gc::from_ref(self).flags().remove(FLAG_EMBEDDED);
+			self.remove_flag(FLAG_EMBEDDED);
+		}
+	}
+
+	fn allocate_more(&mut self, required_len: usize) {
+		if self.is_embedded() {
+			return self.allocate_more_embeded(required_len)
+		}
+
+		unsafe {
+			self.alloc.cap *= 2;
+			if self.alloc.cap < required_len {
+				self.alloc.cap = required_len;
+			}
+
+			if self.is_nofree() {
+				self.duplicate_alloc_ptr(required_len);
+			} else {
+				let layout = alloc_ptr_layout(self.alloc.cap);
+				self.alloc.ptr = crate::realloc(self.alloc.ptr, layout, self.alloc.cap);
+			}
 		}
 	}
 
@@ -204,7 +258,7 @@ impl Text {
 	}
 
 	pub fn push_str(&mut self, string: &str) {
-		if self.len() + string.len() > self.capacity() {
+		if self.capacity() <= self.len() + string.len() {
 			self.allocate_more(string.len());
 		}
 
@@ -224,8 +278,8 @@ impl AsRef<str> for Text {
 
 impl Drop for Text {
 	fn drop(&mut self) {
-		if self.is_embedded() {
-			return; // Nothing to deallocate
+		if self.is_embedded() || self.is_nofree() {
+			return;
 		}
 
 		unsafe {
@@ -263,8 +317,8 @@ impl From<&'_ str> for Gc<Text> {
 }
 
 impl From<&'_ str> for crate::Value<Gc<Text>> {
-	fn from(string: &str) -> Self {
-		Text::from_str(string).into()
+	fn from(text: &str) -> Self {
+		Text::from_str(text).into()
 	}
 }
 

@@ -1,4 +1,2 @@
 #[derive(Debug)]
-pub struct Attributes {
-
-}
+pub struct Attributes {}
