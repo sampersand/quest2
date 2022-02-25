@@ -1,5 +1,5 @@
-use crate::Gc;
 use crate::base::Flags;
+use crate::Gc;
 use std::alloc;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -17,20 +17,20 @@ pub union Text {
 struct AllocatedText {
 	len: usize,
 	cap: usize,
-	ptr: *mut u8
+	ptr: *mut u8,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct EmbeddedText {
 	len: u8,
-	buf: [u8; MAX_EMBEDDED_LEN]
+	buf: [u8; MAX_EMBEDDED_LEN],
 }
 
 const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedText>() - std::mem::size_of::<u8>();
 const FLAG_EMBEDDED: u32 = Flags::USER1;
-const FLAG_SHARED: u32   = Flags::USER2;
-const FLAG_NOFREE: u32   = Flags::USER3;
+const FLAG_SHARED: u32 = Flags::USER2;
+const FLAG_NOFREE: u32 = Flags::USER3;
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 	alloc::Layout::array::<u8>(cap).unwrap()
@@ -152,9 +152,7 @@ impl Text {
 	}
 
 	pub fn as_bytes(&self) -> &[u8] {
-		unsafe {
-			std::slice::from_raw_parts(self.as_ptr(), self.len())
-		}
+		unsafe { std::slice::from_raw_parts(self.as_ptr(), self.len()) }
 	}
 
 	pub unsafe fn as_mut_bytes(&mut self) -> &mut [u8] {
@@ -162,16 +160,12 @@ impl Text {
 	}
 
 	pub fn as_str(&self) -> &str {
-		unsafe {
-			std::str::from_utf8_unchecked(self.as_bytes())
-		}
+		unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
 	}
 
 	#[inline]
 	pub fn as_mut_str(&mut self) -> &mut str {
-		unsafe {
-			std::str::from_utf8_unchecked_mut(self.as_mut_bytes())
-		}
+		unsafe { std::str::from_utf8_unchecked_mut(self.as_mut_bytes()) }
 	}
 
 	pub fn clone(&self) -> Gc<Self> {
@@ -214,7 +208,11 @@ impl Text {
 			let ptr = crate::alloc(layout);
 			std::ptr::copy(self.embed.buf.as_ptr(), ptr, len);
 
-			self.alloc = AllocatedText { len, cap: new_cap, ptr };
+			self.alloc = AllocatedText {
+				len,
+				cap: new_cap,
+				ptr,
+			};
 
 			self.remove_flag(FLAG_EMBEDDED);
 		}
@@ -222,7 +220,7 @@ impl Text {
 
 	fn allocate_more(&mut self, required_len: usize) {
 		if self.is_embedded() {
-			return self.allocate_more_embeded(required_len)
+			return self.allocate_more_embeded(required_len);
 		}
 
 		unsafe {
@@ -241,18 +239,14 @@ impl Text {
 	}
 
 	fn mut_end_ptr(&mut self) -> *mut u8 {
-		unsafe {
-			self.as_mut_ptr().offset(self.len() as isize)
-		}
+		unsafe { self.as_mut_ptr().offset(self.len() as isize) }
 	}
 
 	pub fn push(&mut self, chr: char) {
 		let mut buf = [0u8; 4];
 		chr.encode_utf8(&mut buf);
 
-		let chrstr = unsafe {
-			std::str::from_utf8_unchecked(&buf[..chr.len_utf8()])
-		};
+		let chrstr = unsafe { std::str::from_utf8_unchecked(&buf[..chr.len_utf8()]) };
 
 		self.push_str(chrstr);
 	}
@@ -282,9 +276,7 @@ impl Drop for Text {
 			return;
 		}
 
-		unsafe {
-			alloc::dealloc(self.alloc.ptr, alloc_ptr_layout(self.alloc.cap))
-		}
+		unsafe { alloc::dealloc(self.alloc.ptr, alloc_ptr_layout(self.alloc.cap)) }
 	}
 }
 
@@ -328,4 +320,3 @@ impl crate::base::HasParents for Text {
 		crate::base::Parents::NONE
 	}
 }
-

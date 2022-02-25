@@ -7,9 +7,7 @@ impl From<Float> for Value<Float> {
 	fn from(float: Float) -> Self {
 		let bits = (float.to_bits() & !3) | 2;
 
-		unsafe {
-			Self::from_bits_unchecked(bits)
-		}
+		unsafe { Self::from_bits_unchecked(bits) }
 	}
 }
 
