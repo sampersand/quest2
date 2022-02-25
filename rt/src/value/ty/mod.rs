@@ -1,9 +1,11 @@
+#[macro_use]
+pub mod rustfn;
+
 mod boolean;
 mod float;
 mod integer;
 mod list;
 mod null;
-mod rustfn;
 mod text;
 
 pub use boolean::Boolean;

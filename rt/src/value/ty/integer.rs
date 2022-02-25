@@ -1,4 +1,4 @@
-pub use crate::{AnyValue, Convertible, Value};
+pub use crate::value::{AnyValue, Convertible, Value};
 
 pub type Integer = i64;
 
@@ -29,9 +29,9 @@ unsafe impl Convertible for Integer {
 	}
 }
 
-impl crate::base::HasParents for Integer {
-	fn parents() -> crate::base::Parents {
+impl crate::value::base::HasParents for Integer {
+	fn parents() -> crate::value::base::Parents {
 		// TODO
-		crate::base::Parents::NONE
+		crate::value::base::Parents::NONE
 	}
 }

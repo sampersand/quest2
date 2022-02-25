@@ -1,5 +1,5 @@
-use crate::base::Flags;
-use crate::Gc;
+use crate::value::base::Flags;
+use crate::value::Gc;
 use std::alloc;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -45,7 +45,7 @@ impl Text {
 
 	pub fn from_static_str(inp: &'static str) -> Gc<Self> {
 		unsafe {
-			let mut bb = crate::base::Base::<Text>::allocate();
+			let mut bb = crate::value::base::Base::<Text>::allocate();
 
 			bb.flags().insert(FLAG_NOFREE);
 			let mut data = bb.data_mut().assume_init_mut();
@@ -178,7 +178,7 @@ impl Text {
 			// as we now have `FLAG_SHARED` marked.
 			Gc::from_ref(self).flags().insert(FLAG_SHARED);
 
-			let mut bb = crate::base::Base::<Text>::allocate();
+			let mut bb = crate::value::base::Base::<Text>::allocate();
 			bb.flags().insert(FLAG_SHARED);
 			std::ptr::copy(self as *const Self, bb.data_mut().as_mut_ptr(), 1);
 			bb.finish()
@@ -314,9 +314,9 @@ impl From<&'_ str> for crate::Value<Gc<Text>> {
 	}
 }
 
-impl crate::base::HasParents for Text {
-	fn parents() -> crate::base::Parents {
+impl crate::value::base::HasParents for Text {
+	fn parents() -> crate::value::base::Parents {
 		// TODO
-		crate::base::Parents::NONE
+		crate::value::base::Parents::NONE
 	}
 }

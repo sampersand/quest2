@@ -1,5 +1,5 @@
 use super::{Text, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
-use crate::base::{Base, Builder as BaseBuilder};
+use crate::value::base::{Base, Builder as BaseBuilder};
 
 pub struct Builder {
 	bb: BaseBuilder<Text>,
@@ -69,7 +69,7 @@ impl Builder {
 		&mut self.bb
 	}
 
-	pub unsafe fn flags(&self) -> &crate::base::Flags {
+	pub unsafe fn flags(&self) -> &crate::value::base::Flags {
 		self.bb.flags()
 	}
 
@@ -85,7 +85,7 @@ impl Builder {
 		}
 	}
 
-	pub fn finish(self) -> crate::Gc<Text> {
+	pub fn finish(self) -> crate::value::Gc<Text> {
 		// We know this is safe, as any `unsafe` operations need to be completed correctly.
 		unsafe { self.bb.finish() }
 	}

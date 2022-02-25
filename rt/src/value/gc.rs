@@ -1,5 +1,5 @@
-use crate::base::{Base, Flags, Header};
-use crate::{AnyValue, Convertible, Value};
+use crate::value::base::{Base, Flags, Header};
+use crate::value::{AnyValue, Convertible, Value};
 use std::fmt::{self, Debug, Formatter};
 use std::ptr::NonNull;
 

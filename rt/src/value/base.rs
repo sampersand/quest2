@@ -31,7 +31,7 @@ pub struct Base<T: 'static> {
 }
 
 impl<T: HasParents + 'static> Base<T> {
-	pub fn new(data: T) -> crate::Gc<T> {
+	pub fn new(data: T) -> crate::value::Gc<T> {
 		unsafe {
 			let mut builder = Self::allocate();
 			builder.data_mut().write(data);

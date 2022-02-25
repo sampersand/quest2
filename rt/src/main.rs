@@ -1,18 +1,29 @@
 #![allow(unused)]
 
-use qvm_value::ty::*;
-use qvm_value::*;
+#[macro_use]
+use qvm_rt;
+use qvm_rt::value::ty::*;
+use qvm_rt::value::*;
+
+fn foo(x: &[u8]) -> qvm_rt::Result<AnyValue> {
+	Ok(Value::from(x[0] as i64 + x[1] as i64).any())
+}
 
 fn main() {
-	let mut text1 = Text::from_static_str("Hello, world");
-	let text2 = text1.as_ref().unwrap().clone();
+	let rfn = Value::from(qvm_rt::RustFn_new!("foo", foo)).any();
+	dbg!(rfn);
 
-	dbg!(text1, text1.flags());
-	dbg!(text2, text2.flags());
-	text1.as_mut().unwrap().push('!');
-	dbg!(text1, text1.flags());
-	dbg!(text2, text2.flags());
-	dbg!(text2.as_ref().unwrap().deep_clone().flags());
+
+	// let mut text1 = Text::from_static_str("Hello, world");
+	// let text2 = text1.as_ref().unwrap().clone();
+
+	// dbg!(text1); // Hello, world
+	// dbg!(text2); // Hello, world
+	// assert_eq!(text1.as_ref().unwrap().as_ptr(), text2.as_ref().unwrap().as_ptr());
+	// text1.as_mut().unwrap().push('!');
+	// dbg!(text1); // Hello, world!
+	// dbg!(text2); // Hello, world
+	// assert_ne!(text1.as_ref().unwrap().as_ptr(), text2.as_ref().unwrap().as_ptr());
 	/*
 
 		pub const USER1: u32         = 0b00000000_00000001;

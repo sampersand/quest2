@@ -1,4 +1,4 @@
-pub use crate::{AnyValue, Convertible, Value};
+pub use crate::value::{AnyValue, Convertible, Value};
 
 pub type Float = f64;
 
@@ -24,9 +24,9 @@ unsafe impl Convertible for Float {
 	}
 }
 
-impl crate::base::HasParents for Float {
-	fn parents() -> crate::base::Parents {
+impl crate::value::base::HasParents for Float {
+	fn parents() -> crate::value::base::Parents {
 		// TODO
-		crate::base::Parents::NONE
+		crate::value::base::Parents::NONE
 	}
 }

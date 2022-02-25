@@ -1,4 +1,4 @@
-pub use crate::{AnyValue, Convertible, Value};
+pub use crate::value::{AnyValue, Convertible, Value};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -26,10 +26,10 @@ unsafe impl Convertible for Null {
 	}
 }
 
-impl crate::base::HasParents for Null {
-	fn parents() -> crate::base::Parents {
+impl crate::value::base::HasParents for Null {
+	fn parents() -> crate::value::base::Parents {
 		// TODO
-		crate::base::Parents::NONE
+		crate::value::base::Parents::NONE
 	}
 }
 

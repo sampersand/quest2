@@ -1,5 +1,5 @@
 use super::{Base, Parents};
-use crate::Gc;
+use crate::value::Gc;
 use std::any::TypeId;
 use std::mem::MaybeUninit;
 use std::ptr::{addr_of_mut, NonNull};

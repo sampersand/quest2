@@ -67,17 +67,17 @@ pub type AnyValue = Value<Any>;
 
 impl AnyValue {
 	#[inline]
-	pub fn is_a<T: crate::Convertible>(self) -> bool {
+	pub fn is_a<T: crate::value::Convertible>(self) -> bool {
 		T::is_a(self)
 	}
 
 	#[inline]
-	pub fn downcast<T: crate::Convertible>(self) -> Option<Value<T>> {
+	pub fn downcast<T: crate::value::Convertible>(self) -> Option<Value<T>> {
 		T::downcast(self)
 	}
 }
 
-impl<T: crate::Convertible> Debug for Value<T> {
+impl<T: crate::value::Convertible> Debug for Value<T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.write_str("Value(")?;
 		Debug::fmt(&T::get(*self), f)?;
@@ -87,8 +87,8 @@ impl<T: crate::Convertible> Debug for Value<T> {
 
 impl Debug for AnyValue {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		use crate::ty::*;
-		use crate::Gc;
+		use crate::value::ty::*;
+		use crate::value::Gc;
 
 		if let Some(i) = self.downcast::<Integer>() {
 			Debug::fmt(&i, fmt)
@@ -98,6 +98,8 @@ impl Debug for AnyValue {
 			Debug::fmt(&b, fmt)
 		} else if let Some(n) = self.downcast::<Null>() {
 			Debug::fmt(&n, fmt)
+		} else if let Some(f) = self.downcast::<&'static RustFn>() {
+			Debug::fmt(&f, fmt)
 		} else if let Some(t) = self.downcast::<Gc<Text>>() {
 			Debug::fmt(&t, fmt)
 		} else if let Some(i) = self.downcast::<Gc<Integer>>() {
@@ -108,6 +110,8 @@ impl Debug for AnyValue {
 			Debug::fmt(&b, fmt)
 		} else if let Some(n) = self.downcast::<Gc<Null>>() {
 			Debug::fmt(&n, fmt)
+		} else if let Some(f) = self.downcast::<Gc<&'static RustFn>>() {
+			Debug::fmt(&f, fmt)
 		} else {
 			write!(
 				fmt,
