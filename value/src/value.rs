@@ -41,9 +41,14 @@ impl<T> Value<T> {
 	pub const fn any(self) -> AnyValue {
 		unsafe { std::mem::transmute(self) }
 	}
+
+	pub const fn id(self) -> u64 {
+		self.0.get() // unique id for each object, technically lol
+	}
+	
 }
 
-pub struct Any;
+pub enum Any {}
 pub type AnyValue = Value<Any>;
 
 impl AnyValue {
@@ -57,6 +62,7 @@ impl AnyValue {
 		T::downcast(self)
 	}
 }
+
 impl<T: crate::Convertible> Debug for Value<T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.write_str("Value(")?;
@@ -65,24 +71,20 @@ impl<T: crate::Convertible> Debug for Value<T> {
 	}
 }
 
-
 impl Debug for AnyValue {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		use crate::ty::*;
 		use crate::Gc;
 
-		if let Some(integer) = self.downcast::<Integer>() {
-			Debug::fmt(&integer, f)
-		} else if let Some(float) = self.downcast::<Float>() {
-			Debug::fmt(&float, f)
-		} else if let Some(boolean) = self.downcast::<Boolean>() {
-			Debug::fmt(&boolean, f)
-		} else if let Some(null) = self.downcast::<Null>() {
-			Debug::fmt(&null, f)
-		} else if let Some(text) = self.downcast::<Gc<Text>>() {
-			Debug::fmt(&text, f)
-		} else {
-			write!(f, "Value(<unknown:{:p}>)", self.0.get() as usize as *const ())
-		}
+		     if let Some(i) = self.downcast::<Integer>() { Debug::fmt(&i, fmt) }
+		else if let Some(f) = self.downcast::<Float>() { Debug::fmt(&f, fmt) }
+		else if let Some(b) = self.downcast::<Boolean>() { Debug::fmt(&b, fmt) }
+		else if let Some(n) = self.downcast::<Null>() { Debug::fmt(&n, fmt) }
+		else if let Some(t) = self.downcast::<Gc<Text>>() { Debug::fmt(&t, fmt) }
+		else if let Some(i) = self.downcast::<Gc<Integer>>() { Debug::fmt(&i, fmt) }
+		else if let Some(f) = self.downcast::<Gc<Float>>() { Debug::fmt(&f, fmt) }
+		else if let Some(b) = self.downcast::<Gc<Boolean>>() { Debug::fmt(&b, fmt)  }
+		else if let Some(n) = self.downcast::<Gc<Null>>() { Debug::fmt(&n, fmt)  }
+		else { write!(fmt, "Value(<unknown:{:p}>)", self.0.get() as usize as *const ()) }
 	}
 }

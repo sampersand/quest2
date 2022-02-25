@@ -29,6 +29,7 @@ struct EmbeddedText {
 
 const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedText>() - std::mem::size_of::<u8>();
 const FLAG_EMBEDDED: u32 = Flags::USER1;
+const FLAG_SHARED: u32 = Flags::USER2;
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 	alloc::Layout::array::<u8>(cap).unwrap()
@@ -60,6 +61,10 @@ impl Text {
 		unsafe { Gc::from_ref(self) }.flags().contains(FLAG_EMBEDDED)
 	}
 
+	pub fn is_shared(&self) -> bool {
+		unsafe { Gc::from_ref(self) }.flags().contains(FLAG_SHARED)
+	}
+
 	pub unsafe fn set_len(&mut self, new: usize) {
 		if self.is_embedded() {
 			assert!(new <= MAX_EMBEDDED_LEN);
@@ -77,7 +82,7 @@ impl Text {
 		}
 	}
 
-	pub fn cap(&self) -> usize {
+	pub fn capacity(&self) -> usize {
 		if self.is_embedded() {
 			MAX_EMBEDDED_LEN
 		} else {
@@ -96,7 +101,13 @@ impl Text {
 	}
 
 	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
-		self.as_ptr() as *mut u8
+		if self.is_shared() {
+			// Note that we don't `drop`, self, as we dont have unique control over it.
+			std::ptr::copy(self.deep_clone().as_ptr(), self as *mut Self, 1);
+			// FIXME
+		}
+
+		return self.as_ptr() as *mut u8
 	}
 
 	pub fn as_bytes(&self) -> &[u8] {
@@ -120,9 +131,24 @@ impl Text {
 			std::str::from_utf8_unchecked_mut(self.as_mut_bytes())
 		}
 	}
+
+	pub fn clone(&self) -> Gc<Self> {
+		// if self.is_embedded() {
+		// 	return self.deep_clone();
+		// }
+		
+		let gc = unsafe { Gc::from_ref(self) };
+		gc.flags().insert(FLAG_SHARED);
+		gc
+	}
+
+	pub fn deep_clone(&self) -> Gc<Self> {
+		let mut builder = Self::builder(self.len());
+		builder.write(self.as_str());
+		builder.finish()
+	}
 }
 
-/*
 impl Text {
 	fn allocate_more(&mut self, required_len: usize) {
 		if !self.is_embedded() {
@@ -137,6 +163,7 @@ impl Text {
 			alloc.ptr = unsafe {
 				alloc::realloc(alloc.ptr, orig_layout, alloc.cap)
 			};
+			// TODO: check for return value
 
 			return;
 		}
@@ -155,7 +182,7 @@ impl Text {
 
 			self.alloc = AllocatedText { len, cap: new_cap, ptr };
 
-			(*Base::upcast_mut(self)).flags().remove(FLAG_EMBEDDED);
+			Gc::from_ref(self).flags().remove(FLAG_EMBEDDED);
 		}
 	}
 
@@ -188,7 +215,6 @@ impl Text {
 		}
 	}
 }
-*/
 
 impl AsRef<str> for Text {
 	fn as_ref(&self) -> &str {

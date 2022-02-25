@@ -59,6 +59,13 @@ impl<T: 'static> Gc<T> {
 		})
 	}
 
+	pub fn as_mut(&mut self) -> Option<impl std::ops::DerefMut<Target=T> + '_> {
+		// TODO
+		Some(unsafe {
+			self.as_mut_unchecked()
+		})
+	}
+
 	pub fn as_ptr(&self) -> *const T {
 		self.0.as_ptr() as *const T
 	}
