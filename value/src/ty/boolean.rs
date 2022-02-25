@@ -1,10 +1,10 @@
-pub use crate::{AnyValue, Convertible, Immediate, Value};
+pub use crate::{AnyValue, Convertible, Value};
 
 pub type Boolean = bool;
 
 impl Value<Boolean> {
-	pub const TRUE: Self = unsafe { Self::from_bits_unchecked(0b010_100) };
 	pub const FALSE: Self = unsafe { Self::from_bits_unchecked(0b001_100) };
+	pub const TRUE: Self = unsafe { Self::from_bits_unchecked(0b010_100) };
 }
 
 impl From<Boolean> for Value<Boolean> {

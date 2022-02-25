@@ -2,6 +2,21 @@ use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
 
+/*
+000...0 000 000 = undefined
+XXX...X XXX 000 = pointer (nonzero `X`)
+XXX...X XXX XX1 = i63
+XXX...X XXX X10 = f62
+XXX...X XXX 100 = rustfn (nonzero `X`, gotta remove the `1`)
+000...0 001 100 = false
+000...0 010 100 = true
+000...0 011 100 = null
+
+NOTE: Technically, the first page can be allocated in some architectures
+(and thus `false`/`true`/`null` constants could ~technically~ be allocated).
+However, those are microkernels so I dont really care. No relevant OS will
+map the first page to userspace.
+*/
 #[repr(transparent)]
 pub struct Value<T: ?Sized>(NonZeroU64, PhantomData<T>);
 

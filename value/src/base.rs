@@ -49,12 +49,6 @@ impl<T: 'static> Base<T> {
 		Builder::new(parents)
 	}
 
-	// fn data_mut(&mut self) -> &mut MaybeUninit<T> {
-	// 	unsafe {
-	// 		&mut *self.data.get() // FIXME: can this be simplified?
-	// 	}
-	// }
-
 	pub fn flags(&self) -> &Flags {
 		self.header().flags()
 	}

@@ -23,31 +23,10 @@ pub unsafe trait Convertible: Into<Value<Self>> {
 	fn get(value: Value<Self>) -> Self::Output;
 }
 
-pub unsafe trait Allocated: Sized + 'static {}
-// pub unsafe trait Allocated: Sized + 'static
-// where
-// 	Gc<Self>: Convertible
-// {
-// 	fn get(value: Value<Self>) -> Gc<Self> {
-// 		Gc::new
-// 	}
-// }
-
-mod private {
-	use super::*;
-
-	// FIXME: people can still access immediates.
-	pub trait Immediate: Convertible + Copy {
-		fn get(value: Value<Self>) -> Self;
-	}
-}
-
-pub use private::Immediate;
-
 unsafe fn alloc(layout: std::alloc::Layout) -> *mut u8 {
 	let ptr = std::alloc::alloc(layout);
 
-	if ptr.is_null() {
+	if ptr.is_null() || (!cfg!(feature="first-page-never-allocated") && ptr as u64 <= 0b111_111) {
 		std::alloc::handle_alloc_error(layout);
 	}
 
@@ -57,7 +36,7 @@ unsafe fn alloc(layout: std::alloc::Layout) -> *mut u8 {
 unsafe fn alloc_zeroed(layout: std::alloc::Layout) -> *mut u8 {
 	let ptr = std::alloc::alloc_zeroed(layout);
 
-	if ptr.is_null() {
+	if ptr.is_null() || (!cfg!(feature="first-page-never-allocated") && ptr as u64 <= 0b111_111) {
 		std::alloc::handle_alloc_error(layout);
 	}
 
@@ -67,7 +46,7 @@ unsafe fn alloc_zeroed(layout: std::alloc::Layout) -> *mut u8 {
 unsafe fn realloc(ptr: *mut u8, layout: std::alloc::Layout, new_size: usize) -> *mut u8 {
 	let ptr = std::alloc::realloc(ptr, layout, new_size);
 
-	if ptr.is_null() {
+	if ptr.is_null() || (!cfg!(feature="first-page-never-allocated") && ptr as u64 <= 0b111_111) {
 		std::alloc::handle_alloc_error(layout);
 	}
 
