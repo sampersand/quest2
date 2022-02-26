@@ -1,5 +1,5 @@
 use crate::value::base::Flags;
-use crate::value::Gc;
+use crate::value::gc::{Gc, GcRef, GcMut};
 use std::alloc;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -36,8 +36,8 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 	alloc::Layout::array::<u8>(cap).unwrap()
 }
 
-impl Text {
-	pub fn from_str(inp: &str) -> Gc<Self> {
+impl Gc<Text> {
+	pub fn from_str(inp: &str) -> Self {
 		let mut builder = Self::builder();
 
 		unsafe {
@@ -47,7 +47,7 @@ impl Text {
 		}
 	}
 
-	pub fn from_static_str(inp: &'static str) -> Gc<Self> {
+	pub fn from_static_str(inp: &'static str) -> Self {
 		let mut builder = Self::builder();
 		builder.insert_flag(FLAG_NOFREE);
 
@@ -59,11 +59,11 @@ impl Text {
 		unsafe { builder.finish() }
 	}
 
-	pub fn new() -> Gc<Self> {
+	pub fn new() -> Self {
 		Self::with_capacity(0)
 	}
 
-	pub fn with_capacity(capacity: usize) -> Gc<Self> {
+	pub fn with_capacity(capacity: usize) -> Self {
 		let mut builder = Self::builder();
 
 		unsafe {
@@ -75,43 +75,23 @@ impl Text {
 	pub fn builder() -> Builder {
 		Builder::new()
 	}
+}
 
-	fn insert_flag(&self, flag: u32) {
-		unsafe { Gc::from_ref(self) }.flags().insert(flag)
-	}
-
-	fn has_flag(&self, flag: u32) -> bool {
-		unsafe { Gc::from_ref(self) }.flags().contains(flag)
-	}
-
-	fn remove_flag(&self, flag: u32) {
-		unsafe { Gc::from_ref(self) }.flags().remove(flag);
-	}
-
+impl GcRef<Text> {
 	fn is_embedded(&self) -> bool {
-		self.has_flag(FLAG_EMBEDDED)
+		self.flags().contains(FLAG_EMBEDDED)
 	}
 
 	fn is_shared(&self) -> bool {
-		self.has_flag(FLAG_SHARED)
+		self.flags().contains(FLAG_SHARED)
 	}
 
 	fn is_nofree(&self) -> bool {
-		self.has_flag(FLAG_NOFREE)
+		self.flags().contains(FLAG_NOFREE)
 	}
 
 	fn is_pointer_immutable(&self) -> bool {
 		self.is_nofree() || self.is_shared()
-	}
-
-	pub unsafe fn set_len(&mut self, new: usize) {
-		if self.is_embedded() {
-			assert!(new <= MAX_EMBEDDED_LEN);
-
-			self.embed.len = new as u8;
-		} else {
-			self.alloc.len = new;
-		}
 	}
 
 	pub fn len(&self) -> usize {
@@ -129,18 +109,6 @@ impl Text {
 			unsafe { self.alloc.cap }
 		}
 	}
-}
-
-impl Text {
-	unsafe fn duplicate_alloc_ptr(&mut self, capacity: usize) {
-		debug_assert!(!self.is_embedded());
-
-		let old_ptr = self.alloc.ptr;
-		dbg!(capacity);
-		self.alloc.ptr = crate::alloc(alloc_ptr_layout(capacity));
-		self.alloc.cap = capacity;
-		std::ptr::copy(old_ptr, self.alloc.ptr, self.alloc.len);
-	}
 
 	pub fn as_ptr(&self) -> *const u8 {
 		if self.is_embedded() {
@@ -150,40 +118,15 @@ impl Text {
 		}
 	}
 
-	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
-		if self.is_embedded() {
-			return self.embed.buf.as_mut_ptr();
-		}
-
-		if self.is_pointer_immutable() {
-			// Both static Rust strings (`FLAG_NOFREE`) and shared strings (`FLAG_SHARED`) don't allow
-			// us to write to their pointer. As such, we need to duplicate the `alloc.ptr` field, which
-			// gives us ownership of it. Afterwards, we have to remove the relevant flags.
-			self.duplicate_alloc_ptr(self.alloc.len);
-			self.remove_flag(FLAG_NOFREE | FLAG_SHARED);
-		}
-
-		self.alloc.ptr
-	}
-
 	pub fn as_bytes(&self) -> &[u8] {
 		unsafe { std::slice::from_raw_parts(self.as_ptr(), self.len()) }
-	}
-
-	pub unsafe fn as_mut_bytes(&mut self) -> &mut [u8] {
-		std::slice::from_raw_parts_mut(self.as_mut_ptr(), self.len())
 	}
 
 	pub fn as_str(&self) -> &str {
 		unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
 	}
 
-	#[inline]
-	pub fn as_mut_str(&mut self) -> &mut str {
-		unsafe { std::str::from_utf8_unchecked_mut(self.as_mut_bytes()) }
-	}
-
-	pub fn clone(&self) -> Gc<Self> {
+	pub fn clone(&self) -> Gc<Text> {
 		if self.is_embedded() {
 			// Since we're allocating a new `Self` anyways, we may as well copy over the data.
 			return self.deep_clone();
@@ -192,22 +135,86 @@ impl Text {
 		unsafe {
 			// For allocated strings, you can actually one-for-one copy the body, as we now
 			// have `FLAG_SHARED` marked.
-			self.insert_flag(FLAG_SHARED);
+			self.flags().insert(FLAG_SHARED);
 
-			let mut builder = Self::builder();
-			std::ptr::copy(self as *const Self, builder.text_mut(), 1);
+			let mut builder = Gc::<Text>::builder();
+			std::ptr::copy(self.as_ptr(), (&mut **builder.text_mut() as *mut Text).cast::<u8>(), 1);
 			builder.finish()
 		}
 	}
 
-	pub fn deep_clone(&self) -> Gc<Self> {
-		Self::from_str(self.as_str())
+	pub fn deep_clone(&self) -> Gc<Text> {
+		Gc::from_str(self.as_str())
+	}
+
+	pub fn substr<I: std::slice::SliceIndex<str, Output=str>>(&self, idx: I) -> Gc<Text> {
+		let slice = &self.as_str()[idx];
+
+		unsafe {
+			self.flags().insert(FLAG_SHARED);
+
+			let mut builder = Gc::<Text>::builder();
+			builder.insert_flag(FLAG_SHARED);
+			builder.text_mut().alloc = AllocatedText {
+				ptr: slice.as_ptr() as *mut u8,
+				len: slice.len(),
+				cap: slice.len(), // capacity = length
+			};
+
+			builder.finish()
+		}
 	}
 }
 
-impl Text {
+impl GcMut<Text> {
+	pub unsafe fn set_len(&mut self, new: usize) {
+		if self.r().is_embedded() {
+			assert!(new <= MAX_EMBEDDED_LEN);
+
+			self.embed.len = new as u8;
+		} else {
+			self.alloc.len = new;
+		}
+	}
+
+	unsafe fn duplicate_alloc_ptr(&mut self, capacity: usize) {
+		debug_assert!(!self.r().is_embedded());
+
+		let old_ptr = self.alloc.ptr;
+		dbg!(capacity);
+		self.alloc.ptr = crate::alloc(alloc_ptr_layout(capacity));
+		self.alloc.cap = capacity;
+		std::ptr::copy(old_ptr, self.alloc.ptr, self.alloc.len);
+	}
+
+	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
+		if self.r().is_embedded() {
+			return self.embed.buf.as_mut_ptr();
+		}
+
+		if self.r().is_pointer_immutable() {
+			// Both static Rust strings (`FLAG_NOFREE`) and shared strings (`FLAG_SHARED`) don't allow
+			// us to write to their pointer. As such, we need to duplicate the `alloc.ptr` field, which
+			// gives us ownership of it. Afterwards, we have to remove the relevant flags.
+			self.duplicate_alloc_ptr(self.alloc.len);
+			self.r().flags().remove(FLAG_NOFREE | FLAG_SHARED);
+		}
+
+		self.alloc.ptr
+	}
+	pub unsafe fn as_mut_bytes(&mut self) -> &mut [u8] {
+		std::slice::from_raw_parts_mut(self.as_mut_ptr(), self.r().len())
+	}
+
+	#[inline]
+	pub fn as_mut_str(&mut self) -> &mut str {
+		unsafe { std::str::from_utf8_unchecked_mut(self.as_mut_bytes()) }
+	}
+}
+
+impl GcMut<Text> {
 	fn allocate_more_embeded(&mut self, required_len: usize) {
-		debug_assert!(self.is_embedded());
+		debug_assert!(self.r().is_embedded());
 		debug_assert!(required_len > MAX_EMBEDDED_LEN); // we should only every realloc at this point.
 
 		let new_cap = std::cmp::max(MAX_EMBEDDED_LEN * 2, required_len);
@@ -224,14 +231,14 @@ impl Text {
 				ptr,
 			};
 
-			self.remove_flag(FLAG_EMBEDDED);
+			self.r().flags().remove(FLAG_EMBEDDED);
 		}
 	}
 
 	fn allocate_more(&mut self, required_len: usize) {
 		// If we're allocating more, and we're embedded, then we are going to need to allocate an
 		// entirely new buffer in memory, and no longer be embedded.
-		if self.is_embedded() {
+		if self.r().is_embedded() {
 			return self.allocate_more_embeded(required_len);
 		}
 
@@ -240,9 +247,9 @@ impl Text {
 
 		// If the pointer is immutable, we have to allocate a new buffer, and then copy
 		// over the data.
-		if self.is_pointer_immutable() {
+		if self.r().is_pointer_immutable() {
 			unsafe { self.duplicate_alloc_ptr(new_cap); }
-			self.remove_flag(FLAG_NOFREE | FLAG_SHARED);
+			self.r().flags().remove(FLAG_NOFREE | FLAG_SHARED);
 			return;
 		}
 
@@ -255,7 +262,7 @@ impl Text {
 	}
 
 	fn mut_end_ptr(&mut self) -> *mut u8 {
-		unsafe { self.as_mut_ptr().offset(self.len() as isize) }
+		unsafe { self.as_mut_ptr().offset(self.r().len() as isize) }
 	}
 
 	pub fn push(&mut self, chr: char) {
@@ -268,7 +275,7 @@ impl Text {
 	}
 
 	pub fn push_str(&mut self, string: &str) {
-		if self.capacity() <= self.len() + string.len() {
+		if self.r().capacity() <= self.r().len() + string.len() {
 			self.allocate_more(string.len());
 		}
 
@@ -278,10 +285,10 @@ impl Text {
 	}
 
 	pub unsafe fn push_str_unchecked(&mut self, string: &str) {
-		debug_assert!(self.capacity() >= self.len() + string.len());
+		debug_assert!(self.r().capacity() >= self.r().len() + string.len());
 
 		std::ptr::copy(string.as_ptr(), self.mut_end_ptr(), string.len());
-		self.set_len(self.len() + string.len())
+		self.set_len(self.r().len() + string.len())
 	}
 
 	// fn fix_idx(&self, idx: isize) -> Option<usize> {
@@ -311,44 +318,33 @@ impl Text {
 
 	// 	panic!()
 	// }
-
-	pub fn substr<I: std::slice::SliceIndex<str, Output=str>>(&self, idx: I) -> Gc<Self> {
-		let slice = &self.as_str()[idx];
-
-		unsafe {
-			self.insert_flag(FLAG_SHARED);
-
-			let mut builder = Self::builder();
-			builder.insert_flag(FLAG_SHARED);
-			builder.text_mut().alloc = AllocatedText {
-				ptr: slice.as_ptr() as *mut u8,
-				len: slice.len(),
-				cap: slice.len(), // capacity = length
-			};
-
-			builder.finish()
-		}
-	}
 }
 
 impl Default for Gc<Text> {
 	fn default() -> Self {
-		Text::new()
+		Self::new()
 	}
 }
 
-impl AsMut<str> for Text {
+impl AsMut<str> for GcMut<Text> {
 	fn as_mut(&mut self) -> &mut str {
 		self.as_mut_str()
 	}
 }
 
-impl AsRef<str> for Text {
+impl AsRef<str> for GcRef<Text> {
 	fn as_ref(&self) -> &str {
 		self.as_str()
 	}
 }
 
+impl AsRef<str> for GcMut<Text> {
+	fn as_ref(&self) -> &str {
+		self.r().as_ref()
+	}
+}
+
+/*
 impl Drop for Text {
 	fn drop(&mut self) {
 		if self.is_embedded() || self.is_nofree() || self.is_shared() {
@@ -365,9 +361,9 @@ impl Drop for Text {
 
 		unsafe { alloc::dealloc(self.alloc.ptr, alloc_ptr_layout(self.alloc.cap)) }
 	}
-}
+}*/
 
-impl Debug for Text {
+impl Debug for GcRef<Text> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		if f.alternate() {
 			f.write_str("Text(")?;
@@ -383,7 +379,7 @@ impl Debug for Text {
 	}
 }
 
-impl Display for Text {
+impl Display for GcRef<Text> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		Display::fmt(&self.as_str(), f)
 	}
@@ -391,13 +387,13 @@ impl Display for Text {
 
 impl From<&'_ str> for Gc<Text> {
 	fn from(string: &str) -> Self {
-		Text::from_str(string)
+		Self::from_str(string)
 	}
 }
 
 impl From<&'_ str> for crate::Value<Gc<Text>> {
 	fn from(text: &str) -> Self {
-		Text::from_str(text).into()
+		Gc::<Text>::from_str(text).into()
 	}
 }
 
@@ -408,32 +404,32 @@ impl crate::value::base::HasParents for Text {
 	}
 }
 
-impl Eq for Text {}
-impl PartialEq for Text {
+impl Eq for GcRef<Text> {}
+impl PartialEq for GcRef<Text> {
 	fn eq(&self, rhs: &Self) -> bool {
 		self == rhs.as_str()
 	}
 }
 
-impl PartialEq<str> for Text {
+impl PartialEq<str> for GcRef<Text> {
 	fn eq(&self, rhs: &str) -> bool {
 		self.as_str() == rhs
 	}
 }
 
-impl PartialOrd for Text {
+impl PartialOrd for GcRef<Text> {
 	fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
 		Some(self.cmp(rhs))
 	}
 }
 
-impl Ord for Text {
+impl Ord for GcRef<Text> {
 	fn cmp(&self, rhs: &Self) -> std::cmp::Ordering {
 		self.as_str().cmp(rhs.as_str())
 	}
 }
 
-impl PartialOrd<str> for Text {
+impl PartialOrd<str> for GcRef<Text> {
 	fn partial_cmp(&self, rhs: &str) -> Option<std::cmp::Ordering> {
 		self.as_str().partial_cmp(&rhs)
 	}

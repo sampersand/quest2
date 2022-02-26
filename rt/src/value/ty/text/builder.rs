@@ -1,5 +1,5 @@
 use super::{Text, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
-use crate::value::Gc;
+use crate::value::gc::{Gc, GcMut};
 use crate::value::base::{Base, Builder as BaseBuilder};
 
 pub struct Builder(BaseBuilder<Text>);
@@ -13,12 +13,12 @@ impl Builder {
 		self.0.flags().insert(flag);
 	}
 
-	pub unsafe fn text_mut(&mut self) -> &mut Text {
-		self.0.data_mut().assume_init_mut()
+	pub unsafe fn text_mut(&mut self) -> &mut GcMut<Text> {
+		self.0.gcmut()
 	}
 
 	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
-		self.text_mut().as_mut_ptr()
+		self.0.gcmut().as_mut_ptr()
 	}
 
 	// unsafe because you should call this before you edit anything.

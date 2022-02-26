@@ -15,19 +15,13 @@ pub use parents::{HasParents, Parents};
 
 #[repr(C, align(8))]
 #[derive(Debug)]
-pub struct Header {
-	parents: UnsafeCell<Parents>, // TODO: make me an array
+pub struct Base<T: 'static> { // TODO: rename me to Allocated
+	parents: UnsafeCell<Parents>,
 	attributes: Option<Box<Attributes>>,
-	typeid: TypeId,
-	flags: Flags,
+	pub(super) typeid: TypeId,
+	pub(super) flags: Flags,
 	borrows: AtomicU32,
-}
-
-#[repr(C, align(8))]
-#[derive(Debug)]
-pub struct Base<T: 'static> {
-	header: Header,
-	data: UnsafeCell<MaybeUninit<T>>,
+	pub(super) data: UnsafeCell<MaybeUninit<T>>,
 }
 
 impl<T: HasParents + 'static> Base<T> {
@@ -50,33 +44,15 @@ impl<T: 'static> Base<T> {
 	}
 
 	pub fn flags(&self) -> &Flags {
-		self.header().flags()
+		&self.flags
 	}
 
 	pub fn typeid(&self) -> TypeId {
-		self.header().typeid()
-	}
-
-	pub fn header(&self) -> &Header {
-		&self.header
+		self.typeid
 	}
 
 	pub unsafe fn upcast(data: *const T) -> *const Self {
 		container_of::container_of!(data, Self, data)
-	}
-
-	pub unsafe fn header_for(data: *const T) -> *const Header {
-		std::ptr::addr_of!((*Self::upcast(data)).header)
-	}
-}
-
-impl Header {
-	pub const fn typeid(&self) -> TypeId {
-		self.typeid
-	}
-
-	pub const fn flags(&self) -> &Flags {
-		&self.flags
 	}
 }
 

@@ -1,5 +1,5 @@
 use super::{Base, Parents};
-use crate::value::Gc;
+use crate::value::gc::{Gc, GcRef, GcMut};
 use std::any::TypeId;
 use std::mem::MaybeUninit;
 use std::ptr::{addr_of_mut, NonNull};
@@ -16,8 +16,8 @@ impl<T: 'static> Builder<T> {
 		let ptr = NonNull::new_unchecked(crate::alloc_zeroed(layout).cast::<Base<T>>());
 
 		// Everything else is default initialized to zero.
-		addr_of_mut!((*ptr.as_ptr()).header.typeid).write(TypeId::of::<T>());
-		addr_of_mut!((*ptr.as_ptr()).header.parents).write(parents.into());
+		addr_of_mut!((*ptr.as_ptr()).typeid).write(TypeId::of::<T>());
+		addr_of_mut!((*ptr.as_ptr()).parents).write(parents.into());
 
 		Self(ptr)
 	}
@@ -44,7 +44,15 @@ impl<T: 'static> Builder<T> {
 		self.base_mut().data.get_mut()
 	}
 
-	pub unsafe fn finish(mut self) -> Gc<T> {
-		Gc::new(NonNull::new_unchecked(self.data_mut().as_mut_ptr()))
+	pub unsafe fn finish(self) -> Gc<T> {
+		Gc::_new(self.0)
+	}
+
+	pub unsafe fn gcmut(&mut self) -> &mut GcMut<T> {
+		std::mem::transmute(self)
+	}
+
+	pub unsafe fn gcref(&self) -> &GcRef<T> {
+		std::mem::transmute(self)
 	}
 }

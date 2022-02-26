@@ -1,10 +1,11 @@
-use crate::value::base::{Base, Flags, Header};
+use crate::value::base::{Base, Flags};
 use crate::value::{AnyValue, Convertible, Value};
 use std::fmt::{self, Debug, Formatter};
+use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
 #[repr(transparent)]
-pub struct Gc<T: 'static>(NonNull<T>);
+pub struct Gc<T: 'static>(NonNull<Base<T>>);
 
 impl<T: 'static> Copy for Gc<T> {}
 impl<T: 'static> Clone for Gc<T> {
@@ -17,18 +18,21 @@ pub trait Mark {
 	fn mark(&self);
 }
 
-impl<T: Debug> Debug for Gc<T> {
+impl<T> Debug for Gc<T>
+where
+	GcRef<T>: Debug
+{
 	fn fmt(self: &Gc<T>, f: &mut Formatter) -> fmt::Result {
 		if !f.alternate() {
 			if let Some(inner) = self.as_ref() {
-				return Debug::fmt(&*inner, f);
+				return Debug::fmt(&inner, f);
 			}
 		}
 
 		write!(f, "Gc({:p}:", self.0)?;
 
 		if let Some(inner) = self.as_ref() {
-			Debug::fmt(&*inner, f)?;
+			Debug::fmt(&inner, f)?;
 		} else {
 			write!(f, "<locked>")?;
 		}
@@ -38,42 +42,41 @@ impl<T: Debug> Debug for Gc<T> {
 }
 
 impl<T: 'static> Gc<T> {
-	pub unsafe fn new(ptr: NonNull<T>) -> Self {
+	pub unsafe fn _new(ptr: NonNull<Base<T>>) -> Self {
+		dbg!(ptr);
 		Self(ptr)
 	}
 
-	pub unsafe fn from_ref(ptr: &T) -> Self {
-		Self::new(ptr.into())
-	}
-
-	pub unsafe fn as_mut_unchecked(&mut self) -> &mut T {
+	pub unsafe fn as_mut_unchecked(&mut self) -> &mut Base<T> {
 		&mut *self.0.as_ptr()
 	}
 
-	pub unsafe fn as_ref_unchecked(&self) -> &T {
+	pub unsafe fn as_ref_unchecked(&self) -> &Base<T> {
 		&*self.0.as_ptr()
 	}
 
-	pub fn as_ref(&self) -> Option<impl std::ops::Deref<Target = T> + '_> {
+	pub fn as_ref(self) -> Option<GcRef<T>> {
 		// TODO
-		Some(unsafe { self.as_ref_unchecked() })
+		Some(GcRef(self))
 	}
 
-	pub fn as_mut(&mut self) -> Option<impl std::ops::DerefMut<Target = T> + '_> {
+	pub fn as_mut(self) -> Option<GcMut<T>> {
 		// TODO
-		Some(unsafe { self.as_mut_unchecked() })
+		Some(GcMut(self))
 	}
 
-	pub fn as_ptr(&self) -> *const T {
-		self.0.as_ptr() as *const T
+	pub fn as_ptr(&self) -> *const Base<T> {
+		self.0.as_ptr()
 	}
 
-	pub fn header(&self) -> &Header {
-		unsafe { &*Base::header_for(self.as_ptr()) }
-	}
+	// pub fn header(&self) -> &Header {
+	// 	unsafe { &*Base::header_for(self.as_ptr()) }
+	// }
 
 	pub fn flags(&self) -> &Flags {
-		self.header().flags()
+		unsafe {
+			&*std::ptr::addr_of!((*self.as_ptr()).flags)
+		}
 	}
 }
 
@@ -87,7 +90,10 @@ impl<T: 'static> From<Gc<T>> for Value<Gc<T>> {
 	}
 }
 
-unsafe impl<T: Debug + 'static> Convertible for Gc<T> {
+unsafe impl<T: 'static> Convertible for Gc<T>
+where
+	GcRef<T>: Debug
+{
 	type Output = Self;
 
 	#[inline]
@@ -98,14 +104,92 @@ unsafe impl<T: Debug + 'static> Convertible for Gc<T> {
 			return false;
 		}
 
-		let typeid = unsafe { Gc::new(NonNull::new_unchecked(bits as usize as *mut T)) }
-			.header()
-			.typeid();
+		let typeid = unsafe {
+			let gc = Gc::_new(NonNull::new_unchecked(bits as usize as *mut Base<()>));
+			dbg!(gc.0);
+			*std::ptr::addr_of!((*gc.as_ptr()).typeid)
+		};
 
 		typeid == std::any::TypeId::of::<T>()
 	}
 
 	fn get(value: Value<Self>) -> Self {
-		unsafe { Gc::new(NonNull::new_unchecked(value.bits() as usize as *mut T)) }
+		unsafe { Gc::_new(NonNull::new_unchecked(value.bits() as usize as *mut Base<T>)) }
 	}
 }
+
+#[repr(transparent)]
+pub struct GcRef<T: 'static>(Gc<T>);
+
+impl<T: Debug + 'static> Debug for GcRef<T> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		Debug::fmt(self.deref(), f)
+	}
+}
+
+impl<T: 'static> GcRef<T> {
+	pub fn as_base_ptr(&self) -> *const Base<T> {
+		(self.0).0.as_ptr()
+	}
+
+	pub fn flags(&self) -> &Flags {
+		unsafe {
+			&*std::ptr::addr_of!((*self.as_base_ptr()).flags)
+		}
+	}
+}
+
+impl<T> Deref for GcRef<T> {
+	type Target = T;
+
+	fn deref(&self) -> &Self::Target {
+		unsafe {
+			(*(*self.as_base_ptr()).data.get()).assume_init_ref()
+		}
+	}
+}
+
+impl<T: 'static> Drop for GcRef<T> {
+	fn drop(&mut self) {
+		// todo
+	}
+}
+
+#[repr(transparent)]
+pub struct GcMut<T: 'static>(Gc<T>);
+
+impl<T: 'static> GcMut<T> {
+	pub fn as_mut_base_ptr(&self) -> *mut Base<T> {
+		(self.0).0.as_ptr()
+	}
+
+	#[inline(always)]
+	pub fn r(&self) -> &GcRef<T> {
+		unsafe {
+			std::mem::transmute(self)
+		}
+	}
+}
+
+impl<T> Deref for GcMut<T> {
+	type Target = T;
+
+	fn deref(&self) -> &Self::Target {
+		&self.r()
+	}
+}
+
+impl<T> DerefMut for GcMut<T> {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		unsafe {
+			(*(*self.as_mut_base_ptr()).data.get()).assume_init_mut()
+		}
+	}
+}
+
+impl<T: 'static> Drop for GcMut<T> {
+	fn drop(&mut self) {
+		// todo
+	}
+}
+
