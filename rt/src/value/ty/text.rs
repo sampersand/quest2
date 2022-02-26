@@ -136,6 +136,7 @@ impl Text {
 		debug_assert!(!self.is_embedded());
 
 		let old_ptr = self.alloc.ptr;
+		dbg!(capacity);
 		self.alloc.ptr = crate::alloc(alloc_ptr_layout(capacity));
 		self.alloc.cap = capacity;
 		std::ptr::copy(old_ptr, self.alloc.ptr, self.alloc.len);
@@ -241,6 +242,7 @@ impl Text {
 		// over the data.
 		if self.is_pointer_immutable() {
 			unsafe { self.duplicate_alloc_ptr(new_cap); }
+			self.remove_flag(FLAG_NOFREE | FLAG_SHARED);
 			return;
 		}
 
@@ -266,7 +268,7 @@ impl Text {
 	}
 
 	pub fn push_str(&mut self, string: &str) {
-		if self.capacity() < self.len() + string.len() {
+		if self.capacity() <= self.len() + string.len() {
 			self.allocate_more(string.len());
 		}
 
@@ -403,5 +405,36 @@ impl crate::value::base::HasParents for Text {
 	fn parents() -> crate::value::base::Parents {
 		// TODO
 		crate::value::base::Parents::NONE
+	}
+}
+
+impl Eq for Text {}
+impl PartialEq for Text {
+	fn eq(&self, rhs: &Self) -> bool {
+		self == rhs.as_str()
+	}
+}
+
+impl PartialEq<str> for Text {
+	fn eq(&self, rhs: &str) -> bool {
+		self.as_str() == rhs
+	}
+}
+
+impl PartialOrd for Text {
+	fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
+		Some(self.cmp(rhs))
+	}
+}
+
+impl Ord for Text {
+	fn cmp(&self, rhs: &Self) -> std::cmp::Ordering {
+		self.as_str().cmp(rhs.as_str())
+	}
+}
+
+impl PartialOrd<str> for Text {
+	fn partial_cmp(&self, rhs: &str) -> Option<std::cmp::Ordering> {
+		self.as_str().partial_cmp(&rhs)
 	}
 }

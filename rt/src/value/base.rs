@@ -66,7 +66,7 @@ impl<T: 'static> Base<T> {
 	}
 
 	pub unsafe fn header_for(data: *const T) -> *const Header {
-		&(*Self::upcast(data)).header as *const Header
+		std::ptr::addr_of!((*Self::upcast(data)).header)
 	}
 }
 

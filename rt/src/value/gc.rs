@@ -4,7 +4,6 @@ use std::fmt::{self, Debug, Formatter};
 use std::ptr::NonNull;
 
 #[repr(transparent)]
-#[derive(PartialEq, Eq)]
 pub struct Gc<T: 'static>(NonNull<T>);
 
 impl<T: 'static> Copy for Gc<T> {}
