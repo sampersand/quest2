@@ -8,7 +8,8 @@ type Function = fn(&[u8]) -> crate::Result<AnyValue>;
 pub struct RustFn {
 	pub name: &'static str,
 	pub func: Function,
-	#[doc(hidden)] pub __do_not_touch_me: (),
+	#[doc(hidden)]
+	pub __do_not_touch_me: (),
 }
 
 #[macro_export]
@@ -17,7 +18,7 @@ macro_rules! RustFn_new {
 		const RUSTFN: &'static $crate::value::ty::RustFn = &$crate::value::ty::RustFn {
 			name: $name,
 			func: $func,
-			__do_not_touch_me: ()
+			__do_not_touch_me: (),
 		};
 
 		RUSTFN
@@ -55,8 +56,6 @@ unsafe impl Convertible for &'static RustFn {
 	}
 
 	fn get(value: Value<Self>) -> Self::Output {
-		unsafe {
-			&*((value.bits() - 0b100) as usize as *const RustFn)
-		}
+		unsafe { &*((value.bits() - 0b100) as usize as *const RustFn) }
 	}
 }

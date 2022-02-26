@@ -1,92 +1,41 @@
 use super::{Text, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
+use crate::value::Gc;
 use crate::value::base::{Base, Builder as BaseBuilder};
 
-pub struct Builder {
-	bb: BaseBuilder<Text>,
-	ptr: *mut u8,
-	cap: usize,
-}
+pub struct Builder(BaseBuilder<Text>);
 
 impl Builder {
-	pub fn new(cap: usize) -> Self {
-		let mut this = Self {
-			bb: unsafe { Base::<Text>::allocate() },
-			ptr: std::ptr::null_mut(),
-			cap,
-		};
+	pub fn new() -> Self {
+		Self(unsafe { Base::<Text>::allocate() })
+	}
 
-		if cap <= MAX_EMBEDDED_LEN {
-			this.bb.flags().insert(FLAG_EMBEDDED);
-			unsafe {
-				this.ptr = this.bb.data_mut().assume_init_mut().embed.buf.as_mut_ptr();
-			}
-		} else {
-			unsafe {
-				let mut alloc = &mut this.bb.data_mut().assume_init_mut().alloc;
-				alloc.cap = cap;
+	pub fn insert_flag(&mut self, flag: u32) {
+		self.0.flags().insert(flag);
+	}
 
-				let layout = super::alloc_ptr_layout(cap);
-				alloc.ptr = crate::alloc(layout);
-				this.ptr = alloc.ptr;
+	pub unsafe fn text_mut(&mut self) -> &mut Text {
+		self.0.data_mut().assume_init_mut()
+	}
 
-				if alloc.ptr.is_null() {
-					std::alloc::handle_alloc_error(layout);
-				}
-			}
+	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
+		self.text_mut().as_mut_ptr()
+	}
+
+	// unsafe because you should call this before you edit anything.
+	pub unsafe fn allocate(&mut self, capacity: usize) {
+		if capacity <= MAX_EMBEDDED_LEN {
+			self.insert_flag(FLAG_EMBEDDED);
+			return;
 		}
 
-		this
+		let mut alloc = &mut self.text_mut().alloc;
+
+		// alloc.len is `0` because `Base::<T>::allocate` always zero allocates.
+		alloc.cap = capacity;
+		alloc.ptr = crate::alloc(super::alloc_ptr_layout(capacity));
 	}
 
-	fn is_embedded(&self) -> bool {
-		self.bb.flags().contains(FLAG_EMBEDDED)
-	}
-
-	unsafe fn increment_len_and_ptr(&mut self, len: usize) {
-		self.ptr = self.ptr.offset(len as isize);
-
-		if self.is_embedded() {
-			assert!(len <= u8::MAX as usize, "len exceeds embedded length");
-			self.bb.data_mut().assume_init_mut().embed.len += len as u8;
-		} else {
-			self.bb.data_mut().assume_init_mut().alloc.len += len;
-		}
-	}
-
-	pub fn len(&self) -> usize {
-		if self.is_embedded() {
-			unsafe { self.bb.data().assume_init_ref().embed.len as usize }
-		} else {
-			unsafe { self.bb.data().assume_init_ref().alloc.len }
-		}
-	}
-
-	pub fn cap(&self) -> usize {
-		self.cap
-	}
-
-	pub unsafe fn bb_mut(&mut self) -> &mut BaseBuilder<Text> {
-		&mut self.bb
-	}
-
-	pub unsafe fn flags(&self) -> &crate::value::base::Flags {
-		self.bb.flags()
-	}
-
-	pub fn write(&mut self, inp: &str) {
-		assert!(
-			inp.len() + self.len() <= self.cap(),
-			"overflow initialization"
-		);
-
-		unsafe {
-			std::ptr::copy(inp.as_ptr(), self.ptr, inp.len());
-			self.increment_len_and_ptr(inp.len());
-		}
-	}
-
-	pub fn finish(self) -> crate::value::Gc<Text> {
-		// We know this is safe, as any `unsafe` operations need to be completed correctly.
-		unsafe { self.bb.finish() }
+	pub unsafe fn finish(self) -> Gc<Text> {
+		self.0.finish()
 	}
 }

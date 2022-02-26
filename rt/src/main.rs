@@ -10,19 +10,22 @@ fn foo(x: &[u8]) -> qvm_rt::Result<AnyValue> {
 }
 
 fn main() {
-	let rfn = Value::from(qvm_rt::RustFn_new!("foo", foo)).any();
-	dbg!(rfn);
+	// let rfn = Value::from(qvm_rt::RustFn_new!("foo", foo)).any();
+	// dbg!(rfn);
 
+	let mut text1 = Text::from_static_str("Hello, world");
+	let text2 = text1.as_ref().unwrap().substr(1..);
 
-	// let mut text1 = Text::from_static_str("Hello, world");
+	dbg!(text1);
+	dbg!(text2);
 	// let text2 = text1.as_ref().unwrap().clone();
 
 	// dbg!(text1); // Hello, world
 	// dbg!(text2); // Hello, world
 	// assert_eq!(text1.as_ref().unwrap().as_ptr(), text2.as_ref().unwrap().as_ptr());
-	// text1.as_mut().unwrap().push('!');
-	// dbg!(text1); // Hello, world!
-	// dbg!(text2); // Hello, world
+	text1.as_mut().unwrap().push('!');
+	dbg!(text1); // Hello, world!
+	dbg!(text2); // Hello, world
 	// assert_ne!(text1.as_ref().unwrap().as_ptr(), text2.as_ref().unwrap().as_ptr());
 	/*
 

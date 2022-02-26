@@ -14,6 +14,10 @@ impl<T: 'static> Clone for Gc<T> {
 	}
 }
 
+pub trait Mark {
+	fn mark(&self);
+}
+
 impl<T: Debug> Debug for Gc<T> {
 	fn fmt(self: &Gc<T>, f: &mut Formatter) -> fmt::Result {
 		if !f.alternate() {

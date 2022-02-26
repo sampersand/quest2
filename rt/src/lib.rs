@@ -5,8 +5,10 @@ mod error;
 #[macro_use]
 pub mod value;
 
+pub mod vm;
+
 pub use error::{Error, Result};
-pub use value::{Value, AnyValue};
+pub use value::{AnyValue, Value};
 
 unsafe fn alloc(layout: std::alloc::Layout) -> *mut u8 {
 	let ptr = std::alloc::alloc(layout);

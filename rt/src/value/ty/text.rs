@@ -38,36 +38,46 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 
 impl Text {
 	pub fn from_str(inp: &str) -> Gc<Self> {
-		let mut builder = Self::builder(inp.len());
-		builder.write(inp);
-		builder.finish()
+		let mut builder = Self::builder();
+
+		unsafe {
+			builder.allocate(inp.len());
+			builder.text_mut().push_str_unchecked(inp);
+			builder.finish()
+		}
 	}
 
 	pub fn from_static_str(inp: &'static str) -> Gc<Self> {
-		unsafe {
-			let mut bb = crate::value::base::Base::<Text>::allocate();
+		let mut builder = Self::builder();
+		builder.insert_flag(FLAG_NOFREE);
 
-			bb.flags().insert(FLAG_NOFREE);
-			let mut data = bb.data_mut().assume_init_mut();
-			data.alloc.ptr = inp.as_ptr() as *mut u8;
-			data.alloc.len = inp.len();
-			data.alloc.cap = data.alloc.len; // capacity = length
+		let mut alloc = unsafe { &mut builder.text_mut().alloc };
+		alloc.ptr = inp.as_ptr() as *mut u8;
+		alloc.len = inp.len();
+		alloc.cap = alloc.len;
 
-			bb.finish()
-		}
+		unsafe { builder.finish() }
 	}
 
 	pub fn new() -> Gc<Self> {
 		Self::with_capacity(0)
 	}
 
-	pub fn with_capacity(cap: usize) -> Gc<Self> {
-		// Nothing to do, as the default state is valid.
-		Self::builder(cap).finish()
+	pub fn with_capacity(capacity: usize) -> Gc<Self> {
+		let mut builder = Self::builder();
+
+		unsafe {
+			builder.allocate(capacity);
+			builder.finish() // Nothing else to do, as the default state is valid.
+		}
 	}
 
-	pub fn builder(cap: usize) -> Builder {
-		Builder::new(cap)
+	pub fn builder() -> Builder {
+		Builder::new()
+	}
+
+	fn insert_flag(&self, flag: u32) {
+		unsafe { Gc::from_ref(self) }.flags().insert(flag)
 	}
 
 	fn has_flag(&self, flag: u32) -> bool {
@@ -88,6 +98,10 @@ impl Text {
 
 	fn is_nofree(&self) -> bool {
 		self.has_flag(FLAG_NOFREE)
+	}
+
+	fn is_pointer_immutable(&self) -> bool {
+		self.is_nofree() || self.is_shared()
 	}
 
 	pub unsafe fn set_len(&mut self, new: usize) {
@@ -118,12 +132,12 @@ impl Text {
 }
 
 impl Text {
-	unsafe fn duplicate_alloc_ptr(&mut self, cap: usize) {
+	unsafe fn duplicate_alloc_ptr(&mut self, capacity: usize) {
 		debug_assert!(!self.is_embedded());
 
 		let old_ptr = self.alloc.ptr;
-		self.alloc.ptr = crate::alloc(alloc_ptr_layout(cap));
-		self.alloc.cap = cap;
+		self.alloc.ptr = crate::alloc(alloc_ptr_layout(capacity));
+		self.alloc.cap = capacity;
 		std::ptr::copy(old_ptr, self.alloc.ptr, self.alloc.len);
 	}
 
@@ -140,7 +154,7 @@ impl Text {
 			return self.embed.buf.as_mut_ptr();
 		}
 
-		if self.is_nofree() || self.is_shared() {
+		if self.is_pointer_immutable() {
 			// Both static Rust strings (`FLAG_NOFREE`) and shared strings (`FLAG_SHARED`) don't allow
 			// us to write to their pointer. As such, we need to duplicate the `alloc.ptr` field, which
 			// gives us ownership of it. Afterwards, we have to remove the relevant flags.
@@ -170,37 +184,32 @@ impl Text {
 
 	pub fn clone(&self) -> Gc<Self> {
 		if self.is_embedded() {
+			// Since we're allocating a new `Self` anyways, we may as well copy over the data.
 			return self.deep_clone();
 		}
 
 		unsafe {
-			// For allocated strings, you can actually one-for-one copy the body,
-			// as we now have `FLAG_SHARED` marked.
-			Gc::from_ref(self).flags().insert(FLAG_SHARED);
+			// For allocated strings, you can actually one-for-one copy the body, as we now
+			// have `FLAG_SHARED` marked.
+			self.insert_flag(FLAG_SHARED);
 
-			let mut bb = crate::value::base::Base::<Text>::allocate();
-			bb.flags().insert(FLAG_SHARED);
-			std::ptr::copy(self as *const Self, bb.data_mut().as_mut_ptr(), 1);
-			bb.finish()
+			let mut builder = Self::builder();
+			std::ptr::copy(self as *const Self, builder.text_mut(), 1);
+			builder.finish()
 		}
 	}
 
 	pub fn deep_clone(&self) -> Gc<Self> {
-		let mut builder = Self::builder(self.len());
-		builder.write(self.as_str());
-		builder.finish()
+		Self::from_str(self.as_str())
 	}
 }
 
 impl Text {
 	fn allocate_more_embeded(&mut self, required_len: usize) {
 		debug_assert!(self.is_embedded());
+		debug_assert!(required_len > MAX_EMBEDDED_LEN); // we should only every realloc at this point.
 
-		let mut new_cap = MAX_EMBEDDED_LEN * 2;
-		if new_cap < required_len {
-			new_cap = required_len;
-		}
-
+		let new_cap = std::cmp::max(MAX_EMBEDDED_LEN * 2, required_len);
 		let layout = alloc_ptr_layout(new_cap);
 
 		unsafe {
@@ -219,22 +228,27 @@ impl Text {
 	}
 
 	fn allocate_more(&mut self, required_len: usize) {
+		// If we're allocating more, and we're embedded, then we are going to need to allocate an
+		// entirely new buffer in memory, and no longer be embedded.
 		if self.is_embedded() {
 			return self.allocate_more_embeded(required_len);
 		}
 
-		unsafe {
-			self.alloc.cap *= 2;
-			if self.alloc.cap < required_len {
-				self.alloc.cap = required_len;
-			}
+		// Find the new capacity we'll need.
+		let new_cap = std::cmp::max(unsafe { self.alloc.cap } * 2, required_len);
 
-			if self.is_nofree() {
-				self.duplicate_alloc_ptr(required_len);
-			} else {
-				let layout = alloc_ptr_layout(self.alloc.cap);
-				self.alloc.ptr = crate::realloc(self.alloc.ptr, layout, self.alloc.cap);
-			}
+		// If the pointer is immutable, we have to allocate a new buffer, and then copy
+		// over the data.
+		if self.is_pointer_immutable() {
+			unsafe { self.duplicate_alloc_ptr(new_cap); }
+			return;
+		}
+
+		// We have unique ownership of our pointer, so we can `realloc` it without worry.
+		unsafe {	
+			let orig_layout = alloc_ptr_layout(self.alloc.cap);
+			self.alloc.ptr = crate::realloc(self.alloc.ptr, orig_layout, new_cap);
+			self.alloc.cap = new_cap;
 		}
 	}
 
@@ -252,15 +266,78 @@ impl Text {
 	}
 
 	pub fn push_str(&mut self, string: &str) {
-		if self.capacity() <= self.len() + string.len() {
+		if self.capacity() < self.len() + string.len() {
 			self.allocate_more(string.len());
 		}
 
 		unsafe {
-			std::ptr::copy(string.as_ptr(), self.mut_end_ptr(), string.len());
-
-			self.set_len(self.len() + string.len())
+			self.push_str_unchecked(string);
 		}
+	}
+
+	pub unsafe fn push_str_unchecked(&mut self, string: &str) {
+		debug_assert!(self.capacity() >= self.len() + string.len());
+
+		std::ptr::copy(string.as_ptr(), self.mut_end_ptr(), string.len());
+		self.set_len(self.len() + string.len())
+	}
+
+	// fn fix_idx(&self, idx: isize) -> Option<usize> {
+	// 	if idx.is_positive() {
+	// 		Some(idx as usize)
+	// 	} else if self.len() as isize <= idx {
+	// 		Some(self.len() - idx as usize)
+	// 	} else {
+	// 		None
+	// 	}
+	// }
+
+	// pub fn substr2(&self, what: std::ops::Range<isize>) -> Gc<Self> {
+	// 	let begin =
+	// 		if let Some(idx) = self.fix_idx(what.start) {
+	// 			idx
+	// 		} else {
+	// 			return Gc::default()
+	// 		};
+
+	// 	let stop = 
+	// 		if let Some(idx) = self.fix_idx(what.end) {
+	// 			idx
+	// 		} else {
+	// 			return Gc::default()
+	// 		};
+
+	// 	panic!()
+	// }
+
+	pub fn substr<I: std::slice::SliceIndex<str, Output=str>>(&self, idx: I) -> Gc<Self> {
+		let slice = &self.as_str()[idx];
+
+		unsafe {
+			self.insert_flag(FLAG_SHARED);
+
+			let mut builder = Self::builder();
+			builder.insert_flag(FLAG_SHARED);
+			builder.text_mut().alloc = AllocatedText {
+				ptr: slice.as_ptr() as *mut u8,
+				len: slice.len(),
+				cap: slice.len(), // capacity = length
+			};
+
+			builder.finish()
+		}
+	}
+}
+
+impl Default for Gc<Text> {
+	fn default() -> Self {
+		Text::new()
+	}
+}
+
+impl AsMut<str> for Text {
+	fn as_mut(&mut self) -> &mut str {
+		self.as_mut_str()
 	}
 }
 
@@ -272,9 +349,17 @@ impl AsRef<str> for Text {
 
 impl Drop for Text {
 	fn drop(&mut self) {
-		if self.is_embedded() || self.is_nofree() {
+		if self.is_embedded() || self.is_nofree() || self.is_shared() {
+			if self.is_shared() {
+				todo!("we will just `return` normally, but ensure that the GC handles this case properly.");
+			}
+
 			return;
 		}
+
+		// FIXME: This will drop a pointer even if it is shared.
+		// how do we want to deal with that, especially with substring shares, which dont
+		// know where the entire string starts.
 
 		unsafe { alloc::dealloc(self.alloc.ptr, alloc_ptr_layout(self.alloc.cap)) }
 	}
