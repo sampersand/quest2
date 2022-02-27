@@ -1,5 +1,5 @@
 use crate::value::base::Flags;
-use crate::value::gc::{Gc, GcRef, GcMut};
+use crate::value::gc::{Gc, GcMut, GcRef};
 use std::alloc;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -132,7 +132,8 @@ impl GcRef<Text> {
 			self.flags().insert(FLAG_SHARED);
 
 			let mut builder = Gc::<Text>::builder();
-			std::ptr::copy(self.as_ptr(), (&mut **builder.text_mut() as *mut Text).cast::<u8>(), 1);
+			let builder_ptr = (&mut **builder.text_mut() as *mut Text).cast::<u8>();
+			std::ptr::copy(self.as_ptr(), builder_ptr, 1);
 			builder.finish()
 		}
 	}
@@ -141,7 +142,7 @@ impl GcRef<Text> {
 		Gc::<Text>::from_str(self.as_str())
 	}
 
-	pub fn substr<I: std::slice::SliceIndex<str, Output=str>>(&self, idx: I) -> Gc<Text> {
+	pub fn substr<I: std::slice::SliceIndex<str, Output = str>>(&self, idx: I) -> Gc<Text> {
 		let slice = &self.as_str()[idx];
 
 		unsafe {
@@ -242,12 +243,14 @@ impl GcMut<Text> {
 		// If the pointer is immutable, we have to allocate a new buffer, and then copy
 		// over the data.
 		if self.r().is_pointer_immutable() {
-			unsafe { self.duplicate_alloc_ptr(new_cap); }
+			unsafe {
+				self.duplicate_alloc_ptr(new_cap);
+			}
 			return;
 		}
 
 		// We have unique ownership of our pointer, so we can `realloc` it without worry.
-		unsafe {	
+		unsafe {
 			let orig_layout = alloc_ptr_layout(self.alloc.cap);
 			self.alloc.ptr = crate::realloc(self.alloc.ptr, orig_layout, new_cap);
 			self.alloc.cap = new_cap;
@@ -302,7 +305,7 @@ impl GcMut<Text> {
 	// 			return Gc::default()
 	// 		};
 
-	// 	let stop = 
+	// 	let stop =
 	// 		if let Some(idx) = self.fix_idx(what.end) {
 	// 			idx
 	// 		} else {
@@ -430,10 +433,10 @@ impl PartialOrd<str> for GcRef<Text> {
 
 #[cfg(test)]
 mod tests {
-	use crate::Value;
-	use crate::value::Convertible;
 	use super::*;
 	use crate::value::ty::*;
+	use crate::value::Convertible;
+	use crate::Value;
 
 	const JABBERWOCKY: &str = "twas brillig in the slithy tothe did gyre and gimble in the wabe";
 
@@ -457,7 +460,13 @@ mod tests {
 	fn test_get() {
 		assert_eq!(<Gc<Text>>::get(Value::from("")).as_ref().unwrap(), *"");
 		assert_eq!(<Gc<Text>>::get(Value::from("x")).as_ref().unwrap(), *"x");
-		assert_eq!(<Gc<Text>>::get(Value::from("yesseriie")).as_ref().unwrap(), *"yesseriie");
-		assert_eq!(<Gc<Text>>::get(Value::from(JABBERWOCKY)).as_ref().unwrap(), *JABBERWOCKY);
+		assert_eq!(
+			<Gc<Text>>::get(Value::from("yesseriie")).as_ref().unwrap(),
+			*"yesseriie"
+		);
+		assert_eq!(
+			<Gc<Text>>::get(Value::from(JABBERWOCKY)).as_ref().unwrap(),
+			*JABBERWOCKY
+		);
 	}
 }

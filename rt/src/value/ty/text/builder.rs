@@ -1,6 +1,6 @@
 use super::{Text, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
-use crate::value::gc::{Gc, GcMut};
 use crate::value::base::{Base, Builder as BaseBuilder};
+use crate::value::gc::{Gc, GcMut};
 
 pub struct Builder(BaseBuilder<Text>);
 

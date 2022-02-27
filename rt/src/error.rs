@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
-	AlreadyLocked(AnyValue)
+	AlreadyLocked(AnyValue),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

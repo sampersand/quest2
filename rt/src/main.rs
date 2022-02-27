@@ -18,11 +18,17 @@ fn main() {
 
 	dbg!(text1);
 	dbg!(text2);
-	assert_eq!(text1.as_ref().unwrap().as_ptr(), text2.as_ref().unwrap().as_ptr());
+	assert_eq!(
+		text1.as_ref().unwrap().as_ptr(),
+		text2.as_ref().unwrap().as_ptr()
+	);
 	text1.as_mut().unwrap().push('!');
 	dbg!(text1); // Hello, world!
 	dbg!(text2); // Hello, world
-	assert_ne!(text1.as_ref().unwrap().as_ptr(), text2.as_ref().unwrap().as_ptr());
+	assert_ne!(
+		text1.as_ref().unwrap().as_ptr(),
+		text2.as_ref().unwrap().as_ptr()
+	);
 
 	println!("{:?}", Value::from(1i64).any());
 	println!("{:?}", Value::from(1f64).any());

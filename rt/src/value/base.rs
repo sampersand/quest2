@@ -15,7 +15,8 @@ pub use parents::{HasParents, Parents};
 
 #[repr(C, align(8))]
 #[derive(Debug)]
-pub struct Base<T: 'static> { // TODO: rename me to Allocated
+pub struct Base<T: 'static> {
+	// TODO: rename me to Allocated
 	parents: UnsafeCell<Parents>,
 	attributes: Option<Box<Attributes>>,
 	pub(super) typeid: TypeId,

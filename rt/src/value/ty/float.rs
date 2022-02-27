@@ -18,7 +18,7 @@ unsafe impl Convertible for Float {
 
 	#[inline]
 	fn is_a(value: AnyValue) -> bool {
-		(value.bits() & 3) == 2
+		(value.bits() & 0b011) == 0b010
 	}
 
 	fn get(value: Value<Self>) -> Self::Output {
@@ -61,8 +61,14 @@ mod tests {
 	fn test_get() {
 		assert_eq!(Float::get(Value::from(0.0)), 0.0);
 		assert_eq!(Float::get(Value::from(1.0)), 1.0);
-		assert_eq!(Float::get(Value::from(-123.456)).to_bits(), (-123.456f64).to_bits() & !3);
-		assert_eq!(Float::get(Value::from(14.0)).to_bits(), (14.0f64).to_bits() & !3);
+		assert_eq!(
+			Float::get(Value::from(-123.456)).to_bits(),
+			(-123.456f64).to_bits() & !3
+		);
+		assert_eq!(
+			Float::get(Value::from(14.0)).to_bits(),
+			(14.0f64).to_bits() & !3
+		);
 
 		let pos_inf = Float::get(Value::from(f64::INFINITY));
 		assert!(pos_inf.is_infinite());

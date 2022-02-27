@@ -23,7 +23,7 @@ const MUT_BORROW: u32 = u32::MAX;
 
 impl<T> Debug for Gc<T>
 where
-	GcRef<T>: Debug
+	GcRef<T>: Debug,
 {
 	fn fmt(self: &Gc<T>, f: &mut Formatter) -> fmt::Result {
 		if !f.alternate() {
@@ -66,7 +66,11 @@ impl<T: 'static> Gc<T> {
 			}
 		}
 
-		if self.borrows().fetch_update(Ordering::Acquire, Ordering::Relaxed, updatefn).is_ok() {
+		if self
+			.borrows()
+			.fetch_update(Ordering::Acquire, Ordering::Relaxed, updatefn)
+			.is_ok()
+		{
 			Ok(GcRef(self))
 		} else {
 			Err(crate::Error::AlreadyLocked(Value::from(self).any()))
@@ -74,7 +78,11 @@ impl<T: 'static> Gc<T> {
 	}
 
 	pub fn as_mut(self) -> crate::Result<GcMut<T>> {
-		if self.borrows().compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed).is_ok() {
+		if self
+			.borrows()
+			.compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed)
+			.is_ok()
+		{
 			Ok(GcMut(self))
 		} else {
 			Err(crate::Error::AlreadyLocked(Value::from(self).any()))
@@ -90,15 +98,11 @@ impl<T: 'static> Gc<T> {
 	// }
 
 	pub fn flags(&self) -> &Flags {
-		unsafe {
-			&*std::ptr::addr_of!((*self.as_ptr()).flags)
-		}
+		unsafe { &*std::ptr::addr_of!((*self.as_ptr()).flags) }
 	}
 
 	fn borrows(&self) -> &AtomicU32 {
-		unsafe {
-			&*std::ptr::addr_of!((*self.as_ptr()).borrows)
-		}
+		unsafe { &*std::ptr::addr_of!((*self.as_ptr()).borrows) }
 	}
 }
 
@@ -114,7 +118,7 @@ impl<T: 'static> From<Gc<T>> for Value<Gc<T>> {
 
 unsafe impl<T: 'static> Convertible for Gc<T>
 where
-	GcRef<T>: Debug
+	GcRef<T>: Debug,
 {
 	type Output = Self;
 
@@ -154,9 +158,7 @@ impl<T: 'static> GcRef<T> {
 	}
 
 	pub fn flags(&self) -> &Flags {
-		unsafe {
-			&*std::ptr::addr_of!((*self.as_base_ptr()).flags)
-		}
+		unsafe { &*std::ptr::addr_of!((*self.as_base_ptr()).flags) }
 	}
 }
 
@@ -164,9 +166,7 @@ impl<T> Deref for GcRef<T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {
-		unsafe {
-			(*(*self.as_base_ptr()).data.get()).assume_init_ref()
-		}
+		unsafe { (*(*self.as_base_ptr()).data.get()).assume_init_ref() }
 	}
 }
 
@@ -189,9 +189,7 @@ impl<T: 'static> GcMut<T> {
 
 	#[inline(always)]
 	pub fn r(&self) -> &GcRef<T> {
-		unsafe {
-			std::mem::transmute(self)
-		}
+		unsafe { std::mem::transmute(self) }
 	}
 }
 
@@ -205,9 +203,7 @@ impl<T> Deref for GcMut<T> {
 
 impl<T> DerefMut for GcMut<T> {
 	fn deref_mut(&mut self) -> &mut Self::Target {
-		unsafe {
-			(*(*self.as_mut_base_ptr()).data.get()).assume_init_mut()
-		}
+		unsafe { (*(*self.as_mut_base_ptr()).data.get()).assume_init_mut() }
 	}
 }
 
@@ -217,7 +213,6 @@ impl<T: 'static> Drop for GcMut<T> {
 		debug_assert_eq!(prev, MUT_BORROW);
 	}
 }
-
 
 #[cfg(test)]
 mod tests {

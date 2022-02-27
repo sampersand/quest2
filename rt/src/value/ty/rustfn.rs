@@ -2,7 +2,7 @@ use std::fmt::{self, Debug, Formatter};
 
 use crate::value::{AnyValue, Convertible, Value};
 
-type Function = fn(&[u8]) -> crate::Result<AnyValue>;
+pub type Function = fn(&[u8]) -> crate::Result<AnyValue>;
 
 #[repr(transparent)]
 #[derive(Clone, Copy)]
@@ -80,9 +80,7 @@ unsafe impl Convertible for RustFn {
 	}
 
 	fn get(value: Value<Self>) -> Self::Output {
-		unsafe {
-			Self(&*((value.bits() - 0b100) as usize as *const Inner))
-		}
+		unsafe { Self(&*((value.bits() - 0b100) as usize as *const Inner)) }
 	}
 }
 
