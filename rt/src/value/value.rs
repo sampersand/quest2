@@ -98,7 +98,7 @@ impl Debug for AnyValue {
 			Debug::fmt(&b, fmt)
 		} else if let Some(n) = self.downcast::<Null>() {
 			Debug::fmt(&n, fmt)
-		} else if let Some(f) = self.downcast::<&'static RustFn>() {
+		} else if let Some(f) = self.downcast::<RustFn>() {
 			Debug::fmt(&f, fmt)
 		} else if let Some(t) = self.downcast::<Gc<Text>>() {
 			Debug::fmt(&t, fmt)
@@ -110,7 +110,7 @@ impl Debug for AnyValue {
 			Debug::fmt(&b, fmt)
 		} else if let Some(n) = self.downcast::<Gc<Null>>() {
 			Debug::fmt(&n, fmt)
-		} else if let Some(f) = self.downcast::<Gc<&'static RustFn>>() {
+		} else if let Some(f) = self.downcast::<Gc<RustFn>>() {
 			Debug::fmt(&f, fmt)
 		} else {
 			write!(

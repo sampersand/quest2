@@ -38,3 +38,27 @@ impl Debug for Null {
 		write!(f, "null")
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::value::ty::*;
+
+	#[test]
+	fn test_is_a() {
+		assert!(Null::is_a(Value::NULL.any()));
+
+		assert!(!Null::is_a(Value::TRUE.any()));
+		assert!(!Null::is_a(Value::FALSE.any()));
+		assert!(!Null::is_a(Value::ZERO.any()));
+		assert!(!Null::is_a(Value::ONE.any()));
+		assert!(!Null::is_a(Value::from(1.0).any()));
+		assert!(!Null::is_a(Value::from("hello").any()));
+		assert!(!Null::is_a(Value::from(RustFn::NOOP).any()));
+	}
+
+	#[test]
+	fn test_get() {
+		assert_eq!(Null, Null::get(Value::from(Null)));
+	}
+}

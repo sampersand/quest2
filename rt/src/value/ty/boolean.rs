@@ -35,12 +35,6 @@ mod tests {
 	use crate::value::ty::*;
 
 	#[test]
-	fn test_from() {
-		assert_eq!(Value::FALSE.bits(), Value::from(false).bits());
-		assert_eq!(Value::TRUE.bits(), Value::from(true).bits());
-	}
-
-	#[test]
 	fn test_is_a() {
 		assert!(Boolean::is_a(Value::FALSE.any()));
 		assert!(Boolean::is_a(Value::TRUE.any()));

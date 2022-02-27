@@ -20,7 +20,7 @@ pub struct Base<T: 'static> { // TODO: rename me to Allocated
 	attributes: Option<Box<Attributes>>,
 	pub(super) typeid: TypeId,
 	pub(super) flags: Flags,
-	borrows: AtomicU32,
+	pub(super) borrows: AtomicU32,
 	pub(super) data: UnsafeCell<MaybeUninit<T>>,
 }
 
@@ -49,10 +49,6 @@ impl<T: 'static> Base<T> {
 
 	pub fn typeid(&self) -> TypeId {
 		self.typeid
-	}
-
-	pub unsafe fn upcast(data: *const T) -> *const Self {
-		container_of::container_of!(data, Self, data)
 	}
 }
 

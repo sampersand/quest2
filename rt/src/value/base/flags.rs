@@ -11,7 +11,7 @@ impl Flags {
 
 
 	pub const FROZEN: u32       = 0b00000000_00010000;
-	pub const MUT_BORROWED: u32 = 0b00000000_00100000;
+	// pub const MUT_BORROWED: u32 = 0b00000000_00100000;
 	pub const MANY_PARENTS: u32 = 0b00000000_01000000;
 	pub const GC_MARKED: u32 =    0b00000000_10000000;
 

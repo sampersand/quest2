@@ -30,7 +30,7 @@ fn main() {
 	println!("{:?}", Value::from(false).any());
 	println!("{:?}", Value::from(Null).any());
 	// println!("{:?}", Value::from(base::Base::new(12i64)).any());
-	println!("{:?}", Value::from(Gc::from_str("yup")).any());
+	println!("{:?}", Value::from(Gc::<Text>::from_str("yup")).any());
 	/*
 	let _n = Value::from(123f64);
 	let mut builder = Text::builder(100);

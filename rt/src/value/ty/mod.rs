@@ -2,8 +2,8 @@
 pub mod rustfn;
 
 mod boolean;
-mod float;
-mod integer;
+pub mod float;
+pub mod integer;
 mod list;
 mod null;
 mod text;

@@ -82,16 +82,8 @@ impl GcRef<Text> {
 		self.flags().contains(FLAG_EMBEDDED)
 	}
 
-	fn is_shared(&self) -> bool {
-		self.flags().contains(FLAG_SHARED)
-	}
-
-	fn is_nofree(&self) -> bool {
-		self.flags().contains(FLAG_NOFREE)
-	}
-
 	fn is_pointer_immutable(&self) -> bool {
-		self.is_nofree() || self.is_shared()
+		self.flags().contains_any(FLAG_NOFREE | FLAG_SHARED)
 	}
 
 	pub fn len(&self) -> usize {
@@ -118,10 +110,12 @@ impl GcRef<Text> {
 		}
 	}
 
+	#[inline]
 	pub fn as_bytes(&self) -> &[u8] {
 		unsafe { std::slice::from_raw_parts(self.as_ptr(), self.len()) }
 	}
 
+	#[inline]
 	pub fn as_str(&self) -> &str {
 		unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
 	}
@@ -144,7 +138,7 @@ impl GcRef<Text> {
 	}
 
 	pub fn deep_clone(&self) -> Gc<Text> {
-		Gc::from_str(self.as_str())
+		Gc::<Text>::from_str(self.as_str())
 	}
 
 	pub fn substr<I: std::slice::SliceIndex<str, Output=str>>(&self, idx: I) -> Gc<Text> {
@@ -181,10 +175,11 @@ impl GcMut<Text> {
 		debug_assert!(!self.r().is_embedded());
 
 		let old_ptr = self.alloc.ptr;
-		dbg!(capacity);
 		self.alloc.ptr = crate::alloc(alloc_ptr_layout(capacity));
 		self.alloc.cap = capacity;
 		std::ptr::copy(old_ptr, self.alloc.ptr, self.alloc.len);
+
+		self.r().flags().remove(FLAG_NOFREE | FLAG_SHARED);
 	}
 
 	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
@@ -197,7 +192,6 @@ impl GcMut<Text> {
 			// us to write to their pointer. As such, we need to duplicate the `alloc.ptr` field, which
 			// gives us ownership of it. Afterwards, we have to remove the relevant flags.
 			self.duplicate_alloc_ptr(self.alloc.len);
-			self.r().flags().remove(FLAG_NOFREE | FLAG_SHARED);
 		}
 
 		self.alloc.ptr
@@ -249,7 +243,6 @@ impl GcMut<Text> {
 		// over the data.
 		if self.r().is_pointer_immutable() {
 			unsafe { self.duplicate_alloc_ptr(new_cap); }
-			self.r().flags().remove(FLAG_NOFREE | FLAG_SHARED);
 			return;
 		}
 
@@ -432,5 +425,39 @@ impl Ord for GcRef<Text> {
 impl PartialOrd<str> for GcRef<Text> {
 	fn partial_cmp(&self, rhs: &str) -> Option<std::cmp::Ordering> {
 		self.as_str().partial_cmp(&rhs)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::Value;
+	use crate::value::Convertible;
+	use super::*;
+	use crate::value::ty::*;
+
+	const JABBERWOCKY: &str = "twas brillig in the slithy tothe did gyre and gimble in the wabe";
+
+	#[test]
+	fn test_is_a() {
+		assert!(<Gc<Text>>::is_a(Value::from("").any()));
+		assert!(<Gc<Text>>::is_a(Value::from("x").any()));
+		assert!(<Gc<Text>>::is_a(Value::from("yesseriie").any()));
+		assert!(<Gc<Text>>::is_a(Value::from(JABBERWOCKY).any()));
+
+		assert!(!<Gc<Text>>::is_a(Value::TRUE.any()));
+		assert!(!<Gc<Text>>::is_a(Value::FALSE.any()));
+		assert!(!<Gc<Text>>::is_a(Value::NULL.any()));
+		assert!(!<Gc<Text>>::is_a(Value::ONE.any()));
+		assert!(!<Gc<Text>>::is_a(Value::ZERO.any()));
+		assert!(!<Gc<Text>>::is_a(Value::from(1.0).any()));
+		assert!(!<Gc<Text>>::is_a(Value::from(RustFn::NOOP).any()));
+	}
+
+	#[test]
+	fn test_get() {
+		assert_eq!(<Gc<Text>>::get(Value::from("")).as_ref().unwrap(), *"");
+		assert_eq!(<Gc<Text>>::get(Value::from("x")).as_ref().unwrap(), *"x");
+		assert_eq!(<Gc<Text>>::get(Value::from("yesseriie")).as_ref().unwrap(), *"yesseriie");
+		assert_eq!(<Gc<Text>>::get(Value::from(JABBERWOCKY)).as_ref().unwrap(), *JABBERWOCKY);
 	}
 }

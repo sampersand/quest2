@@ -3,6 +3,7 @@ use crate::value::{AnyValue, Convertible, Value};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 #[repr(transparent)]
 pub struct Gc<T: 'static>(NonNull<Base<T>>);
@@ -18,20 +19,22 @@ pub trait Mark {
 	fn mark(&self);
 }
 
+const MUT_BORROW: u32 = u32::MAX;
+
 impl<T> Debug for Gc<T>
 where
 	GcRef<T>: Debug
 {
 	fn fmt(self: &Gc<T>, f: &mut Formatter) -> fmt::Result {
 		if !f.alternate() {
-			if let Some(inner) = self.as_ref() {
+			if let Ok(inner) = self.as_ref() {
 				return Debug::fmt(&inner, f);
 			}
 		}
 
 		write!(f, "Gc({:p}:", self.0)?;
 
-		if let Some(inner) = self.as_ref() {
+		if let Ok(inner) = self.as_ref() {
 			Debug::fmt(&inner, f)?;
 		} else {
 			write!(f, "<locked>")?;
@@ -43,7 +46,6 @@ where
 
 impl<T: 'static> Gc<T> {
 	pub unsafe fn _new(ptr: NonNull<Base<T>>) -> Self {
-		dbg!(ptr);
 		Self(ptr)
 	}
 
@@ -55,14 +57,28 @@ impl<T: 'static> Gc<T> {
 		&*self.0.as_ptr()
 	}
 
-	pub fn as_ref(self) -> Option<GcRef<T>> {
-		// TODO
-		Some(GcRef(self))
+	pub fn as_ref(self) -> crate::Result<GcRef<T>> {
+		fn updatefn(x: u32) -> Option<u32> {
+			if x == MUT_BORROW {
+				None
+			} else {
+				Some(x + 1)
+			}
+		}
+
+		if self.borrows().fetch_update(Ordering::Acquire, Ordering::Relaxed, updatefn).is_ok() {
+			Ok(GcRef(self))
+		} else {
+			Err(crate::Error::AlreadyLocked(Value::from(self).any()))
+		}
 	}
 
-	pub fn as_mut(self) -> Option<GcMut<T>> {
-		// TODO
-		Some(GcMut(self))
+	pub fn as_mut(self) -> crate::Result<GcMut<T>> {
+		if self.borrows().compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed).is_ok() {
+			Ok(GcMut(self))
+		} else {
+			Err(crate::Error::AlreadyLocked(Value::from(self).any()))
+		}
 	}
 
 	pub fn as_ptr(&self) -> *const Base<T> {
@@ -76,6 +92,12 @@ impl<T: 'static> Gc<T> {
 	pub fn flags(&self) -> &Flags {
 		unsafe {
 			&*std::ptr::addr_of!((*self.as_ptr()).flags)
+		}
+	}
+
+	fn borrows(&self) -> &AtomicU32 {
+		unsafe {
+			&*std::ptr::addr_of!((*self.as_ptr()).borrows)
 		}
 	}
 }
@@ -106,7 +128,6 @@ where
 
 		let typeid = unsafe {
 			let gc = Gc::_new(NonNull::new_unchecked(bits as usize as *mut Base<()>));
-			dbg!(gc.0);
 			*std::ptr::addr_of!((*gc.as_ptr()).typeid)
 		};
 
@@ -151,7 +172,10 @@ impl<T> Deref for GcRef<T> {
 
 impl<T: 'static> Drop for GcRef<T> {
 	fn drop(&mut self) {
-		// todo
+		let prev = self.0.borrows().fetch_sub(1, Ordering::SeqCst);
+
+		debug_assert_ne!(prev, MUT_BORROW);
+		debug_assert_ne!(prev, 0);
 	}
 }
 
@@ -189,7 +213,18 @@ impl<T> DerefMut for GcMut<T> {
 
 impl<T: 'static> Drop for GcMut<T> {
 	fn drop(&mut self) {
-		// todo
+		let prev = self.0.borrows().swap(0, Ordering::Release);
+		debug_assert_eq!(prev, MUT_BORROW);
 	}
 }
 
+
+#[cfg(test)]
+mod tests {
+	// use super::*;
+
+	#[test]
+	fn mutable_references() {
+		// unimplemented!();
+	}
+}
