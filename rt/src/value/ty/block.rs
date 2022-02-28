@@ -16,17 +16,18 @@ impl Gc<Block> {
 	}
 }
 
+impl Default for Gc<Block> {
+	fn default() -> Self {
+		Self::new(Vec::new())
+	}
+}
+
 impl AsRef<[ByteCode]> for GcRef<Block> {
 	fn as_ref(&self) -> &[ByteCode] {
 		&self.data
 	}
 }
 
-impl Default for Gc<Block> {
-	fn default() -> Self {
-		Self::new(Vec::new())
-	}
-}
 
 impl crate::value::base::HasParents for Block {
 	fn parents() -> crate::value::base::Parents {

@@ -10,6 +10,18 @@ fn foo(x: &[u8]) -> qvm_rt::Result<AnyValue> {
 }
 
 fn main() {
+	let list = Value::from(Gc::from_slice(&[
+		Value::from("hello").any(),
+		Value::from(12).any(),
+		Value::from(true).any(),
+	])).any();
+
+	Gc::get(list.downcast::<Gc<List>>().unwrap()).as_mut().unwrap().push(Value::from(12.5).any());
+
+	dbg!(list);
+}
+
+fn old() {
 	// let rfn = Value::from(qvm_rt::RustFn_new!("foo", foo)).any();
 	// dbg!(rfn);
 

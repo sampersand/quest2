@@ -102,6 +102,8 @@ impl Debug for AnyValue {
 			Debug::fmt(&f, fmt)
 		} else if let Some(t) = self.downcast::<Gc<Text>>() {
 			Debug::fmt(&t, fmt)
+		} else if let Some(l) = self.downcast::<Gc<List>>() {
+			Debug::fmt(&l, fmt)
 		} else if let Some(i) = self.downcast::<Gc<Integer>>() {
 			Debug::fmt(&i, fmt)
 		} else if let Some(f) = self.downcast::<Gc<Float>>() {
