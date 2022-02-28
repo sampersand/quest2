@@ -80,6 +80,12 @@ impl Gc<List> {
 	}
 }
 
+impl Default for Gc<List> {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl GcRef<List> {
 	fn is_embedded(&self) -> bool {
 		self.flags().contains(FLAG_EMBEDDED)
@@ -353,41 +359,9 @@ impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
 
 impl crate::value::base::HasParents for List {
 	fn parents() -> crate::value::base::Parents {
-		// TODO
-		crate::value::base::Parents::NONE
+		Default::default() // todo
 	}
 }
-
-// impl Eq for GcRef<List> {}
-// impl PartialEq for GcRef<List> {
-// 	fn eq(&self, rhs: &Self) -> bool {
-// 		self == rhs.as_slice()
-// 	}
-// }
-
-// impl PartialEq<[AnyValue]> for GcRef<List> {
-// 	fn eq(&self, rhs: &[AnyValue]) -> bool {
-// 		self.as_slice() == rhs
-// 	}
-// }
-
-// impl PartialOrd for GcRef<List> {
-// 	fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
-// 		Some(self.cmp(rhs))
-// 	}
-// }
-
-// impl Ord for GcRef<List> {
-// 	fn cmp(&self, rhs: &Self) -> std::cmp::Ordering {
-// 		self.as_str().cmp(rhs.as_str())
-// 	}
-// }
-
-// impl PartialOrd<str> for GcRef<List> {
-// 	fn partial_cmp(&self, rhs: &str) -> Option<std::cmp::Ordering> {
-// 		self.as_str().partial_cmp(&rhs)
-// 	}
-// }
 
 // #[cfg(test)]
 // mod tests {

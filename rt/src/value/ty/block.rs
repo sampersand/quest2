@@ -31,7 +31,6 @@ impl AsRef<[ByteCode]> for GcRef<Block> {
 
 impl crate::value::base::HasParents for Block {
 	fn parents() -> crate::value::base::Parents {
-		// TODO
-		crate::value::base::Parents::NONE
+		Default::default() // todo
 	}
 }

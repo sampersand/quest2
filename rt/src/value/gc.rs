@@ -1,3 +1,4 @@
+use crate::Result;
 use crate::value::base::{Base, Builder, Flags, HasParents};
 use crate::value::{AnyValue, Convertible, Value};
 use std::fmt::{self, Debug, Formatter};
@@ -55,6 +56,10 @@ impl<T: 'static> Gc<T> {
 		Self(ptr)
 	}
 
+	pub unsafe fn _new_unchecked(ptr: *mut Base<T>) -> Self {
+		Self::_new(NonNull::new_unchecked(ptr))
+	}
+
 	pub fn as_ref(self) -> crate::Result<GcRef<T>> {
 		fn updatefn(x: u32) -> Option<u32> {
 			if x == MUT_BORROW {
@@ -96,11 +101,11 @@ impl<T: 'static> Gc<T> {
 	}
 
 	fn flags(&self) -> &Flags {
-		unsafe { &*std::ptr::addr_of!((*self.as_ptr()).flags) }
+		unsafe { &*std::ptr::addr_of!((*self.as_ptr()).header.flags) }
 	}
 
 	fn borrows(&self) -> &AtomicU32 {
-		unsafe { &*std::ptr::addr_of!((*self.as_ptr()).borrows) }
+		unsafe { &*std::ptr::addr_of!((*self.as_ptr()).header.borrows) }
 	}
 }
 
@@ -129,15 +134,43 @@ where
 		}
 
 		let typeid = unsafe {
-			let gc = Gc::_new(NonNull::new_unchecked(bits as usize as *mut Base<()>));
-			*std::ptr::addr_of!((*gc.as_ptr()).typeid)
+			let gc = Gc::_new_unchecked(bits as usize as *mut Base<()>);
+			*std::ptr::addr_of!((*gc.as_ptr()).header.typeid)
 		};
 
 		typeid == std::any::TypeId::of::<T>()
 	}
 
 	fn get(value: Value<Self>) -> Self {
-		unsafe { Gc::_new(NonNull::new_unchecked(value.bits() as usize as *mut Base<T>)) }
+		unsafe { Gc::_new_unchecked(value.bits() as usize as *mut Base<T>) }
+	}
+}
+
+impl<T: 'static> GcRef<T> {
+	pub fn header(&self) -> &crate::value::base::Header {
+		&self.base().header
+	}
+
+	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
+		self.header().attributes.get_attr(attr)
+	}
+}
+
+impl<T: 'static> GcMut<T> {
+	pub fn header_mut(&mut self) -> &mut crate::value::base::Header {
+		&mut self.base_mut().header
+	}
+
+	pub fn parents(&mut self) -> Gc<crate::value::ty::List> {
+		self.header_mut().attributes.parents.as_list()
+	}
+
+	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
+		self.header_mut().attributes.set_attr(attr, value)
+	}
+
+	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
+		self.header_mut().attributes.del_attr(attr)
 	}
 }
 
@@ -151,12 +184,20 @@ impl<T: Debug + 'static> Debug for GcRef<T> {
 }
 
 impl<T: 'static> GcRef<T> {
+	pub fn as_gc(&self) -> Gc<T> {
+		self.0
+	}
+
+	fn base(&self) -> &Base<T> {
+		unsafe { &*self.as_base_ptr() }
+	}
+
 	pub fn as_base_ptr(&self) -> *const Base<T> {
 		(self.0).0.as_ptr()
 	}
 
 	pub fn flags(&self) -> &Flags {
-		unsafe { &*std::ptr::addr_of!((*self.as_base_ptr()).flags) }
+		unsafe { &*std::ptr::addr_of!((*self.as_base_ptr()).header.flags) }
 	}
 
 	pub fn freeze(&self) {
@@ -189,6 +230,10 @@ impl<T: 'static> Drop for GcRef<T> {
 pub struct GcMut<T: 'static>(Gc<T>);
 
 impl<T: 'static> GcMut<T> {
+	pub fn base_mut(&self) -> &mut Base<T> {
+		unsafe { &mut *self.as_mut_base_ptr() }
+	}
+
 	pub fn as_mut_base_ptr(&self) -> *mut Base<T> {
 		(self.0).0.as_ptr()
 	}

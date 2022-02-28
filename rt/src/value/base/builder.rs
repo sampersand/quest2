@@ -17,8 +17,8 @@ impl<T: 'static> Builder<T> {
 			let ptr = NonNull::new_unchecked(crate::alloc_zeroed(layout).cast::<Base<T>>());
 
 			// Everything else is default initialized to zero.
-			addr_of_mut!((*ptr.as_ptr()).typeid).write(TypeId::of::<T>());
-			addr_of_mut!((*ptr.as_ptr()).parents).write(parents.into());
+			addr_of_mut!((*ptr.as_ptr()).header.typeid).write(TypeId::of::<T>());
+			addr_of_mut!((*ptr.as_ptr()).header.attributes.parents).write(parents);
 
 			Self(ptr)
 		}

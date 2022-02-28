@@ -1,3 +1,5 @@
+use crate::Result;
+use crate::value::{Convertible, Gc};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
@@ -18,7 +20,7 @@ However, those are microkernels so I dont really care. No relevant OS will
 map the first page to userspace.
 */
 #[repr(transparent)]
-pub struct Value<T: ?Sized>(NonZeroU64, PhantomData<T>);
+pub struct Value<T>(NonZeroU64, PhantomData<T>);
 
 sa::assert_eq_size!(Value<i64>, Value<[u64; 64]>, AnyValue);
 sa::assert_eq_align!(Value<i64>, Value<[u64; 64]>, AnyValue);
@@ -60,22 +62,142 @@ impl<T> Value<T> {
 	pub const fn id(self) -> u64 {
 		self.0.get() // unique id for each object, technically lol
 	}
+
+	pub const fn is_allocated(self) -> bool {
+		self.bits() & 0b111 == 0
+	}
+}
+
+
+// impl Value<Integer> {
+// 	fn overwrite(&mut self)
+// }
+impl AnyValue {
+	fn parents_for(self) -> super::base::Parents {
+		use crate::value::ty::*;
+		// use super::base::HasParents;
+
+		match self.bits() {
+			b if b & 1 == 1 => Integer::parents(),
+			b if b & 2 == 2 => Float::parents(),
+			b if b == Value::TRUE.bits() || b == Value::FALSE.bits() => Boolean::parents(),
+			b if b == Value::NULL.bits() => Null::parents(),
+			b if b & 8 == 8 => RustFn::parents(),
+			b if b & 7 == 0 => unreachable!("called parents_for on allocated"),
+			b => unreachable!("unknown bits? {:064b}", b)
+		}
+	}
+}
+
+use crate::value::base::{HasParents, self};
+
+fn allocate_thing<T: 'static + HasParents>(thing: T) -> AnyValue {
+	unsafe {
+		let mut builder = base::Builder::<T>::new(T::parents());
+		builder.data_mut().as_mut_ptr().write(thing);
+		Value::from(builder.finish()).any()
+	}
+}
+
+impl AnyValue {
+	fn allocate_self_and_copy_data_over(self) -> AnyValue {
+		use crate::value::ty::*;
+
+		if let Some(i) = self.downcast::<Integer>() {
+			allocate_thing(i.get())
+		} else if let Some(f) = self.downcast::<Float>() {
+			allocate_thing(f.get())
+		} else if let Some(b) = self.downcast::<Boolean>() {
+			allocate_thing(b.get())
+		} else if let Some(n) = self.downcast::<Null>() {
+			allocate_thing(n.get())
+		} else if let Some(f) = self.downcast::<RustFn>() {
+			allocate_thing(f.get())
+		} else {
+			unreachable!("unrecognized copy type: {:064b}", self.bits())
+		}
+	}
+
+	unsafe fn get_gc_any_unchecked(self) -> Gc<Any> {
+		debug_assert!(self.is_allocated());
+		
+		Gc::_new_unchecked(self.bits() as usize as *mut _)
+	}
+
+	pub fn has_attr(self, attr: AnyValue) -> Result<bool> {
+		self.get_attr(attr).map(|opt| opt.is_some())
+	}
+
+	pub fn get_attr(self, attr: AnyValue) -> Result<Option<AnyValue>> {
+		if self.is_allocated() {
+			return unsafe { self.get_gc_any_unchecked() }.as_ref()?.get_attr(attr);
+		} else {
+			self.parents_for().get_attr(attr)
+		}
+	}
+	
+	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
+		if !self.is_allocated() {
+			*self = self.allocate_self_and_copy_data_over();
+		}
+
+		unsafe { self.get_gc_any_unchecked() }.as_mut()?.set_attr(attr, value)
+	}
+
+	pub fn del_attr(self, attr: AnyValue) -> Result<Option<AnyValue>> {
+		if self.is_allocated() {
+			unsafe { self.get_gc_any_unchecked() }.as_mut()?.del_attr(attr)
+		} else {
+			Ok(None) // we don't delete from unallocated things.
+		}
+	}
+
+
+	pub fn parents(&mut self) -> Result<Gc<crate::value::ty::List>> {
+		if !self.is_allocated() {
+			*self = self.allocate_self_and_copy_data_over();
+		}
+
+		Ok(unsafe { self.get_gc_any_unchecked() }.as_mut()?.parents())
+	}
+}
+
+impl<T: Convertible> Value<T> {
+	pub fn get(self) -> T::Output {
+		T::get(self)
+	}
 }
 
 pub enum Any {}
 pub type AnyValue = Value<Any>;
 
 impl AnyValue {
-	pub fn is_a<T: crate::value::Convertible>(self) -> bool {
+	pub fn is_a<T: Convertible>(self) -> bool {
 		T::is_a(self)
 	}
 
-	pub fn downcast<T: crate::value::Convertible>(self) -> Option<Value<T>> {
+	pub fn downcast<T: Convertible>(self) -> Option<Value<T>> {
 		T::downcast(self)
+	}
+
+	pub fn try_hash(self) -> Result<u64> {
+		if self.is_allocated() {
+			todo!()
+		} else {
+			Ok(self.bits()) // this can also be modified, but that's a future thing
+		}
+	}
+
+	pub fn try_eq(self, rhs: AnyValue) -> Result<bool> {
+		if self.is_allocated() {
+			todo!()
+		} else {
+			Ok(self.bits() == rhs.bits()) // this can also be modified, but that's a future thing
+		}
 	}
 }
 
-impl<T: crate::value::Convertible> Debug for Value<T> {
+impl<T: Convertible> Debug for Value<T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.write_str("Value(")?;
 
@@ -88,7 +210,6 @@ impl<T: crate::value::Convertible> Debug for Value<T> {
 impl Debug for AnyValue {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		use crate::value::ty::*;
-		use crate::value::Gc;
 
 		if let Some(i) = self.downcast::<Integer>() {
 			Debug::fmt(&i, fmt)
@@ -117,5 +238,12 @@ impl Debug for AnyValue {
 		} else {
 			write!(fmt, "Value(<unknown:{:p}>)", self.0.get() as *const ())
 		}
+	}
+}
+
+
+impl Debug for crate::value::gc::GcRef<Any> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		Debug::fmt(&Value::from(self.as_gc()), f)
 	}
 }

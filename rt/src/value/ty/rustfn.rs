@@ -84,6 +84,12 @@ unsafe impl Convertible for RustFn {
 	}
 }
 
+impl crate::value::base::HasParents for RustFn {
+	fn parents() -> crate::value::base::Parents {
+		Default::default() // todo
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

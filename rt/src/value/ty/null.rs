@@ -28,8 +28,7 @@ unsafe impl Convertible for Null {
 
 impl crate::value::base::HasParents for Null {
 	fn parents() -> crate::value::base::Parents {
-		// TODO
-		crate::value::base::Parents::NONE
+		Default::default() // todo
 	}
 }
 

@@ -29,6 +29,12 @@ unsafe impl Convertible for Boolean {
 	}
 }
 
+impl crate::value::base::HasParents for Boolean {
+	fn parents() -> crate::value::base::Parents {
+		Default::default() // todo
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

@@ -9,15 +9,47 @@ fn foo(x: &[u8]) -> qvm_rt::Result<AnyValue> {
 	Ok(Value::from(x[0] as i64 + x[1] as i64).any())
 }
 
-fn main() {
-	let list = Value::from(Gc::from_slice(&[
+fn main() -> qvm_rt::Result<()> {
+	let attr = Value::TRUE.any();
+
+	let mut parent = Value::from("hello, world").any();
+	parent.set_attr(attr, Value::from(123).any())?;
+	assert_eq!(parent.get_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
+
+	let mut child = Value::ONE.any();
+	assert!(!child.has_attr(attr)?);
+
+	child.parents()?.as_mut()?.push(parent);
+	assert_eq!(child.get_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
+
+	child.set_attr(attr, Value::from(456).any()).unwrap();
+	assert_eq!(child.get_attr(attr)?.unwrap().bits(), Value::from(456).any().bits());
+
+	assert_eq!(child.del_attr(attr)?.unwrap().bits(), Value::from(456).any().bits());
+	assert_eq!(child.get_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
+
+	Ok(())
+}
+
+fn old2(){
+	let list = Gc::from_slice(&[
 		Value::from("hello").any(),
 		Value::from(12).any(),
-		Value::from(true).any(),
-	])).any();
+		Value::TRUE.any(),
+	]);
+	let listvalue = Value::from(list).any();
 
-	Gc::get(list.downcast::<Gc<List>>().unwrap()).as_mut().unwrap().push(Value::from(12.5).any());
+	Gc::get(listvalue.downcast::<Gc<List>>().unwrap())
+		.as_mut()
+		.unwrap()
+		.push(Value::from(12.5).any());
 
+	list.as_mut()
+		.unwrap()
+		.set_attr(Value::from(0).any(), Value::from("yo").any());
+
+	dbg!(list.as_ref().unwrap().get_attr(Value::from(0).any()));
+	
 	dbg!(list);
 }
 

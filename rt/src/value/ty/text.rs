@@ -401,8 +401,7 @@ impl From<&'_ str> for crate::Value<Gc<Text>> {
 
 impl crate::value::base::HasParents for Text {
 	fn parents() -> crate::value::base::Parents {
-		// TODO
-		crate::value::base::Parents::NONE
+		Default::default() // todo
 	}
 }
 

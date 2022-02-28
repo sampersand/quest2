@@ -34,8 +34,7 @@ unsafe impl Convertible for Integer {
 
 impl crate::value::base::HasParents for Integer {
 	fn parents() -> crate::value::base::Parents {
-		// TODO
-		crate::value::base::Parents::NONE
+		Default::default() // todo
 	}
 }
 

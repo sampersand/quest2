@@ -6,22 +6,28 @@ use std::sync::atomic::AtomicU32;
 mod attributes;
 mod builder;
 mod flags;
-mod parents;
 
-pub use attributes::Attributes;
+use attributes::Attributes;
+pub use attributes::Parents;
 pub use builder::Builder;
 pub use flags::Flags;
-pub use parents::{HasParents, Parents};
 
-#[repr(C, align(8))]
-#[derive(Debug)]
-pub struct Base<T: 'static> {
-	// TODO: rename me to Allocated
-	parents: UnsafeCell<Parents>,
-	attributes: Option<Box<Attributes>>,
+pub trait HasParents {
+	fn parents() -> Parents;
+}
+
+pub struct Header {
+	pub(super) attributes: Attributes,
 	pub(super) typeid: TypeId,
 	pub(super) flags: Flags,
 	pub(super) borrows: AtomicU32,
+}
+
+#[repr(C, align(8))]
+// #[derive(Debug)]
+pub struct Base<T: 'static> {
+	// TODO: rename me to Allocated
+	pub(super) header: Header,
 	pub(super) data: UnsafeCell<MaybeUninit<T>>,
 }
 
@@ -45,11 +51,15 @@ impl<T: 'static> Base<T> {
 	}
 
 	pub fn flags(&self) -> &Flags {
-		&self.flags
+		&self.header.flags
 	}
 
 	pub fn typeid(&self) -> TypeId {
-		self.typeid
+		self.header.typeid
+	}
+
+	pub fn header(&self) -> &Header {
+		&self.header
 	}
 }
 
