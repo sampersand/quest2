@@ -66,12 +66,10 @@ pub enum Any {}
 pub type AnyValue = Value<Any>;
 
 impl AnyValue {
-	#[inline]
 	pub fn is_a<T: crate::value::Convertible>(self) -> bool {
 		T::is_a(self)
 	}
 
-	#[inline]
 	pub fn downcast<T: crate::value::Convertible>(self) -> Option<Value<T>> {
 		T::downcast(self)
 	}
@@ -80,7 +78,9 @@ impl AnyValue {
 impl<T: crate::value::Convertible> Debug for Value<T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.write_str("Value(")?;
+
 		Debug::fmt(&T::get(*self), f)?;
+
 		f.write_str(")")
 	}
 }
@@ -113,11 +113,7 @@ impl Debug for AnyValue {
 		} else if let Some(f) = self.downcast::<Gc<RustFn>>() {
 			Debug::fmt(&f, fmt)
 		} else {
-			write!(
-				fmt,
-				"Value(<unknown:{:p}>)",
-				self.0.get() as usize as *const ()
-			)
+			write!(fmt, "Value(<unknown:{:p}>)", self.0.get() as *const ())
 		}
 	}
 }

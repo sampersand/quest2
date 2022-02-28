@@ -1,5 +1,9 @@
 extern crate static_assertions as sa;
 
+#[cfg(test)]
+#[macro_use]
+extern crate assert_matches;
+
 mod error;
 
 #[macro_use]

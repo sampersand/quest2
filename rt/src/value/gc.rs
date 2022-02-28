@@ -1,4 +1,4 @@
-use crate::value::base::{Base, Flags};
+use crate::value::base::{Base, Builder, Flags, HasParents};
 use crate::value::{AnyValue, Convertible, Value};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
@@ -44,17 +44,15 @@ where
 	}
 }
 
+impl<T: HasParents + 'static> Gc<T> {
+	pub unsafe fn allocate() -> Builder<T> {
+		Base::allocate()
+	}
+}
+
 impl<T: 'static> Gc<T> {
 	pub unsafe fn _new(ptr: NonNull<Base<T>>) -> Self {
 		Self(ptr)
-	}
-
-	pub unsafe fn as_mut_unchecked(&mut self) -> &mut Base<T> {
-		&mut *self.0.as_ptr()
-	}
-
-	pub unsafe fn as_ref_unchecked(&self) -> &Base<T> {
-		&*self.0.as_ptr()
 	}
 
 	pub fn as_ref(self) -> crate::Result<GcRef<T>> {
@@ -78,6 +76,10 @@ impl<T: 'static> Gc<T> {
 	}
 
 	pub fn as_mut(self) -> crate::Result<GcMut<T>> {
+		if self.flags().contains(Flags::FROZEN) {
+			return Err(crate::Error::ValueFrozen(Value::from(self).any()))
+		}
+
 		if self
 			.borrows()
 			.compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed)
@@ -93,11 +95,7 @@ impl<T: 'static> Gc<T> {
 		self.0.as_ptr()
 	}
 
-	// pub fn header(&self) -> &Header {
-	// 	unsafe { &*Base::header_for(self.as_ptr()) }
-	// }
-
-	pub fn flags(&self) -> &Flags {
+	fn flags(&self) -> &Flags {
 		unsafe { &*std::ptr::addr_of!((*self.as_ptr()).flags) }
 	}
 
@@ -110,7 +108,7 @@ impl<T: 'static> From<Gc<T>> for Value<Gc<T>> {
 	#[inline]
 	fn from(text: Gc<T>) -> Self {
 		let bits = text.as_ptr() as usize as u64;
-		debug_assert_eq!(bits & 0b111, 0, "bits mismatch??");
+		debug_assert_eq!(bits & 0b111, 0, "misaligned?!");
 
 		unsafe { Self::from_bits_unchecked(bits) }
 	}
@@ -159,6 +157,14 @@ impl<T: 'static> GcRef<T> {
 
 	pub fn flags(&self) -> &Flags {
 		unsafe { &*std::ptr::addr_of!((*self.as_base_ptr()).flags) }
+	}
+
+	pub fn freeze(&self) {
+		self.flags().insert(Flags::FROZEN);
+	}
+
+	pub fn is_frozen(&self) -> bool {
+		self.flags().contains(Flags::FROZEN)
 	}
 }
 
@@ -216,10 +222,40 @@ impl<T: 'static> Drop for GcMut<T> {
 
 #[cfg(test)]
 mod tests {
-	// use super::*;
+	use crate::Error;
+	use super::*;
 
 	#[test]
-	fn mutable_references() {
-		// unimplemented!();
+	fn respects_refcell_rules() {
+		let text = Gc::from_str("g'day mate");
+
+		let mut1 = text.as_mut().unwrap();
+		assert_matches!(text.as_ref(), Err(Error::AlreadyLocked(_)));
+		drop(mut1);
+
+		let ref1 = text.as_ref().unwrap();
+		assert_matches!(text.as_mut(), Err(Error::AlreadyLocked(_)));
+
+		let ref2 = text.as_ref().unwrap();
+		assert_matches!(text.as_mut(), Err(Error::AlreadyLocked(_)));
+
+		drop(ref1);
+		assert_matches!(text.as_mut(), Err(Error::AlreadyLocked(_)));
+
+		drop(ref2);
+		assert_matches!(text.as_mut(), Ok(_));
+	}
+
+	#[test]
+	fn respects_frozen() {
+		let text = Gc::from_str("Hello, world");
+
+		text.as_mut().unwrap().push('!');
+		assert_eq!(text.as_ref().unwrap(), *"Hello, world!");
+		assert!(!text.as_ref().unwrap().is_frozen());
+
+		text.as_ref().unwrap().freeze();
+		assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
+		assert!(text.as_ref().unwrap().is_frozen());
 	}
 }

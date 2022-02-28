@@ -375,6 +375,12 @@ impl Debug for GcRef<Text> {
 	}
 }
 
+impl Debug for GcMut<Text> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		Debug::fmt(self.r(), f)
+	}
+}
+
 impl Display for GcRef<Text> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		Display::fmt(&self.as_str(), f)

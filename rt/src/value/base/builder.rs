@@ -8,18 +8,20 @@ use std::ptr::{addr_of_mut, NonNull};
 pub struct Builder<T: 'static>(NonNull<Base<T>>);
 
 impl<T: 'static> Builder<T> {
-	pub unsafe fn new(parents: Parents) -> Self {
+	pub fn new(parents: Parents) -> Self {
 		let layout = std::alloc::Layout::new::<Base<T>>();
 
-		// Since we `alloc_zeroed`, `parent` is valid (as it's zero, which is `None`),
-		// and `attribtues` is valid (as it's zero, which is also `None`).
-		let ptr = NonNull::new_unchecked(crate::alloc_zeroed(layout).cast::<Base<T>>());
+		unsafe {
+			// Since we `alloc_zeroed`, `parent` is valid (as it's zero, which is `None`),
+			// and `attribtues` is valid (as it's zero, which is also `None`).
+			let ptr = NonNull::new_unchecked(crate::alloc_zeroed(layout).cast::<Base<T>>());
 
-		// Everything else is default initialized to zero.
-		addr_of_mut!((*ptr.as_ptr()).typeid).write(TypeId::of::<T>());
-		addr_of_mut!((*ptr.as_ptr()).parents).write(parents.into());
+			// Everything else is default initialized to zero.
+			addr_of_mut!((*ptr.as_ptr()).typeid).write(TypeId::of::<T>());
+			addr_of_mut!((*ptr.as_ptr()).parents).write(parents.into());
 
-		Self(ptr)
+			Self(ptr)
+		}
 	}
 
 	#[inline]

@@ -5,6 +5,7 @@ use std::fmt::{self, Display, Formatter};
 #[non_exhaustive]
 pub enum Error {
 	AlreadyLocked(AnyValue),
+	ValueFrozen(AnyValue),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -13,6 +14,7 @@ impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		match self {
 			Self::AlreadyLocked(value) => write!(f, "value {:p} is already locked", value),
+			Self::ValueFrozen(value) => write!(f, "value {:p} is frozen", value),
 		}
 	}
 }
