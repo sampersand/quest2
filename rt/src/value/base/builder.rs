@@ -17,11 +17,15 @@ impl<T: 'static> Builder<T> {
 			let ptr = NonNull::new_unchecked(crate::alloc_zeroed(layout).cast::<Base<T>>());
 
 			// Everything else is default initialized to zero.
-			addr_of_mut!((*ptr.as_ptr()).header.typeid).write(TypeId::of::<T>());
-			addr_of_mut!((*ptr.as_ptr()).header.attributes.parents).write(parents);
-
-			Self(ptr)
+			Self::new_inplace(ptr, parents)
 		}
+	}
+
+	pub unsafe fn new_inplace(base: NonNull<Base<T>>, parents: Parents) -> Self {
+		addr_of_mut!((*base.as_ptr()).header.typeid).write(TypeId::of::<T>());
+		addr_of_mut!((*base.as_ptr()).header.attributes.parents).write(parents);
+
+		Self(base)
 	}
 
 	#[inline]

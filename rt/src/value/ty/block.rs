@@ -30,6 +30,10 @@ impl AsRef<[ByteCode]> for GcRef<Block> {
 
 
 impl crate::value::base::HasParents for Block {
+	unsafe fn init() {
+		// todo
+	}
+
 	fn parents() -> crate::value::base::Parents {
 		Default::default() // todo
 	}

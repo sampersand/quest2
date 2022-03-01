@@ -30,6 +30,10 @@ unsafe impl Convertible for Boolean {
 }
 
 impl crate::value::base::HasParents for Boolean {
+	unsafe fn init() {
+		// todo
+	}
+
 	fn parents() -> crate::value::base::Parents {
 		Default::default() // todo
 	}

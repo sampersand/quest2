@@ -10,9 +10,13 @@ impl Flags {
 	pub const USER4: u32 = 0b00000000_00001000;
 
 	pub const FROZEN: u32 = 0b00000000_00010000;
-	// pub const MUT_BORROWED: u32 = 0b00000000_00100000;
+	pub const NOFREE: u32 = 0b00000000_00100000;
 	pub const MANY_PARENTS: u32 = 0b00000000_01000000;
 	pub const GC_MARKED: u32 = 0b00000000_10000000;
+
+	pub const fn new(flags: u32) -> Self {
+		Self(AtomicU32::new(flags))
+	}
 
 	pub fn insert(&self, flag: u32) {
 		self.0.fetch_or(flag, Ordering::SeqCst);

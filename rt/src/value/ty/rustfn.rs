@@ -85,6 +85,10 @@ unsafe impl Convertible for RustFn {
 }
 
 impl crate::value::base::HasParents for RustFn {
+	unsafe fn init() {
+		// todo
+	}
+
 	fn parents() -> crate::value::base::Parents {
 		Default::default() // todo
 	}

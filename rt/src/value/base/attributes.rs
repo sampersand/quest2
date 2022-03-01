@@ -6,8 +6,8 @@ mod parents;
 pub use parents::Parents;
 
 #[repr(C, align(8))]
-#[derive(Debug)]
-pub(in super::super) struct Attributes {
+#[derive(Debug, Default)]
+pub(in super::super::super) struct Attributes {
 	pub(in super::super) parents: Parents,
 	attrs: Option<Box<HashMap<AnyValue, AnyValue>>>,
 }

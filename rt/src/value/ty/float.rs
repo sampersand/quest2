@@ -27,6 +27,10 @@ unsafe impl Convertible for Float {
 }
 
 impl crate::value::base::HasParents for Float {
+	unsafe fn init() {
+		// todo
+	}
+
 	fn parents() -> crate::value::base::Parents {
 		Default::default() // todo
 	}

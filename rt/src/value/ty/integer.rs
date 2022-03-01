@@ -33,6 +33,10 @@ unsafe impl Convertible for Integer {
 }
 
 impl crate::value::base::HasParents for Integer {
+	unsafe fn init() {
+		// todo
+	}
+
 	fn parents() -> crate::value::base::Parents {
 		Default::default() // todo
 	}

@@ -1,4 +1,5 @@
 use crate::value::{AnyValue, Convertible, Value};
+use crate::value::base::{Parents, HasParents};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -26,9 +27,18 @@ unsafe impl Convertible for Null {
 	}
 }
 
-impl crate::value::base::HasParents for Null {
-	fn parents() -> crate::value::base::Parents {
-		Default::default() // todo
+// static mut NULL_PARENT: MaybeUninit<Base<Scope>> = MaybeUninit::uninit();
+
+impl HasParents for Null {
+	unsafe fn init() {
+		// let builder = Base::static_builder(&mut NULL_PARENT);
+		// // update the builder
+		// builder.finish();
+	}
+
+	fn parents() -> Parents {
+		todo!()
+		// Parents::new_singular(unsafe { Gc::_new_unchecked(std::ptr::addr_of_mut!(NULL_PARENT).cast::<Base<Scope>>()) })
 	}
 }
 

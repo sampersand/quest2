@@ -358,6 +358,10 @@ impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
 }
 
 impl crate::value::base::HasParents for List {
+	unsafe fn init() {
+		// todo
+	}
+
 	fn parents() -> crate::value::base::Parents {
 		Default::default() // todo
 	}
