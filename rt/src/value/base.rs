@@ -18,6 +18,8 @@ pub trait HasParents {
 	fn parents() -> Parents;
 }
 
+#[derive(Debug)]
+#[repr(C, align(8))]
 pub struct Header {
 	pub(super) attributes: Attributes,
 	pub(super) typeid: TypeId,
@@ -25,29 +27,28 @@ pub struct Header {
 	pub(super) borrows: AtomicU32,
 }
 
+#[derive(Debug)]
 #[repr(C, align(8))]
-// #[derive(Debug)]
 pub struct Base<T: 'static> {
-	// TODO: rename me to Allocated
 	pub(super) header: Header,
 	pub(super) data: UnsafeCell<MaybeUninit<T>>,
 }
 
-#[macro_export]
-macro_rules! Base_new_const {
-	(ty: $ty:ty, flags: $flags:expr, data: $data:expr, $parents:expr) => {{
-		use $crate::value::base::*;
-		static mut BASE: Base<$ty> = Base {
-			header: header::Header {
-				attributes: Attributes::default(),
-				typeid: ::std::any::TypeId::of::<$ty>(),
-				flags: Flags::new($flags),
-				borrows: ::std::sync::atomic::AtomicU32::new(0),
-			},
-			data: ::std::cell::UnsafeCell::new(::std::mem::MaybeUninit::new($data))
-		}
-	}};
-}
+// #[macro_export]
+// macro_rules! Base_new_const {
+// 	(ty: $ty:ty, flags: $flags:expr, data: $data:expr, $parents:expr) => {{
+// 		use $crate::value::base::*;
+// 		static mut BASE: Base<$ty> = Base {
+// 			header: header::Header {
+// 				attributes: Attributes::default(),
+// 				typeid: ::std::any::TypeId::of::<$ty>(),
+// 				flags: Flags::new($flags),
+// 				borrows: ::std::sync::atomic::AtomicU32::new(0),
+// 			},
+// 			data: ::std::cell::UnsafeCell::new(::std::mem::MaybeUninit::new($data))
+// 		}
+// 	}};
+// }
 
 impl<T: HasParents + 'static> Base<T> {
 	pub fn new(data: T) -> crate::value::Gc<T> {

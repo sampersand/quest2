@@ -162,6 +162,7 @@ impl GcRef<Text> {
 }
 
 impl GcMut<Text> {
+
 	pub unsafe fn set_len(&mut self, new: usize) {
 		if self.r().is_embedded() {
 			assert!(new <= MAX_EMBEDDED_LEN);
@@ -205,9 +206,7 @@ impl GcMut<Text> {
 	pub fn as_mut_str(&mut self) -> &mut str {
 		unsafe { std::str::from_utf8_unchecked_mut(self.as_mut_bytes()) }
 	}
-}
 
-impl GcMut<Text> {
 	fn allocate_more_embeded(&mut self, required_len: usize) {
 		debug_assert!(self.r().is_embedded());
 		debug_assert!(required_len > MAX_EMBEDDED_LEN); // we should only every realloc at this point.
