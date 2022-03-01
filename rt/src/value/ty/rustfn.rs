@@ -15,6 +15,18 @@ pub struct Inner {
 	pub func: Function,
 }
 
+#[macro_export]
+macro_rules! RustFn_new {
+	($name:expr, $func:expr) => {{
+		const INNER: &'static $crate::value::ty::rustfn::Inner = &$crate::value::ty::rustfn::Inner {
+			name: $name,
+			func: $func,
+		};
+
+		$crate::value::ty::RustFn::_new(INNER)
+	}};
+}
+
 impl RustFn {
 	#[doc(hidden)]
 	pub const fn _new(inner: &'static Inner) -> Self {
@@ -35,18 +47,6 @@ impl PartialEq for RustFn {
 	fn eq(&self, rhs: &Self) -> bool {
 		std::ptr::eq(self.0, rhs.0)
 	}
-}
-
-#[macro_export]
-macro_rules! RustFn_new {
-	($name:expr, $func:expr) => {{
-		const INNER: &'static $crate::value::ty::rustfn::Inner = &$crate::value::ty::rustfn::Inner {
-			name: $name,
-			func: $func,
-		};
-
-		$crate::value::ty::RustFn::_new(INNER)
-	}};
 }
 
 impl RustFn {

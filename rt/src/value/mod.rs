@@ -2,7 +2,7 @@
 pub mod ty;
 
 pub mod base;
-mod gc;
+pub mod gc;
 mod value;
 
 pub use gc::Gc;

@@ -416,6 +416,12 @@ impl PartialEq for GcRef<Text> {
 	}
 }
 
+impl PartialEq<&str> for GcRef<Text> {
+	fn eq(&self, rhs: &&str) -> bool {
+		self.as_str() == *rhs
+	}
+}
+
 impl PartialEq<str> for GcRef<Text> {
 	fn eq(&self, rhs: &str) -> bool {
 		self.as_str() == rhs
