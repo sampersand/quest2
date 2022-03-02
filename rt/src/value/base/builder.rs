@@ -1,31 +1,32 @@
 use super::{Base, Parents};
-use crate::value::gc::{Gc, GcMut, GcRef};
+use crate::value::gc::{Gc, GcMut, GcRef, Allocated};
 use std::any::TypeId;
 use std::mem::MaybeUninit;
 use std::ptr::{addr_of_mut, NonNull};
 
 #[must_use]
-pub struct Builder<T: 'static>(NonNull<Base<T>>);
+pub struct Builder<T: Allocated>(NonNull<Base<T>>);
 
-impl<T: 'static> Builder<T> {
-	pub fn new(parents: Parents) -> Self {
+impl<T: Allocated> Builder<T> {
+	// safety: among other things, `ptr` must have been zero initialized (or you have to init it all yourself)
+	pub unsafe fn new(ptr: NonNull<Base<T>>) -> Self {
+		addr_of_mut!((*ptr.as_ptr()).header.typeid).write(TypeId::of::<T>());
+
+		Self(ptr)
+	}
+
+	pub fn allocate() -> Self {
 		let layout = std::alloc::Layout::new::<Base<T>>();
 
 		unsafe {
 			// Since we `alloc_zeroed`, `parent` is valid (as it's zero, which is `None`),
 			// and `attribtues` is valid (as it's zero, which is also `None`).
-			let ptr = NonNull::new_unchecked(crate::alloc_zeroed(layout).cast::<Base<T>>());
-
-			// Everything else is default initialized to zero.
-			Self::new_inplace(ptr, parents)
+			Self::new(NonNull::new_unchecked(crate::alloc_zeroed(layout).cast::<Base<T>>()))
 		}
 	}
 
-	pub unsafe fn new_inplace(base: NonNull<Base<T>>, parents: Parents) -> Self {
-		addr_of_mut!((*base.as_ptr()).header.typeid).write(TypeId::of::<T>());
-		addr_of_mut!((*base.as_ptr()).header.attributes.parents).write(parents);
-
-		Self(base)
+	pub unsafe fn _write_parents(&mut self, parents: Parents) {
+		addr_of_mut!((*self.0.as_ptr()).header.attributes.parents).write(parents);
 	}
 
 	#[inline]

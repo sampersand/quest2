@@ -1,4 +1,4 @@
-use crate::value::gc::{Gc, GcRef};
+use crate::value::gc::{Gc, GcRef, Allocated};
 use crate::vm::ByteCode;
 
 #[derive(Debug)]
@@ -15,6 +15,8 @@ impl Gc<Block> {
 		}
 	}
 }
+
+impl Allocated for Block {}
 
 impl Default for Gc<Block> {
 	fn default() -> Self {

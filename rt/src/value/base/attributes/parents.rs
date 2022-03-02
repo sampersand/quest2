@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::value::{Gc, AnyValue, ty::List, Value, value::Any};
+use crate::value::{Gc, AnyValue, ty::List, Value, value::Any, gc::Allocated};
 
 /*
 000...000 000 = none (ie `Pristine`)
@@ -13,7 +13,7 @@ pub struct Parents(u64);
 impl Parents {
 	// You can only have allocated values as parents. Unallocated values have to be boxed before
 	// they can become parents. (but this isn't a very common occurrence so it seems fine.)
-	pub fn new_singular<T>(parent: Gc<T>) -> Self {
+	pub fn new_singular<T: Allocated>(parent: Gc<T>) -> Self {
 		let bits = parent.as_ptr() as usize as u64;
 		debug_assert_eq!(bits & 1, 0);
 		Self(bits)

@@ -34,23 +34,7 @@ pub struct Base<T: 'static> {
 	pub(super) data: UnsafeCell<MaybeUninit<T>>,
 }
 
-// #[macro_export]
-// macro_rules! Base_new_const {
-// 	(ty: $ty:ty, flags: $flags:expr, data: $data:expr, $parents:expr) => {{
-// 		use $crate::value::base::*;
-// 		static mut BASE: Base<$ty> = Base {
-// 			header: header::Header {
-// 				attributes: Attributes::default(),
-// 				typeid: ::std::any::TypeId::of::<$ty>(),
-// 				flags: Flags::new($flags),
-// 				borrows: ::std::sync::atomic::AtomicU32::new(0),
-// 			},
-// 			data: ::std::cell::UnsafeCell::new(::std::mem::MaybeUninit::new($data))
-// 		}
-// 	}};
-// }
-
-impl<T: HasParents + 'static> Base<T> {
+impl<T: HasParents + crate::value::gc::Allocated> Base<T> {
 	pub fn new(data: T) -> crate::value::Gc<T> {
 		unsafe {
 			let mut builder = Self::allocate();
@@ -64,7 +48,9 @@ impl<T: HasParents + 'static> Base<T> {
 	}
 
 	pub unsafe fn builder_inplace(base: NonNull<Self>) -> Builder<T> {
-		Builder::new_inplace(base, T::parents())
+		let mut b = Builder::new(base);
+		b._write_parents(T::parents());
+		b
 	}
 
 	pub unsafe fn static_builder(base: &'static mut MaybeUninit<Self>) -> Builder<T> {
@@ -74,11 +60,15 @@ impl<T: HasParents + 'static> Base<T> {
 	}
 }
 
-impl<T: 'static> Base<T> {
+impl<T: crate::value::gc::Allocated> Base<T> {
 	pub unsafe fn allocate_with_parents(parents: Parents) -> Builder<T> {
-		Builder::new(parents)
+		let mut b = Builder::allocate();
+		b._write_parents(parents);
+		b
 	}
+}
 
+impl<T> Base<T> {
 	pub const fn flags(&self) -> &Flags {
 		&self.header.flags
 	}
@@ -89,6 +79,14 @@ impl<T: 'static> Base<T> {
 
 	pub const fn header(&self) -> &Header {
 		&self.header
+	}
+
+	pub const fn data(&self) -> &T {
+		unsafe { (*(self.data.get() as *const MaybeUninit<T>)).assume_init_ref() }
+	}
+
+	pub fn data_mut(&mut self) -> &mut T {
+		unsafe { (*self.data.get()).assume_init_mut() }
 	}
 }
 

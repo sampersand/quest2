@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::value::{Convertible, Gc};
+use crate::value::{Convertible, Gc, ty::Wrap};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
@@ -93,8 +93,9 @@ use crate::value::base::{HasParents, self};
 
 fn allocate_thing<T: 'static + HasParents>(thing: T) -> AnyValue {
 	unsafe {
-		let mut builder = base::Builder::<T>::new(T::parents());
-		builder.data_mut().as_mut_ptr().write(thing);
+		let mut builder = base::Builder::<Wrap<T>>::allocate();
+		builder._write_parents(T::parents());
+		builder.data_mut().as_mut_ptr().write(Wrap(thing));
 		Value::from(builder.finish()).any()
 	}
 }
@@ -169,6 +170,7 @@ impl<T: Convertible> Value<T> {
 }
 
 pub enum Any {}
+impl crate::value::gc::Allocated for Any{}
 pub type AnyValue = Value<Any>;
 
 impl AnyValue {
@@ -225,15 +227,15 @@ impl Debug for AnyValue {
 			Debug::fmt(&t, fmt)
 		} else if let Some(l) = self.downcast::<Gc<List>>() {
 			Debug::fmt(&l, fmt)
-		} else if let Some(i) = self.downcast::<Gc<Integer>>() {
+		} else if let Some(i) = self.downcast::<Gc<Wrap<Integer>>>() {
 			Debug::fmt(&i, fmt)
-		} else if let Some(f) = self.downcast::<Gc<Float>>() {
+		} else if let Some(f) = self.downcast::<Gc<Wrap<Float>>>() {
 			Debug::fmt(&f, fmt)
-		} else if let Some(b) = self.downcast::<Gc<Boolean>>() {
+		} else if let Some(b) = self.downcast::<Gc<Wrap<Boolean>>>() {
 			Debug::fmt(&b, fmt)
-		} else if let Some(n) = self.downcast::<Gc<Null>>() {
+		} else if let Some(n) = self.downcast::<Gc<Wrap<Null>>>() {
 			Debug::fmt(&n, fmt)
-		} else if let Some(f) = self.downcast::<Gc<RustFn>>() {
+		} else if let Some(f) = self.downcast::<Gc<Wrap<RustFn>>>() {
 			Debug::fmt(&f, fmt)
 		} else {
 			write!(fmt, "Value(<unknown:{:p}>)", self.0.get() as *const ())

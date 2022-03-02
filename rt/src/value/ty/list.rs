@@ -1,5 +1,5 @@
 use crate::value::base::Flags;
-use crate::value::gc::{Gc, GcMut, GcRef};
+use crate::value::gc::{Gc, GcMut, GcRef, Allocated};
 use crate::value::AnyValue;
 use std::alloc;
 use std::fmt::{self, Debug, Formatter};
@@ -7,6 +7,7 @@ use std::fmt::{self, Debug, Formatter};
 mod builder;
 pub use builder::Builder;
 
+impl Allocated for List {}
 #[repr(C)]
 pub union List {
 	alloc: AllocatedList,

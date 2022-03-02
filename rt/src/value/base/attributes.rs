@@ -108,11 +108,11 @@ impl Attributes {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::value::{Value, Gc, ty::Integer};
+	use crate::value::{Value, ty::{Integer, Text}};
 
 	#[test]
 	fn attributes_work() {
-		let text = Gc::from_str("hola mundo");
+		let text = Text::from_str("hola mundo");
 		const ONE: AnyValue = Value::ONE.any();
 
 		assert_matches!(text.as_ref().unwrap().get_attr(ONE), Ok(None));

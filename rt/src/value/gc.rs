@@ -35,13 +35,15 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// # Ok(()) }
 /// ```
 #[repr(transparent)]
-pub struct Gc<T: 'static>(NonNull<Base<T>>);
+pub struct Gc<T: Allocated>(NonNull<Base<T>>);
 
-unsafe impl<T: Send + 'static> Send for Gc<T> {}
-unsafe impl<T: Sync + 'static> Sync for Gc<T> {}
+unsafe impl<T: Allocated + Send> Send for Gc<T> {}
+unsafe impl<T: Allocated + Sync> Sync for Gc<T> {}
 
-impl<T: 'static> Copy for Gc<T> {}
-impl<T: 'static> Clone for Gc<T> {
+pub trait Allocated: 'static + Sized {}
+
+impl<T: Allocated> Copy for Gc<T> {}
+impl<T: Allocated> Clone for Gc<T> {
 	fn clone(&self) -> Self {
 		*self
 	}
@@ -53,7 +55,7 @@ pub trait Mark {
 	fn mark(&self);
 }
 
-impl<T> Debug for Gc<T>
+impl<T: Allocated> Debug for Gc<T>
 where
 	GcRef<T>: Debug,
 {
@@ -76,7 +78,7 @@ where
 	}
 }
 
-impl<T: HasParents + 'static> Gc<T> {
+impl<T: HasParents + Allocated> Gc<T> {
 	/// Helper function for `Base::allocate`. See it for safety.
 	pub(crate) unsafe fn allocate() -> Builder<T> {
 		Base::allocate()
@@ -86,7 +88,7 @@ impl<T: HasParents + 'static> Gc<T> {
 /// Sentinel value used to indicate the `Gc<T>` is mutably borrowed.
 const MUT_BORROW: u32 = u32::MAX;
 
-impl<T: 'static> Gc<T> {
+impl<T: Allocated> Gc<T> {
 	/// Creates a new `Gc<T>` from `ptr`.
 	///
 	/// # Safety
@@ -97,7 +99,7 @@ impl<T: 'static> Gc<T> {
 	/// long as you never attempt to access the contents of it (ie either through [`Gc::to_ptr`]) or
 	/// through dereferencing either [`GcRef`] or [`GcMut`]. This is used to get header attributes
 	/// for objects when the type is irrelevant.
-	pub(crate) const unsafe fn _new(ptr: NonNull<Base<T>>) -> Self {
+	pub(crate) unsafe fn _new(ptr: NonNull<Base<T>>) -> Self {
 		Self(ptr)
 	}
 
@@ -284,7 +286,7 @@ impl<T: 'static> Gc<T> {
 	}
 }
 
-impl<T: 'static> From<Gc<T>> for Value<Gc<T>> {
+impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 	#[inline]
 	fn from(text: Gc<T>) -> Self {
 		sa::assert_eq_align!(Base<Any>, u64);
@@ -300,7 +302,7 @@ impl<T: 'static> From<Gc<T>> for Value<Gc<T>> {
 
 // SAFETY: We correctly implemented `is_a` to only return true if the `AnyValue` is a `Gc<T>`.
 // Additionally, `get` will always return a valid `Gc<T>` for any `Value<Gc<T>>`.
-unsafe impl<T: 'static> Convertible for Gc<T>
+unsafe impl<T: Allocated> Convertible for Gc<T>
 where
 	GcRef<T>: Debug,
 {
@@ -339,15 +341,15 @@ where
 ///
 /// This is created via the [`as_ref`](Gc::as_ref) method on [`Gc`].
 #[repr(transparent)]
-pub struct GcRef<T: 'static>(Gc<T>);
+pub struct GcRef<T: Allocated>(Gc<T>);
 
-impl<T: Debug + 'static> Debug for GcRef<T> {
+impl<T: Debug + Allocated> Debug for GcRef<T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		Debug::fmt(self.deref(), f)
 	}
 }
 
-impl<T: 'static> GcRef<T> {
+impl<T: Allocated> GcRef<T> {
 	/// Retrieves `self`'s attribute `attr`, returning `None` if it doesn't exist.
 	///
 	/// # Errors
@@ -408,7 +410,7 @@ impl<T: 'static> GcRef<T> {
 	}
 }
 
-impl<T: 'static> Clone for GcRef<T> {
+impl<T: Allocated> Clone for GcRef<T> {
 	fn clone(&self) -> Self {
 		let gcref_result = self.as_gc().as_ref();
 
@@ -418,7 +420,7 @@ impl<T: 'static> Clone for GcRef<T> {
 	}
 }
 
-impl<T: 'static> Deref for GcRef<T> {
+impl<T: Allocated> Deref for GcRef<T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {
@@ -430,7 +432,7 @@ impl<T: 'static> Deref for GcRef<T> {
 	}
 }
 
-impl<T: 'static> Drop for GcRef<T> {
+impl<T: Allocated> Drop for GcRef<T> {
 	fn drop(&mut self) {
 		let prev = self.0.borrows().fetch_sub(1, Ordering::Release);
 
@@ -447,9 +449,15 @@ impl<T: 'static> Drop for GcRef<T> {
 ///
 /// This is created via the [`as_mut`](Gc::as_mut) method on [`Gc`].
 #[repr(transparent)]
-pub struct GcMut<T: 'static>(Gc<T>);
+pub struct GcMut<T: Allocated>(Gc<T>);
 
-impl<T: 'static> GcMut<T> {
+impl<T: Debug + Allocated> Debug for GcMut<T> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		Debug::fmt(self.deref(), f)
+	}
+}
+
+impl<T: Allocated> GcMut<T> {
 	fn _base_mut(&self) -> &mut Base<T> {
 		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`.
 		// Additionally, since we have a unique lock on the data, we can get a mutable pointer.
@@ -527,7 +535,7 @@ impl<T: 'static> GcMut<T> {
 	}
 }
 
-impl<T> Deref for GcMut<T> {
+impl<T: Allocated> Deref for GcMut<T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {
@@ -535,7 +543,7 @@ impl<T> Deref for GcMut<T> {
 	}
 }
 
-impl<T> DerefMut for GcMut<T> {
+impl<T: Allocated> DerefMut for GcMut<T> {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`,
 		// which means that its `data` must also have been initialized. Additionally, we have unique
@@ -544,7 +552,7 @@ impl<T> DerefMut for GcMut<T> {
 	}
 }
 
-impl<T: 'static> Drop for GcMut<T> {
+impl<T: Allocated> Drop for GcMut<T> {
 	fn drop(&mut self) {
 		if cfg!(debug_assertions) {
 			// Sanity check to ensure that the value was previously `MUT_BORROW`
@@ -558,11 +566,12 @@ impl<T: 'static> Drop for GcMut<T> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::value::ty::Text;
 
 	#[should_panic="too many immutable borrows"]
 	#[test]
 	fn too_many_immutable_borrows_cause_a_panick() {
-		let text = Gc::from_str("g'day mate");
+		let text = Text::from_str("g'day mate");
 
 		text.borrows().store(MUT_BORROW - 1, Ordering::Release);
 
@@ -571,7 +580,7 @@ mod tests {
 
 	#[test]
 	fn respects_refcell_rules() {
-		let text = Gc::from_str("g'day mate");
+		let text = Text::from_str("g'day mate");
 
 		let mut1 = text.as_mut().unwrap();
 		assert_matches!(text.as_ref(), Err(Error::AlreadyLocked(_)));
@@ -592,10 +601,10 @@ mod tests {
 
 	#[test]
 	fn respects_frozen() {
-		let text = Gc::from_str("Hello, world");
+		let text = Text::from_str("Hello, world");
 
 		text.as_mut().unwrap().push('!');
-		assert_eq!(text.as_ref().unwrap(), *"Hello, world!");
+		assert_eq!(*text.as_ref().unwrap(), *"Hello, world!");
 		assert!(!text.is_frozen());
 
 		text.as_ref().unwrap().freeze();
