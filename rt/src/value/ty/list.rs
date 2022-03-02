@@ -54,14 +54,17 @@ impl List {
 		self.0.data_mut()
 	}
 
+	#[must_use]
 	pub fn builder() -> Builder {
 		Builder::allocate()
 	}
 
+	#[must_use]
 	pub fn new() -> Gc<Self> {
 		Self::with_capacity(0)
 	}
 
+	#[must_use]
 	pub fn with_capacity(capacity: usize) -> Gc<Self> {
 		let mut builder = Self::builder();
 
@@ -71,6 +74,7 @@ impl List {
 		}
 	}
 
+	#[must_use]
 	pub fn from_slice(inp: &[AnyValue]) -> Gc<Self> {
 		let mut builder = Self::builder();
 
@@ -81,6 +85,7 @@ impl List {
 		}
 	}
 
+	#[must_use]
 	pub fn from_static_slice(inp: &'static [AnyValue]) -> Gc<Self> {
 		let mut builder = Self::builder();
 		builder.insert_flag(FLAG_NOFREE | FLAG_SHARED);
@@ -102,6 +107,10 @@ impl List {
 
 	fn is_pointer_immutable(&self) -> bool {
 		self.flags().contains_any(FLAG_NOFREE | FLAG_SHARED)
+	}
+
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
 	}
 
 	pub fn len(&self) -> usize {
@@ -129,10 +138,11 @@ impl List {
 		unsafe { std::slice::from_raw_parts(self.as_ptr(), self.len()) }
 	}
 
-	pub fn clone(&self) -> Gc<Self> {
+	#[must_use]
+	pub fn dup(&self) -> Gc<Self> {
 		if self.is_embedded() {
 			// Since we're allocating a new `Self` anyways, we may as well copy over the data.
-			return self.deep_clone();
+			return self.deep_dup();
 		}
 
 		unsafe {
@@ -147,10 +157,12 @@ impl List {
 		}
 	}
 
-	pub fn deep_clone(&self) -> Gc<Self> {
+	#[must_use]
+	pub fn deep_dup(&self) -> Gc<Self> {
 		Self::from_slice(self.as_slice())
 	}
 
+	#[must_use]
 	pub fn substr<I: std::slice::SliceIndex<[AnyValue], Output = [AnyValue]>>(
 		&self,
 		idx: I,
@@ -268,7 +280,7 @@ impl List {
 	}
 
 	fn mut_end_ptr(&mut self) -> *mut AnyValue {
-		unsafe { self.as_mut_ptr().offset(self.len() as isize) }
+		unsafe { self.as_mut_ptr().add(self.len()) }
 	}
 
 	pub fn push(&mut self, ele: AnyValue) {

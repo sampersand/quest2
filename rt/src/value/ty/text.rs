@@ -51,14 +51,17 @@ impl Text {
 		self.0.data_mut()
 	}
 
+	#[must_use]
 	pub fn builder() -> Builder {
 		Builder::allocate()
 	}
 
+	#[must_use]
 	pub fn new() -> Gc<Self> {
 		Self::with_capacity(0)
 	}
 
+	#[must_use]
 	pub fn with_capacity(capacity: usize) -> Gc<Self> {
 		let mut builder = Self::builder();
 
@@ -68,6 +71,8 @@ impl Text {
 		}
 	}
 
+	#[allow(clippy::should_implement_trait)]
+	#[must_use]
 	pub fn from_str(inp: &str) -> Gc<Self> {
 		let mut builder = Self::builder();
 
@@ -78,6 +83,7 @@ impl Text {
 		}
 	}
 
+	#[must_use]
 	pub fn from_static_str(inp: &'static str) -> Gc<Self> {
 		let mut builder = Self::builder();
 		builder.insert_flag(FLAG_NOFREE);
@@ -101,53 +107,240 @@ impl Text {
 		self.flags().contains_any(FLAG_NOFREE | FLAG_SHARED)
 	}
 
+	/// Gets the length of `self`, in bytes.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let greeting = Text::from_static_str("Hello, world");
+	/// assert_eq!(greeting.as_ref()?.len(), 12);
+	///
+	/// let emoji = Text::from_static_str("😀, 🌎");
+	/// assert_eq!(emoji.as_ref()?.len(), 10);
+	///
+	/// # // ensure allocated thigns have valid length too
+	/// # assert_eq!(Text::from_str(&"hi".repeat(123)).as_ref()?.len(), 246);
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
 	pub fn len(&self) -> usize {
 		let inner = self.inner();
 
 		if self.is_embedded() {
+			// SAFETY: we know we're embedded, as per the `if`.
 			unsafe { inner.embed.len as usize }
 		} else {
+			// SAFETY: we know we're allocated, as per the `if`.
 			unsafe { inner.alloc.len }
 		}
 	}
 
+	/// Forcibly sets `self`'s length, in bytes.
+	///
+	/// # Safety
+	/// - `new_len` must be less than or equal to [`capacity()`](Self::capacity)
+	/// - The bytes from `old_len..new_len` must be initialized.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// // Allocate enough memory to hold our string.
+	/// let text = Text::with_capacity(15);
+	/// let mut textmut = text.as_mut()?;
+	///
+	/// // SAFETY: We know that we have at least 12 bytes of memory
+	/// // allocated in the mutable buffer (b/c `with_capacity(15)`),
+	/// // so we're  allowed to write to it. Additionally, since we
+	/// // wrote to those 12 bytes, they're initialized, so we can
+	/// // call `.set_len(12)`.
+	/// unsafe {
+	///    textmut.as_mut_ptr().copy_from(b"Hello, world".as_ptr(), 12);
+	///    textmut.set_len(12);
+	/// }
+	///
+	/// // Now the data's initialized
+	/// assert_eq!(textmut.as_str(), "Hello, world");
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
+	pub unsafe fn set_len(&mut self, new_len: usize) {
+		debug_assert!(new_len <= self.capacity());
+		assert!(new_len <= isize::MAX as usize, "new length is too large");
+
+		if self.is_embedded() {
+			self.inner_mut().embed.len = new_len as u8;
+		} else {
+			self.inner_mut().alloc.len = new_len;
+		}
+	}
+
+	/// Checks to see if `self` has a length of zero bytes.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let empty = Text::from_static_str("");
+	/// assert!(empty.as_ref()?.is_empty());
+	///
+	/// let nonempty = Text::from_static_str("nonempty");
+	/// assert!(!nonempty.as_ref()?.is_empty());
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
+
+	/// Returns the amount of bytes `self` can hold before reallocating.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let text = Text::with_capacity(12);
+	/// assert!(text.as_ref()?.capacity() >= 12);
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
 	pub fn capacity(&self) -> usize {
 		if self.is_embedded() {
 			MAX_EMBEDDED_LEN
 		} else {
-			unsafe { self.inner().alloc.cap }
+			let inner = self.inner();
+
+			// SAFETY: we know we're allocated, as per the `if`.
+			unsafe { inner.alloc.cap }
 		}
 	}
 
+	/// Returns a pointer to the beginning of the `Text` buffer.
+	///
+	/// You must not write to the pointer; if you need a `*mut u8`, use
+	/// [`as_mut_ptr()`](Self::as_mut_ptr) instead.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let text = Text::from_static_str("Hello");
+	/// let ptr = text.as_ref()?.as_ptr();
+	///
+	/// assert_eq!(unsafe { *ptr }, b'H');
+	/// assert_eq!(unsafe { *ptr.offset(4) }, b'o');
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
 	pub fn as_ptr(&self) -> *const u8 {
+		let inner = self.inner();
+
 		if self.is_embedded() {
-			unsafe { &self.inner().embed.buf }.as_ptr()
+			// SAFETY: we know we're embedded, as per the `if`
+			unsafe { &inner.embed.buf }.as_ptr()
 		} else {
-			unsafe { self.inner().alloc.ptr as *const u8 }
+			// SAFETY: we know we're allocated, as per the `if`
+			unsafe { inner.alloc.ptr as *const u8 }
 		}
 	}
 
+	/// Returns a mutable pointer to the beginning of the `Text` buffer.
+	///
+	/// If the buffer isn't uniquely owned (e.g. `self` was created from [`Text::from_static_str`],
+	/// is a [`substr()`](Self::substr), was [`dup`](Self::dup)ed, etc.), this will allocate an
+	/// entirely new one and copies the data over.
+	///
+	/// If you don't need mutable access, use [`as_ptr()`](Self::as_ptr) instead.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// // Allocate enough memory to hold our string.
+	/// let text = Text::with_capacity(15);
+	/// let mut textmut = text.as_mut()?;
+	///
+	/// // SAFETY: We know that we have at least 12 bytes of memory
+	/// // allocated in the mutable buffer (b/c `with_capacity(15)`),
+	/// // so we're  allowed to write to it. Additionally, since we
+	/// // wrote to those 12 bytes, they're initialized, so we can
+	/// // call `.set_len(12)`.
+	/// unsafe {
+	///    textmut.as_mut_ptr().copy_from(b"Hello, world".as_ptr(), 12);
+	///    textmut.set_len(12);
+	/// }
+	///
+	/// // Now the data's initialized
+	/// assert_eq!(textmut.as_str(), "Hello, world");
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
+	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
+		if self.is_embedded() {
+			return self.inner_mut().embed.buf.as_mut_ptr();
+		}
+
+		if self.is_pointer_immutable() {
+			// Both static Rust strings (`FLAG_NOFREE`) and shared strings (`FLAG_SHARED`) don't allow
+			// us to write to their pointer. As such, we need to duplicate the `alloc.ptr` field, which
+			// gives us ownership of it. Afterwards, we have to remove the relevant flags.
+			self.duplicate_alloc_ptr(self.inner().alloc.len);
+		}
+
+		self.inner_mut().alloc.ptr
+	}
+
+	/// Returns an immutable slice of bytes from `self`'s internal buffer.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let text = Text::from_static_str("Hello, 🌎");
+	/// assert_eq!(b"Hello, \xF0\x9F\x8C\x8E", text.as_ref()?.as_bytes());
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
 	#[inline]
 	pub fn as_bytes(&self) -> &[u8] {
+		// SAFETY: As per the invariants, all bytes from `0..len` must be initialized.
 		unsafe { std::slice::from_raw_parts(self.as_ptr(), self.len()) }
 	}
 
+	/// Returns the internal `str` for `self`.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let text = Text::from_static_str("Hello, 🌎");
+	/// assert_eq!(text.as_ref()?.as_str(), "Hello, 🌎");
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
 	#[inline]
 	pub fn as_str(&self) -> &str {
+		// SAFETY: An invariant of `Text` is that it's always valid utf8.
 		unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
 	}
 
-	pub fn clone(&self) -> Gc<Self> {
+	/// Creates a duplicate of `self` that can be modified independently.
+	///
+	/// To prevent allocating duplicate buffers, the internal buffer is actually shared across all
+	/// clones (and [`substr`](Self::substr)ings). However, once a mutation is done, the buffer will
+	/// be copied.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let text = Text::from_str("Hello, 🌎");
+	/// let dup = text.as_ref()?.dup();
+	/// 
+	/// assert_eq!(text.as_ref()?.as_str(), "Hello, 🌎");
+	/// assert_eq!(dup.as_ref()?.as_str(), "Hello, 🌎");
+	///
+	/// text.as_mut()?.push('!');
+	/// assert_eq!(text.as_ref()?.as_str(), "Hello, 🌎!");
+	/// assert_eq!(dup.as_ref()?.as_str(), "Hello, 🌎");
+	/// # qvm_rt::Result::<()>::Ok(())
+	#[must_use]
+	pub fn dup(&self) -> Gc<Self> {
 		if self.is_embedded() {
 			// Since we're allocating a new `Self` anyways, we may as well copy over the data.
-			return self.deep_clone();
+			return self.deep_dup();
 		}
 
-		unsafe {
-			// For allocated strings, you can actually one-for-one copy the body, as we now
-			// have `FLAG_SHARED` marked.
-			self.flags().insert(FLAG_SHARED);
+		// For allocated strings, you can actually one-for-one copy the body, as we now
+		// have `FLAG_SHARED` marked.
+		self.flags().insert(FLAG_SHARED);
 
+		// SAFETY: TODO
+		unsafe {
 			let mut builder = Self::builder();
 			let builder_ptr = builder.inner_mut() as *mut TextInner;
 			builder_ptr.copy_from_nonoverlapping(self.inner() as *const TextInner, 1);
@@ -155,10 +348,12 @@ impl Text {
 		}
 	}
 
-	pub fn deep_clone(&self) -> Gc<Self> {
+	#[must_use]
+	pub fn deep_dup(&self) -> Gc<Self> {
 		Self::from_str(self.as_str())
 	}
 
+	#[must_use]
 	pub fn substr<I: std::slice::SliceIndex<str, Output = str>>(&self, idx: I) -> Gc<Self> {
 		let slice = &self.as_str()[idx];
 
@@ -177,16 +372,6 @@ impl Text {
 		}
 	}
 
-	pub unsafe fn set_len(&mut self, new: usize) {
-		if self.is_embedded() {
-			assert!(new <= MAX_EMBEDDED_LEN);
-
-			self.inner_mut().embed.len = new as u8;
-		} else {
-			self.inner_mut().alloc.len = new;
-		}
-	}
-
 	unsafe fn duplicate_alloc_ptr(&mut self, capacity: usize) {
 		debug_assert!(self.is_pointer_immutable());
 
@@ -197,21 +382,6 @@ impl Text {
 		std::ptr::copy(old_ptr, alloc.ptr, alloc.len);
 
 		self.flags().remove(FLAG_NOFREE | FLAG_SHARED);
-	}
-
-	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
-		if self.is_embedded() {
-			return self.inner_mut().embed.buf.as_mut_ptr();
-		}
-
-		if self.is_pointer_immutable() {
-			// Both static Rust strings (`FLAG_NOFREE`) and shared strings (`FLAG_SHARED`) don't allow
-			// us to write to their pointer. As such, we need to duplicate the `alloc.ptr` field, which
-			// gives us ownership of it. Afterwards, we have to remove the relevant flags.
-			self.duplicate_alloc_ptr(self.inner().alloc.len);
-		}
-
-		self.inner_mut().alloc.ptr
 	}
 
 	pub unsafe fn as_mut_bytes(&mut self) -> &mut [u8] {
@@ -274,7 +444,7 @@ impl Text {
 	}
 
 	fn mut_end_ptr(&mut self) -> *mut u8 {
-		unsafe { self.as_mut_ptr().offset(self.len() as isize) }
+		unsafe { self.as_mut_ptr().add(self.len()) }
 	}
 
 	pub fn push(&mut self, chr: char) {
@@ -412,7 +582,7 @@ impl Ord for Text {
 
 impl PartialOrd<str> for Text {
 	fn partial_cmp(&self, rhs: &str) -> Option<std::cmp::Ordering> {
-		self.as_str().partial_cmp(&rhs)
+		self.as_str().partial_cmp(rhs)
 	}
 }
 
@@ -453,5 +623,10 @@ mod tests {
 			*<Gc<Text>>::get(Value::from(JABBERWOCKY)).as_ref().unwrap(),
 			*JABBERWOCKY
 		);
+	}
+
+	#[test]
+	fn default_is_empty_string() {
+		assert_eq!(*Gc::<Text>::default().as_ref().unwrap(), *"");
 	}
 }

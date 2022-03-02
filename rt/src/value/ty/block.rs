@@ -9,10 +9,13 @@ quest_type! {
 #[derive(Debug)]
 struct Inner {
 	data: Vec<ByteCode>,
+	// "source location" ?
 }
 
 impl Block {
+	#[must_use]
 	pub fn new(data: Vec<ByteCode>) -> Gc<Self> {
+		// Gc::
 		// unsafe {
 		// let mut builder = Self::allocate();
 		// builder.data_mut().write(Block { data });

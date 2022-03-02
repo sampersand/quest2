@@ -3,6 +3,7 @@ use std::cell::UnsafeCell;
 use std::mem::MaybeUninit;
 use std::ptr::NonNull;
 use std::sync::atomic::AtomicU32;
+use crate::value::gc::Gc;
 
 mod attributes;
 mod builder;
@@ -68,14 +69,6 @@ impl<T> Base<T> {
 		b
 	}
 
-	pub const fn flags(&self) -> &Flags {
-		&self.header.flags
-	}
-
-	pub const fn typeid(&self) -> TypeId {
-		self.header.typeid
-	}
-
 	pub const fn header(&self) -> &Header {
 		&self.header
 	}
@@ -126,18 +119,17 @@ impl Header {
 	}
 
 	/// Freezes the object, so that any future attempts to call [`Gc::as_mut`] will result in a
-	/// [`Error::ValueFrozen`] being returned.
+	/// [`Error::ValueFrozen`](crate::Error::ValueFrozen) being returned.
 	///
 	/// # Examples
-	/// ```rust
+	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
 	/// # use qvm_rt::{Error, value::ty::Text};
-	/// # pub fn main() -> qvm_rt::Result<()> {
 	/// let text = Text::from_str("Quest is cool");
 	///
 	/// text.as_ref()?.freeze();
 	/// assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
-	/// # Ok(()) }
+	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub fn freeze(&self) {
 		self.flags().insert(Flags::FROZEN);
@@ -145,13 +137,12 @@ impl Header {
 
 	/// Gets a reference to the parents of this type.
 	///
-	/// Note that this is defined on [`GcMut`] and not [`GcRef`] because internally, not all parents
-	/// are stored as a `Gc<List>`. When this function is called, the internal representation is set
-	/// to a list, and then returned.
+	/// Note that this is mutable because, internally, not all parents are stored as a `Gc<List>`.
+	/// When this function is called, the internal representation is set to a list, and then returned.
 	///
 	/// # Examples
 	/// TODO: example
-	pub fn parents(&mut self) -> crate::value::gc::Gc<crate::value::ty::List> {
+	pub fn parents(&mut self) -> Gc<crate::value::ty::List> {
 		self.attributes.parents.as_list()
 	}
 

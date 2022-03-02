@@ -14,6 +14,7 @@ pub mod vm;
 pub use error::{Error, Result};
 pub use value::{AnyValue, Value};
 
+#[allow(clippy::unusual_byte_groupings)]
 unsafe fn alloc(layout: std::alloc::Layout) -> *mut u8 {
 	let ptr = std::alloc::alloc(layout);
 
@@ -24,6 +25,7 @@ unsafe fn alloc(layout: std::alloc::Layout) -> *mut u8 {
 	ptr
 }
 
+#[allow(clippy::unusual_byte_groupings)]
 unsafe fn alloc_zeroed(layout: std::alloc::Layout) -> *mut u8 {
 	let ptr = std::alloc::alloc_zeroed(layout);
 
@@ -34,6 +36,7 @@ unsafe fn alloc_zeroed(layout: std::alloc::Layout) -> *mut u8 {
 	ptr
 }
 
+#[allow(clippy::unusual_byte_groupings)]
 unsafe fn realloc(ptr: *mut u8, layout: std::alloc::Layout, new_size: usize) -> *mut u8 {
 	let ptr = std::alloc::realloc(ptr, layout, new_size);
 

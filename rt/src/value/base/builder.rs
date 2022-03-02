@@ -41,7 +41,7 @@ impl<T> Builder<T> {
 	}
 
 	pub fn flags(&self) -> &super::Flags {
-		&self.base().flags()
+		self.base().header().flags()
 	}
 
 	pub fn data(&self) -> &MaybeUninit<T> {

@@ -1,15 +1,19 @@
-#[derive(Debug, Default, Clone)]
-#[repr(transparent)]
-pub struct Scope {
-	_priv: (),
+quest_type! {
+	#[derive(Debug)]
+	pub struct Scope(Inner);
 }
 
-sa::assert_eq_size!(Scope, ());
+#[derive(Debug, Default)]
+struct Inner {
+	// todo: source location
+}
+
+// sa::assert_eq_size!(Scope, ());
 
 impl Scope {
-	pub const fn new() -> Self {
-		Self { _priv: () }
-	}
+	// pub const fn new() -> Self {
+	// 	Self { _priv: () }
+	// }
 }
 
 // impl Gc<List> {

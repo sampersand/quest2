@@ -46,16 +46,19 @@ impl<T> Value<T> {
 	}
 
 	#[inline]
+	#[must_use]
 	pub const unsafe fn from_bits_unchecked(bits: u64) -> Self {
 		Self::from_bits(NonZeroU64::new_unchecked(bits))
 	}
 
 	#[inline]
+	#[must_use]
 	pub const unsafe fn from_bits(bits: NonZeroU64) -> Self {
 		Self(bits, PhantomData)
 	}
 
 	#[inline]
+	#[must_use]
 	pub const fn any(self) -> AnyValue {
 		unsafe { std::mem::transmute(self) }
 	}
@@ -64,6 +67,7 @@ impl<T> Value<T> {
 		self.0.get() // unique id for each object, technically lol
 	}
 
+	#[must_use]
 	pub const fn is_allocated(self) -> bool {
 		self.bits() & 0b111 == 0
 	}
@@ -86,7 +90,7 @@ impl AnyValue {
 }
 
 impl AnyValue {
-	fn allocate_self_and_copy_data_over(self) -> AnyValue {
+	fn allocate_self_and_copy_data_over(self) -> Self {
 		use crate::value::ty::*;
 
 		fn allocate_thing<T: 'static + HasParents>(thing: T) -> AnyValue {
@@ -120,9 +124,9 @@ impl AnyValue {
 
 	pub fn get_attr(self, attr: AnyValue) -> Result<Option<AnyValue>> {
 		if self.is_allocated() {
-			return unsafe { self.get_gc_any_unchecked() }
+			unsafe { self.get_gc_any_unchecked() }
 				.as_ref()?
-				.get_attr(attr);
+				.get_attr(attr)
 		} else {
 			self.parents_for().get_attr(attr)
 		}
@@ -158,6 +162,7 @@ impl AnyValue {
 }
 
 impl<T: Convertible> Value<T> {
+	#[must_use]
 	pub fn get(self) -> T::Output {
 		T::get(self)
 	}
@@ -169,10 +174,12 @@ pub struct Any {
 pub type AnyValue = Value<Any>;
 
 impl AnyValue {
+	#[must_use]
 	pub fn is_a<T: Convertible>(self) -> bool {
 		T::is_a(self)
 	}
 
+	#[must_use]
 	pub fn downcast<T: Convertible>(self) -> Option<Value<T>> {
 		T::downcast(self)
 	}

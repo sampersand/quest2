@@ -1,3 +1,8 @@
+
+#![allow(
+	clippy::unusual_byte_groupings // value representations use the last three bits, not four.
+)]
+
 #[macro_use]
 pub mod ty;
 
@@ -12,6 +17,8 @@ pub unsafe trait Convertible: Into<Value<Self>> {
 	type Output: std::fmt::Debug;
 
 	fn is_a(value: AnyValue) -> bool;
+
+	#[must_use]
 	fn downcast(value: AnyValue) -> Option<Value<Self>> {
 		if Self::is_a(value) {
 			Some(unsafe { std::mem::transmute(value) })

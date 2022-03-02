@@ -41,15 +41,9 @@ pub unsafe trait Allocated: 'static {
 /// All non-immediate types in Quest are allocated on the heap. These types can never be accessed
 /// directly, but must be interacted with through [`Gc`] or its references ([`GcRef`] and [`GcMut`]).
 ///
-/// Heap-allocated types will define all their methods either on [`Gc`] directly (for associated
-/// functions, eg [`Gc<Text>::from_str`]), or [`GcRef`]/[`GcMut`]
-/// depending on whether they need immutable (eg [`GcRef<Text>::as_str`]) or mutable (eg
-/// [`GcMut<Text>::push_str`]) access.
-///
 /// # Examples
-/// ```rust
+/// ```
 /// # use qvm_rt::value::{gc::{Gc, GcRef, GcMut}, ty::Text};
-/// # fn main() -> qvm_rt::Result<()> {
 /// let text = Text::from_str("Quest is cool");
 ///
 /// let textref: GcRef<Text> = text.as_ref()?;
@@ -60,7 +54,7 @@ pub unsafe trait Allocated: 'static {
 /// textmut.push('!');
 ///
 /// assert_eq!(textmut.as_str(), "Quest is cool!");
-/// # Ok(()) }
+/// # qvm_rt::Result::<()>::Ok(())
 /// ```
 #[repr(transparent)]
 pub struct Gc<T: Allocated>(NonNull<T>);
@@ -85,7 +79,7 @@ impl<T: Allocated> Debug for Gc<T>
 where
 	GcRef<T>: Debug,
 {
-	fn fmt(self: &Gc<T>, f: &mut Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		if !f.alternate() {
 			if let Ok(inner) = self.as_ref() {
 				return Debug::fmt(&inner, f);
@@ -151,19 +145,17 @@ impl<T: Allocated> Gc<T> {
 	///
 	/// # Examples
 	/// Getting an immutable reference when no mutable ones exist.
-	/// ```rust
+	/// ```
 	/// # use qvm_rt::value::ty::Text;
-	/// # fn main() -> qvm_rt::Result<()> {
 	/// let text = Text::from_str("what a wonderful day");
 	///
 	/// assert_eq!(text.as_ref()?.as_str(), "what a wonderful day");
-	/// # Ok(()) }
+	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	/// You cannot get an immutable reference when a mutable one exists.
-	/// ```rust
+	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
 	/// # use qvm_rt::{Error, value::ty::Text};
-	/// # fn main() -> qvm_rt::Result<()> {
 	/// let text = Text::from_str("what a wonderful day");
 	/// let textmut = text.as_mut()?;
 	///
@@ -173,7 +165,7 @@ impl<T: Allocated> Gc<T> {
 	///
 	/// // now it isn't, so we can get a reference.
 	/// assert_eq!(text.as_ref()?.as_str(), "what a wonderful day");
-	/// # Ok(()) }
+	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub fn as_ref(self) -> Result<GcRef<T>> {
 		fn updatefn(x: u32) -> Option<u32> {
@@ -209,21 +201,19 @@ impl<T: Allocated> Gc<T> {
 	///
 	/// # Examples
 	/// Getting a mutable reference when no immutable ones exist.
-	/// ```rust
+	/// ```
 	/// # use qvm_rt::value::ty::Text;
-	/// # fn main() -> qvm_rt::Result<()> {
 	/// let text = Text::from_str("what a wonderful day");
 	/// let mut textmut = text.as_mut()?;
 	///
 	/// textmut.push('!');
 	/// assert_eq!(textmut.as_str(), "what a wonderful day!");
-	/// # Ok(()) }
+	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	/// You cannot get a mutable reference when any immutable ones exist.
-	/// ```rust
+	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
 	/// # use qvm_rt::{Error, value::ty::Text};
-	/// # fn main() -> qvm_rt::Result<()> {
 	/// let text = Text::from_str("what a wonderful day");
 	/// let textref = text.as_ref()?;
 	///
@@ -235,7 +225,7 @@ impl<T: Allocated> Gc<T> {
 	/// let mut textmut = text.as_mut()?;
 	/// textmut.push('!');
 	/// assert_eq!(textmut.as_str(), "what a wonderful day!");
-	/// Ok(()) }
+	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub fn as_mut(self) -> Result<GcMut<T>> {
 		if self.flags().contains(Flags::FROZEN) {
@@ -256,7 +246,7 @@ impl<T: Allocated> Gc<T> {
 	/// Checks to see whether `self` and `rhs` point to the same object in memory.
 	///
 	/// # Examples
-	/// ```rust
+	/// ```
 	/// # use qvm_rt::value::ty::Text;
 	/// let text1 = Text::from_str("Hello");
 	/// let text2 = Text::from_str("Hello");
@@ -275,16 +265,15 @@ impl<T: Allocated> Gc<T> {
 	/// [`GcRef::freeze`].
 	///
 	/// # Examples
-	/// ```rust
+	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
 	/// # use qvm_rt::{Error, value::ty::Text};
-	/// # fn main() -> qvm_rt::Result<()> {
 	/// let text = Text::from_str("Quest is cool");
 	///
 	/// text.as_ref()?.freeze();
 	/// assert!(text.is_frozen());
 	/// assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
-	/// # Ok(()) }
+	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub fn is_frozen(&self) -> bool {
 		self.flags().contains(Flags::FROZEN)
@@ -353,7 +342,7 @@ where
 		// we're not accessing the `data` at all. (We're only getting the `typeid` from the header.)
 		let typeid = unsafe {
 			let gc = Gc::new_unchecked(value.bits() as usize as *mut Wrap<Any>);
-			*std::ptr::addr_of!((*(gc.as_ptr() as *const Base<Any>)).header.typeid)
+			(*gc.as_ptr().cast::<Base<Any>>()).header.typeid
 		};
 
 		dbg!(value.bits() as usize as *mut Wrap<Any>);
@@ -368,7 +357,7 @@ where
 		// definition constructs a valid `Value` from a valid `Gc<T>` or through `Gc::downcast`, which
 		// will only return `Some` if the underlying value is a `Gc<T>` (via `Gc::is_a`). Thus, we
 		// know that the bits are guaranteed to be a valid pointer to a `Base<T>`.
-		unsafe { Gc::new_unchecked(value.bits() as usize as *mut T) }
+		unsafe { Self::new_unchecked(value.bits() as usize as *mut T) }
 	}
 }
 
@@ -480,7 +469,6 @@ impl<T: Allocated> GcMut<T> {
 	///
 	/// # Examples
 	/// # use qvm_rt::{Error, value::Gc};
-	/// # fn main() -> qvm_rt::Result<()> {
 	/// let text = Gc::from_str("Quest is cool");
 	/// let mut textmut = text.as_mut()?;
 	/// textmut.push('!');
@@ -488,7 +476,7 @@ impl<T: Allocated> GcMut<T> {
 	/// // Text only defines `as_str` on `GcRef<Text>`. Thus, we
 	/// // need to convert reference before we can call `as_str`.
 	/// assert_eq!(text.as_mut(), "Quest is cool!");
-	/// # Ok(()) }
+	/// # qvm_rt::Result::<()>::Ok(())
 	#[inline(always)]
 	pub fn r(&self) -> &GcRef<T> {
 		// SAFETY: both `GcMut` and `GcRef` have the same internal layout. Additionally, since we

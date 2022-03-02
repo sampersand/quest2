@@ -2,7 +2,8 @@ use crate::value::{AnyValue, Convertible, Value};
 
 pub type Integer = i64;
 
-pub const MAX: Integer = 4611686018427387903;
+// all but the top two bits
+pub const MAX: Integer = (u64::MAX >> 2) as Integer;
 pub const MIN: Integer = !MAX;
 
 impl Value<Integer> {

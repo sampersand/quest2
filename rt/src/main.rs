@@ -1,4 +1,5 @@
 #![allow(unused)]
+#![allow(clippy::all,clippy::nursery,clippy::pedantic)]
 
 #[macro_use]
 use qvm_rt;

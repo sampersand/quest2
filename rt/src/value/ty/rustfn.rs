@@ -33,10 +33,12 @@ impl RustFn {
 		Self(inner)
 	}
 
+	#[must_use]
 	pub const fn name(&self) -> &'static str {
 		self.0.name
 	}
 
+	#[must_use]
 	pub fn func(&self) -> Function {
 		self.0.func
 	}
