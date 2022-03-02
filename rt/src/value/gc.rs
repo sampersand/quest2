@@ -9,7 +9,32 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-pub(crate) type AnyGc = Gc<Wrap<Any>>;
+/// A trait that indicates a type contains at a minimum a [`Header`].
+///
+/// # Safety
+/// To correctly implement this trait, the struct must guarantee that you can safely cast a 
+/// pointer to `Self` to a pointer to [`Header`]—that is, the first struct is `#[repr(C)]`, and
+/// the first field is a [`Header`]. This can be trivially achieved if your struct is simply a
+/// `#[repr(transparent)]` wrapper around [`Base<...>`](Base).
+///
+/// # See Also
+/// - [`quest_type`] A macro that's used to create allocated types.
+pub unsafe trait Allocated: 'static {
+	#[doc(hidden)]
+	fn _inner_typeid() -> std::any::TypeId;
+
+	fn header(&self) -> &Header {
+		unsafe { &*(self as *const Self).cast::<Header>() }
+	}
+
+	fn header_mut(&mut self) -> &mut Header {
+		unsafe { &mut *(self as *mut Self).cast::<Header>() }
+	}
+
+	fn flags(&self) -> &Flags {
+		self.header().flags()
+	}
+}
 
 /// A garbage collected pointer to `T`.
 ///
@@ -42,30 +67,6 @@ pub struct Gc<T: Allocated>(NonNull<T>);
 
 unsafe impl<T: Allocated + Send> Send for Gc<T> {}
 unsafe impl<T: Allocated + Sync> Sync for Gc<T> {}
-
-/// A trait that indicates a type contains at a minimum a [`Header`].
-///
-/// # Safety
-/// To correctly implement this trait, the struct must guarantee that you can safely cast a 
-/// pointer to `Self` to a pointer to [`Header`]—that is, the first struct is `#[repr(C)]`, and
-/// the first field is a [`Header`]. This can be trivially achieved if your struct is simply a
-/// `#[repr(transparent)]` wrapper around [`Base<...>`](Base).
-pub unsafe trait Allocated: 'static {
-	#[doc(hidden)]
-	fn _inner_typeid() -> std::any::TypeId;
-
-	fn header(&self) -> &Header {
-		unsafe { &*(self as *const Self).cast::<Header>() }
-	}
-
-	fn header_mut(&mut self) -> &mut Header {
-		unsafe { &mut *(self as *mut Self).cast::<Header>() }
-	}
-
-	fn flags(&self) -> &Flags {
-		self.header().flags()
-	}
-}
 
 impl<T: Allocated> Copy for Gc<T> {}
 impl<T: Allocated> Clone for Gc<T> {

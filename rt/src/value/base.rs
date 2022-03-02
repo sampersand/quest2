@@ -22,17 +22,17 @@ pub trait HasParents {
 #[derive(Debug)]
 #[repr(C, align(8))]
 pub struct Header {
-	pub(super) attributes: Attributes,
+	attributes: Attributes,
 	pub(super) typeid: TypeId,
-	pub(super) flags: Flags,
-	pub(super) borrows: AtomicU32,
+	flags: Flags,
+	borrows: AtomicU32,
 }
 
 #[derive(Debug)]
 #[repr(C, align(8))]
 pub struct Base<T: 'static> {
 	pub(super) header: Header,
-	pub(super) data: UnsafeCell<MaybeUninit<T>>,
+	data: UnsafeCell<MaybeUninit<T>>,
 }
 
 impl<T: HasParents> Base<T> {
@@ -67,19 +67,7 @@ impl<T> Base<T> {
 		b._write_parents(parents);
 		b
 	}
-}
 
-impl Header {
-	pub(crate) const fn borrows(&self) -> &AtomicU32 {
-		&self.borrows
-	}
-	// pub(super) attributes: Attributes,
-	// pub(super) typeid: TypeId,
-	// pub(super) flags: Flags,
-	// pub(super) borrows: AtomicU32,
-}
-
-impl<T> Base<T> {
 	pub const fn flags(&self) -> &Flags {
 		&self.header.flags
 	}
@@ -114,6 +102,10 @@ impl<T> Drop for Base<T> {
 use crate::{value::AnyValue, Result};
 
 impl Header {
+	pub(crate) const fn borrows(&self) -> &AtomicU32 {
+		&self.borrows
+	}
+
 	/// Retrieves `self`'s attribute `attr`, returning `None` if it doesn't exist.
 	///
 	/// # Errors

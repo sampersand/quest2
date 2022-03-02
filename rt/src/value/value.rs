@@ -70,13 +70,9 @@ impl<T> Value<T> {
 }
 
 
-// impl Value<Integer> {
-// 	fn overwrite(&mut self)
-// }
 impl AnyValue {
 	fn parents_for(self) -> super::base::Parents {
 		use crate::value::ty::*;
-		// use super::base::HasParents;
 
 		match self.bits() {
 			b if b & 1 == 1 => Integer::parents(),
@@ -89,8 +85,6 @@ impl AnyValue {
 		}
 	}
 }
-
-
 
 impl AnyValue {
 	fn allocate_self_and_copy_data_over(self) -> AnyValue {
@@ -148,7 +142,6 @@ impl AnyValue {
 			Ok(None) // we don't delete from unallocated things.
 		}
 	}
-
 
 	pub fn parents(&mut self) -> Result<Gc<crate::value::ty::List>> {
 		if !self.is_allocated() {

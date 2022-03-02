@@ -1,5 +1,4 @@
 use super::{Base, Parents};
-use crate::value::gc::{GcMut, GcRef, Allocated};
 use std::any::TypeId;
 use std::mem::MaybeUninit;
 use std::ptr::{addr_of_mut, NonNull};
@@ -53,17 +52,5 @@ impl<T> Builder<T> {
 
 	pub unsafe fn finish(self) -> NonNull<Base<T>> {
 		self.0
-	}
-}
-
-impl<T: Allocated> Builder<T> {
-	pub unsafe fn gcmut(&mut self) -> &mut GcMut<T> {
-		// std::mem::transmute(self)
-		panic!("deprecated")
-	}
-
-	pub unsafe fn gcref(&self) -> &GcRef<T> {
-		// std::mem::transmute(self)
-		panic!("deprecated")
 	}
 }

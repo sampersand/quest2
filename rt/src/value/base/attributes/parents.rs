@@ -1,5 +1,8 @@
+use crate::value::gc::Allocated;
+use crate::value::ty::{List, Wrap};
+use crate::value::value::Any;
+use crate::value::{AnyValue, Gc, Value};
 use crate::Result;
-use crate::value::{Gc, AnyValue, ty::List, Value, gc::{Allocated, AnyGc}};
 
 /*
 000...000 000 = none (ie `Pristine`)
@@ -11,6 +14,10 @@ XXX...XXX XX1 = Gc<List> (remove `1` before interacting with it)
 pub struct Parents(u64);
 
 impl Parents {
+	const fn is_empty(&self) -> bool {
+		self.0 == 0
+	}
+
 	// You can only have allocated values as parents. Unallocated values have to be boxed before
 	// they can become parents. (but this isn't a very common occurrence so it seems fine.)
 	pub fn new_singular<T: Allocated>(parent: Gc<T>) -> Self {
@@ -25,8 +32,8 @@ impl Parents {
 		Self(bits | 1)
 	}
 
-	unsafe fn as_singular_unchecked(&self) -> AnyGc {
-		debug_assert_ne!(self.0, 0);
+	unsafe fn as_singular_unchecked(&self) -> Gc<Wrap<Any>> {
+		debug_assert!(!self.is_empty());
 		debug_assert_eq!(self.0 & 1, 0);
 
 		Gc::new_unchecked(self.0 as *mut _)
@@ -39,7 +46,7 @@ impl Parents {
 	}
 
 	pub fn as_list(&mut self) -> Gc<List> {
-		if self.0 == 0 {
+		if self.is_empty() {
 			*self = Self::new_list(Default::default());
 		} else if self.0 & 1 == 0 {
 			let parent = Value::from(unsafe { self.as_singular_unchecked() }).any();
@@ -54,7 +61,7 @@ impl Parents {
 
 impl Parents {
 	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
-		if self.0 == 0 {
+		if self.is_empty() {
 			return Ok(None);
 		}
 
