@@ -3,6 +3,7 @@ use crate::value::{Convertible, Gc, ty::Wrap};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
+use crate::value::base::HasParents;
 
 /*
 000...0 000 000 = undefined
@@ -89,22 +90,15 @@ impl AnyValue {
 	}
 }
 
-use crate::value::base::{HasParents, self};
 
-fn allocate_thing<T: 'static + HasParents>(thing: T) -> AnyValue {
-	unsafe {
-		let mut builder = base::Builder::<Wrap<T>>::allocate();
-		builder._write_parents(T::parents());
-		let _ = thing;
-		// builder.data_mut().as_mut_ptr().write(Wrap(thing));
-		// Value::from(builder.finish()).any()
-		todo!();
-	}
-}
 
 impl AnyValue {
 	fn allocate_self_and_copy_data_over(self) -> AnyValue {
 		use crate::value::ty::*;
+
+		fn allocate_thing<T: 'static + HasParents>(thing: T) -> AnyValue {
+			Value::from(Wrap::new(thing)).any()
+		}
 
 		if let Some(i) = self.downcast::<Integer>() {
 			allocate_thing(i.get())
@@ -121,10 +115,10 @@ impl AnyValue {
 		}
 	}
 
-	unsafe fn get_gc_any_unchecked(self) -> Gc<Any> {
+	unsafe fn get_gc_any_unchecked(self) -> Gc<Wrap<Any>> {
 		debug_assert!(self.is_allocated());
 		
-		Gc::_new_unchecked(self.bits() as usize as *mut _)
+		Gc::new_unchecked(self.bits() as usize as *mut _)
 	}
 
 	pub fn has_attr(self, attr: AnyValue) -> Result<bool> {
@@ -172,15 +166,6 @@ impl<T: Convertible> Value<T> {
 }
 
 pub struct Any { _priv: () }
-impl crate::value::gc::Allocated for Any {
-	fn header(&self) -> &crate::value::base::Header {
-		unreachable!()
-	}
-	fn header_mut(&mut self) -> &mut crate::value::base::Header {
-		unreachable!()
-	}
-}
-
 pub type AnyValue = Value<Any>;
 
 impl AnyValue {
@@ -253,7 +238,7 @@ impl Debug for AnyValue {
 	}
 }
 
-impl Debug for crate::value::gc::GcRef<Any> {
+impl Debug for crate::value::gc::GcRef<Wrap<Any>> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		Debug::fmt(&Value::from(self.as_gc()), f)
 	}

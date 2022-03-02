@@ -38,7 +38,7 @@ impl HasParents for Null {
 
 	fn parents() -> Parents {
 		todo!()
-		// Parents::new_singular(unsafe { Gc::_new_unchecked(std::ptr::addr_of_mut!(NULL_PARENT).cast::<Base<Scope>>()) })
+		// Parents::new_singular(unsafe { Gc::new_unchecked(std::ptr::addr_of_mut!(NULL_PARENT).cast::<Base<Scope>>()) })
 	}
 }
 

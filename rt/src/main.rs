@@ -54,7 +54,7 @@ fn old2(){
 }
 
 fn old() {
-	// let rfn = Value::from(qvm_rt::RustFn_new!("foo", foo)).any();
+	// let rfn = Value::from(qvm_rt::RustFnnew!("foo", foo)).any();
 	// dbg!(rfn);
 
 	let mut text1 = Text::from_static_str("Hello, world");

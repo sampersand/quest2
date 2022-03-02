@@ -1,4 +1,4 @@
-use crate::value::base::{Base, Flags, Header};
+use crate::value::base::Flags;
 use crate::value::gc::{Gc, Allocated};
 use crate::value::AnyValue;
 use std::alloc;
@@ -7,17 +7,8 @@ use std::fmt::{self, Debug, Formatter};
 mod builder;
 pub use builder::Builder;
 
-#[repr(transparent)]
-pub struct List(Base<ListInner>);
-
-impl Allocated for List {
-	fn header(&self) -> &Header {
-		self.0.header()
-	}
-
-	fn header_mut(&mut self) -> &mut Header {
-		self.0.header_mut()
-	}
+quest_type! {
+	pub struct List(ListInner);
 }
 
 #[repr(C)]
@@ -104,11 +95,11 @@ impl List {
 	}
 
 	fn is_embedded(&self) -> bool {
-		self.0.flags().contains(FLAG_EMBEDDED)
+		self.flags().contains(FLAG_EMBEDDED)
 	}
 
 	fn is_pointer_immutable(&self) -> bool {
-		self.0.flags().contains_any(FLAG_NOFREE | FLAG_SHARED)
+		self.flags().contains_any(FLAG_NOFREE | FLAG_SHARED)
 	}
 
 	pub fn len(&self) -> usize {
@@ -147,7 +138,7 @@ impl List {
 		unsafe {
 			// For allocated strings, you can actually one-for-one copy the body, as we now
 			// have `FLAG_SHARED` marked.
-			self.0.flags().insert(FLAG_SHARED);
+			self.flags().insert(FLAG_SHARED);
 
 			let mut builder = Self::builder();
 			let builder_ptr = builder.inner_mut() as *mut ListInner;
@@ -164,7 +155,7 @@ impl List {
 		let slice = &self.as_slice()[idx];
 
 		unsafe {
-			self.0.flags().insert(FLAG_SHARED);
+			self.flags().insert(FLAG_SHARED);
 
 			let mut builder = Self::builder();
 			builder.insert_flag(FLAG_SHARED);
@@ -195,7 +186,7 @@ impl List {
 		alloc.cap = capacity;
 		std::ptr::copy(old_ptr, alloc.ptr, alloc.len);
 
-		self.0.flags().remove(FLAG_NOFREE | FLAG_SHARED);
+		self.flags().remove(FLAG_NOFREE | FLAG_SHARED);
 	}
 
 	pub unsafe fn as_mut_ptr(&mut self) -> *mut AnyValue {
@@ -237,7 +228,7 @@ impl List {
 				ptr,
 			};
 
-			self.0.flags().remove(FLAG_EMBEDDED);
+			self.flags().remove(FLAG_EMBEDDED);
 		}
 	}
 

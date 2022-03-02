@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::value::{Gc, AnyValue, ty::List, Value, value::Any, gc::Allocated};
+use crate::value::{Gc, AnyValue, ty::List, Value, gc::{Allocated, AnyGc}};
 
 /*
 000...000 000 = none (ie `Pristine`)
@@ -25,17 +25,17 @@ impl Parents {
 		Self(bits | 1)
 	}
 
-	unsafe fn as_singular_unchecked(&self) -> Gc<Any> {
+	unsafe fn as_singular_unchecked(&self) -> AnyGc {
 		debug_assert_ne!(self.0, 0);
 		debug_assert_eq!(self.0 & 1, 0);
 
-		Gc::_new_unchecked(self.0 as *mut _)
+		Gc::new_unchecked(self.0 as *mut _)
 	}
 
 	unsafe fn as_list_unchecked(&self) -> Gc<List> {
 		debug_assert_eq!(self.0 & 1, 1);
 
-		Gc::_new_unchecked((self.0 - 1) as usize as *mut _)
+		Gc::new_unchecked((self.0 - 1) as usize as *mut _)
 	}
 
 	pub fn as_list(&mut self) -> Gc<List> {

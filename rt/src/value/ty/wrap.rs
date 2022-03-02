@@ -1,25 +1,18 @@
-use crate::value::gc::{Allocated};
-use crate::value::base::{Base, Header};
+use crate::value::gc::Gc;
+use crate::value::base::{Builder, HasParents};
 
-#[derive(Debug)]
-pub struct Wrap<T: 'static>(Base<T>);
-
-// impl<T: 'static> From<T> for Wrap<T> {
-// 	fn from(inp: T) -> Self {
-// 		unsafe {
-// 			let mut builder = Base::new(inp);
-// 		}
-// 		Self(inp)
-// 	}
-// }
-
-impl<T: 'static> Allocated for Wrap<T> {
-	fn header(&self) -> &Header {
-		self.0.header()
-	}
-
-	fn header_mut(&mut self) -> &mut Header {
-		self.0.header_mut()
-	}
+quest_type! {
+	#[derive(Debug)]
+	pub struct Wrap<T>(T) where {T: 'static};
 }
 
+impl<T: HasParents + 'static> Wrap<T> {
+	pub fn new(data: T) -> Gc<Self> {
+		let mut builder = Builder::<T>::allocate();
+		unsafe {
+			builder._write_parents(T::parents());
+			builder.data_mut().as_mut_ptr().write(data);
+			Gc::new(std::mem::transmute(builder.finish()))
+		}
+	}
+}

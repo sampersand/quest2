@@ -1,45 +1,36 @@
-use crate::value::gc::{Gc, GcRef, Allocated};
-use crate::value::base::{Base, Header};
+use crate::value::gc::{Gc};
 use crate::vm::ByteCode;
 
-#[derive(Debug)]
-#[repr(transparent)]
-pub struct Block(Base<Inner>);
+
+quest_type! {
+	#[derive(Debug)]
+	pub struct Block(Inner);
+}
 
 #[derive(Debug)]
 struct Inner {
 	data: Vec<ByteCode>
 }
 
-impl Gc<Block> {
-	pub fn new(data: Vec<ByteCode>) -> Self {
+impl Block {
+	pub fn new(data: Vec<ByteCode>) -> Gc<Self> {
 		// unsafe {
 			// let mut builder = Self::allocate();
 			// builder.data_mut().write(Block { data });
-			// Gc::_new(builder.finish())
+			// Gc::new(builder.finish())
 			let _ = data;
 			todo!()
 		// }
 	}
 }
 
-impl Allocated for Block {
-	fn header(&self) -> &Header {
-		self.0.header()
-	}
-
-	fn header_mut(&mut self) -> &mut Header {
-		self.0.header_mut()
-	}
-}
-
 impl Default for Gc<Block> {
 	fn default() -> Self {
-		Self::new(Vec::new())
+		Block::new(Vec::new())
 	}
 }
 
-impl AsRef<[ByteCode]> for GcRef<Block> {
+impl AsRef<[ByteCode]> for Block {
 	fn as_ref(&self) -> &[ByteCode] {
 		&self.0.data().data
 	}
