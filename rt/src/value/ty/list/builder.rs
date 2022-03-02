@@ -1,6 +1,6 @@
 use super::{List, ListInner, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
-use crate::value::base::{Builder as BaseBuilder};
-use crate::value::gc::{Gc};
+use crate::value::base::Builder as BaseBuilder;
+use crate::value::gc::Gc;
 
 pub struct Builder(BaseBuilder<ListInner>);
 

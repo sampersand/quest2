@@ -66,14 +66,16 @@ impl Parents {
 		}
 
 		if self.0 & 1 == 0 {
-			return unsafe { self.as_singular_unchecked() }.as_ref()?.get_attr(attr);
+			return unsafe { self.as_singular_unchecked() }
+				.as_ref()?
+				.get_attr(attr);
 		}
 
 		let list = unsafe { self.as_list_unchecked() };
 
 		for parent in list.as_ref()?.as_slice() {
 			if let Some(value) = parent.get_attr(attr)? {
-				return Ok(Some(value))
+				return Ok(Some(value));
 			}
 		}
 

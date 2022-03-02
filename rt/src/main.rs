@@ -14,24 +14,39 @@ fn main() -> qvm_rt::Result<()> {
 
 	let mut parent = Value::from("hello, world").any();
 	parent.set_attr(attr, Value::from(123).any())?;
-	assert_eq!(parent.get_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
+	assert_eq!(
+		parent.get_attr(attr)?.unwrap().bits(),
+		Value::from(123).any().bits()
+	);
 
 	let mut child = Value::ONE.any();
 	assert!(!child.has_attr(attr)?);
 
 	child.parents()?.as_mut()?.push(parent);
-	assert_eq!(child.get_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
+	assert_eq!(
+		child.get_attr(attr)?.unwrap().bits(),
+		Value::from(123).any().bits()
+	);
 
 	child.set_attr(attr, Value::from(456).any()).unwrap();
-	assert_eq!(child.get_attr(attr)?.unwrap().bits(), Value::from(456).any().bits());
+	assert_eq!(
+		child.get_attr(attr)?.unwrap().bits(),
+		Value::from(456).any().bits()
+	);
 
-	assert_eq!(child.del_attr(attr)?.unwrap().bits(), Value::from(456).any().bits());
-	assert_eq!(child.get_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
+	assert_eq!(
+		child.del_attr(attr)?.unwrap().bits(),
+		Value::from(456).any().bits()
+	);
+	assert_eq!(
+		child.get_attr(attr)?.unwrap().bits(),
+		Value::from(123).any().bits()
+	);
 
 	Ok(())
 }
 
-fn old2(){
+fn old2() {
 	let list = List::from_slice(&[
 		Value::from("hello").any(),
 		Value::from(12).any(),
@@ -44,12 +59,13 @@ fn old2(){
 		.unwrap()
 		.push(Value::from(12.5).any());
 
-	list.as_mut()
+	list
+		.as_mut()
 		.unwrap()
 		.set_attr(Value::from(0).any(), Value::from("yo").any());
 
 	dbg!(list.as_ref().unwrap().get_attr(Value::from(0).any()));
-	
+
 	dbg!(list);
 }
 

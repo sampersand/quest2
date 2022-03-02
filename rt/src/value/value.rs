@@ -1,9 +1,9 @@
+use crate::value::base::HasParents;
+use crate::value::{ty::Wrap, Convertible, Gc};
 use crate::Result;
-use crate::value::{Convertible, Gc, ty::Wrap};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
-use crate::value::base::HasParents;
 
 /*
 000...0 000 000 = undefined
@@ -69,7 +69,6 @@ impl<T> Value<T> {
 	}
 }
 
-
 impl AnyValue {
 	fn parents_for(self) -> super::base::Parents {
 		use crate::value::ty::*;
@@ -81,7 +80,7 @@ impl AnyValue {
 			b if b == Value::NULL.bits() => Null::parents(),
 			b if b & 8 == 8 => RustFn::parents(),
 			b if b & 7 == 0 => unreachable!("called parents_for on allocated"),
-			b => unreachable!("unknown bits? {:064b}", b)
+			b => unreachable!("unknown bits? {:064b}", b),
 		}
 	}
 }
@@ -111,7 +110,7 @@ impl AnyValue {
 
 	unsafe fn get_gc_any_unchecked(self) -> Gc<Wrap<Any>> {
 		debug_assert!(self.is_allocated());
-		
+
 		Gc::new_unchecked(self.bits() as usize as *mut _)
 	}
 
@@ -121,23 +120,29 @@ impl AnyValue {
 
 	pub fn get_attr(self, attr: AnyValue) -> Result<Option<AnyValue>> {
 		if self.is_allocated() {
-			return unsafe { self.get_gc_any_unchecked() }.as_ref()?.get_attr(attr);
+			return unsafe { self.get_gc_any_unchecked() }
+				.as_ref()?
+				.get_attr(attr);
 		} else {
 			self.parents_for().get_attr(attr)
 		}
 	}
-	
+
 	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
 		if !self.is_allocated() {
 			*self = self.allocate_self_and_copy_data_over();
 		}
 
-		unsafe { self.get_gc_any_unchecked() }.as_mut()?.set_attr(attr, value)
+		unsafe { self.get_gc_any_unchecked() }
+			.as_mut()?
+			.set_attr(attr, value)
 	}
 
 	pub fn del_attr(self, attr: AnyValue) -> Result<Option<AnyValue>> {
 		if self.is_allocated() {
-			unsafe { self.get_gc_any_unchecked() }.as_mut()?.del_attr(attr)
+			unsafe { self.get_gc_any_unchecked() }
+				.as_mut()?
+				.del_attr(attr)
 		} else {
 			Ok(None) // we don't delete from unallocated things.
 		}
@@ -158,7 +163,9 @@ impl<T: Convertible> Value<T> {
 	}
 }
 
-pub struct Any { _priv: () }
+pub struct Any {
+	_priv: (),
+}
 pub type AnyValue = Value<Any>;
 
 impl AnyValue {

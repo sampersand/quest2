@@ -1,5 +1,5 @@
 use crate::value::base::Flags;
-use crate::value::gc::{Gc, Allocated};
+use crate::value::gc::{Allocated, Gc};
 use crate::value::AnyValue;
 use std::alloc;
 use std::fmt::{self, Debug, Formatter};
@@ -13,7 +13,8 @@ quest_type! {
 
 #[repr(C)]
 #[doc(hidden)]
-pub union ListInner { // TODO: remove pub
+pub union ListInner {
+	// TODO: remove pub
 	alloc: AllocatedList,
 	embed: EmbeddedList,
 }
@@ -33,8 +34,9 @@ struct EmbeddedList {
 	buf: [AnyValue; MAX_EMBEDDED_LEN],
 }
 
-const MAX_EMBEDDED_LEN: usize =
-	(std::mem::size_of::<AllocatedList>() - std::mem::size_of::<usize>()) / std::mem::size_of::<AnyValue>();
+const MAX_EMBEDDED_LEN: usize = (std::mem::size_of::<AllocatedList>()
+	- std::mem::size_of::<usize>())
+	/ std::mem::size_of::<AnyValue>();
 const FLAG_EMBEDDED: u32 = Flags::USER1;
 const FLAG_SHARED: u32 = Flags::USER2;
 const FLAG_NOFREE: u32 = Flags::USER3;
@@ -103,9 +105,7 @@ impl List {
 	}
 
 	pub fn len(&self) -> usize {
-		unsafe {
-			self.inner().embed.len
-		}
+		unsafe { self.inner().embed.len }
 	}
 
 	pub fn capacity(&self) -> usize {
@@ -151,7 +151,10 @@ impl List {
 		Self::from_slice(self.as_slice())
 	}
 
-	pub fn substr<I: std::slice::SliceIndex<[AnyValue], Output = [AnyValue]>>(&self, idx: I) -> Gc<Self> {
+	pub fn substr<I: std::slice::SliceIndex<[AnyValue], Output = [AnyValue]>>(
+		&self,
+		idx: I,
+	) -> Gc<Self> {
 		let slice = &self.as_slice()[idx];
 
 		unsafe {
@@ -205,9 +208,7 @@ impl List {
 	}
 
 	pub fn as_mut_slice(&mut self) -> &mut [AnyValue] {
-		unsafe {
-			std::slice::from_raw_parts_mut(self.as_mut_ptr(), self.len())
-		}
+		unsafe { std::slice::from_raw_parts_mut(self.as_mut_ptr(), self.len()) }
 	}
 
 	fn allocate_more_embeded(&mut self, required_len: usize) {
@@ -256,8 +257,12 @@ impl List {
 			let mut alloc = &mut self.inner_mut().alloc;
 
 			let orig_layout = alloc_ptr_layout(alloc.cap);
-			alloc.ptr = crate::realloc(alloc.ptr.cast::<u8>(), orig_layout,
-				new_cap * std::mem::size_of::<AnyValue>()).cast::<AnyValue>();
+			alloc.ptr = crate::realloc(
+				alloc.ptr.cast::<u8>(),
+				orig_layout,
+				new_cap * std::mem::size_of::<AnyValue>(),
+			)
+			.cast::<AnyValue>();
 			alloc.cap = new_cap;
 		}
 	}
@@ -289,13 +294,11 @@ impl List {
 	}
 }
 
-
 impl Default for Gc<List> {
 	fn default() -> Self {
 		List::new()
 	}
 }
-
 
 impl AsRef<[AnyValue]> for List {
 	fn as_ref(&self) -> &[AnyValue] {

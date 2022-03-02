@@ -1,6 +1,5 @@
-use crate::value::gc::{Gc};
+use crate::value::gc::Gc;
 use crate::vm::ByteCode;
-
 
 quest_type! {
 	#[derive(Debug)]
@@ -9,17 +8,17 @@ quest_type! {
 
 #[derive(Debug)]
 struct Inner {
-	data: Vec<ByteCode>
+	data: Vec<ByteCode>,
 }
 
 impl Block {
 	pub fn new(data: Vec<ByteCode>) -> Gc<Self> {
 		// unsafe {
-			// let mut builder = Self::allocate();
-			// builder.data_mut().write(Block { data });
-			// Gc::new(builder.finish())
-			let _ = data;
-			todo!()
+		// let mut builder = Self::allocate();
+		// builder.data_mut().write(Block { data });
+		// Gc::new(builder.finish())
+		let _ = data;
+		todo!()
 		// }
 	}
 }
@@ -35,7 +34,6 @@ impl AsRef<[ByteCode]> for Block {
 		&self.0.data().data
 	}
 }
-
 
 impl crate::value::base::HasParents for Block {
 	unsafe fn init() {

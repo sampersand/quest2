@@ -1,6 +1,8 @@
 #[derive(Debug, Default, Clone)]
 #[repr(transparent)]
-pub struct Scope { _priv: () }
+pub struct Scope {
+	_priv: (),
+}
 
 sa::assert_eq_size!(Scope, ());
 
@@ -16,11 +18,8 @@ impl Scope {
 // 	}
 // }
 
-
-
 impl crate::value::base::HasParents for Scope {
-	unsafe fn init() {
-	}
+	unsafe fn init() {}
 
 	fn parents() -> crate::value::base::Parents {
 		Default::default() // todo

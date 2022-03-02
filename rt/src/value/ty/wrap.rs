@@ -1,5 +1,5 @@
-use crate::value::gc::Gc;
 use crate::value::base::{Builder, HasParents};
+use crate::value::gc::Gc;
 
 quest_type! {
 	#[derive(Debug)]

@@ -22,4 +22,3 @@ pub unsafe trait Convertible: Into<Value<Self>> {
 
 	fn get(value: Value<Self>) -> Self::Output;
 }
-

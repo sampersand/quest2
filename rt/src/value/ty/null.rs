@@ -1,5 +1,5 @@
+use crate::value::base::{HasParents, Parents};
 use crate::value::{AnyValue, Convertible, Value};
-use crate::value::base::{Parents, HasParents};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]

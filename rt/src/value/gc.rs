@@ -1,9 +1,9 @@
 //! Types related to allocated Quest types.
 
-use crate::{Result, Error};
-use crate::value::base::{Base, Header, Flags};
-use crate::value::{AnyValue, Convertible, Value, value::Any};
+use crate::value::base::{Base, Flags, Header};
 use crate::value::ty::Wrap;
+use crate::value::{value::Any, AnyValue, Convertible, Value};
+use crate::{Error, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// A trait that indicates a type contains at a minimum a [`Header`].
 ///
 /// # Safety
-/// To correctly implement this trait, the struct must guarantee that you can safely cast a 
+/// To correctly implement this trait, the struct must guarantee that you can safely cast a
 /// pointer to `Self` to a pointer to [`Header`]—that is, the first struct is `#[repr(C)]`, and
 /// the first field is a [`Header`]. This can be trivially achieved if your struct is simply a
 /// `#[repr(transparent)]` wrapper around [`Base<...>`](Base).
@@ -45,20 +45,20 @@ pub unsafe trait Allocated: 'static {
 /// functions, eg [`Gc<Text>::from_str`]), or [`GcRef`]/[`GcMut`]
 /// depending on whether they need immutable (eg [`GcRef<Text>::as_str`]) or mutable (eg
 /// [`GcMut<Text>::push_str`]) access.
-/// 
+///
 /// # Examples
 /// ```rust
 /// # use qvm_rt::value::{gc::{Gc, GcRef, GcMut}, ty::Text};
 /// # fn main() -> qvm_rt::Result<()> {
 /// let text = Text::from_str("Quest is cool");
-/// 
+///
 /// let textref: GcRef<Text> = text.as_ref()?;
 /// assert_eq!(textref.as_str(), "Quest is cool");
 ///
 /// drop(textref);
 /// let mut textmut: GcMut<Text> = text.as_mut()?;
 /// textmut.push('!');
-/// 
+///
 /// assert_eq!(textmut.as_str(), "Quest is cool!");
 /// # Ok(()) }
 /// ```
@@ -119,9 +119,9 @@ impl<T: Allocated> Gc<T> {
 	/// Creates a new `Gc<T>` from `ptr`.
 	///
 	/// # Safety
-	/// The `Base<T>` must have been allocated via `crate::alloc`. Additionally, the pointer 
+	/// The `Base<T>` must have been allocated via `crate::alloc`. Additionally, the pointer
 	/// point to a valid `Base<T>` instance, which means it must have been properly initialized.
-	/// 
+	///
 	/// Note that a `Base<Any>` is allowed to be constructed from any valid `Base<T>` pointer, as
 	/// long as you never attempt to access the contents of it (ie either through [`Gc::to_ptr`]) or
 	/// through dereferencing either [`GcRef`] or [`GcMut`]. This is used to get header attributes
@@ -131,7 +131,7 @@ impl<T: Allocated> Gc<T> {
 	}
 
 	/// Creates a new `Gc<t>` from the raw pointer `ptr`.
-	/// 
+	///
 	/// This is identical to [`new`], except it assumes `ptr` is nonnull. It's just for convenience.
 	///
 	/// # Safety
@@ -155,7 +155,7 @@ impl<T: Allocated> Gc<T> {
 	/// # use qvm_rt::value::ty::Text;
 	/// # fn main() -> qvm_rt::Result<()> {
 	/// let text = Text::from_str("what a wonderful day");
-	/// 
+	///
 	/// assert_eq!(text.as_ref()?.as_str(), "what a wonderful day");
 	/// # Ok(()) }
 	/// ```
@@ -166,11 +166,11 @@ impl<T: Allocated> Gc<T> {
 	/// # fn main() -> qvm_rt::Result<()> {
 	/// let text = Text::from_str("what a wonderful day");
 	/// let textmut = text.as_mut()?;
-	/// 
+	///
 	/// // `textmut` is in scope, we cant get a reference.
 	/// assert_matches!(text.as_ref(), Err(Error::AlreadyLocked(_)));
 	/// drop(textmut);
-	/// 
+	///
 	/// // now it isn't, so we can get a reference.
 	/// assert_eq!(text.as_ref()?.as_str(), "what a wonderful day");
 	/// # Ok(()) }
@@ -186,7 +186,10 @@ impl<T: Allocated> Gc<T> {
 
 		const ONE_BELOW_MUT_BORROW: u32 = MUT_BORROW - 1;
 
-		match self.borrows().fetch_update(Ordering::Acquire, Ordering::Relaxed, updatefn) {
+		match self
+			.borrows()
+			.fetch_update(Ordering::Acquire, Ordering::Relaxed, updatefn)
+		{
 			Ok(ONE_BELOW_MUT_BORROW) => panic!("too many immutable borrows"),
 			Ok(_) => Ok(GcRef(self)),
 			Err(_) => Err(Error::AlreadyLocked(Value::from(self).any())),
@@ -223,11 +226,11 @@ impl<T: Allocated> Gc<T> {
 	/// # fn main() -> qvm_rt::Result<()> {
 	/// let text = Text::from_str("what a wonderful day");
 	/// let textref = text.as_ref()?;
-	/// 
+	///
 	/// // `textref` is in scope, we cant get a reference.
 	/// assert_matches!(text.as_mut(), Err(Error::AlreadyLocked(_)));
 	/// drop(textref);
-	/// 
+	///
 	/// // now it isn't, so we can get a reference.
 	/// let mut textmut = text.as_mut()?;
 	/// textmut.push('!');
@@ -236,7 +239,7 @@ impl<T: Allocated> Gc<T> {
 	/// ```
 	pub fn as_mut(self) -> Result<GcMut<T>> {
 		if self.flags().contains(Flags::FROZEN) {
-			return Err(Error::ValueFrozen(Value::from(self).any()))
+			return Err(Error::ValueFrozen(Value::from(self).any()));
 		}
 
 		if self
@@ -277,7 +280,7 @@ impl<T: Allocated> Gc<T> {
 	/// # use qvm_rt::{Error, value::ty::Text};
 	/// # fn main() -> qvm_rt::Result<()> {
 	/// let text = Text::from_str("Quest is cool");
-	/// 
+	///
 	/// text.as_ref()?.freeze();
 	/// assert!(text.is_frozen());
 	/// assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
@@ -317,7 +320,11 @@ impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 		sa::assert_eq_align!(Base<Any>, u64);
 
 		let bits = text.as_ptr() as usize as u64;
-		debug_assert_eq!(bits & 0b111, 0, "somehow the `Base<T>` pointer was misaligned??");
+		debug_assert_eq!(
+			bits & 0b111,
+			0,
+			"somehow the `Base<T>` pointer was misaligned??"
+		);
 
 		// SAFETY: The bottom three bits being zero is the definition for `Gc<T>`. We know that the
 		// bottom three bits are zero because `Base<T>` will always be at least 8-aligned.
@@ -440,7 +447,6 @@ impl<T: Debug + Allocated> Debug for GcMut<T> {
 	}
 }
 
-
 impl<T: Allocated> GcMut<T> {
 	pub fn parents(&mut self) -> crate::value::gc::Gc<crate::value::ty::List> {
 		self.header_mut().parents()
@@ -478,7 +484,7 @@ impl<T: Allocated> GcMut<T> {
 	/// let text = Gc::from_str("Quest is cool");
 	/// let mut textmut = text.as_mut()?;
 	/// textmut.push('!');
-	/// 
+	///
 	/// // Text only defines `as_str` on `GcRef<Text>`. Thus, we
 	/// // need to convert reference before we can call `as_str`.
 	/// assert_eq!(text.as_mut(), "Quest is cool!");
@@ -529,7 +535,7 @@ mod tests {
 	use super::*;
 	use crate::value::ty::Text;
 
-	#[should_panic="too many immutable borrows"]
+	#[should_panic = "too many immutable borrows"]
 	#[test]
 	fn too_many_immutable_borrows_cause_a_panick() {
 		let text = Text::from_str("g'day mate");

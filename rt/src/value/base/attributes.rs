@@ -1,6 +1,6 @@
-use hashbrown::{HashMap, hash_map::RawEntryMut};
 use crate::value::AnyValue;
 use crate::Result;
+use hashbrown::{hash_map::RawEntryMut, HashMap};
 
 mod parents;
 pub use parents::Parents;
@@ -21,19 +21,19 @@ impl Attributes {
 			let hash = attr.try_hash()?;
 			let mut eq_err: Result<()> = Ok(());
 
-			let res = attrs.raw_entry().from_hash(hash, |&k| {
-				match attr.try_eq(k) {
+			let res = attrs
+				.raw_entry()
+				.from_hash(hash, |&k| match attr.try_eq(k) {
 					Ok(val) => val,
 					Err(err) => {
 						eq_err = Err(err);
 						true
-					}
-				}
-			});
+					},
+				});
 			eq_err?;
 
 			if let Some((_key, &val)) = res {
-				return Ok(Some(val))
+				return Ok(Some(val));
 			}
 		}
 
@@ -50,15 +50,15 @@ impl Attributes {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
-		let res = attrs.raw_entry_mut().from_hash(hash, |&k| {
-			match attr.try_eq(k) {
+		let res = attrs
+			.raw_entry_mut()
+			.from_hash(hash, |&k| match attr.try_eq(k) {
 				Ok(val) => val,
 				Err(err) => {
 					eq_err = Err(err);
 					true
-				}
-			}
-		});
+				},
+			});
 		eq_err?;
 
 		match res {
@@ -76,25 +76,24 @@ impl Attributes {
 	}
 
 	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
-		let attrs = 
-			if let Some(attrs) = &mut self.attrs {
-				attrs
-			} else {
-				return Ok(None);
-			};
+		let attrs = if let Some(attrs) = &mut self.attrs {
+			attrs
+		} else {
+			return Ok(None);
+		};
 
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
-		let res = attrs.raw_entry_mut().from_hash(hash, |&k| {
-			match attr.try_eq(k) {
+		let res = attrs
+			.raw_entry_mut()
+			.from_hash(hash, |&k| match attr.try_eq(k) {
 				Ok(val) => val,
 				Err(err) => {
 					eq_err = Err(err);
 					true
-				}
-			}
-		});
+				},
+			});
 		eq_err?;
 
 		if let RawEntryMut::Occupied(occ) = res {
@@ -108,7 +107,10 @@ impl Attributes {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::value::{Value, ty::{Integer, Text}};
+	use crate::value::{
+		ty::{Integer, Text},
+		Value,
+	};
 
 	#[test]
 	fn attributes_work() {
@@ -118,14 +120,55 @@ mod tests {
 		assert_matches!(text.as_ref().unwrap().get_attr(ONE), Ok(None));
 		assert_matches!(text.as_mut().unwrap().del_attr(ONE), Ok(None));
 
-		text.as_mut().unwrap().set_attr(ONE, Value::from(23).any()).unwrap();
+		text
+			.as_mut()
+			.unwrap()
+			.set_attr(ONE, Value::from(23).any())
+			.unwrap();
 
-		assert_eq!(text.as_ref().unwrap().get_attr(ONE).unwrap().unwrap().downcast::<Integer>().unwrap().get(), 23);
+		assert_eq!(
+			text
+				.as_ref()
+				.unwrap()
+				.get_attr(ONE)
+				.unwrap()
+				.unwrap()
+				.downcast::<Integer>()
+				.unwrap()
+				.get(),
+			23
+		);
 
-		text.as_mut().unwrap().set_attr(ONE, Value::from(45).any()).unwrap();
-		assert_eq!(text.as_ref().unwrap().get_attr(ONE).unwrap().unwrap().downcast::<Integer>().unwrap().get(), 45);
+		text
+			.as_mut()
+			.unwrap()
+			.set_attr(ONE, Value::from(45).any())
+			.unwrap();
+		assert_eq!(
+			text
+				.as_ref()
+				.unwrap()
+				.get_attr(ONE)
+				.unwrap()
+				.unwrap()
+				.downcast::<Integer>()
+				.unwrap()
+				.get(),
+			45
+		);
 
-		assert_eq!(text.as_mut().unwrap().del_attr(ONE).unwrap().unwrap().downcast::<Integer>().unwrap().get(), 45);
+		assert_eq!(
+			text
+				.as_mut()
+				.unwrap()
+				.del_attr(ONE)
+				.unwrap()
+				.unwrap()
+				.downcast::<Integer>()
+				.unwrap()
+				.get(),
+			45
+		);
 		assert_matches!(text.as_ref().unwrap().get_attr(ONE), Ok(None));
 	}
 
@@ -135,20 +178,64 @@ mod tests {
 
 		let mut parent = Value::from("hello, world").any();
 		parent.set_attr(ATTR, Value::from(123).any()).unwrap();
-		assert_eq!(parent.get_attr(ATTR).unwrap().unwrap().downcast::<Integer>().unwrap().get(), 123);
+		assert_eq!(
+			parent
+				.get_attr(ATTR)
+				.unwrap()
+				.unwrap()
+				.downcast::<Integer>()
+				.unwrap()
+				.get(),
+			123
+		);
 
 		let mut child = Value::ONE.any();
 		assert!(!child.has_attr(ATTR).unwrap());
 
 		child.parents().unwrap().as_mut().unwrap().push(parent);
-		assert_eq!(child.get_attr(ATTR).unwrap().unwrap().downcast::<Integer>().unwrap().get(), 123);
+		assert_eq!(
+			child
+				.get_attr(ATTR)
+				.unwrap()
+				.unwrap()
+				.downcast::<Integer>()
+				.unwrap()
+				.get(),
+			123
+		);
 
 		child.set_attr(ATTR, Value::from(456).any()).unwrap();
-		assert_eq!(child.get_attr(ATTR).unwrap().unwrap().downcast::<Integer>().unwrap().get(), 456);
+		assert_eq!(
+			child
+				.get_attr(ATTR)
+				.unwrap()
+				.unwrap()
+				.downcast::<Integer>()
+				.unwrap()
+				.get(),
+			456
+		);
 
-		assert_eq!(child.del_attr(ATTR).unwrap().unwrap().downcast::<Integer>().unwrap().get(), 456);
-		assert_eq!(child.get_attr(ATTR).unwrap().unwrap().downcast::<Integer>().unwrap().get(), 123);
+		assert_eq!(
+			child
+				.del_attr(ATTR)
+				.unwrap()
+				.unwrap()
+				.downcast::<Integer>()
+				.unwrap()
+				.get(),
+			456
+		);
+		assert_eq!(
+			child
+				.get_attr(ATTR)
+				.unwrap()
+				.unwrap()
+				.downcast::<Integer>()
+				.unwrap()
+				.get(),
+			123
+		);
 		assert!(child.del_attr(ATTR).unwrap().is_none()); // cannot delete from parents.
 	}
 }
-

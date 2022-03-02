@@ -20,7 +20,9 @@ impl<T> Builder<T> {
 		unsafe {
 			// Since we `alloc_zeroed`, `parent` is valid (as it's zero, which is `None`),
 			// and `attribtues` is valid (as it's zero, which is also `None`).
-			Self::new(NonNull::new_unchecked(crate::alloc_zeroed(layout).cast::<Base<T>>()))
+			Self::new(NonNull::new_unchecked(
+				crate::alloc_zeroed(layout).cast::<Base<T>>(),
+			))
 		}
 	}
 

@@ -21,25 +21,25 @@ macro_rules! quest_type {
 #[macro_use]
 pub mod rustfn;
 
+mod basic;
+mod block;
 mod boolean;
 pub mod float;
 pub mod integer;
-mod basic;
 mod list;
 mod null;
-pub mod text;
-mod block;
 mod scope;
+pub mod text;
 mod wrap;
 
+pub use basic::Basic;
+pub use block::Block;
 pub use boolean::Boolean;
 pub use float::Float;
 pub use integer::Integer;
 pub use list::List;
 pub use null::Null;
 pub use rustfn::RustFn;
-pub use text::Text;
-pub use block::Block;
-pub use basic::Basic;
 pub use scope::Scope;
+pub use text::Text;
 pub use wrap::Wrap;

@@ -1,8 +1,8 @@
 use std::any::TypeId;
 use std::cell::UnsafeCell;
 use std::mem::MaybeUninit;
-use std::sync::atomic::AtomicU32;
 use std::ptr::NonNull;
+use std::sync::atomic::AtomicU32;
 
 mod attributes;
 mod builder;
@@ -134,7 +134,7 @@ impl Header {
 	/// # use qvm_rt::{Error, value::ty::Text};
 	/// # pub fn main() -> qvm_rt::Result<()> {
 	/// let text = Text::from_str("Quest is cool");
-	/// 
+	///
 	/// text.as_ref()?.freeze();
 	/// assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
 	/// # Ok(()) }

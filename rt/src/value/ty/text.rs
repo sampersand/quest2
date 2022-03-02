@@ -1,5 +1,5 @@
 use crate::value::base::Flags;
-use crate::value::gc::{Gc, Allocated};
+use crate::value::gc::{Allocated, Gc};
 use std::alloc;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -12,7 +12,8 @@ quest_type! {
 
 #[repr(C)]
 #[doc(hidden)]
-pub union TextInner { // TODO: remove pub
+pub union TextInner {
+	// TODO: remove pub
 	alloc: AllocatedText,
 	embed: EmbeddedText,
 }
@@ -303,13 +304,11 @@ impl Text {
 	}
 }
 
-
 impl Default for Gc<Text> {
 	fn default() -> Self {
 		Text::new()
 	}
 }
-
 
 impl AsRef<str> for Text {
 	fn as_ref(&self) -> &str {
