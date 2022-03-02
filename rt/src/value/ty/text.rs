@@ -148,8 +148,8 @@ impl Text {
 			self.flags().insert(FLAG_SHARED);
 
 			let mut builder = Self::builder();
-			let builder_ptr = (builder.text_mut() as *mut Text).cast::<u8>();
-			std::ptr::copy(self.as_ptr(), builder_ptr, 1);
+			let builder_ptr = builder.inner_mut() as *mut TextInner;
+			builder_ptr.copy_from_nonoverlapping(self.inner() as *const TextInner, 1);
 			builder.finish()
 		}
 	}
@@ -187,7 +187,7 @@ impl Text {
 	}
 
 	unsafe fn duplicate_alloc_ptr(&mut self, capacity: usize) {
-		debug_assert!(!self.is_embedded());
+		debug_assert!(self.is_pointer_immutable());
 
 		let mut alloc = &mut self.inner_mut().alloc;
 		let old_ptr = alloc.ptr;

@@ -142,7 +142,7 @@ impl List {
 
 			let mut builder = Self::builder();
 			let builder_ptr = builder.inner_mut() as *mut ListInner;
-			std::ptr::copy(self.inner() as *const ListInner, builder_ptr, 1);
+			builder_ptr.copy_from_nonoverlapping(self.inner() as *const ListInner, 1);
 			builder.finish()
 		}
 	}
@@ -178,7 +178,7 @@ impl List {
 	}
 
 	unsafe fn duplicate_alloc_ptr(&mut self, capacity: usize) {
-		debug_assert!(!self.is_embedded());
+		debug_assert!(self.is_pointer_immutable());
 
 		let mut alloc = &mut self.inner_mut().alloc;
 		let old_ptr = alloc.ptr;
