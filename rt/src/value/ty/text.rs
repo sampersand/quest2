@@ -1,18 +1,27 @@
-#![allow(unused)]
-use crate::value::base::{Base, Flags};
-use crate::value::gc::{Gc, GcMut, GcRef};
+use crate::value::base::{Base, Flags, Header};
+use crate::value::gc::{Gc, Allocated};
 use std::alloc;
 use std::fmt::{self, Debug, Display, Formatter};
 
 mod builder;
 pub use builder::Builder;
 
+#[repr(transparent)]
 pub struct Text(Base<TextInner>);
 
-impl crate::value::gc::Allocated for Text {}
+impl Allocated for Text {
+	fn header(&self) -> &Header {
+		self.0.header()
+	}
+
+	fn header_mut(&mut self) -> &mut Header {
+		self.0.header_mut()
+	}
+}
 
 #[repr(C)]
-union TextInner {
+#[doc(hidden)]
+pub union TextInner { // TODO: remove pub
 	alloc: AllocatedText,
 	embed: EmbeddedText,
 }
@@ -82,7 +91,7 @@ impl Text {
 		builder.insert_flag(FLAG_NOFREE);
 
 		unsafe {
-			let mut alloc = &mut builder.text_mut().inner_mut().alloc;
+			let mut alloc = &mut builder.inner_mut().alloc;
 
 			alloc.ptr = inp.as_ptr() as *mut u8;
 			alloc.len = inp.len();
@@ -166,7 +175,7 @@ impl Text {
 
 			let mut builder = Self::builder();
 			builder.insert_flag(FLAG_SHARED);
-			builder.text_mut().inner_mut().alloc = AllocatedText {
+			builder.inner_mut().alloc = AllocatedText {
 				ptr: slice.as_ptr() as *mut u8,
 				len: slice.len(),
 				cap: slice.len(), // capacity = length

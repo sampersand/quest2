@@ -43,7 +43,7 @@ impl Parents {
 			*self = Self::new_list(Default::default());
 		} else if self.0 & 1 == 0 {
 			let parent = Value::from(unsafe { self.as_singular_unchecked() }).any();
-			*self = Self::new_list(Gc::from_slice(&[parent]));
+			*self = Self::new_list(List::from_slice(&[parent]));
 		}
 
 		debug_assert_eq!(self.0 & 1, 1);

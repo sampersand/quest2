@@ -1,13 +1,13 @@
 use super::{Base, Parents};
-use crate::value::gc::{Gc, GcMut, GcRef, Allocated};
+use crate::value::gc::{GcMut, GcRef, Allocated};
 use std::any::TypeId;
 use std::mem::MaybeUninit;
 use std::ptr::{addr_of_mut, NonNull};
 
 #[must_use]
-pub struct Builder<T: Allocated>(NonNull<Base<T>>);
+pub struct Builder<T: 'static>(NonNull<Base<T>>);
 
-impl<T: Allocated> Builder<T> {
+impl<T> Builder<T> {
 	// safety: among other things, `ptr` must have been zero initialized (or you have to init it all yourself)
 	pub unsafe fn new(ptr: NonNull<Base<T>>) -> Self {
 		addr_of_mut!((*ptr.as_ptr()).header.typeid).write(TypeId::of::<T>());
@@ -51,15 +51,19 @@ impl<T: Allocated> Builder<T> {
 		self.base_mut().data.get_mut()
 	}
 
-	pub unsafe fn finish(self) -> Gc<T> {
-		Gc::_new(self.0)
+	pub unsafe fn finish(self) -> NonNull<Base<T>> {
+		self.0
 	}
+}
 
+impl<T: Allocated> Builder<T> {
 	pub unsafe fn gcmut(&mut self) -> &mut GcMut<T> {
-		std::mem::transmute(self)
+		// std::mem::transmute(self)
+		panic!("deprecated")
 	}
 
 	pub unsafe fn gcref(&self) -> &GcRef<T> {
-		std::mem::transmute(self)
+		// std::mem::transmute(self)
+		panic!("deprecated")
 	}
 }

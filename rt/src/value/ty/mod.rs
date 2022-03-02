@@ -10,6 +10,7 @@ mod null;
 pub mod text;
 mod block;
 mod scope;
+mod wrap;
 
 pub use boolean::Boolean;
 pub use float::Float;
@@ -21,8 +22,4 @@ pub use text::Text;
 pub use block::Block;
 pub use basic::Basic;
 pub use scope::Scope;
-
-
-#[derive(Debug)]
-pub struct Wrap<T>(pub T);
-impl<T: 'static> crate::value::gc::Allocated for Wrap<T>{}
+pub use wrap::Wrap;

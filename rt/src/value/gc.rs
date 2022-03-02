@@ -1,8 +1,9 @@
 //! Types related to allocated Quest types.
 
 use crate::{Result, Error};
-use crate::value::base::{Base, Builder, Flags, HasParents};
+use crate::value::base::{Base, Header, Flags};
 use crate::value::{AnyValue, Convertible, Value, value::Any};
+use crate::value::ty::Wrap;
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
@@ -35,12 +36,15 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// # Ok(()) }
 /// ```
 #[repr(transparent)]
-pub struct Gc<T: Allocated>(NonNull<Base<T>>);
+pub struct Gc<T: Allocated>(NonNull<T>);
 
 unsafe impl<T: Allocated + Send> Send for Gc<T> {}
 unsafe impl<T: Allocated + Sync> Sync for Gc<T> {}
 
-pub trait Allocated: 'static + Sized {}
+pub trait Allocated: 'static {
+	fn header(&self) -> &Header;
+	fn header_mut(&mut self) -> &mut Header;
+}
 
 impl<T: Allocated> Copy for Gc<T> {}
 impl<T: Allocated> Clone for Gc<T> {
@@ -78,12 +82,13 @@ where
 	}
 }
 
+/*
 impl<T: HasParents + Allocated> Gc<T> {
 	/// Helper function for `Base::allocate`. See it for safety.
 	pub(crate) unsafe fn allocate() -> Builder<T> {
 		Base::allocate()
 	}
-}
+*/
 
 /// Sentinel value used to indicate the `Gc<T>` is mutably borrowed.
 const MUT_BORROW: u32 = u32::MAX;
@@ -99,7 +104,7 @@ impl<T: Allocated> Gc<T> {
 	/// long as you never attempt to access the contents of it (ie either through [`Gc::to_ptr`]) or
 	/// through dereferencing either [`GcRef`] or [`GcMut`]. This is used to get header attributes
 	/// for objects when the type is irrelevant.
-	pub(crate) unsafe fn _new(ptr: NonNull<Base<T>>) -> Self {
+	pub(crate) unsafe fn _new(ptr: NonNull<T>) -> Self {
 		Self(ptr)
 	}
 
@@ -109,7 +114,7 @@ impl<T: Allocated> Gc<T> {
 	///
 	/// # Safety
 	/// All the same safety concerns as [`_new`], except `ptr` may not be null.
-	pub(crate) unsafe fn _new_unchecked(ptr: *mut Base<T>) -> Self {
+	pub(crate) unsafe fn _new_unchecked(ptr: *mut T) -> Self {
 		Self::_new(NonNull::new_unchecked(ptr))
 	}
 
@@ -261,7 +266,7 @@ impl<T: Allocated> Gc<T> {
 	}
 
 	/// Converts `self` into a pointer to the base.
-	pub(crate) fn as_ptr(self) -> *const Base<T> {
+	pub(crate) fn as_ptr(self) -> *const T {
 		self.0.as_ptr()
 	}
 
@@ -270,9 +275,7 @@ impl<T: Allocated> Gc<T> {
 	/// Technically this could be publicly visible, but outside the crate, you should get a reference
 	/// and go through the [`Header`].
 	fn flags(&self) -> &Flags {
-		// SAFETY: we know `self.as_ptr()` always points to a valid `Base<T>`, as that's a requirement
-		// for constructing it (via `_new`).
-		unsafe { &*std::ptr::addr_of!((*self.as_ptr()).header.flags) }
+		unsafe { &*self.0.as_ptr() }.header().flags()
 	}
 
 	/// Gets the header of `self`.
@@ -282,7 +285,7 @@ impl<T: Allocated> Gc<T> {
 	fn borrows(&self) -> &AtomicU32 {
 		// SAFETY: we know `self.as_ptr()` always points to a valid `Base<T>`, as that's a requirement
 		// for constructing it (via `_new`).
-		unsafe { &*std::ptr::addr_of!((*self.as_ptr()).header.borrows) }
+		unsafe { &*self.0.as_ptr() }.header().borrows()
 	}
 }
 
@@ -320,8 +323,8 @@ where
 		// the pointer points to _some_ `Gc` type, we're allowed to construct a `Gc<Any>` of it, as
 		// we're not accessing the `data` at all. (We're only getting the `typeid` from the header.)
 		let typeid = unsafe {
-			let gc = Gc::_new_unchecked(value.bits() as usize as *mut Base<Any>);
-			*std::ptr::addr_of!((*gc.as_ptr()).header.typeid)
+			let gc = Gc::_new_unchecked(value.bits() as usize as *mut Wrap<Any>);
+			*std::ptr::addr_of!((*(gc.as_ptr() as *const Base<Any>)).header.typeid)
 		};
 
 		// Make sure the `typeid` matches that of `T`.
@@ -333,7 +336,7 @@ where
 		// definition constructs a valid `Value` from a valid `Gc<T>` or through `Gc::downcast`, which
 		// will only return `Some` if the underlying value is a `Gc<T>` (via `Gc::is_a`). Thus, we
 		// know that the bits are guaranteed to be a valid pointer to a `Base<T>`.
-		unsafe { Gc::_new_unchecked(value.bits() as usize as *mut Base<T>) }
+		unsafe { Gc::_new_unchecked(value.bits() as usize as *mut T) }
 	}
 }
 
@@ -350,63 +353,20 @@ impl<T: Debug + Allocated> Debug for GcRef<T> {
 }
 
 impl<T: Allocated> GcRef<T> {
-	/// Retrieves `self`'s attribute `attr`, returning `None` if it doesn't exist.
-	///
-	/// # Errors
-	/// If the [`try_hash`](AnyValue::try_hash) or [`try_eq`](AnyValue::try_eq) functions on `attr`
-	/// return an error, that will be propagated upwards. Additionally, if the parents of `self`
-	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
-	///
-	/// # Example
-	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
-	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
-		self._base().header.attributes.get_attr(attr)
-	}
-
-	/// Converts the `self` back into a [`Gc`].
-	///
-	/// # Examples
-	/// ```rust
-	/// # use qvm_rt::value::Gc;
-	/// # fn main() -> qvm_rt::Result<()> {
-	/// let text = Gc::from_str("Quest is cool");
-	/// 
-	/// let textref = text.as_ref()?;
-	/// assert!(text.ptr_eq(textref.as_gc()));
-	/// Ok(()) }
-	/// ```
 	pub fn as_gc(&self) -> Gc<T> {
 		self.0
 	}
 
-	/// Gets a reference to `Base`.
-	fn _base(&self) -> &Base<T> {
-		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`.
-		unsafe { &*(self.0).0.as_ptr() }
+	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
+		self.header().get_attr(attr)
 	}
 
-	/// Gets the flags associated with the current object.
-	// TODO: we need to somehow not expose the internal flags.
 	pub fn flags(&self) -> &Flags {
-		&self._base().header.flags
+		self.header().flags()
 	}
 
-	/// Freezes the object, so that any future attempts to call [`Gc::as_mut`] will result in a
-	/// [`Error::ValueFrozen`] being returned.
-	///
-	/// # Examples
-	/// ```rust
-	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use qvm_rt::{Error, value::Gc};
-	/// # fn main() -> qvm_rt::Result<()> {
-	/// let text = Gc::from_str("Quest is cool");
-	/// 
-	/// text.as_ref()?.freeze();
-	/// assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
-	/// # Ok(()) }
-	/// ```
 	pub fn freeze(&self) {
-		self.flags().insert(Flags::FROZEN);
+		self.header().freeze()
 	}
 }
 
@@ -426,9 +386,7 @@ impl<T: Allocated> Deref for GcRef<T> {
 	fn deref(&self) -> &Self::Target {
 		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`,
 		// which means that its `data` must also have been initialized.
-		unsafe {
-			(*self._base().data.get()).assume_init_ref()
-		}
+		unsafe { &*(self.0).0.as_ptr() }
 	}
 }
 
@@ -457,6 +415,22 @@ impl<T: Debug + Allocated> Debug for GcMut<T> {
 	}
 }
 
+
+impl<T: Allocated> GcMut<T> {
+	pub fn parents(&mut self) -> crate::value::gc::Gc<crate::value::ty::List> {
+		self.header_mut().parents()
+	}
+
+	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
+		self.header_mut().set_attr(attr, value)
+	}
+
+	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
+		self.header_mut().del_attr(attr)
+	}
+}
+
+/*
 impl<T: Allocated> GcMut<T> {
 	fn _base_mut(&self) -> &mut Base<T> {
 		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`.
@@ -495,51 +469,13 @@ impl<T: Allocated> GcMut<T> {
 	fn _header_mut(&mut self) -> &mut crate::value::base::Header {
 		&mut self._base_mut().header
 	}
-
-	/// Gets a reference to the parents of this type.
-	///
-	/// Note that this is defined on [`GcMut`] and not [`GcRef`] because internally, not all parents
-	/// are stored as a `Gc<List>`. When this function is called, the internal representation is set
-	/// to a list, and then returned.
-	///
-	/// # Examples
-	/// TODO: example
-	pub fn parents(&mut self) -> Gc<crate::value::ty::List> {
-		self._header_mut().attributes.parents.as_list()
-	}
-
-	/// Sets the `self`'s attribute `attr` to `value`.
-	///
-	/// # Errors
-	/// If the [`try_hash`](AnyValue::try_hash) or [`try_eq`](AnyValue::try_eq) functions on `attr`
-	/// return an error, that will be propagated upwards. Additionally, if the parents of `self`
-	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
-	///
-	/// # Example
-	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
-	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
-		self._header_mut().attributes.set_attr(attr, value)
-	}
-
-	/// Attempts to delete `self`'s attribute `attr`, returning the old value if it was present.
-	///
-	/// # Errors
-	/// If the [`try_hash`](AnyValue::try_hash) or [`try_eq`](AnyValue::try_eq) functions on `attr`
-	/// return an error, that will be propagated upwards. Additionally, if the parents of `self`
-	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
-	///
-	/// # Example
-	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
-	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
-		self._header_mut().attributes.del_attr(attr)
-	}
-}
+}*/
 
 impl<T: Allocated> Deref for GcMut<T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {
-		&self.r()
+		unsafe { &*(self.0).0.as_ptr() }
 	}
 }
 
@@ -548,7 +484,7 @@ impl<T: Allocated> DerefMut for GcMut<T> {
 		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`,
 		// which means that its `data` must also have been initialized. Additionally, we have unique
 		// access over `data`, so we can mutably borrow it
-		unsafe { (*self._base_mut().data.get()).assume_init_mut() }
+		unsafe { &mut *(self.0).0.as_ptr() }
 	}
 }
 

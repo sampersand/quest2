@@ -1,24 +1,28 @@
-use super::{Text, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
-use crate::value::base::{Base, Builder as BaseBuilder};
-use crate::value::gc::{Gc, GcMut};
+use super::{Text, TextInner, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
+use crate::value::base::{Builder as BaseBuilder};
+use crate::value::gc::Gc;
 
-pub struct Builder(BaseBuilder<Text>);
+pub struct Builder(BaseBuilder<TextInner>);
 
 impl Builder {
-	pub unsafe fn new(builder: BaseBuilder<Text>) -> Self {
+	pub unsafe fn new(builder: BaseBuilder<TextInner>) -> Self {
 		Self(builder)
 	}
 
 	pub fn allocate() -> Self {
-		unsafe { Self::new(Base::<Text>::allocate()) }
+		unsafe { Self::new(BaseBuilder::<TextInner>::allocate()) }
 	}
 
 	pub fn insert_flag(&mut self, flag: u32) {
 		self.0.flags().insert(flag);
 	}
 
-	pub unsafe fn text_mut(&mut self) -> &mut Text {
+	pub unsafe fn inner_mut(&mut self) -> &mut TextInner {
 		self.0.data_mut().assume_init_mut()
+	}
+
+	pub unsafe fn text_mut(&mut self) -> &mut Text {
+		std::mem::transmute(self.0.base_mut())
 	}
 
 	// pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
@@ -32,7 +36,7 @@ impl Builder {
 			return;
 		}
 
-		let mut alloc = &mut self.text_mut().0.data_mut().alloc;
+		let mut alloc = &mut self.inner_mut().alloc;
 
 		// alloc.len is `0` because `Base::<T>::allocate` always zero allocates.
 		alloc.cap = capacity;
@@ -40,6 +44,6 @@ impl Builder {
 	}
 
 	pub unsafe fn finish(self) -> Gc<Text> {
-		self.0.finish()
+		std::mem::transmute(self.0.finish())
 	}
 }

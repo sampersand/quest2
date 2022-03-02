@@ -32,7 +32,7 @@ fn main() -> qvm_rt::Result<()> {
 }
 
 fn old2(){
-	let list = Gc::from_slice(&[
+	let list = List::from_slice(&[
 		Value::from("hello").any(),
 		Value::from(12).any(),
 		Value::TRUE.any(),

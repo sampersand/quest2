@@ -1,5 +1,5 @@
-use crate::value::base::{Base, Flags, Header};
-use crate::value::gc::{Gc, Allocated};
+use crate::value::base::{Flags, Header};
+use crate::value::gc::{Gc, GcMut, GcRef, Allocated};
 use crate::value::AnyValue;
 use std::alloc;
 use std::fmt::{self, Debug, Formatter};
@@ -7,22 +7,17 @@ use std::fmt::{self, Debug, Formatter};
 mod builder;
 pub use builder::Builder;
 
-#[repr(transparent)]
-pub struct List(Base<ListInner>);
-
 impl Allocated for List {
 	fn header(&self) -> &Header {
-		self.0.header()
+		todo!()
 	}
-
 	fn header_mut(&mut self) -> &mut Header {
-		self.0.header_mut()
+		todo!()
 	}
 }
 
 #[repr(C)]
-#[doc(hidden)]
-pub union ListInner { // TODO: remove pub
+pub union List {
 	alloc: AllocatedList,
 	embed: EmbeddedList,
 }
@@ -44,6 +39,7 @@ struct EmbeddedList {
 
 const MAX_EMBEDDED_LEN: usize =
 	(std::mem::size_of::<AllocatedList>() - std::mem::size_of::<usize>()) / std::mem::size_of::<AnyValue>();
+
 const FLAG_EMBEDDED: u32 = Flags::USER1;
 const FLAG_SHARED: u32 = Flags::USER2;
 const FLAG_NOFREE: u32 = Flags::USER3;
@@ -52,68 +48,67 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 	alloc::Layout::array::<AnyValue>(cap).unwrap()
 }
 
-impl List {
-	const fn inner(&self) -> &ListInner {
-		self.0.data()
-	}
-
-	fn inner_mut(&mut self) -> &mut ListInner {
-		self.0.data_mut()
-	}
-
-	pub fn builder() -> Builder {
-		Builder::allocate()
-	}
-
-	pub fn new() -> Gc<Self> {
-		Self::with_capacity(0)
-	}
-
-	pub fn with_capacity(capacity: usize) -> Gc<Self> {
+impl Gc<List> {
+	pub fn from_slice(inp: &[AnyValue]) -> Self {
 		let mut builder = Self::builder();
 
 		unsafe {
-			builder.allocate_buffer(capacity);
-			builder.finish() // Nothing else to do, as the default state is valid.
-		}
-	}
-
-	pub fn from_slice(inp: &[AnyValue]) -> Gc<Self> {
-		let mut builder = Self::builder();
-
-		unsafe {
-			builder.allocate_buffer(inp.len());
+			builder.allocate(inp.len());
 			builder.list_mut().push_slice_unchecked(inp);
 			builder.finish()
 		}
 	}
 
-	pub fn from_static_slice(inp: &'static [AnyValue]) -> Gc<Self> {
+	pub fn from_static_slice(inp: &'static [AnyValue]) -> Self {
 		let mut builder = Self::builder();
-		builder.insert_flag(FLAG_NOFREE | FLAG_SHARED);
+		builder.insert_flag(FLAG_NOFREE);
+
+		let mut alloc = unsafe { &mut builder.list_mut().alloc };
+		alloc.ptr = inp.as_ptr() as *mut _;
+		alloc.len = inp.len();
+		alloc.cap = alloc.len;
+
+		unsafe { builder.finish() }
+	}
+
+	pub fn new() -> Self {
+		Self::with_capacity(0)
+	}
+
+	pub fn with_capacity(capacity: usize) -> Self {
+		let mut builder = Self::builder();
 
 		unsafe {
-			let mut alloc = &mut builder.inner_mut().alloc;
-
-			alloc.ptr = inp.as_ptr() as *mut AnyValue;
-			alloc.len = inp.len();
-			alloc.cap = alloc.len;
-
-			builder.finish()
+			builder.allocate(capacity);
+			builder.finish() // Nothing else to do, as the default state is valid.
 		}
 	}
 
+	pub fn builder() -> Builder {
+		Builder::new()
+	}
+}
+
+impl Default for Gc<List> {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+impl GcRef<List> {
 	fn is_embedded(&self) -> bool {
-		self.0.flags().contains(FLAG_EMBEDDED)
+		self.flags().contains(FLAG_EMBEDDED)
 	}
 
 	fn is_pointer_immutable(&self) -> bool {
-		self.0.flags().contains_any(FLAG_NOFREE | FLAG_SHARED)
+		self.flags().contains_any(FLAG_NOFREE | FLAG_SHARED)
 	}
 
 	pub fn len(&self) -> usize {
+		// since both embedded and allocated have length at the same spot,
+		// we can just pick one
 		unsafe {
-			self.inner().embed.len
+			self.embed.len 
 		}
 	}
 
@@ -121,15 +116,15 @@ impl List {
 		if self.is_embedded() {
 			MAX_EMBEDDED_LEN
 		} else {
-			unsafe { self.inner().alloc.cap }
+			unsafe { self.alloc.cap }
 		}
 	}
 
 	pub fn as_ptr(&self) -> *const AnyValue {
 		if self.is_embedded() {
-			unsafe { &self.inner().embed.buf }.as_ptr()
+			unsafe { &self.embed.buf }.as_ptr()
 		} else {
-			unsafe { self.inner().alloc.ptr }
+			unsafe { self.alloc.ptr as *const AnyValue }
 		}
 	}
 
@@ -138,38 +133,38 @@ impl List {
 		unsafe { std::slice::from_raw_parts(self.as_ptr(), self.len()) }
 	}
 
-	pub fn clone(&self) -> Gc<Self> {
+	pub fn clone(&self) -> Gc<List> {
 		if self.is_embedded() {
 			// Since we're allocating a new `Self` anyways, we may as well copy over the data.
 			return self.deep_clone();
 		}
 
 		unsafe {
-			// For allocated strings, you can actually one-for-one copy the body, as we now
+			// For allocated lists, you can actually one-for-one copy the body, as we now
 			// have `FLAG_SHARED` marked.
-			self.0.flags().insert(FLAG_SHARED);
+			self.flags().insert(FLAG_SHARED);
 
-			let mut builder = Self::builder();
-			let builder_ptr = builder.inner_mut() as *mut ListInner;
-			std::ptr::copy(self.inner() as *const ListInner, builder_ptr, 1);
+			let mut builder = Gc::<List>::builder();
+			let builder_ptr = (&mut **builder.list_mut() as *mut List).cast::<u8>();
+			std::ptr::copy(self.as_ptr().cast::<u8>(), builder_ptr, 1);
 			builder.finish()
 		}
 	}
 
-	pub fn deep_clone(&self) -> Gc<Self> {
-		Self::from_slice(self.as_slice())
+	pub fn deep_clone(&self) -> Gc<List> {
+		Gc::<List>::from_slice(self.as_slice())
 	}
 
-	pub fn substr<I: std::slice::SliceIndex<[AnyValue], Output = [AnyValue]>>(&self, idx: I) -> Gc<Self> {
+	pub fn sublist<I: std::slice::SliceIndex<[AnyValue], Output = [AnyValue]>>(&self, idx: I) -> Gc<List> {
 		let slice = &self.as_slice()[idx];
 
 		unsafe {
-			self.0.flags().insert(FLAG_SHARED);
+			self.flags().insert(FLAG_SHARED);
 
-			let mut builder = Self::builder();
+			let mut builder = Gc::<List>::builder();
 			builder.insert_flag(FLAG_SHARED);
-			builder.inner_mut().alloc = AllocatedList {
-				ptr: slice.as_ptr() as *mut AnyValue,
+			builder.list_mut().alloc = AllocatedList {
+				ptr: slice.as_ptr() as *mut _,
 				len: slice.len(),
 				cap: slice.len(), // capacity = length
 			};
@@ -177,83 +172,87 @@ impl List {
 			builder.finish()
 		}
 	}
+}
 
+impl GcMut<List> {
 	pub unsafe fn set_len(&mut self, new: usize) {
-		if self.is_embedded() {
+		if self.r().is_embedded() {
 			assert!(new <= MAX_EMBEDDED_LEN);
 		}
 
-		self.inner_mut().embed.len = new;
+		// since `len` is in the same spot for both embed and alloc, we can do this.
+		self.embed.len = new;
 	}
 
 	unsafe fn duplicate_alloc_ptr(&mut self, capacity: usize) {
-		debug_assert!(!self.is_embedded());
+		debug_assert!(!self.r().is_embedded());
 
-		let mut alloc = &mut self.inner_mut().alloc;
-		let old_ptr = alloc.ptr;
-		alloc.ptr = crate::alloc(alloc_ptr_layout(capacity)).cast::<AnyValue>();
-		alloc.cap = capacity;
-		std::ptr::copy(old_ptr, alloc.ptr, alloc.len);
+		let old_ptr = self.alloc.ptr;
+		self.alloc.ptr = crate::alloc(alloc_ptr_layout(capacity)).cast::<AnyValue>();
+		self.alloc.cap = capacity;
+		std::ptr::copy(old_ptr, self.alloc.ptr, self.alloc.len);
 
-		self.0.flags().remove(FLAG_NOFREE | FLAG_SHARED);
+		self.r().flags().remove(FLAG_NOFREE | FLAG_SHARED);
 	}
 
 	pub unsafe fn as_mut_ptr(&mut self) -> *mut AnyValue {
-		if self.is_embedded() {
-			return self.inner_mut().embed.buf.as_mut_ptr();
+		if self.r().is_embedded() {
+			return self.embed.buf.as_mut_ptr();
 		}
 
-		if self.is_pointer_immutable() {
+		if self.r().is_pointer_immutable() {
 			// Both static Rust strings (`FLAG_NOFREE`) and shared strings (`FLAG_SHARED`) don't allow
 			// us to write to their pointer. As such, we need to duplicate the `alloc.ptr` field, which
 			// gives us ownership of it. Afterwards, we have to remove the relevant flags.
-			self.duplicate_alloc_ptr(self.inner().alloc.len);
+			self.duplicate_alloc_ptr(self.alloc.len);
 		}
 
-		self.inner_mut().alloc.ptr
+		self.alloc.ptr
 	}
 
 	pub fn as_mut_slice(&mut self) -> &mut [AnyValue] {
 		unsafe {
-			std::slice::from_raw_parts_mut(self.as_mut_ptr(), self.len())
+			std::slice::from_raw_parts_mut(self.as_mut_ptr(), self.r().len())
 		}
 	}
+}
 
+impl GcMut<List> {
 	fn allocate_more_embeded(&mut self, required_len: usize) {
-		debug_assert!(self.is_embedded());
+		debug_assert!(self.r().is_embedded());
 		debug_assert!(required_len > MAX_EMBEDDED_LEN); // we should only every realloc at this point.
 
 		let new_cap = std::cmp::max(MAX_EMBEDDED_LEN * 2, required_len);
 		let layout = alloc_ptr_layout(new_cap);
 
 		unsafe {
-			let len = self.inner().embed.len as usize;
+			let len = self.embed.len as usize;
 			let ptr = crate::alloc(layout).cast::<AnyValue>();
-			std::ptr::copy(self.inner().embed.buf.as_ptr(), ptr, len);
+			std::ptr::copy(self.embed.buf.as_ptr(), ptr, len);
 
-			self.inner_mut().alloc = AllocatedList {
+			self.alloc = AllocatedList {
 				len,
 				cap: new_cap,
 				ptr,
 			};
 
-			self.0.flags().remove(FLAG_EMBEDDED);
+			self.r().flags().remove(FLAG_EMBEDDED);
 		}
 	}
 
 	fn allocate_more(&mut self, required_len: usize) {
 		// If we're allocating more, and we're embedded, then we are going to need to allocate an
 		// entirely new buffer in memory, and no longer be embedded.
-		if self.is_embedded() {
+		if self.r().is_embedded() {
 			return self.allocate_more_embeded(required_len);
 		}
 
 		// Find the new capacity we'll need.
-		let new_cap = std::cmp::max(unsafe { self.inner().alloc.cap } * 2, required_len);
+		let new_cap = std::cmp::max(unsafe { self.alloc.cap } * 2, required_len);
 
 		// If the pointer is immutable, we have to allocate a new buffer, and then copy
 		// over the data.
-		if self.is_pointer_immutable() {
+		if self.r().is_pointer_immutable() {
 			unsafe {
 				self.duplicate_alloc_ptr(new_cap);
 			}
@@ -262,26 +261,24 @@ impl List {
 
 		// We have unique ownership of our pointer, so we can `realloc` it without worry.
 		unsafe {
-			let mut alloc = &mut self.inner_mut().alloc;
-
-			let orig_layout = alloc_ptr_layout(alloc.cap);
-			alloc.ptr = crate::realloc(alloc.ptr.cast::<u8>(), orig_layout,
+			let orig_layout = alloc_ptr_layout(self.alloc.cap);
+			self.alloc.ptr = crate::realloc(self.alloc.ptr.cast::<u8>(), orig_layout,
 				new_cap * std::mem::size_of::<AnyValue>()).cast::<AnyValue>();
-			alloc.cap = new_cap;
+			self.alloc.cap = new_cap;
 		}
 	}
 
 	fn mut_end_ptr(&mut self) -> *mut AnyValue {
-		unsafe { self.as_mut_ptr().offset(self.len() as isize) }
+		unsafe { self.as_mut_ptr().offset(self.r().len() as isize) }
 	}
 
-	pub fn push(&mut self, ele: AnyValue) {
+	pub fn push(&mut self, val: AnyValue) {
 		// OPTIMIZE: you can make this work better for single values.
-		self.push_slice(std::slice::from_ref(&ele));
+		self.push_slice(std::slice::from_ref(&val));
 	}
 
 	pub fn push_slice(&mut self, slice: &[AnyValue]) {
-		if self.capacity() <= self.len() + slice.len() {
+		if self.r().capacity() <= self.r().len() + slice.len() {
 			self.allocate_more(slice.len());
 		}
 
@@ -291,30 +288,28 @@ impl List {
 	}
 
 	pub unsafe fn push_slice_unchecked(&mut self, slice: &[AnyValue]) {
-		debug_assert!(self.capacity() >= self.len() + slice.len());
+		debug_assert!(self.r().capacity() >= self.r().len() + slice.len());
 
 		std::ptr::copy(slice.as_ptr(), self.mut_end_ptr(), slice.len());
-		self.set_len(self.len() + slice.len())
+		self.set_len(self.r().len() + slice.len())
 	}
 }
 
-
-impl Default for Gc<List> {
-	fn default() -> Self {
-		List::new()
+impl AsMut<[AnyValue]> for GcMut<List> {
+	fn as_mut(&mut self) -> &mut [AnyValue] {
+		self.as_mut_slice()
 	}
 }
 
-
-impl AsRef<[AnyValue]> for List {
+impl AsRef<[AnyValue]> for GcRef<List> {
 	fn as_ref(&self) -> &[AnyValue] {
 		self.as_slice()
 	}
 }
 
-impl AsMut<[AnyValue]> for List {
-	fn as_mut(&mut self) -> &mut [AnyValue] {
-		self.as_mut_slice()
+impl AsRef<[AnyValue]> for GcMut<List> {
+	fn as_ref(&self) -> &[AnyValue] {
+		self.r().as_ref()
 	}
 }
 
@@ -337,7 +332,7 @@ impl Drop for List {
 	}
 }*/
 
-impl Debug for List {
+impl Debug for GcRef<List> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		if f.alternate() {
 			f.write_str("List(")?;
@@ -353,15 +348,21 @@ impl Debug for List {
 	}
 }
 
+impl Debug for GcMut<List> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		Debug::fmt(self.r(), f)
+	}
+}
+
 impl From<&'_ [AnyValue]> for Gc<List> {
-	fn from(string: &[AnyValue]) -> Self {
-		List::from_slice(string)
+	fn from(slice: &[AnyValue]) -> Self {
+		Self::from_slice(slice)
 	}
 }
 
 impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
-	fn from(text: &[AnyValue]) -> Self {
-		List::from_slice(text).into()
+	fn from(slice: &[AnyValue]) -> Self {
+		Gc::<List>::from_slice(slice).into()
 	}
 }
 
@@ -374,37 +375,6 @@ impl crate::value::base::HasParents for List {
 		Default::default() // todo
 	}
 }
-
-// impl Eq for List {}
-// impl PartialEq for List {
-// 	fn eq(&self, rhs: &Self) -> bool {
-// 		self == rhs.as_slice()
-// 	}
-// }
-
-// impl PartialEq<[AnyValue]> for List {
-// 	fn eq(&self, rhs: &[AnyValue]) -> bool {
-// 		self.as_slice() == rhs
-// 	}
-// }
-
-// impl PartialOrd for List {
-// 	fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
-// 		Some(self.cmp(rhs))
-// 	}
-// }
-
-// impl Ord for List {
-// 	fn cmp(&self, rhs: &Self) -> std::cmp::Ordering {
-// 		self.as_str().cmp(rhs.as_str())
-// 	}
-// }
-
-// impl PartialOrd<[AnyValue]> for List {
-// 	fn partial_cmp(&self, rhs: &[AnyValue]) -> Option<std::cmp::Ordering> {
-// 		self.as_str().partial_cmp(&rhs)
-// 	}
-// }
 
 // #[cfg(test)]
 // mod tests {

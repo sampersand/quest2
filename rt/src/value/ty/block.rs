@@ -1,22 +1,37 @@
 use crate::value::gc::{Gc, GcRef, Allocated};
+use crate::value::base::{Base, Header};
 use crate::vm::ByteCode;
 
 #[derive(Debug)]
-pub struct Block {
+#[repr(transparent)]
+pub struct Block(Base<Inner>);
+
+#[derive(Debug)]
+struct Inner {
 	data: Vec<ByteCode>
 }
 
 impl Gc<Block> {
 	pub fn new(data: Vec<ByteCode>) -> Self {
-		unsafe {
-			let mut builder = Self::allocate();
-			builder.data_mut().write(Block { data });
-			builder.finish()
-		}
+		// unsafe {
+			// let mut builder = Self::allocate();
+			// builder.data_mut().write(Block { data });
+			// Gc::_new(builder.finish())
+			let _ = data;
+			todo!()
+		// }
 	}
 }
 
-impl Allocated for Block {}
+impl Allocated for Block {
+	fn header(&self) -> &Header {
+		self.0.header()
+	}
+
+	fn header_mut(&mut self) -> &mut Header {
+		self.0.header_mut()
+	}
+}
 
 impl Default for Gc<Block> {
 	fn default() -> Self {
@@ -26,7 +41,7 @@ impl Default for Gc<Block> {
 
 impl AsRef<[ByteCode]> for GcRef<Block> {
 	fn as_ref(&self) -> &[ByteCode] {
-		&self.data
+		&self.0.data().data
 	}
 }
 

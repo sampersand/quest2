@@ -95,8 +95,10 @@ fn allocate_thing<T: 'static + HasParents>(thing: T) -> AnyValue {
 	unsafe {
 		let mut builder = base::Builder::<Wrap<T>>::allocate();
 		builder._write_parents(T::parents());
-		builder.data_mut().as_mut_ptr().write(Wrap(thing));
-		Value::from(builder.finish()).any()
+		let _ = thing;
+		// builder.data_mut().as_mut_ptr().write(Wrap(thing));
+		// Value::from(builder.finish()).any()
+		todo!();
 	}
 }
 
@@ -169,8 +171,16 @@ impl<T: Convertible> Value<T> {
 	}
 }
 
-pub enum Any {}
-impl crate::value::gc::Allocated for Any{}
+pub struct Any { _priv: () }
+impl crate::value::gc::Allocated for Any {
+	fn header(&self) -> &crate::value::base::Header {
+		unreachable!()
+	}
+	fn header_mut(&mut self) -> &mut crate::value::base::Header {
+		unreachable!()
+	}
+}
+
 pub type AnyValue = Value<Any>;
 
 impl AnyValue {
@@ -242,7 +252,6 @@ impl Debug for AnyValue {
 		}
 	}
 }
-
 
 impl Debug for crate::value::gc::GcRef<Any> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
