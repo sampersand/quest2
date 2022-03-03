@@ -42,7 +42,7 @@ impl Attributes {
 
 	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
 		if self.attrs.is_none() {
-			self.attrs = Some(Box::new(Default::default()));
+			self.attrs = Some(Box::new(HashMap::default()));
 		}
 
 		let attrs = unsafe { self.attrs.as_mut().unwrap_unchecked() };

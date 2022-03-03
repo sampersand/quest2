@@ -14,6 +14,10 @@ impl<T> Builder<T> {
 		Self(ptr)
 	}
 
+	pub fn inner_ptr(&self) -> NonNull<Base<T>> {
+		self.0
+	}
+
 	pub fn allocate() -> Self {
 		let layout = std::alloc::Layout::new::<Base<T>>();
 
@@ -40,6 +44,11 @@ impl<T> Builder<T> {
 		unsafe { self.0.as_mut() }
 	}
 
+	#[inline]
+	pub fn base_mut_ptr(&mut self) -> *mut Base<T> {
+		self.base_mut() as *mut Base<T>
+	}
+
 	pub fn flags(&self) -> &super::Flags {
 		self.base().header().flags()
 	}
@@ -52,6 +61,7 @@ impl<T> Builder<T> {
 		self.base_mut().data.get_mut()
 	}
 
+	#[must_use]
 	pub unsafe fn finish(self) -> NonNull<Base<T>> {
 		self.0
 	}

@@ -245,7 +245,7 @@ impl Debug for AnyValue {
 	}
 }
 
-impl Debug for crate::value::gc::GcRef<Wrap<Any>> {
+impl Debug for crate::value::gc::Ref<Wrap<Any>> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		Debug::fmt(&Value::from(self.as_gc()), f)
 	}

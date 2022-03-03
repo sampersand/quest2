@@ -47,7 +47,7 @@ impl Parents {
 
 	pub fn as_list(&mut self) -> Gc<List> {
 		if self.is_empty() {
-			*self = Self::new_list(Default::default());
+			*self = Self::new_list(Gc::default());
 		} else if self.0 & 1 == 0 {
 			let parent = Value::from(unsafe { self.as_singular_unchecked() }).any();
 			*self = Self::new_list(List::from_slice(&[parent]));

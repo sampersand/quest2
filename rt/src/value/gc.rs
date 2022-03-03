@@ -39,18 +39,18 @@ pub unsafe trait Allocated: 'static {
 /// A garbage collected pointer to `T`.
 ///
 /// All non-immediate types in Quest are allocated on the heap. These types can never be accessed
-/// directly, but must be interacted with through [`Gc`] or its references ([`GcRef`] and [`GcMut`]).
+/// directly, but must be interacted with through [`Gc`] or its references ([`Ref`] and [`Mut`]).
 ///
 /// # Examples
 /// ```
-/// # use qvm_rt::value::{gc::{Gc, GcRef, GcMut}, ty::Text};
+/// # use qvm_rt::value::{gc::{Gc, Ref, Mut}, ty::Text};
 /// let text = Text::from_str("Quest is cool");
 ///
-/// let textref: GcRef<Text> = text.as_ref()?;
+/// let textref: Ref<Text> = text.as_ref()?;
 /// assert_eq!(textref.as_str(), "Quest is cool");
 ///
 /// drop(textref);
-/// let mut textmut: GcMut<Text> = text.as_mut()?;
+/// let mut textmut: Mut<Text> = text.as_mut()?;
 /// textmut.push('!');
 ///
 /// assert_eq!(textmut.as_str(), "Quest is cool!");
@@ -77,7 +77,7 @@ pub trait Mark {
 
 impl<T: Allocated> Debug for Gc<T>
 where
-	GcRef<T>: Debug,
+	Ref<T>: Debug,
 {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		if !f.alternate() {
@@ -108,6 +108,7 @@ impl<T: HasParents + Allocated> Gc<T> {
 
 /// Sentinel value used to indicate the `Gc<T>` is mutably borrowed.
 const MUT_BORROW: u32 = u32::MAX;
+pub const MAX_BORROWS: usize = (MUT_BORROW - 1) as usize;
 
 impl<T: Allocated> Gc<T> {
 	/// Creates a new `Gc<T>` from `ptr`.
@@ -118,7 +119,7 @@ impl<T: Allocated> Gc<T> {
 	///
 	/// Note that a `Base<Any>` is allowed to be constructed from any valid `Base<T>` pointer, as
 	/// long as you never attempt to access the contents of it (ie either through [`Gc::to_ptr`]) or
-	/// through dereferencing either [`GcRef`] or [`GcMut`]. This is used to get header attributes
+	/// through dereferencing either [`Ref`] or [`Mut`]. This is used to get header attributes
 	/// for objects when the type is irrelevant.
 	pub(crate) unsafe fn new(ptr: NonNull<T>) -> Self {
 		Self(ptr)
@@ -142,6 +143,9 @@ impl<T: Allocated> Gc<T> {
 	/// # Errors
 	/// If the contents are already mutably borrowed (via [`Gc::as_mut`]), this will return
 	/// an [`Error::AlreadyLocked`].
+	///
+	/// # Panics
+	/// This will panic if more than [`MAX_BORROWS`] borrows are currently held.
 	///
 	/// # Examples
 	/// Getting an immutable reference when no mutable ones exist.
@@ -167,7 +171,7 @@ impl<T: Allocated> Gc<T> {
 	/// assert_eq!(text.as_ref()?.as_str(), "what a wonderful day");
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
-	pub fn as_ref(self) -> Result<GcRef<T>> {
+	pub fn as_ref(self) -> Result<Ref<T>> {
 		fn updatefn(x: u32) -> Option<u32> {
 			if x == MUT_BORROW {
 				None
@@ -176,14 +180,12 @@ impl<T: Allocated> Gc<T> {
 			}
 		}
 
-		const ONE_BELOW_MUT_BORROW: u32 = MUT_BORROW - 1;
-
 		match self
 			.borrows()
 			.fetch_update(Ordering::Acquire, Ordering::Relaxed, updatefn)
 		{
-			Ok(ONE_BELOW_MUT_BORROW) => panic!("too many immutable borrows"),
-			Ok(_) => Ok(GcRef(self)),
+			Ok(x) if x == MAX_BORROWS as u32 => panic!("too many immutable borrows"),
+			Ok(_) => Ok(Ref(self)),
 			Err(_) => Err(Error::AlreadyLocked(Value::from(self).any())),
 		}
 	}
@@ -197,7 +199,7 @@ impl<T: Allocated> Gc<T> {
 	/// If the contents are already immutably borrowed (via [`Gc::as_ref`]), this will
 	/// return an [`Error::AlreadyLocked`].
 	///
-	/// If the data has been [frozen](GcRef::freeze), this will return a [`Error::ValueFrozen`].
+	/// If the data has been [frozen](Ref::freeze), this will return a [`Error::ValueFrozen`].
 	///
 	/// # Examples
 	/// Getting a mutable reference when no immutable ones exist.
@@ -227,7 +229,7 @@ impl<T: Allocated> Gc<T> {
 	/// assert_eq!(textmut.as_str(), "what a wonderful day!");
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
-	pub fn as_mut(self) -> Result<GcMut<T>> {
+	pub fn as_mut(self) -> Result<Mut<T>> {
 		if self.flags().contains(Flags::FROZEN) {
 			return Err(Error::ValueFrozen(Value::from(self).any()));
 		}
@@ -237,7 +239,7 @@ impl<T: Allocated> Gc<T> {
 			.compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed)
 			.is_ok()
 		{
-			Ok(GcMut(self))
+			Ok(Mut(self))
 		} else {
 			Err(Error::AlreadyLocked(Value::from(self).any()))
 		}
@@ -262,7 +264,7 @@ impl<T: Allocated> Gc<T> {
 	/// Checks to see whether the object is currently frozen.
 	///
 	/// Frozen objects are unable to be [mutably accessed](Gc::as_mut), and are frozen via
-	/// [`GcRef::freeze`].
+	/// [`Ref::freeze`].
 	///
 	/// # Examples
 	/// ```
@@ -325,7 +327,7 @@ impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 // Additionally, `get` will always return a valid `Gc<T>` for any `Value<Gc<T>>`.
 unsafe impl<T: Allocated> Convertible for Gc<T>
 where
-	GcRef<T>: Debug,
+	Ref<T>: Debug,
 {
 	type Output = Self;
 
@@ -365,15 +367,15 @@ where
 ///
 /// This is created via the [`as_ref`](Gc::as_ref) method on [`Gc`].
 #[repr(transparent)]
-pub struct GcRef<T: Allocated>(Gc<T>);
+pub struct Ref<T: Allocated>(Gc<T>);
 
-impl<T: Allocated + Debug> Debug for GcRef<T> {
+impl<T: Allocated + Debug> Debug for Ref<T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		Debug::fmt(self.deref(), f)
+		Debug::fmt(&**self, f)
 	}
 }
 
-impl<T: Allocated> GcRef<T> {
+impl<T: Allocated> Ref<T> {
 	pub fn as_gc(&self) -> Gc<T> {
 		self.0
 	}
@@ -387,21 +389,21 @@ impl<T: Allocated> GcRef<T> {
 	}
 
 	pub fn freeze(&self) {
-		self.header().freeze()
+		self.header().freeze();
 	}
 }
 
-impl<T: Allocated> Clone for GcRef<T> {
+impl<T: Allocated> Clone for Ref<T> {
 	fn clone(&self) -> Self {
 		let gcref_result = self.as_gc().as_ref();
 
-		// SAFETY: We currently have an immutable reference to a `GcRef`, so
+		// SAFETY: We currently have an immutable reference to a `Ref`, so
 		// we know that no mutable ones can exist.
 		unsafe { gcref_result.unwrap_unchecked() }
 	}
 }
 
-impl<T: Allocated> Deref for GcRef<T> {
+impl<T: Allocated> Deref for Ref<T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {
@@ -411,14 +413,14 @@ impl<T: Allocated> Deref for GcRef<T> {
 	}
 }
 
-impl<T: Allocated> Drop for GcRef<T> {
+impl<T: Allocated> Drop for Ref<T> {
 	fn drop(&mut self) {
 		let prev = self.0.borrows().fetch_sub(1, Ordering::Release);
 
-		// Sanity check, as it's impossible for us to have a `MUT_BORROW` after a `GcRef` is created.
+		// Sanity check, as it's impossible for us to have a `MUT_BORROW` after a `Ref` is created.
 		debug_assert_ne!(prev, MUT_BORROW);
 
-		// Another sanity check, as this indicates something double freed (or a `GcMut` was
+		// Another sanity check, as this indicates something double freed (or a `Mut` was
 		// incorrectly created).
 		debug_assert_ne!(prev, 0);
 	}
@@ -428,15 +430,15 @@ impl<T: Allocated> Drop for GcRef<T> {
 ///
 /// This is created via the [`as_mut`](Gc::as_mut) method on [`Gc`].
 #[repr(transparent)]
-pub struct GcMut<T: Allocated>(Gc<T>);
+pub struct Mut<T: Allocated>(Gc<T>);
 
-impl<T: Debug + Allocated> Debug for GcMut<T> {
+impl<T: Debug + Allocated> Debug for Mut<T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		Debug::fmt(self.deref(), f)
+		Debug::fmt(&**self, f)
 	}
 }
 
-impl<T: Allocated> GcMut<T> {
+impl<T: Allocated> Mut<T> {
 	pub fn parents(&mut self) -> crate::value::gc::Gc<crate::value::ty::List> {
 		self.header_mut().parents()
 	}
@@ -451,21 +453,21 @@ impl<T: Allocated> GcMut<T> {
 }
 
 /*
-impl<T: Allocated> GcMut<T> {
+impl<T: Allocated> Mut<T> {
 	fn _base_mut(&self) -> &mut Base<T> {
 		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`.
 		// Additionally, since we have a unique lock on the data, we can get a mutable pointer.
 		unsafe { &mut *(self.0).0.as_ptr() }
 	}
 
-	/// Converts a [`GcMut`] to a [`GcRef`].
+	/// Converts a [`Mut`] to a [`Ref`].
 	///
 	/// Just as you're able to downgrade mutable references to immutable ones in Rust (eg you can do
 	/// `(&mut myvec).len()`), you're able to downgrade mutable [`Gc`] references to immutable ones.
-	/// However, since GcMut implements both [`Deref<Target=T>`] and [`DerefMut<Target=T>`], Rust
-	/// won't let us _also_ have [`Deref<Target=GcRef<T>>`]; this method exists to provide that
+	/// However, since Mut implements both [`Deref<Target=T>`] and [`DerefMut<Target=T>`], Rust
+	/// won't let us _also_ have [`Deref<Target=Ref<T>>`]; this method exists to provide that
 	/// functionality. (The short name is intended to make it as painless as possible to cast to a
-	/// [`GcRef<T>`].)
+	/// [`Ref<T>`].)
 	///
 	/// # Examples
 	/// # use qvm_rt::{Error, value::Gc};
@@ -473,14 +475,14 @@ impl<T: Allocated> GcMut<T> {
 	/// let mut textmut = text.as_mut()?;
 	/// textmut.push('!');
 	///
-	/// // Text only defines `as_str` on `GcRef<Text>`. Thus, we
+	/// // Text only defines `as_str` on `Ref<Text>`. Thus, we
 	/// // need to convert reference before we can call `as_str`.
 	/// assert_eq!(text.as_mut(), "Quest is cool!");
 	/// # qvm_rt::Result::<()>::Ok(())
 	#[inline(always)]
-	pub fn r(&self) -> &GcRef<T> {
-		// SAFETY: both `GcMut` and `GcRef` have the same internal layout. Additionally, since we
-		// return a reference to the `GcRef`, its `Drop` won't be called.
+	pub fn r(&self) -> &Ref<T> {
+		// SAFETY: both `Mut` and `Ref` have the same internal layout. Additionally, since we
+		// return a reference to the `Ref`, its `Drop` won't be called.
 		unsafe { std::mem::transmute(self) }
 	}
 
@@ -490,7 +492,7 @@ impl<T: Allocated> GcMut<T> {
 	}
 }*/
 
-impl<T: Allocated> Deref for GcMut<T> {
+impl<T: Allocated> Deref for Mut<T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {
@@ -498,7 +500,7 @@ impl<T: Allocated> Deref for GcMut<T> {
 	}
 }
 
-impl<T: Allocated> DerefMut for GcMut<T> {
+impl<T: Allocated> DerefMut for Mut<T> {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`,
 		// which means that its `data` must also have been initialized. Additionally, we have unique
@@ -507,7 +509,7 @@ impl<T: Allocated> DerefMut for GcMut<T> {
 	}
 }
 
-impl<T: Allocated> Drop for GcMut<T> {
+impl<T: Allocated> Drop for Mut<T> {
 	fn drop(&mut self) {
 		if cfg!(debug_assertions) {
 			// Sanity check to ensure that the value was previously `MUT_BORROW`
@@ -528,7 +530,7 @@ mod tests {
 	fn too_many_immutable_borrows_cause_a_panick() {
 		let text = Text::from_str("g'day mate");
 
-		text.borrows().store(MUT_BORROW - 1, Ordering::Release);
+		text.borrows().store(MAX_BORROWS as u32, Ordering::Release);
 
 		let _ = text.as_ref();
 	}

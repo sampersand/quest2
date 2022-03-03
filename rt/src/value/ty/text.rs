@@ -7,12 +7,12 @@ mod builder;
 pub use builder::Builder;
 
 quest_type! {
-	pub struct Text(TextInner);
+	pub struct Text(Inner);
 }
 
 #[repr(C)]
 #[doc(hidden)]
-pub union TextInner {
+pub union Inner {
 	// TODO: remove pub
 	alloc: AllocatedText,
 	embed: EmbeddedText,
@@ -43,11 +43,11 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 }
 
 impl Text {
-	const fn inner(&self) -> &TextInner {
+	const fn inner(&self) -> &Inner {
 		self.0.data()
 	}
 
-	fn inner_mut(&mut self) -> &mut TextInner {
+	fn inner_mut(&mut self) -> &mut Inner {
 		self.0.data_mut()
 	}
 
@@ -162,8 +162,7 @@ impl Text {
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub unsafe fn set_len(&mut self, new_len: usize) {
-		debug_assert!(new_len <= self.capacity());
-		assert!(new_len <= isize::MAX as usize, "new length is too large");
+		debug_assert!(new_len <= self.capacity(), "new len is larger than capacity");
 
 		if self.is_embedded() {
 			self.inner_mut().embed.len = new_len as u8;
@@ -328,6 +327,10 @@ impl Text {
 	/// assert_eq!(text.as_ref()?.as_str(), "Hello, 🌎!");
 	/// assert_eq!(dup.as_ref()?.as_str(), "Hello, 🌎");
 	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
+	// NOTE: currently, if you `dup` then mutably borrow, it'll make a new buffer and ignore the old
+	// one. As such, if both the original and `dup`'d ones mutably borrow, then the original buffer
+	// will be leaked. This will (hopefully) be fixed with garbage collection, but im not sure.
 	#[must_use]
 	pub fn dup(&self) -> Gc<Self> {
 		if self.is_embedded() {
@@ -342,8 +345,8 @@ impl Text {
 		// SAFETY: TODO
 		unsafe {
 			let mut builder = Self::builder();
-			let builder_ptr = builder.inner_mut() as *mut TextInner;
-			builder_ptr.copy_from_nonoverlapping(self.inner() as *const TextInner, 1);
+			let builder_ptr = builder.inner_mut() as *mut Inner;
+			builder_ptr.copy_from_nonoverlapping(self.inner() as *const Inner, 1);
 			builder.finish()
 		}
 	}
@@ -397,6 +400,8 @@ impl Text {
 		debug_assert!(required_len > MAX_EMBEDDED_LEN); // we should only every realloc at this point.
 
 		let new_cap = std::cmp::max(MAX_EMBEDDED_LEN * 2, required_len);
+		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
+
 		let layout = alloc_ptr_layout(new_cap);
 
 		unsafe {
@@ -423,6 +428,7 @@ impl Text {
 
 		// Find the new capacity we'll need.
 		let new_cap = std::cmp::max(unsafe { self.inner().alloc.cap } * 2, required_len);
+		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
 
 		// If the pointer is immutable, we have to allocate a new buffer, and then copy
 		// over the data.
@@ -470,7 +476,7 @@ impl Text {
 		debug_assert!(self.capacity() >= self.len() + string.len());
 
 		std::ptr::copy(string.as_ptr(), self.mut_end_ptr(), string.len());
-		self.set_len(self.len() + string.len())
+		self.set_len(self.len() + string.len());
 	}
 }
 

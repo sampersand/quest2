@@ -8,12 +8,12 @@ mod builder;
 pub use builder::Builder;
 
 quest_type! {
-	pub struct List(ListInner);
+	pub struct List(Inner);
 }
 
 #[repr(C)]
 #[doc(hidden)]
-pub union ListInner {
+pub union Inner {
 	// TODO: remove pub
 	alloc: AllocatedList,
 	embed: EmbeddedList,
@@ -46,11 +46,11 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 }
 
 impl List {
-	const fn inner(&self) -> &ListInner {
+	const fn inner(&self) -> &Inner {
 		self.0.data()
 	}
 
-	fn inner_mut(&mut self) -> &mut ListInner {
+	fn inner_mut(&mut self) -> &mut Inner {
 		self.0.data_mut()
 	}
 
@@ -151,8 +151,8 @@ impl List {
 			self.flags().insert(FLAG_SHARED);
 
 			let mut builder = Self::builder();
-			let builder_ptr = builder.inner_mut() as *mut ListInner;
-			builder_ptr.copy_from_nonoverlapping(self.inner() as *const ListInner, 1);
+			let builder_ptr = builder.inner_mut() as *mut Inner;
+			builder_ptr.copy_from_nonoverlapping(self.inner() as *const Inner, 1);
 			builder.finish()
 		}
 	}
@@ -184,12 +184,10 @@ impl List {
 		}
 	}
 
-	pub unsafe fn set_len(&mut self, new: usize) {
-		if self.is_embedded() {
-			assert!(new <= MAX_EMBEDDED_LEN);
-		}
+	pub unsafe fn set_len(&mut self, new_len: usize) {
+		debug_assert!(new_len <= self.capacity());
 
-		self.inner_mut().embed.len = new;
+		self.inner_mut().embed.len = new_len;
 	}
 
 	unsafe fn duplicate_alloc_ptr(&mut self, capacity: usize) {
@@ -228,6 +226,8 @@ impl List {
 		debug_assert!(required_len > MAX_EMBEDDED_LEN); // we should only every realloc at this point.
 
 		let new_cap = std::cmp::max(MAX_EMBEDDED_LEN * 2, required_len);
+		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
+
 		let layout = alloc_ptr_layout(new_cap);
 
 		unsafe {
@@ -254,6 +254,7 @@ impl List {
 
 		// Find the new capacity we'll need.
 		let new_cap = std::cmp::max(unsafe { self.inner().alloc.cap } * 2, required_len);
+		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
 
 		// If the pointer is immutable, we have to allocate a new buffer, and then copy
 		// over the data.
@@ -302,7 +303,7 @@ impl List {
 		debug_assert!(self.capacity() >= self.len() + slice.len());
 
 		std::ptr::copy(slice.as_ptr(), self.mut_end_ptr(), slice.len());
-		self.set_len(self.len() + slice.len())
+		self.set_len(self.len() + slice.len());
 	}
 }
 

@@ -1,33 +1,34 @@
-use super::{Text, TextInner, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
+use super::{Text, Inner, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
 use crate::value::base::Builder as BaseBuilder;
 use crate::value::gc::Gc;
 
-pub struct Builder(BaseBuilder<TextInner>);
+#[must_use]
+pub struct Builder(BaseBuilder<Inner>);
 
 impl Builder {
-	pub unsafe fn new(builder: BaseBuilder<TextInner>) -> Self {
-		Self(builder)
+	pub unsafe fn new(ptr: std::ptr::NonNull<std::mem::MaybeUninit<Text>>) -> Self {
+		Self(BaseBuilder::new(std::mem::transmute(ptr)))
 	}
 
 	pub fn allocate() -> Self {
-		unsafe { Self::new(BaseBuilder::<TextInner>::allocate()) }
+		let alloc_ptr = BaseBuilder::<Inner>::allocate().inner_ptr();
+
+		unsafe {
+			Self::new(std::mem::transmute(alloc_ptr))
+		}
 	}
 
 	pub fn insert_flag(&mut self, flag: u32) {
 		self.0.flags().insert(flag);
 	}
 
-	pub unsafe fn inner_mut(&mut self) -> &mut TextInner {
+	pub unsafe fn inner_mut(&mut self) -> &mut Inner {
 		self.0.data_mut().assume_init_mut()
 	}
 
 	pub unsafe fn text_mut(&mut self) -> &mut Text {
-		std::mem::transmute(self.0.base_mut())
+		&mut *self.0.base_mut_ptr().cast::<Text>()
 	}
-
-	// pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
-	// 	self.0.gcmut().as_mut_ptr()
-	// }
 
 	// unsafe because you should call this before you edit anything.
 	pub unsafe fn allocate_buffer(&mut self, capacity: usize) {
@@ -43,6 +44,7 @@ impl Builder {
 		alloc.ptr = crate::alloc(super::alloc_ptr_layout(capacity));
 	}
 
+	#[must_use]
 	pub unsafe fn finish(self) -> Gc<Text> {
 		std::mem::transmute(self.0.finish())
 	}

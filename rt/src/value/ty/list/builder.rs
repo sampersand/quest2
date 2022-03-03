@@ -1,28 +1,29 @@
-use super::{List, ListInner, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
+use super::{List, Inner, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
 use crate::value::base::Builder as BaseBuilder;
 use crate::value::gc::Gc;
 
-pub struct Builder(BaseBuilder<ListInner>);
+#[must_use]
+pub struct Builder(BaseBuilder<Inner>);
 
 impl Builder {
-	pub unsafe fn new(builder: BaseBuilder<ListInner>) -> Self {
+	pub unsafe fn new(builder: BaseBuilder<Inner>) -> Self {
 		Self(builder)
 	}
 
 	pub fn allocate() -> Self {
-		unsafe { Self::new(BaseBuilder::<ListInner>::allocate()) }
+		unsafe { Self::new(BaseBuilder::<Inner>::allocate()) }
 	}
 
 	pub fn insert_flag(&mut self, flag: u32) {
 		self.0.flags().insert(flag);
 	}
 
-	pub unsafe fn inner_mut(&mut self) -> &mut ListInner {
+	pub unsafe fn inner_mut(&mut self) -> &mut Inner {
 		self.0.data_mut().assume_init_mut()
 	}
 
 	pub unsafe fn list_mut(&mut self) -> &mut List {
-		std::mem::transmute(self.0.base_mut())
+		&mut *self.0.base_mut_ptr().cast::<List>()
 	}
 
 	// pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
@@ -43,6 +44,7 @@ impl Builder {
 		alloc.ptr = crate::alloc(super::alloc_ptr_layout(capacity)).cast();
 	}
 
+	#[must_use]
 	pub unsafe fn finish(self) -> Gc<List> {
 		std::mem::transmute(self.0.finish())
 	}
