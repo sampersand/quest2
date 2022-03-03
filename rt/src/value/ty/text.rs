@@ -29,14 +29,26 @@ struct AllocatedText {
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct EmbeddedText {
-	len: u8,
 	buf: [u8; MAX_EMBEDDED_LEN],
 }
 
-const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedText>() - std::mem::size_of::<u8>();
-const FLAG_EMBEDDED: u32 = Flags::USER1;
-const FLAG_SHARED: u32 = Flags::USER2;
-const FLAG_NOFREE: u32 = Flags::USER3;
+const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedText>();
+const FLAG_EMBEDDED: u32 = Flags::USER0;
+const FLAG_SHARED: u32 = Flags::USER1;
+const FLAG_NOFREE: u32 = Flags::USER2;
+const EMBED_LENMASK: u32 = Flags::USER1 | Flags::USER2 | Flags::USER3 | Flags::USER4 | Flags::USER5;
+
+sa::const_assert!(MAX_EMBEDDED_LEN <= unmask_len(EMBED_LENMASK));
+
+const fn unmask_len(len: u32) -> usize {
+	debug_assert!(len & !EMBED_LENMASK == 0);
+	(len >> 1) as usize
+}
+
+const fn mask_len(len: usize) -> u32 {
+	debug_assert!(len <= MAX_EMBEDDED_LEN);
+	(len as u32) << 1
+}
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 	alloc::Layout::array::<u8>(cap).unwrap()
@@ -123,15 +135,17 @@ impl Text {
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub fn len(&self) -> usize {
-		let inner = self.inner();
-
 		if self.is_embedded() {
-			// SAFETY: we know we're embedded, as per the `if`.
-			unsafe { inner.embed.len as usize }
+			self.embedded_len()
 		} else {
 			// SAFETY: we know we're allocated, as per the `if`.
-			unsafe { inner.alloc.len }
+			unsafe { self.inner().alloc.len }
 		}
+	}
+
+	fn embedded_len(&self) -> usize {
+		debug_assert!(self.is_embedded());
+		unmask_len(self.flags().mask(EMBED_LENMASK))
 	}
 
 	/// Forcibly sets `self`'s length, in bytes.
@@ -168,10 +182,15 @@ impl Text {
 		);
 
 		if self.is_embedded() {
-			self.inner_mut().embed.len = new_len as u8;
+			self.set_embedded_len(new_len);
 		} else {
 			self.inner_mut().alloc.len = new_len;
 		}
+	}
+
+	fn set_embedded_len(&self, new_len: usize) {
+		debug_assert!(self.is_embedded());
+		self.flags().insert(mask_len(new_len));
 	}
 
 	/// Checks to see if `self` has a length of zero bytes.
@@ -408,7 +427,7 @@ impl Text {
 		let layout = alloc_ptr_layout(new_cap);
 
 		unsafe {
-			let len = self.inner().embed.len as usize;
+			let len = self.embedded_len();
 			let ptr = crate::alloc(layout);
 			std::ptr::copy(self.inner().embed.buf.as_ptr(), ptr, len);
 

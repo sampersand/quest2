@@ -7,7 +7,7 @@ use crate::Result;
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union Parents {
-	none: u64,
+	none: u64, // this needs to be `0` for it to be none
 	single: AnyValue,
 	list: Gc<List>
 }

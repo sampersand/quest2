@@ -43,7 +43,7 @@ impl Debug for Header {
 		f.debug_struct("Header")
 			.field("typeid", &self.typeid)
 			.field("parents", &self.parents.debug(self.flags()))
-			.field("attributes", &self.attributes)
+			.field("attributes", &self.attributes.debug(self.flags()))
 			.field("flags", &self.flags)
 			.field("borrows", &self.borrows)
 			.finish()
@@ -100,6 +100,15 @@ impl<T> Base<T> {
 	}
 }
 
+
+impl Drop for Header {
+	fn drop(&mut self) {
+		unsafe {
+			Attributes::drop(&mut self.attributes, &self.flags);
+		}
+	}
+}
+
 impl<T> Drop for Base<T> {
 	fn drop(&mut self) {
 		// TODO: drop data.
@@ -123,10 +132,10 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
 	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
-		if let Some(value) = self.attributes.get_attr(attr)? {
+		if let Some(value) = self.attributes.get_attr(attr, &self.flags)? {
 			Ok(Some(value))
 		} else {
-			self.parents.get_attr(attr, self.flags())
+			self.parents.get_attr(attr, &self.flags)
 		}
 	}
 
@@ -175,7 +184,7 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
 	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
-		self.attributes.set_attr(attr, value)
+		self.attributes.set_attr(attr, value, &self.flags)
 	}
 
 	/// Attempts to delete `self`'s attribute `attr`, returning the old value if it was present.
@@ -188,6 +197,6 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
 	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
-		self.attributes.del_attr(attr)
+		self.attributes.del_attr(attr, &self.flags)
 	}
 }

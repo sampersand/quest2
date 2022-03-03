@@ -452,14 +452,8 @@ impl<T: Allocated> Mut<T> {
 	}
 }
 
-/*
-impl<T: Allocated> Mut<T> {
-	fn _base_mut(&self) -> &mut Base<T> {
-		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`.
-		// Additionally, since we have a unique lock on the data, we can get a mutable pointer.
-		unsafe { &mut *(self.0).0.as_ptr() }
-	}
 
+impl<T: Allocated> Mut<T> {
 	/// Converts a [`Mut`] to a [`Ref`].
 	///
 	/// Just as you're able to downgrade mutable references to immutable ones in Rust (eg you can do
@@ -470,27 +464,24 @@ impl<T: Allocated> Mut<T> {
 	/// [`Ref<T>`].)
 	///
 	/// # Examples
-	/// # use qvm_rt::{Error, value::Gc};
-	/// let text = Gc::from_str("Quest is cool");
+	/// ```
+	/// # use qvm_rt::{Error, value::ty::Text};
+	/// let text = Text::from_str("Quest is cool");
 	/// let mut textmut = text.as_mut()?;
 	/// textmut.push('!');
 	///
 	/// // Text only defines `as_str` on `Ref<Text>`. Thus, we
 	/// // need to convert reference before we can call `as_str`.
-	/// assert_eq!(text.as_mut(), "Quest is cool!");
+	/// assert_eq!(textmut.r().as_str(), "Quest is cool!");
 	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
 	#[inline(always)]
 	pub fn r(&self) -> &Ref<T> {
 		// SAFETY: both `Mut` and `Ref` have the same internal layout. Additionally, since we
 		// return a reference to the `Ref`, its `Drop` won't be called.
 		unsafe { std::mem::transmute(self) }
 	}
-
-	// Gets a mutable reference to this `self`'s header.
-	fn _header_mut(&mut self) -> &mut crate::value::base::Header {
-		&mut self._base_mut().header
-	}
-}*/
+}
 
 impl<T: Allocated> Deref for Mut<T> {
 	type Target = T;

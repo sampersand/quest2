@@ -1,101 +1,100 @@
 use crate::value::AnyValue;
 use crate::Result;
-use hashbrown::{hash_map::RawEntryMut, HashMap};
+use std::mem::ManuallyDrop;
+use crate::value::base::Flags;
+use std::fmt::{self, Debug, Formatter};
+
+mod list;
+mod map;
+use list::ListMap;
+use map::Map;
 
 #[repr(C, align(8))]
-#[derive(Debug, Default)]
-pub(super) struct Attributes {
-	attrs: Option<Box<HashMap<AnyValue, AnyValue>>>,
+pub union Attributes {
+	none: u64,
+	list: ManuallyDrop<ListMap>,
+	map: ManuallyDrop<Map>,
 }
 
 sa::assert_eq_size!(Attributes, u64);
 sa::assert_eq_align!(Attributes, u64);
 
+fn is_small(flags: &Flags) -> bool {
+	!flags.contains(Flags::ATTR_MAP)
+}
+
+const MAX_LISTMAP_LEN: usize = 16;
+
 impl Attributes {
-	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
-		if let Some(attrs) = &self.attrs {
-			let hash = attr.try_hash()?;
-			let mut eq_err: Result<()> = Ok(());
+	const fn is_none(&self) -> bool {
+		unsafe { self.none == 0 }
+	}
 
-			let res = attrs
-				.raw_entry()
-				.from_hash(hash, |&k| match attr.try_eq(k) {
-					Ok(val) => val,
-					Err(err) => {
-						eq_err = Err(err);
-						true
-					},
-				});
-			eq_err?;
+	pub fn debug<'a>(&'a self, flags: &'a Flags) -> impl Debug + 'a {
+		struct AttributesDebug<'a>(&'a Attributes, &'a Flags);
 
-			if let Some((_key, &val)) = res {
-				return Ok(Some(val));
+		impl Debug for AttributesDebug<'_> {
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+				if self.0.is_none() {
+					f.debug_map().finish()
+				} else if is_small(self.1) {
+					Debug::fmt(unsafe { &self.0.list }, f)
+				} else {
+					Debug::fmt(unsafe { &self.0.map }, f)
+				}
 			}
 		}
 
-		Ok(None)
+		AttributesDebug(self, flags)
 	}
 
-	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
-		if self.attrs.is_none() {
-			self.attrs = Some(Box::new(HashMap::default()));
-		}
-
-		let attrs = unsafe { self.attrs.as_mut().unwrap_unchecked() };
-
-		let hash = attr.try_hash()?;
-		let mut eq_err: Result<()> = Ok(());
-
-		let res = attrs
-			.raw_entry_mut()
-			.from_hash(hash, |&k| match attr.try_eq(k) {
-				Ok(val) => val,
-				Err(err) => {
-					eq_err = Err(err);
-					true
-				},
-			});
-		eq_err?;
-
-		match res {
-			RawEntryMut::Occupied(mut occ) => {
-				occ.insert(value);
-			},
-			RawEntryMut::Vacant(vac) => {
-				// TODO: im not sure if the `|_| hash` is sound, because im not sure why it needs it
-				// in the first place...
-				vac.insert_with_hasher(hash, attr, value, |_| hash);
-			},
-		}
-
-		Ok(())
-	}
-
-	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
-		let attrs = if let Some(attrs) = &mut self.attrs {
-			attrs
-		} else {
-			return Ok(None);
-		};
-
-		let hash = attr.try_hash()?;
-		let mut eq_err: Result<()> = Ok(());
-
-		let res = attrs
-			.raw_entry_mut()
-			.from_hash(hash, |&k| match attr.try_eq(k) {
-				Ok(val) => val,
-				Err(err) => {
-					eq_err = Err(err);
-					true
-				},
-			});
-		eq_err?;
-
-		if let RawEntryMut::Occupied(occ) = res {
-			Ok(Some(occ.remove()))
-		} else {
+	pub fn get_attr(&self, attr: AnyValue, flags: &Flags) -> Result<Option<AnyValue>> {
+		if self.is_none() {
 			Ok(None)
+		} else if is_small(flags) {
+			unsafe { &self.list }.get_attr(attr)
+		} else {
+			unsafe { &self.map }.get_attr(attr)
+		}
+	}
+
+	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue, flags: &Flags) -> Result<()> {
+		if self.is_none() {
+			self.list = ManuallyDrop::new(ListMap::default());
+		}
+
+		if is_small(flags) {
+			unsafe {
+				if self.list.len() <= MAX_LISTMAP_LEN  {
+					return self.list.set_attr(attr, value);
+				}
+
+				let list_ptr = ManuallyDrop::take(&mut self.list).into_inner();
+				self.map = ManuallyDrop::new(Map::from_slice(list_ptr.as_slice())?);
+				flags.insert(Flags::ATTR_MAP);
+			}
+		}
+
+		unsafe { &mut self.map }.set_attr(attr, value)
+	}
+
+	pub fn del_attr(&mut self, attr: AnyValue, flags: &Flags) -> Result<Option<AnyValue>> {
+		if self.is_none() {
+			Ok(None)
+		} else if is_small(flags) {
+			unsafe { &mut self.list }.del_attr(attr)
+		} else {
+			unsafe { &mut self.map }.del_attr(attr)
+		}
+	}
+
+	pub unsafe fn drop(this: &mut Attributes, flags: &Flags) {
+		if this.is_none() {
+			// do nothing
+		} else if is_small(flags) {
+			ManuallyDrop::drop(&mut this.list)
+		} else {
+			ManuallyDrop::drop(&mut this.map)
 		}
 	}
 }
@@ -107,6 +106,28 @@ mod tests {
 		ty::{Integer, Text},
 		Value,
 	};
+
+	#[test]
+	fn it_transitions_over_to_full_map() {
+		let text = Text::from_str("yo waddup");
+		let mut textmut = text.as_mut().unwrap();
+
+		for i in 0..=MAX_LISTMAP_LEN * 2 {
+			let value = Value::from(i as i64).any();
+			textmut.set_attr(value, value).unwrap();
+
+			// assert!(textmut.r().get_attr(value).unwrap().unwrap().try_eq(value).unwrap());
+		}
+
+		let value = Value::from(3).any();
+		assert!(textmut.r().get_attr(value).unwrap().unwrap().try_eq(value).unwrap());
+
+		// now it should be a full `map`, let's go over all of them again.
+		for i in 0..=MAX_LISTMAP_LEN * 2 {
+			let value = Value::from(i as i64).any();
+			assert!(textmut.r().get_attr(value).unwrap().unwrap().try_eq(value).unwrap());
+		}
+	}
 
 	#[test]
 	fn attributes_work() {
