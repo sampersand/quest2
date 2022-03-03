@@ -128,7 +128,7 @@ impl AnyValue {
 				.as_ref()?
 				.get_attr(attr)
 		} else {
-			self.parents_for().get_attr(attr)
+			self.parents_for().get_attr(attr, &Default::default())
 		}
 	}
 

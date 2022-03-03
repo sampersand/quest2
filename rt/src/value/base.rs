@@ -1,16 +1,18 @@
+use crate::value::gc::Gc;
 use std::any::TypeId;
 use std::cell::UnsafeCell;
 use std::mem::MaybeUninit;
 use std::ptr::NonNull;
 use std::sync::atomic::AtomicU32;
-use crate::value::gc::Gc;
+use std::fmt::{self, Debug, Formatter};
 
 mod attributes;
 mod builder;
 mod flags;
+mod parents;
 
 use attributes::Attributes;
-pub use attributes::Parents;
+pub use parents::Parents;
 pub use builder::Builder;
 pub use flags::Flags;
 
@@ -20,11 +22,11 @@ pub trait HasParents {
 	fn parents() -> Parents;
 }
 
-#[derive(Debug)]
 #[repr(C, align(8))]
 pub struct Header {
-	attributes: Attributes,
 	pub(super) typeid: TypeId,
+	parents: Parents,
+	attributes: Attributes,
 	flags: Flags,
 	borrows: AtomicU32,
 }
@@ -34,6 +36,18 @@ pub struct Header {
 pub struct Base<T: 'static> {
 	pub(super) header: Header,
 	data: UnsafeCell<MaybeUninit<T>>,
+}
+
+impl Debug for Header {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		f.debug_struct("Header")
+			.field("typeid", &self.typeid)
+			.field("parents", &self.parents.debug(self.flags()))
+			.field("attributes", &self.attributes)
+			.field("flags", &self.flags)
+			.field("borrows", &self.borrows)
+			.finish()
+	}
 }
 
 impl<T: HasParents> Base<T> {
@@ -109,7 +123,11 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
 	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
-		self.attributes.get_attr(attr)
+		if let Some(value) = self.attributes.get_attr(attr)? {
+			Ok(Some(value))
+		} else {
+			self.parents.get_attr(attr, self.flags())
+		}
 	}
 
 	/// Gets the flags associated with the current object.
@@ -143,7 +161,8 @@ impl Header {
 	/// # Examples
 	/// TODO: example
 	pub fn parents(&mut self) -> Gc<crate::value::ty::List> {
-		self.attributes.parents.as_list()
+		let flags = &self.flags;
+		self.parents.as_list(flags)
 	}
 
 	/// Sets the `self`'s attribute `attr` to `value`.

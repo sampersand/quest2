@@ -1,4 +1,4 @@
-use super::{List, Inner, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
+use super::{Inner, List, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
 use crate::value::base::Builder as BaseBuilder;
 use crate::value::gc::Gc;
 

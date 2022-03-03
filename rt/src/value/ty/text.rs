@@ -162,7 +162,10 @@ impl Text {
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub unsafe fn set_len(&mut self, new_len: usize) {
-		debug_assert!(new_len <= self.capacity(), "new len is larger than capacity");
+		debug_assert!(
+			new_len <= self.capacity(),
+			"new len is larger than capacity"
+		);
 
 		if self.is_embedded() {
 			self.inner_mut().embed.len = new_len as u8;
@@ -319,7 +322,7 @@ impl Text {
 	/// # use qvm_rt::value::ty::Text;
 	/// let text = Text::from_str("Hello, 🌎");
 	/// let dup = text.as_ref()?.dup();
-	/// 
+	///
 	/// assert_eq!(text.as_ref()?.as_str(), "Hello, 🌎");
 	/// assert_eq!(dup.as_ref()?.as_str(), "Hello, 🌎");
 	///

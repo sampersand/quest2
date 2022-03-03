@@ -2,18 +2,14 @@ use crate::value::AnyValue;
 use crate::Result;
 use hashbrown::{hash_map::RawEntryMut, HashMap};
 
-mod parents;
-pub use parents::Parents;
-
 #[repr(C, align(8))]
 #[derive(Debug, Default)]
 pub(super) struct Attributes {
-	pub(super) parents: Parents,
 	attrs: Option<Box<HashMap<AnyValue, AnyValue>>>,
 }
 
-sa::assert_eq_size!(Attributes, [u64; 2]);
-sa::assert_eq_align!(Attributes, [u64; 2]);
+sa::assert_eq_size!(Attributes, u64);
+sa::assert_eq_align!(Attributes, u64);
 
 impl Attributes {
 	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
@@ -37,7 +33,7 @@ impl Attributes {
 			}
 		}
 
-		self.parents.get_attr(attr)
+		Ok(None)
 	}
 
 	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {

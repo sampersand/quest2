@@ -1,4 +1,4 @@
-use super::{Text, Inner, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
+use super::{Inner, Text, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
 use crate::value::base::Builder as BaseBuilder;
 use crate::value::gc::Gc;
 
@@ -13,9 +13,7 @@ impl Builder {
 	pub fn allocate() -> Self {
 		let alloc_ptr = BaseBuilder::<Inner>::allocate().inner_ptr();
 
-		unsafe {
-			Self::new(std::mem::transmute(alloc_ptr))
-		}
+		unsafe { Self::new(std::mem::transmute(alloc_ptr)) }
 	}
 
 	pub fn insert_flag(&mut self, flag: u32) {

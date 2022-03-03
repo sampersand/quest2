@@ -31,7 +31,7 @@ impl<T> Builder<T> {
 	}
 
 	pub unsafe fn _write_parents(&mut self, parents: Parents) {
-		addr_of_mut!((*self.0.as_ptr()).header.attributes.parents).write(parents);
+		addr_of_mut!((*self.0.as_ptr()).header.parents).write(parents);
 	}
 
 	#[inline]

@@ -1,4 +1,3 @@
-
 #![allow(
 	clippy::unusual_byte_groupings // value representations use the last three bits, not four.
 )]
