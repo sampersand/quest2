@@ -59,8 +59,6 @@ impl Map {
 				occ.insert(value);
 			},
 			RawEntryMut::Vacant(vac) => {
-				// TODO: im not sure if the `|_| hash` is sound, because im not sure why it needs it
-				// in the first place...
 				vac.insert_with_hasher(hash, attr, value, |k| {
 					k.try_hash()
 						.expect("if the first hash doesn't fail, subsequent ones shouldn't")
