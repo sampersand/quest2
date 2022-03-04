@@ -64,6 +64,7 @@ dependencies = [
  "assert_matches",
  "hashbrown",
  "static_assertions",
+ "tinyvec",
 ]
 
 [[package]]
@@ -71,6 +72,12 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "tinyvec"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c1c1d5a42b6245520c249549ec267180beaffcc0615401ac8e31853d4b6d8d2"
 
 [[package]]
 name = "version_check"

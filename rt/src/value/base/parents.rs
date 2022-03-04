@@ -1,15 +1,15 @@
-use crate::value::ty::List;
 use crate::value::base::Flags;
+use crate::value::ty::List;
 use crate::value::{AnyValue, Gc, Value};
-use std::fmt::{self, Debug, Formatter};
 use crate::Result;
+use std::fmt::{self, Debug, Formatter};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union Parents {
 	none: u64, // this needs to be `0` for it to be none
 	single: AnyValue,
-	list: Gc<List>
+	list: Gc<List>,
 }
 
 sa::assert_eq_size!(Parents, u64);
@@ -33,9 +33,13 @@ impl Parents {
 				if self.0.is_none() {
 					f.debug_tuple("None").finish()
 				} else if is_single(self.1) {
-					f.debug_tuple("Single").field(unsafe { &self.0.single }).finish()
+					f.debug_tuple("Single")
+						.field(unsafe { &self.0.single })
+						.finish()
 				} else {
-					f.debug_tuple("List").field(unsafe { &self.0.list }).finish()
+					f.debug_tuple("List")
+						.field(unsafe { &self.0.list })
+						.finish()
 				}
 			}
 		}
@@ -44,9 +48,7 @@ impl Parents {
 	}
 
 	const fn is_none(self) -> bool {
-		unsafe {
-			self.none == 0
-		}
+		unsafe { self.none == 0 }
 	}
 
 	pub fn new_singular(parent: AnyValue) -> Self {
@@ -66,9 +68,7 @@ impl Parents {
 			flags.remove(Flags::SINGLE_PARENT);
 		}
 
-		unsafe {
-			self.list
-		}
+		unsafe { self.list }
 	}
 }
 

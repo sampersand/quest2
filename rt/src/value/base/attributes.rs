@@ -1,8 +1,8 @@
+use crate::value::base::Flags;
 use crate::value::AnyValue;
 use crate::Result;
-use std::mem::ManuallyDrop;
-use crate::value::base::Flags;
 use std::fmt::{self, Debug, Formatter};
+use std::mem::ManuallyDrop;
 
 mod list;
 mod map;
@@ -22,8 +22,6 @@ sa::assert_eq_align!(Attributes, u64);
 fn is_small(flags: &Flags) -> bool {
 	!flags.contains(Flags::ATTR_MAP)
 }
-
-const MAX_LISTMAP_LEN: usize = 16;
 
 impl Attributes {
 	const fn is_none(&self) -> bool {
@@ -65,12 +63,12 @@ impl Attributes {
 
 		if is_small(flags) {
 			unsafe {
-				if self.list.len() <= MAX_LISTMAP_LEN  {
+				if !self.list.is_full() {
 					return self.list.set_attr(attr, value);
 				}
 
-				let list_ptr = ManuallyDrop::take(&mut self.list).into_inner();
-				self.map = ManuallyDrop::new(Map::from_slice(list_ptr.as_slice())?);
+				self.map =
+					ManuallyDrop::new(Map::from_iter(ManuallyDrop::take(&mut self.list).iter())?);
 				flags.insert(Flags::ATTR_MAP);
 			}
 		}
@@ -112,7 +110,7 @@ mod tests {
 		let text = Text::from_str("yo waddup");
 		let mut textmut = text.as_mut().unwrap();
 
-		for i in 0..=MAX_LISTMAP_LEN * 2 {
+		for i in 0..=list::MAX_LISTMAP_LEN * 2 {
 			let value = Value::from(i as i64).any();
 			textmut.set_attr(value, value).unwrap();
 
@@ -120,12 +118,24 @@ mod tests {
 		}
 
 		let value = Value::from(3).any();
-		assert!(textmut.r().get_attr(value).unwrap().unwrap().try_eq(value).unwrap());
+		assert!(textmut
+			.r()
+			.get_attr(value)
+			.unwrap()
+			.unwrap()
+			.try_eq(value)
+			.unwrap());
 
 		// now it should be a full `map`, let's go over all of them again.
-		for i in 0..=MAX_LISTMAP_LEN * 2 {
+		for i in 0..=list::MAX_LISTMAP_LEN * 2 {
 			let value = Value::from(i as i64).any();
-			assert!(textmut.r().get_attr(value).unwrap().unwrap().try_eq(value).unwrap());
+			assert!(textmut
+				.r()
+				.get_attr(value)
+				.unwrap()
+				.unwrap()
+				.try_eq(value)
+				.unwrap());
 		}
 	}
 

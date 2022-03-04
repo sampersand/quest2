@@ -2,16 +2,15 @@ use crate::value::AnyValue;
 use crate::Result;
 use hashbrown::{hash_map::RawEntryMut, HashMap};
 
-
 #[repr(transparent)]
 #[derive(Debug, Default)]
 pub struct Map(Box<HashMap<AnyValue, AnyValue>>);
 
 impl Map {
-	pub fn from_slice(slice: &[(AnyValue, AnyValue)]) -> Result<Self> {
-		let mut map = Self(Box::new(HashMap::with_capacity(slice.len())));
+	pub fn from_iter(iter: impl IntoIterator<Item = (AnyValue, AnyValue)>) -> Result<Self> {
+		let mut map = Self(Box::new(HashMap::with_capacity(super::list::MAX_LISTMAP_LEN)));
 
-		for &(attr, value) in slice {
+		for (attr, value) in iter {
 			map.set_attr(attr, value)?;
 		}
 
@@ -24,7 +23,8 @@ impl Map {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
-		let res = self.0
+		let res = self
+			.0
 			.raw_entry()
 			.from_hash(hash, |&k| match attr.try_eq(k) {
 				Ok(val) => val,
@@ -42,7 +42,8 @@ impl Map {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
-		let res = self.0
+		let res = self
+			.0
 			.raw_entry_mut()
 			.from_hash(hash, |&k| match attr.try_eq(k) {
 				Ok(val) => val,
@@ -60,7 +61,10 @@ impl Map {
 			RawEntryMut::Vacant(vac) => {
 				// TODO: im not sure if the `|_| hash` is sound, because im not sure why it needs it
 				// in the first place...
-				vac.insert_with_hasher(hash, attr, value, |_| hash);
+				vac.insert_with_hasher(hash, attr, value, |k| {
+					k.try_hash()
+						.expect("if the first hash doesn't fail, subsequent ones shouldn't")
+				});
 			},
 		}
 
@@ -71,7 +75,8 @@ impl Map {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
-		let res = self.0
+		let res = self
+			.0
 			.raw_entry_mut()
 			.from_hash(hash, |&k| match attr.try_eq(k) {
 				Ok(val) => val,

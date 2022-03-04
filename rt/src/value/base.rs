@@ -1,10 +1,10 @@
 use crate::value::gc::Gc;
 use std::any::TypeId;
 use std::cell::UnsafeCell;
+use std::fmt::{self, Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::ptr::NonNull;
 use std::sync::atomic::AtomicU32;
-use std::fmt::{self, Debug, Formatter};
 
 mod attributes;
 mod builder;
@@ -12,9 +12,9 @@ mod flags;
 mod parents;
 
 use attributes::Attributes;
-pub use parents::Parents;
 pub use builder::Builder;
 pub use flags::Flags;
+pub use parents::Parents;
 
 pub trait HasParents {
 	unsafe fn init();
@@ -99,7 +99,6 @@ impl<T> Base<T> {
 		unsafe { (*self.data.get()).assume_init_mut() }
 	}
 }
-
 
 impl Drop for Header {
 	fn drop(&mut self) {

@@ -33,22 +33,23 @@ struct EmbeddedList {
 	buf: [AnyValue; MAX_EMBEDDED_LEN],
 }
 
-const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedList>() / std::mem::size_of::<AnyValue>();
+const MAX_EMBEDDED_LEN: usize =
+	std::mem::size_of::<AllocatedList>() / std::mem::size_of::<AnyValue>();
 const FLAG_EMBEDDED: u32 = Flags::USER0;
 const FLAG_SHARED: u32 = Flags::USER1;
 const FLAG_NOFREE: u32 = Flags::USER2;
-const EMBED_LENMASK: u32 = Flags::USER1 | Flags::USER2;
+const EMBED_LENMASK: u32 = Flags::USER3 | Flags::USER4;
 
 sa::const_assert!(MAX_EMBEDDED_LEN <= unmask_len(EMBED_LENMASK));
 
 const fn unmask_len(len: u32) -> usize {
 	debug_assert!(len & !EMBED_LENMASK == 0);
-	(len >> 1) as usize
+	(len >> 3) as usize
 }
 
 const fn mask_len(len: usize) -> u32 {
 	debug_assert!(len <= MAX_EMBEDDED_LEN);
-	(len as u32) << 1
+	(len as u32) << 3
 }
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
@@ -138,10 +139,7 @@ impl List {
 	}
 
 	pub unsafe fn set_len(&mut self, new_len: usize) {
-		debug_assert!(
-			new_len <= self.capacity(),
-			"new len is larger than capacity"
-		);
+		debug_assert!(new_len <= self.capacity(), "new len is larger than capacity");
 
 		if self.is_embedded() {
 			self.set_embedded_len(new_len);
@@ -150,8 +148,10 @@ impl List {
 		}
 	}
 
-	fn set_embedded_len(&self, new_len: usize) {
+	fn set_embedded_len(&mut self, new_len: usize) {
 		debug_assert!(self.is_embedded());
+
+		self.flags().remove(EMBED_LENMASK);
 		self.flags().insert(mask_len(new_len));
 	}
 
@@ -273,7 +273,7 @@ impl List {
 				ptr,
 			};
 
-			self.flags().remove(FLAG_EMBEDDED);
+			self.flags().remove(FLAG_EMBEDDED | EMBED_LENMASK);
 		}
 	}
 

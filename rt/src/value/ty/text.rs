@@ -36,18 +36,20 @@ const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedText>();
 const FLAG_EMBEDDED: u32 = Flags::USER0;
 const FLAG_SHARED: u32 = Flags::USER1;
 const FLAG_NOFREE: u32 = Flags::USER2;
-const EMBED_LENMASK: u32 = Flags::USER1 | Flags::USER2 | Flags::USER3 | Flags::USER4 | Flags::USER5;
+// const EMBED_LENMASK: u32 = Flags::USER3 | Flags::USER4 | Flags::USER5 | Flags::USER6 | Flags::USER7;
+const EMBED_LENMASK: u32 =
+	Flags::USER9 | Flags::USER10 | Flags::USER11 | Flags::USER12 | Flags::USER13;
 
 sa::const_assert!(MAX_EMBEDDED_LEN <= unmask_len(EMBED_LENMASK));
 
 const fn unmask_len(len: u32) -> usize {
 	debug_assert!(len & !EMBED_LENMASK == 0);
-	(len >> 1) as usize
+	(len >> 9) as usize
 }
 
 const fn mask_len(len: usize) -> u32 {
 	debug_assert!(len <= MAX_EMBEDDED_LEN);
-	(len as u32) << 1
+	(len as u32) << 9
 }
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
@@ -136,7 +138,7 @@ impl Text {
 	/// ```
 	pub fn len(&self) -> usize {
 		if self.is_embedded() {
-			self.embedded_len()
+			dbg!(self.embedded_len())
 		} else {
 			// SAFETY: we know we're allocated, as per the `if`.
 			unsafe { self.inner().alloc.len }
@@ -145,7 +147,7 @@ impl Text {
 
 	fn embedded_len(&self) -> usize {
 		debug_assert!(self.is_embedded());
-		unmask_len(self.flags().mask(EMBED_LENMASK))
+		unmask_len(dbg!(self.flags()).mask(EMBED_LENMASK))
 	}
 
 	/// Forcibly sets `self`'s length, in bytes.
@@ -176,10 +178,7 @@ impl Text {
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub unsafe fn set_len(&mut self, new_len: usize) {
-		debug_assert!(
-			new_len <= self.capacity(),
-			"new len is larger than capacity"
-		);
+		debug_assert!(new_len <= self.capacity(), "new len is larger than capacity");
 
 		if self.is_embedded() {
 			self.set_embedded_len(new_len);
@@ -188,8 +187,9 @@ impl Text {
 		}
 	}
 
-	fn set_embedded_len(&self, new_len: usize) {
+	fn set_embedded_len(&mut self, new_len: usize) {
 		debug_assert!(self.is_embedded());
+		self.flags().remove(EMBED_LENMASK);
 		self.flags().insert(mask_len(new_len));
 	}
 
@@ -437,7 +437,7 @@ impl Text {
 				ptr,
 			};
 
-			self.flags().remove(FLAG_EMBEDDED);
+			self.flags().remove(FLAG_EMBEDDED | EMBED_LENMASK);
 		}
 	}
 
@@ -643,14 +643,8 @@ mod tests {
 	fn test_get() {
 		assert_eq!(*<Gc<Text>>::get(Value::from("")).as_ref().unwrap(), *"");
 		assert_eq!(*<Gc<Text>>::get(Value::from("x")).as_ref().unwrap(), *"x");
-		assert_eq!(
-			*<Gc<Text>>::get(Value::from("yesseriie")).as_ref().unwrap(),
-			*"yesseriie"
-		);
-		assert_eq!(
-			*<Gc<Text>>::get(Value::from(JABBERWOCKY)).as_ref().unwrap(),
-			*JABBERWOCKY
-		);
+		assert_eq!(*<Gc<Text>>::get(Value::from("yesseriie")).as_ref().unwrap(), *"yesseriie");
+		assert_eq!(*<Gc<Text>>::get(Value::from(JABBERWOCKY)).as_ref().unwrap(), *JABBERWOCKY);
 	}
 
 	#[test]

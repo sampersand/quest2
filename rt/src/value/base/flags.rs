@@ -27,17 +27,17 @@ impl Flags {
 	pub const GCMARK: u32 = (1 << 18);
 	pub const ATTR_MAP: u32 = (1 << 19);
 	pub const SINGLE_PARENT: u32 = (1 << 20);
-	pub const UNUSED1: u32 = (1 << 21);
-	pub const UNUSED2: u32 = (1 << 22);
-	pub const UNUSED3: u32 = (1 << 23);
-	pub const UNUSED4: u32 = (1 << 24);
-	pub const UNUSED5: u32 = (1 << 25);
-	pub const UNUSED6: u32 = (1 << 26);
-	pub const UNUSED7: u32 = (1 << 27);
-	pub const UNUSED8: u32 = (1 << 28);
-	pub const UNUSED9: u32 = (1 << 29);
-	pub const UNUSEDA: u32 = (1 << 30);
-	pub const UNUSEDB: u32 = (1 << 31);
+	pub const UNUSEDA: u32 = (1 << 21);
+	pub const UNUSED9: u32 = (1 << 22);
+	pub const UNUSED8: u32 = (1 << 23);
+	pub const UNUSED7: u32 = (1 << 24);
+	pub const UNUSED6: u32 = (1 << 25);
+	pub const UNUSED5: u32 = (1 << 26);
+	pub const UNUSED4: u32 = (1 << 27);
+	pub const UNUSED3: u32 = (1 << 28);
+	pub const UNUSED2: u32 = (1 << 29);
+	pub const UNUSED1: u32 = (1 << 30);
+	pub const UNUSED0: u32 = (1 << 31);
 
 	pub const fn new(flags: u32) -> Self {
 		Self(AtomicU32::new(flags))

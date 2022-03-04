@@ -1,23 +1,43 @@
 use crate::value::AnyValue;
 use crate::Result;
 
+pub const MAX_LISTMAP_LEN: usize = 7;
+
 #[repr(transparent)]
 #[derive(Debug, Default)]
-pub struct ListMap(Box<Vec<(AnyValue, AnyValue)>>);
+pub struct ListMap(Box<[Option<(AnyValue, AnyValue)>; MAX_LISTMAP_LEN]>);
 
 impl ListMap {
-	pub fn into_inner(self) -> Box<Vec<(AnyValue, AnyValue)>> {
-		self.0
+	pub fn is_full(&self) -> bool {
+		self.0[MAX_LISTMAP_LEN - 1].is_some()
 	}
 
-	pub fn len(&self) -> usize {
-		self.0.len()
+	pub fn iter(&self) -> impl Iterator<Item = (AnyValue, AnyValue)> + '_ {
+		struct Iter<'a>(&'a [Option<(AnyValue, AnyValue)>]);
+		impl Iterator for Iter<'_> {
+			type Item = (AnyValue, AnyValue);
+
+			fn next(&mut self) -> Option<Self::Item> {
+				if let Some(&ele) = self.0.get(0) {
+					self.0 = &self.0[1..];
+					ele
+				} else {
+					None
+				}
+			}
+		}
+
+		Iter(&*self.0)
 	}
 
 	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
-		for &(key, val) in self.0.iter() {
-			if attr.try_eq(key)? {
-				return Ok(Some(val))
+		for i in 0..MAX_LISTMAP_LEN {
+			if let Some((k, v)) = self.0[i] {
+				if attr.try_eq(k)? {
+					return Ok(Some(v));
+				}
+			} else {
+				break;
 			}
 		}
 
@@ -25,30 +45,42 @@ impl ListMap {
 	}
 
 	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
-		for (key, val) in self.0.iter_mut() {
-			if attr.try_eq(*key)? {
-				*val = value;
+		for i in 0..MAX_LISTMAP_LEN {
+			if let Some((k, v)) = &mut self.0[i] {
+				if attr.try_eq(*k)? {
+					*v = value;
+					return Ok(());
+				}
+			} else {
+				self.0[i] = Some((attr, value));
 				return Ok(());
 			}
 		}
 
-		self.0.push((attr, value));
-		Ok(())
+		unreachable!("`set_attr` called when maxlen already reached?");
 	}
 
 	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
-		let mut idx = None;
-		for (i, (key, _)) in self.0.iter().enumerate() {
-			if attr.try_eq(*key)? {
-				idx = Some(i);
+		for i in 0..MAX_LISTMAP_LEN {
+			if let Some((k, v)) = &mut self.0[i] {
+				if attr.try_eq(*k)? {
+					let value = *v;
+					self.0[i] = None;
+
+					for j in i + 1..MAX_LISTMAP_LEN {
+						if self.0[j].is_none() {
+							self.0.swap(i, j - 1);
+							break;
+						}
+					}
+
+					return Ok(Some(value));
+				}
+			} else {
 				break;
 			}
 		}
 
-		if let Some(idx) = idx {
-			Ok(Some(self.0.swap_remove(idx).1))
-		} else {
-			Ok(None)
-		}
+		Ok(None)
 	}
 }
