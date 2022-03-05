@@ -32,9 +32,9 @@ impl<'a> Args<'a> {
 
 	pub fn idx_err_unless(self, func: impl FnOnce(Self) -> bool) -> Result<Self> {
 		if func(self) {
-			Err(Error::Message("index error happened".into()))
-		} else {
 			Ok(self)
+		} else {
+			Err(Error::Message("index error happened".into()))
 		}
 	}
 
@@ -46,9 +46,7 @@ impl<'a> Args<'a> {
 		if self.positional.is_empty() {
 			Ok(self)
 		} else {
-			Err(Error::Message(
-				"positional arguments given when none expected".to_string(),
-			))
+			Err(Error::Message("positional arguments given when none expected".to_string()))
 		}
 	}
 
@@ -56,9 +54,7 @@ impl<'a> Args<'a> {
 		if self.keyword.is_empty() {
 			Ok(self)
 		} else {
-			Err(Error::Message(
-				"keyword arguments given when none expected".to_string(),
-			))
+			Err(Error::Message("keyword arguments given when none expected".to_string()))
 		}
 	}
 

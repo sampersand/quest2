@@ -1,11 +1,10 @@
 use crate::value::base::{HasParents, Parents};
-use crate::value::ty::{ConvertTo, Integer, Text};
+use crate::value::ty::{ConvertTo, Float, Integer, Text};
 use crate::value::{AnyValue, Convertible, Gc, Value};
 use crate::vm::Args;
 use crate::Result;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub struct Boolean(pub bool);
+pub type Boolean = bool;
 
 impl super::AttrConversionDefined for Boolean {
 	const ATTR_NAME: &'static str = "@bool";
@@ -13,42 +12,16 @@ impl super::AttrConversionDefined for Boolean {
 
 impl Value<Boolean> {
 	pub const FALSE: Self = unsafe { Self::from_bits_unchecked(0b001_100) };
-	pub const TRUE: Self = unsafe { Self::from_bits_unchecked(0b010_100) };
+	pub const TRUE: Self = unsafe { Self::from_bits_unchecked(0b011_100) };
 }
 
 impl From<Boolean> for Value<Boolean> {
 	fn from(boolean: Boolean) -> Self {
-		if boolean.0 {
+		if boolean {
 			Self::TRUE
 		} else {
 			Self::FALSE
 		}
-	}
-}
-
-impl From<bool> for Value<Boolean> {
-	fn from(b: bool) -> Self {
-		Boolean(b).into()
-	}
-}
-
-impl From<Boolean> for bool {
-	#[inline]
-	fn from(boolean: Boolean) -> Self {
-		boolean.0
-	}
-}
-
-impl From<bool> for Boolean {
-	#[inline]
-	fn from(b: bool) -> Self {
-		Self(b)
-	}
-}
-
-impl PartialEq<bool> for Boolean {
-	fn eq(&self, rhs: &bool) -> bool {
-		self.0 == *rhs
 	}
 }
 
@@ -60,7 +33,7 @@ unsafe impl Convertible for Boolean {
 	}
 
 	fn get(value: Value<Self>) -> Self::Output {
-		Self(value.bits() == Value::TRUE.bits())
+		value.bits() == Value::TRUE.bits()
 	}
 }
 
@@ -78,7 +51,7 @@ impl ConvertTo<Gc<Text>> for Boolean {
 	fn convert(&self, args: Args<'_>) -> Result<Gc<Text>> {
 		args.assert_no_arguments()?;
 
-		Ok(Text::from_static_str(if self.0 { "true" } else { "false" }))
+		Ok(Text::from_static_str(if *self { "true" } else { "false" }))
 	}
 }
 
@@ -86,7 +59,15 @@ impl ConvertTo<Integer> for Boolean {
 	fn convert(&self, args: Args<'_>) -> Result<Integer> {
 		args.assert_no_arguments()?;
 
-		Ok(Integer(if self.0 { 1 } else { 0 }))
+		Ok(if *self { 1 } else { 0 })
+	}
+}
+
+impl ConvertTo<Float> for Boolean {
+	fn convert(&self, args: Args<'_>) -> Result<Float> {
+		args.assert_no_arguments()?;
+
+		Ok(if *self { 1.0 } else { 0.0 })
 	}
 }
 
@@ -115,44 +96,40 @@ mod tests {
 	}
 
 	#[test]
-	fn convert_to_text() {
+	fn test_convert_to_text() {
 		assert_eq!(
 			"true",
-			ConvertTo::<Gc<Text>>::convert(&Boolean(true), Args::default())
+			ConvertTo::<Gc<Text>>::convert(&true, Args::default())
+				.unwrap()
+				.as_ref()
+				.unwrap()
+				.as_str()
+		);
+		assert_eq!(
+			"false",
+			ConvertTo::<Gc<Text>>::convert(&false, Args::default())
 				.unwrap()
 				.as_ref()
 				.unwrap()
 				.as_str()
 		);
 
-		assert_eq!(
-			"false",
-			ConvertTo::<Gc<Text>>::convert(&Boolean(false), Args::default())
-				.unwrap()
-				.as_ref()
-				.unwrap()
-				.as_str()
-		);
-		assert!(
-			ConvertTo::<Gc<Text>>::convert(&Boolean(true), Args::new(&[Value::TRUE.any()], &[]))
-				.is_err()
-		);
+		assert!(ConvertTo::<Gc<Text>>::convert(&true, Args::new(&[Value::TRUE.any()], &[])).is_err());
 	}
 
 	#[test]
-	fn convert_to_integer() {
-		assert_eq!(
-			Integer(1),
-			ConvertTo::<Integer>::convert(&Boolean(true), Args::default()).unwrap()
-		);
+	fn test_convert_to_integer() {
+		assert_eq!(1, ConvertTo::<Integer>::convert(&true, Args::default()).unwrap());
+		assert_eq!(0, ConvertTo::<Integer>::convert(&false, Args::default()).unwrap());
 
-		assert_eq!(
-			Integer(0),
-			ConvertTo::<Integer>::convert(&Boolean(false), Args::default()).unwrap()
-		);
-		assert!(
-			ConvertTo::<Integer>::convert(&Boolean(true), Args::new(&[Value::TRUE.any()], &[]))
-				.is_err()
-		);
+		assert!(ConvertTo::<Integer>::convert(&true, Args::new(&[Value::TRUE.any()], &[])).is_err());
+	}
+
+	#[test]
+	fn test_convert_to_float() {
+		assert_eq!(1.0, ConvertTo::<Float>::convert(&true, Args::default()).unwrap());
+		assert_eq!(0.0, ConvertTo::<Float>::convert(&false, Args::default()).unwrap());
+
+		assert!(ConvertTo::<Float>::convert(&true, Args::new(&[Value::TRUE.any()], &[])).is_err());
 	}
 }

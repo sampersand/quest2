@@ -1,5 +1,5 @@
 use crate::value::base::{HasParents, Parents};
-use crate::value::ty::{Boolean, ConvertTo, Integer, List, Text, Float};
+use crate::value::ty::{Boolean, ConvertTo, Float, Integer, List, Text};
 use crate::value::{AnyValue, Convertible, Gc, Value};
 use crate::vm::Args;
 use crate::Result;
@@ -15,7 +15,7 @@ impl Debug for Null {
 }
 
 impl Value<Null> {
-	pub const NULL: Self = unsafe { Self::from_bits_unchecked(0b011_100) };
+	pub const NULL: Self = unsafe { Self::from_bits_unchecked(0b010_100) };
 }
 
 impl From<Null> for Value<Null> {
@@ -63,7 +63,7 @@ impl ConvertTo<Integer> for Null {
 	fn convert(&self, args: Args<'_>) -> Result<Integer> {
 		args.assert_no_arguments()?;
 
-		Ok(Integer(0))
+		Ok(0)
 	}
 }
 
@@ -71,7 +71,7 @@ impl ConvertTo<Float> for Null {
 	fn convert(&self, args: Args<'_>) -> Result<Float> {
 		args.assert_no_arguments()?;
 
-		Ok(Float(0.0))
+		Ok(0.0)
 	}
 }
 
@@ -79,7 +79,7 @@ impl ConvertTo<Boolean> for Null {
 	fn convert(&self, args: Args<'_>) -> Result<Boolean> {
 		args.assert_no_arguments()?;
 
-		Ok(Boolean(false))
+		Ok(false)
 	}
 }
 
@@ -115,7 +115,7 @@ mod tests {
 	}
 
 	#[test]
-	fn conversions() {
+	fn test_convert_to_text() {
 		assert_eq!(
 			"null",
 			ConvertTo::<Gc<Text>>::convert(&Null, Args::default())
@@ -125,19 +125,22 @@ mod tests {
 				.as_str()
 		);
 		assert!(ConvertTo::<Gc<Text>>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
+	}
 
-		assert_eq!(
-			Integer(0),
-			ConvertTo::<Integer>::convert(&Null, Args::default()).unwrap()
-		);
+	#[test]
+	fn test_convert_to_integer() {
+		assert_eq!(0, ConvertTo::<Integer>::convert(&Null, Args::default()).unwrap());
 		assert!(ConvertTo::<Integer>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
+	}
 
-		assert_eq!(
-			Boolean(false),
-			ConvertTo::<Boolean>::convert(&Null, Args::default()).unwrap()
-		);
+	#[test]
+	fn test_convert_to_float() {
+		assert_eq!(false, ConvertTo::<Boolean>::convert(&Null, Args::default()).unwrap());
 		assert!(ConvertTo::<Boolean>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
+	}
 
+	#[test]
+	fn test_convert_to_list() {
 		assert!(ConvertTo::<Gc<List>>::convert(&Null, Args::default())
 			.unwrap()
 			.as_ref()

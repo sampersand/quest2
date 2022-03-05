@@ -21,9 +21,7 @@ impl Display for Error {
 			Self::ValueFrozen(value) => write!(f, "value {:p} is frozen", value),
 			Self::MissingPositionalArgument(arg) => write!(f, "missing positional argument {:?}", arg),
 			Self::MissingKeywordArgument(arg) => write!(f, "missing keyword argument {:?}", arg),
-			Self::ConversionFailed(value, conv) => {
-				write!(f, "conversion {:?} failed for {:?}", conv, value)
-			},
+			Self::ConversionFailed(value, conv) => write!(f, "conversion {:?} failed for {:?}", conv, value),
 			Self::Message(msg) => write!(f, "{}", msg),
 		}
 	}

@@ -143,10 +143,7 @@ impl List {
 	}
 
 	pub unsafe fn set_len(&mut self, new_len: usize) {
-		debug_assert!(
-			new_len <= self.capacity(),
-			"new len is larger than capacity"
-		);
+		debug_assert!(new_len <= self.capacity(), "new len is larger than capacity");
 
 		if self.is_embedded() {
 			self.set_embedded_len(new_len);

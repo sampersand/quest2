@@ -311,11 +311,7 @@ impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 		sa::assert_eq_align!(Base<Any>, u64);
 
 		let bits = text.as_ptr() as usize as u64;
-		debug_assert_eq!(
-			bits & 0b111,
-			0,
-			"somehow the `Base<T>` pointer was misaligned??"
-		);
+		debug_assert_eq!(bits & 0b111, 0, "somehow the `Base<T>` pointer was misaligned??");
 
 		// SAFETY: The bottom three bits being zero is the definition for `Gc<T>`. We know that the
 		// bottom three bits are zero because `Base<T>` will always be at least 8-aligned.

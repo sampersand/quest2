@@ -8,9 +8,7 @@ pub struct Map(Box<HashMap<AnyValue, AnyValue>>);
 
 impl Map {
 	pub fn from_iter(iter: impl IntoIterator<Item = (AnyValue, AnyValue)>) -> Result<Self> {
-		let mut map = Self(Box::new(HashMap::with_capacity(
-			super::list::MAX_LISTMAP_LEN,
-		)));
+		let mut map = Self(Box::new(HashMap::with_capacity(super::list::MAX_LISTMAP_LEN)));
 
 		for (attr, value) in iter {
 			map.set_attr(attr, value)?;

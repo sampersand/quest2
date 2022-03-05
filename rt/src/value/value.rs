@@ -1,8 +1,8 @@
 use crate::value::base::{Attribute, HasParents};
-use crate::value::ty::{AttrConversionDefined, List, Wrap};
+use crate::value::ty::{AttrConversionDefined, List, Wrap, Integer, Float, RustFn};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
-use crate::Result;
+use crate::{Result, Error};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
@@ -14,8 +14,8 @@ XXX...X XXX XX1 = i63
 XXX...X XXX X10 = f62
 XXX...X XXX 100 = rustfn (nonzero `X`, gotta remove the `1`)
 000...0 001 100 = false
-000...0 010 100 = true
-000...0 011 100 = null
+000...0 010 100 = null
+000...0 011 100 = true
 
 NOTE: Technically, the first page can be allocated in some architectures
 (and thus `false`/`true`/`null` constants could ~technically~ be allocated).
@@ -74,6 +74,20 @@ impl<T> Value<T> {
 		self.bits() & 0b111 == 0
 	}
 }
+
+
+impl<T: Convertible> Value<T> {
+	#[must_use]
+	pub fn get(self) -> T::Output {
+		T::get(self)
+	}
+}
+
+pub struct Any {
+	_priv: (),
+}
+pub type AnyValue = Value<Any>;
+
 
 impl AnyValue {
 	fn parents_for(self) -> super::base::Parents {
@@ -166,6 +180,34 @@ impl AnyValue {
 		let _ = (attr, args);
 		todo!();
 	}
+}
+
+impl AnyValue {
+	pub fn to_boolean(self) -> Result<bool> {
+		Ok(self.bits() == Value::NULL.bits() || self.bits() == Value::FALSE.bits())
+	}
+
+	pub fn to_integer(self) -> Result<Integer> {
+		let bits = self.bits();
+
+		if self.is_allocated() {
+			return self.convert::<Integer>();
+		}
+
+		if let Some(integer) = self.downcast::<Integer>() {
+			Ok(integer.get())
+		} else if let Some(float) = self.downcast::<Float>() {
+			Ok(float.get() as Integer)
+		} else if bits <= Value::NULL.bits() {
+			debug_assert!(bits == Value::NULL.bits() || bits == Value::FALSE.bits());
+			Ok(0)
+		} else if bits == Value::TRUE.bits() {
+			Ok(1)
+		} else {
+			debug_assert!(self.is_a::<RustFn>());
+			Err(Error::ConversionFailed(self, Integer::ATTR_NAME))
+		}
+	}
 
 	pub fn convert<C: AttrConversionDefined + Convertible>(self) -> Result<C::Output> {
 		let conv = self.call_attr(C::ATTR_NAME, Default::default())?;
@@ -173,22 +215,10 @@ impl AnyValue {
 		if let Some(attr) = conv.downcast::<C>() {
 			Ok(attr.get())
 		} else {
-			Err(crate::Error::ConversionFailed(conv, C::ATTR_NAME))
+			Err(Error::ConversionFailed(conv, C::ATTR_NAME))
 		}
 	}
 }
-
-impl<T: Convertible> Value<T> {
-	#[must_use]
-	pub fn get(self) -> T::Output {
-		T::get(self)
-	}
-}
-
-pub struct Any {
-	_priv: (),
-}
-pub type AnyValue = Value<Any>;
 
 impl AnyValue {
 	#[must_use]

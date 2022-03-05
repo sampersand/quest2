@@ -152,7 +152,8 @@ impl Text {
 
 			alloc.ptr = inp.as_ptr() as *mut u8;
 			alloc.len = inp.len();
-			alloc.cap = alloc.len;
+			alloc.cap = inp.capacity();
+			std::mem::forget(inp); // so it doesn't become freed
 
 			builder.finish()
 		}
@@ -163,12 +164,15 @@ impl Text {
 	}
 
 	fn is_pointer_immutable(&self) -> bool {
-		debug_assert!(
-			!self.is_embedded(),
-			"called is_pointer_immutable when embedded"
-		);
+		debug_assert!(!self.is_embedded(), "called is_pointer_immutable when embedded");
 
 		self.flags().contains_any(FLAG_NOFREE | FLAG_SHARED)
+	}
+
+	fn is_from_string(&self) -> bool {
+		debug_assert!(!self.is_embedded(), "called is_from_string when embedded");
+
+		self.flags().contains(FLAG_FROM_STRING)
 	}
 
 	/// Gets the length of `self`, in bytes.
@@ -228,10 +232,7 @@ impl Text {
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub unsafe fn set_len(&mut self, new_len: usize) {
-		debug_assert!(
-			new_len <= self.capacity(),
-			"new len is larger than capacity"
-		);
+		debug_assert!(new_len <= self.capacity(), "new len is larger than capacity");
 
 		if self.is_embedded() {
 			self.set_embedded_len(new_len);
@@ -454,9 +455,16 @@ impl Text {
 
 		let mut alloc = &mut self.inner_mut().alloc;
 		let old_ptr = alloc.ptr;
+		let old_cap = alloc.cap;
+		let len = alloc.len;
 		alloc.ptr = crate::alloc(alloc_ptr_layout(capacity));
 		alloc.cap = capacity;
 		std::ptr::copy(old_ptr, alloc.ptr, alloc.len);
+
+		if self.is_from_string() {
+			drop(String::from_raw_parts(old_ptr, len, old_cap));
+			self.flags().remove(FLAG_FROM_STRING);
+		}
 
 		self.flags().remove(FLAG_NOFREE | FLAG_SHARED);
 	}
@@ -506,7 +514,7 @@ impl Text {
 
 		// If the pointer is immutable, we have to allocate a new buffer, and then copy
 		// over the data.
-		if self.is_pointer_immutable() {
+		if self.is_pointer_immutable() || self.is_from_string() {
 			unsafe {
 				self.duplicate_alloc_ptr(new_cap);
 			}
@@ -701,14 +709,8 @@ mod tests {
 	fn test_get() {
 		assert_eq!(*<Gc<Text>>::get(Value::from("")).as_ref().unwrap(), *"");
 		assert_eq!(*<Gc<Text>>::get(Value::from("x")).as_ref().unwrap(), *"x");
-		assert_eq!(
-			*<Gc<Text>>::get(Value::from("yesseriie")).as_ref().unwrap(),
-			*"yesseriie"
-		);
-		assert_eq!(
-			*<Gc<Text>>::get(Value::from(JABBERWOCKY)).as_ref().unwrap(),
-			*JABBERWOCKY
-		);
+		assert_eq!(*<Gc<Text>>::get(Value::from("yesseriie")).as_ref().unwrap(), *"yesseriie");
+		assert_eq!(*<Gc<Text>>::get(Value::from(JABBERWOCKY)).as_ref().unwrap(), *JABBERWOCKY);
 	}
 
 	#[test]
