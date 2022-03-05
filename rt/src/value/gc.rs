@@ -308,10 +308,10 @@ impl<T: Allocated> Gc<T> {
 impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 	#[inline]
 	fn from(text: Gc<T>) -> Self {
-		sa::assert_eq_align!(Base<Any>, u64);
+		sa::assert_eq_align!(Base<Any>, i128);
 
 		let bits = text.as_ptr() as usize as u64;
-		debug_assert_eq!(bits & 0b111, 0, "somehow the `Base<T>` pointer was misaligned??");
+		debug_assert_eq!(bits & 0b1111, 0, "somehow the `Base<T>` pointer was misaligned??");
 
 		// SAFETY: The bottom three bits being zero is the definition for `Gc<T>`. We know that the
 		// bottom three bits are zero because `Base<T>` will always be at least 8-aligned.
@@ -342,9 +342,6 @@ where
 			let gc = Gc::new_unchecked(value.bits() as usize as *mut Wrap<Any>);
 			(*gc.as_ptr().cast::<Base<Any>>()).header.typeid
 		};
-
-		dbg!(value.bits() as usize as *mut Wrap<Any>);
-		// dbg!(typeid, std::any::TypeId::of::<T>(), std::any::TypeId::of::<crate::value::ty::Text>());
 
 		// Make sure the `typeid` matches that of `T`.
 		typeid == T::_inner_typeid()

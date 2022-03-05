@@ -8,14 +8,14 @@ use std::marker::PhantomData;
 use std::num::NonZeroU64;
 
 /*
-000...0 000 000 = undefined
-XXX...X XXX 000 = pointer (nonzero `X`)
-XXX...X XXX XX1 = i63
-XXX...X XXX X10 = f62
-XXX...X XXX 100 = rustfn (nonzero `X`, gotta remove the `1`)
-000...0 001 100 = false
-000...0 010 100 = null
-000...0 011 100 = true
+000...000 0000 = undefined
+XXX...XXX 0000 = `Base<T>` (nonzero `X`)
+XXX...XXX 1000 = rustfn (nonzero `X`, gotta remove the `1`)
+XXX...XXX XXX1 = i63
+XXX...XXX XX10 = f62
+000...000 0100 = false
+000...000 1000 = null
+000...000 1100 = true
 
 NOTE: Technically, the first page can be allocated in some architectures
 (and thus `false`/`true`/`null` constants could ~technically~ be allocated).
@@ -71,7 +71,7 @@ impl<T> Value<T> {
 
 	#[must_use]
 	pub const fn is_allocated(self) -> bool {
-		self.bits() & 0b111 == 0
+		self.bits() & 0b1111 == 0
 	}
 }
 
@@ -93,14 +93,18 @@ impl AnyValue {
 	fn parents_for(self) -> super::base::Parents {
 		use crate::value::ty::*;
 
-		match self.bits() {
-			b if b & 1 == 1 => Integer::parents(),
-			b if b & 2 == 2 => Float::parents(),
-			b if b == Value::TRUE.bits() || b == Value::FALSE.bits() => Boolean::parents(),
-			b if b == Value::NULL.bits() => Null::parents(),
-			b if b & 8 == 8 => RustFn::parents(),
-			b if b & 7 == 0 => unreachable!("called parents_for on allocated"),
-			b => unreachable!("unknown bits? {:064b}", b),
+		if self.is_a::<Integer>() {
+			Integer::parents()
+		} else if self.is_a::<Float>() {
+			Float::parents()
+		} else if self.is_a::<Boolean>() {
+			Boolean::parents()
+		} else if self.is_a::<Null>() {
+			Null::parents()
+		} else if self.is_a::<RustFn>() {
+			RustFn::parents()
+		} else {
+			unreachable!("called `parents_for` for an invalid type: {:064b}", self.bits())
 		}
 	}
 }
@@ -207,6 +211,29 @@ impl AnyValue {
 			debug_assert!(self.is_a::<RustFn>());
 			Err(Error::ConversionFailed(self, Integer::ATTR_NAME))
 		}
+	}
+
+	pub fn to_text(self) -> Result<crate::value::ty::Text> {
+		todo!()
+		// let bits = self.bits();
+
+		// if self.is_allocated() {
+		// 	return self.convert::<Integer>();
+		// }
+
+		// if let Some(integer) = self.downcast::<Integer>() {
+		// 	Ok(integer.get())
+		// } else if let Some(float) = self.downcast::<Float>() {
+		// 	Ok(float.get() as Integer)
+		// } else if bits <= Value::NULL.bits() {
+		// 	debug_assert!(bits == Value::NULL.bits() || bits == Value::FALSE.bits());
+		// 	Ok(0)
+		// } else if bits == Value::TRUE.bits() {
+		// 	Ok(1)
+		// } else {
+		// 	debug_assert!(self.is_a::<RustFn>());
+		// 	Err(Error::ConversionFailed(self, Integer::ATTR_NAME))
+		// }
 	}
 
 	pub fn convert<C: AttrConversionDefined + Convertible>(self) -> Result<C::Output> {

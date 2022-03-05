@@ -11,8 +11,8 @@ impl super::AttrConversionDefined for Boolean {
 }
 
 impl Value<Boolean> {
-	pub const FALSE: Self = unsafe { Self::from_bits_unchecked(0b001_100) };
-	pub const TRUE: Self = unsafe { Self::from_bits_unchecked(0b011_100) };
+	pub const FALSE: Self = unsafe { Self::from_bits_unchecked(0b0100) };
+	pub const TRUE: Self = unsafe { Self::from_bits_unchecked(0b1100) };
 }
 
 impl From<Boolean> for Value<Boolean> {

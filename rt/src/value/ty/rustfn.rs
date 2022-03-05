@@ -8,7 +8,7 @@ pub type Function = for<'a> fn(crate::vm::Args<'a>) -> crate::Result<AnyValue>;
 #[derive(Clone, Copy)]
 pub struct RustFn(&'static Inner);
 
-#[repr(C, align(8))]
+#[repr(C, align(16))]
 #[doc(hidden)]
 pub struct Inner {
 	pub name: &'static str,
@@ -68,9 +68,9 @@ impl From<RustFn> for Value<RustFn> {
 	fn from(rustfn: RustFn) -> Self {
 		let ptr = rustfn.0 as *const Inner as usize as u64;
 
-		debug_assert_eq!(ptr & 0b111, 0);
+		debug_assert_eq!(ptr & 0b1111, 0);
 
-		unsafe { Self::from_bits_unchecked(ptr | 0b100) }
+		unsafe { Self::from_bits_unchecked(ptr | 0b1000) }
 	}
 }
 
@@ -78,11 +78,11 @@ unsafe impl Convertible for RustFn {
 	type Output = Self;
 
 	fn is_a(value: AnyValue) -> bool {
-		value.bits() & 0b111 == 0b100 && value.bits() > 0b011_100
+		value.bits() & 0b1111 == 0b1000 && value.bits() > 0b1111
 	}
 
 	fn get(value: Value<Self>) -> Self::Output {
-		unsafe { Self(&*((value.bits() - 0b100) as usize as *const Inner)) }
+		unsafe { Self(&*((value.bits() - 0b1000) as usize as *const Inner)) }
 	}
 }
 

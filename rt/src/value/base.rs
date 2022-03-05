@@ -23,7 +23,7 @@ pub trait HasParents {
 	fn parents() -> Parents;
 }
 
-#[repr(C, align(8))]
+#[repr(C)]
 pub struct Header {
 	pub(super) typeid: TypeId,
 	parents: Parents,
@@ -33,7 +33,7 @@ pub struct Header {
 }
 
 #[derive(Debug)]
-#[repr(C, align(8))]
+#[repr(C, align(16))]
 pub struct Base<T: 'static> {
 	pub(super) header: Header,
 	data: UnsafeCell<MaybeUninit<T>>,
