@@ -1,6 +1,6 @@
 use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
-use crate::value::AnyValue;
+use crate::AnyValue;
 use std::alloc;
 use std::fmt::{self, Debug, Formatter};
 
@@ -9,6 +9,10 @@ pub use builder::Builder;
 
 quest_type! {
 	pub struct List(Inner);
+}
+
+impl super::AttrConversionDefined for Gc<List> {
+	const ATTR_NAME: &'static str = "@list";
 }
 
 #[repr(C)]
@@ -139,7 +143,10 @@ impl List {
 	}
 
 	pub unsafe fn set_len(&mut self, new_len: usize) {
-		debug_assert!(new_len <= self.capacity(), "new len is larger than capacity");
+		debug_assert!(
+			new_len <= self.capacity(),
+			"new len is larger than capacity"
+		);
 
 		if self.is_embedded() {
 			self.set_embedded_len(new_len);

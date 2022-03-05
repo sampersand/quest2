@@ -1,10 +1,17 @@
-use crate::value::{AnyValue, Convertible, Value};
+use crate::value::base::{HasParents, Parents};
+use crate::value::ty::{ConvertTo, Text};
+use crate::value::{AnyValue, Convertible, Gc, Value};
+use crate::vm::Args;
+use crate::Result;
 
-pub type Integer = i64;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct Integer(pub i64);
+
+type Inner = i64;
 
 // all but the top two bits
-pub const MAX: Integer = (u64::MAX >> 2) as Integer;
-pub const MIN: Integer = !MAX;
+pub const MAX: Integer = Integer((u64::MAX >> 2) as Inner);
+pub const MIN: Integer = Integer(!MAX.0);
 
 impl Value<Integer> {
 	pub const ZERO: Self = unsafe { Self::from_bits_unchecked(0b000_001) };
@@ -14,9 +21,22 @@ impl Value<Integer> {
 impl From<Integer> for Value<Integer> {
 	#[inline]
 	fn from(integer: Integer) -> Self {
-		let bits = ((integer as u64) << 1) | 1;
+		let bits = ((integer.0 as u64) << 1) | 1;
 
 		unsafe { Self::from_bits_unchecked(bits) }
+	}
+}
+
+impl From<Inner> for Value<Integer> {
+	#[inline]
+	fn from(integer: Inner) -> Self {
+		Self::from(Integer(integer))
+	}
+}
+
+impl PartialEq<Inner> for Integer {
+	fn eq(&self, rhs: &Inner) -> bool {
+		self.0 == *rhs
 	}
 }
 
@@ -29,17 +49,43 @@ unsafe impl Convertible for Integer {
 	}
 
 	fn get(value: Value<Self>) -> Self::Output {
-		(value.bits() as Self) >> 1
+		Integer((value.bits() as Inner) >> 1)
 	}
 }
 
-impl crate::value::base::HasParents for Integer {
+impl super::AttrConversionDefined for Integer {
+	const ATTR_NAME: &'static str = "@int";
+}
+
+impl HasParents for Integer {
 	unsafe fn init() {
 		// todo
 	}
 
-	fn parents() -> crate::value::base::Parents {
+	fn parents() -> Parents {
 		Default::default() // todo
+	}
+}
+
+impl ConvertTo<Gc<Text>> for Integer {
+	fn convert(&self, args: Args<'_>) -> Result<Gc<Text>> {
+		args.assert_no_positional()?;
+
+		let base = if let Ok(base) = args.get("base") {
+			args.idx_err_unless(|_| args.len() == 1)?;
+			base.convert::<Self>()?.0
+		} else {
+			args.idx_err_unless(Args::is_empty)?;
+			10
+		};
+
+		if !(2..=36).contains(&base) {
+			Err(format!("invalid radix '{}'", base).into())
+		} else {
+			Ok(Text::from_string(
+				radix_fmt::radix(self.0, base as u8).to_string(),
+			))
+		}
 	}
 }
 
@@ -68,12 +114,12 @@ mod tests {
 
 	#[test]
 	fn test_get() {
-		assert_eq!(0, Integer::get(Value::from(0)));
-		assert_eq!(1, Integer::get(Value::from(1)));
-		assert_eq!(-123, Integer::get(Value::from(-123)));
-		assert_eq!(14, Integer::get(Value::from(14)));
-		assert_eq!(-1, Integer::get(Value::from(-1)));
-		assert_eq!(MIN, Integer::get(Value::from(MIN)));
-		assert_eq!(MAX, Integer::get(Value::from(MAX)));
+		assert_eq!(Integer::get(Value::from(0)), 0);
+		assert_eq!(Integer::get(Value::from(1)), 1);
+		assert_eq!(Integer::get(Value::from(-123)), -123);
+		assert_eq!(Integer::get(Value::from(14)), 14);
+		assert_eq!(Integer::get(Value::from(-1)), -1);
+		assert_eq!(Integer::get(Value::from(MIN)), MIN);
+		assert_eq!(Integer::get(Value::from(MAX)), MAX);
 	}
 }

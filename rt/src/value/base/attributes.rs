@@ -1,5 +1,5 @@
 use crate::value::base::Flags;
-use crate::value::AnyValue;
+use crate::AnyValue;
 use crate::Result;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::ManuallyDrop;
@@ -96,6 +96,11 @@ impl Attributes {
 		}
 	}
 }
+
+pub trait Attribute {}
+
+impl Attribute for &str {}
+impl Attribute for AnyValue {}
 
 #[cfg(test)]
 mod tests {

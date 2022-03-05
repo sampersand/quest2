@@ -63,3 +63,19 @@ pub use rustfn::RustFn;
 pub use scope::Scope;
 pub use text::Text;
 pub use wrap::Wrap;
+
+pub trait AttrConversionDefined {
+	const ATTR_NAME: &'static str;
+}
+
+pub trait ConvertTo<T> {
+	fn convert(&self, args: crate::vm::Args<'_>) -> crate::Result<T>;
+}
+
+impl<T: Clone> ConvertTo<T> for T {
+	fn convert(&self, args: crate::vm::Args<'_>) -> crate::Result<T> {
+		args.assert_no_arguments()?;
+
+		Ok(self.clone())
+	}
+}

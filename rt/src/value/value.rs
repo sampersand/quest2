@@ -1,5 +1,7 @@
-use crate::value::base::HasParents;
-use crate::value::{ty::Wrap, Convertible, Gc};
+use crate::value::base::{Attribute, HasParents};
+use crate::value::ty::{AttrConversionDefined, List, Wrap};
+use crate::value::{Convertible, Gc};
+use crate::vm::Args;
 use crate::Result;
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
@@ -152,12 +154,27 @@ impl AnyValue {
 		}
 	}
 
-	pub fn parents(&mut self) -> Result<Gc<crate::value::ty::List>> {
+	pub fn parents(&mut self) -> Result<Gc<List>> {
 		if !self.is_allocated() {
 			*self = self.allocate_self_and_copy_data_over();
 		}
 
 		Ok(unsafe { self.get_gc_any_unchecked() }.as_mut()?.parents())
+	}
+
+	pub fn call_attr<A: Attribute>(self, attr: A, args: Args<'_>) -> Result<AnyValue> {
+		let _ = (attr, args);
+		todo!();
+	}
+
+	pub fn convert<C: AttrConversionDefined + Convertible>(self) -> Result<C::Output> {
+		let conv = self.call_attr(C::ATTR_NAME, Default::default())?;
+
+		if let Some(attr) = conv.downcast::<C>() {
+			Ok(attr.get())
+		} else {
+			Err(crate::Error::ConversionFailed(conv, C::ATTR_NAME))
+		}
 	}
 }
 

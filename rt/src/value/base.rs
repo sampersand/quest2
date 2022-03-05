@@ -11,6 +11,7 @@ mod builder;
 mod flags;
 mod parents;
 
+pub use attributes::Attribute;
 use attributes::Attributes;
 pub use builder::Builder;
 pub use flags::Flags;
@@ -37,6 +38,9 @@ pub struct Base<T: 'static> {
 	pub(super) header: Header,
 	data: UnsafeCell<MaybeUninit<T>>,
 }
+
+unsafe impl<T: Send + 'static> Send for Base<T> {}
+unsafe impl<T: Sync + 'static> Sync for Base<T> {}
 
 impl Debug for Header {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {

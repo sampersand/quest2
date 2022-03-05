@@ -1,4 +1,4 @@
-use crate::value::AnyValue;
+use crate::AnyValue;
 use crate::Result;
 
 pub const MAX_LISTMAP_LEN: usize = 8;
@@ -61,9 +61,9 @@ impl ListMap {
 	}
 
 	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
+		// this isn't terribly efficient, but then again most people aren't going to be
+		// deleting things often, so it's alright.
 		for i in 0..MAX_LISTMAP_LEN {
-			// this isn't terribly efficient, but then again most people aren't going to be
-			// deleting things often.
 			if let Some((k, v)) = &mut self.0[i] {
 				if attr.try_eq(*k)? {
 					let value = *v;

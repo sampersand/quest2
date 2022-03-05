@@ -1,9 +1,18 @@
 use crate::value::base::{HasParents, Parents};
-use crate::value::{AnyValue, Convertible, Value};
+use crate::value::ty::{Boolean, ConvertTo, Integer, List, Text, Float};
+use crate::value::{AnyValue, Convertible, Gc, Value};
+use crate::vm::Args;
+use crate::Result;
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Null;
+
+impl Debug for Null {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		write!(f, "null")
+	}
+}
 
 impl Value<Null> {
 	pub const NULL: Self = unsafe { Self::from_bits_unchecked(0b011_100) };
@@ -42,9 +51,43 @@ impl HasParents for Null {
 	}
 }
 
-impl Debug for Null {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "null")
+impl ConvertTo<Gc<Text>> for Null {
+	fn convert(&self, args: Args<'_>) -> Result<Gc<Text>> {
+		args.assert_no_arguments()?;
+
+		Ok(Text::from_static_str("null"))
+	}
+}
+
+impl ConvertTo<Integer> for Null {
+	fn convert(&self, args: Args<'_>) -> Result<Integer> {
+		args.assert_no_arguments()?;
+
+		Ok(Integer(0))
+	}
+}
+
+impl ConvertTo<Float> for Null {
+	fn convert(&self, args: Args<'_>) -> Result<Float> {
+		args.assert_no_arguments()?;
+
+		Ok(Float(0.0))
+	}
+}
+
+impl ConvertTo<Boolean> for Null {
+	fn convert(&self, args: Args<'_>) -> Result<Boolean> {
+		args.assert_no_arguments()?;
+
+		Ok(Boolean(false))
+	}
+}
+
+impl ConvertTo<Gc<List>> for Null {
+	fn convert(&self, args: Args<'_>) -> Result<Gc<List>> {
+		args.assert_no_arguments()?;
+
+		Ok(List::new())
 	}
 }
 
@@ -69,5 +112,37 @@ mod tests {
 	#[test]
 	fn test_get() {
 		assert_eq!(Null, Null::get(Value::from(Null)));
+	}
+
+	#[test]
+	fn conversions() {
+		assert_eq!(
+			"null",
+			ConvertTo::<Gc<Text>>::convert(&Null, Args::default())
+				.unwrap()
+				.as_ref()
+				.unwrap()
+				.as_str()
+		);
+		assert!(ConvertTo::<Gc<Text>>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
+
+		assert_eq!(
+			Integer(0),
+			ConvertTo::<Integer>::convert(&Null, Args::default()).unwrap()
+		);
+		assert!(ConvertTo::<Integer>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
+
+		assert_eq!(
+			Boolean(false),
+			ConvertTo::<Boolean>::convert(&Null, Args::default()).unwrap()
+		);
+		assert!(ConvertTo::<Boolean>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
+
+		assert!(ConvertTo::<Gc<List>>::convert(&Null, Args::default())
+			.unwrap()
+			.as_ref()
+			.unwrap()
+			.is_empty());
+		assert!(ConvertTo::<Gc<List>>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
 	}
 }

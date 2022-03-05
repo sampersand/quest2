@@ -1,4 +1,4 @@
-use crate::value::base::Flags;
+use crate::value::base::{Flags, HasParents, Parents};
 use crate::value::gc::{Allocated, Gc};
 use std::alloc;
 use std::fmt::{self, Debug, Display, Formatter};
@@ -10,6 +10,33 @@ quest_type! {
 	pub struct Text(Inner);
 }
 
+impl super::AttrConversionDefined for Gc<Text> {
+	const ATTR_NAME: &'static str = "@text";
+}
+
+// #[macro_export]
+// macro_rules! static_text {
+// 	($text:expr) => {
+// 		$crate::value::ty::Text($crate::value::base::Base {
+// 			header: $crate::value::base::Header {
+// 				typeid: ::std::any::TypeId::of::<$crate::value::ty::text::Inner>(),
+// 				parents: $crate::value::base::Parents::NONE,
+// 				attributes: $crate::value::base::Attributes::NONE,
+// 				flags: $crate::value::base::Flags::new(0),
+// 				borrows: ::std::sync::atomic::AtomicU32::new(0)
+// 			},
+// 			data: ::std::cell::UnsafeCell::new(::std::mem::MaybeUninit::new(Inner {
+// 				embed: $crate::value::ty::text::EmbeddedText {
+// 					buf: [b'0'; MAX_EMBEDDED_LEN]
+// 				}
+// 			}))
+// 		})
+// 	};
+// }
+
+// static EMPTY: Text = static_text!(b"");
+// static EMPTY: UnsafeCell<MaybeUninit<Text>> = UnsafeCell::new(MaybeUninit::zeroed());
+
 #[repr(C)]
 #[doc(hidden)]
 pub union Inner {
@@ -17,6 +44,9 @@ pub union Inner {
 	alloc: AllocatedText,
 	embed: EmbeddedText,
 }
+
+unsafe impl Send for Inner {}
+unsafe impl Sync for Inner {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -36,20 +66,19 @@ const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedText>();
 const FLAG_EMBEDDED: u32 = Flags::USER0;
 const FLAG_SHARED: u32 = Flags::USER1;
 const FLAG_NOFREE: u32 = Flags::USER2;
-// const EMBED_LENMASK: u32 = Flags::USER3 | Flags::USER4 | Flags::USER5 | Flags::USER6 | Flags::USER7;
-const EMBED_LENMASK: u32 =
-	Flags::USER9 | Flags::USER10 | Flags::USER11 | Flags::USER12 | Flags::USER13;
+const FLAG_FROM_STRING: u32 = Flags::USER3;
+const EMBED_LENMASK: u32 = Flags::USER1 | Flags::USER2 | Flags::USER3 | Flags::USER4 | Flags::USER5;
 
 sa::const_assert!(MAX_EMBEDDED_LEN <= unmask_len(EMBED_LENMASK));
 
 const fn unmask_len(len: u32) -> usize {
 	debug_assert!(len & !EMBED_LENMASK == 0);
-	(len >> 9) as usize
+	(len >> 1) as usize
 }
 
 const fn mask_len(len: usize) -> u32 {
 	debug_assert!(len <= MAX_EMBEDDED_LEN);
-	(len as u32) << 9
+	(len as u32) << 1
 }
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
@@ -113,11 +142,32 @@ impl Text {
 		}
 	}
 
+	#[must_use]
+	pub fn from_string(inp: String) -> Gc<Self> {
+		let mut builder = Self::builder();
+		builder.insert_flag(FLAG_FROM_STRING);
+
+		unsafe {
+			let mut alloc = &mut builder.inner_mut().alloc;
+
+			alloc.ptr = inp.as_ptr() as *mut u8;
+			alloc.len = inp.len();
+			alloc.cap = alloc.len;
+
+			builder.finish()
+		}
+	}
+
 	fn is_embedded(&self) -> bool {
 		self.flags().contains(FLAG_EMBEDDED)
 	}
 
 	fn is_pointer_immutable(&self) -> bool {
+		debug_assert!(
+			!self.is_embedded(),
+			"called is_pointer_immutable when embedded"
+		);
+
 		self.flags().contains_any(FLAG_NOFREE | FLAG_SHARED)
 	}
 
@@ -178,7 +228,10 @@ impl Text {
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub unsafe fn set_len(&mut self, new_len: usize) {
-		debug_assert!(new_len <= self.capacity(), "new len is larger than capacity");
+		debug_assert!(
+			new_len <= self.capacity(),
+			"new len is larger than capacity"
+		);
 
 		if self.is_embedded() {
 			self.set_embedded_len(new_len);
@@ -357,7 +410,7 @@ impl Text {
 	pub fn dup(&self) -> Gc<Self> {
 		if self.is_embedded() {
 			// Since we're allocating a new `Self` anyways, we may as well copy over the data.
-			return self.deep_dup();
+			return Self::from_str(self.as_str());
 		}
 
 		// For allocated strings, you can actually one-for-one copy the body, as we now
@@ -373,11 +426,10 @@ impl Text {
 		}
 	}
 
-	#[must_use]
-	pub fn deep_dup(&self) -> Gc<Self> {
-		Self::from_str(self.as_str())
-	}
-
+	/// Returns a substring of `self` at the given index.
+	///
+	/// # Panics
+	/// This will panic if `idx` is out of bounds of
 	#[must_use]
 	pub fn substr<I: std::slice::SliceIndex<str, Output = str>>(&self, idx: I) -> Gc<Self> {
 		let slice = &self.as_str()[idx];
@@ -567,18 +619,24 @@ impl From<&'_ str> for Gc<Text> {
 	}
 }
 
+impl From<String> for Gc<Text> {
+	fn from(string: String) -> Self {
+		Text::from_string(string)
+	}
+}
+
 impl From<&'_ str> for crate::Value<Gc<Text>> {
 	fn from(text: &str) -> Self {
 		Text::from_str(text).into()
 	}
 }
 
-impl crate::value::base::HasParents for Text {
+impl HasParents for Text {
 	unsafe fn init() {
 		// todo
 	}
 
-	fn parents() -> crate::value::base::Parents {
+	fn parents() -> Parents {
 		Default::default() // todo
 	}
 }
@@ -643,8 +701,14 @@ mod tests {
 	fn test_get() {
 		assert_eq!(*<Gc<Text>>::get(Value::from("")).as_ref().unwrap(), *"");
 		assert_eq!(*<Gc<Text>>::get(Value::from("x")).as_ref().unwrap(), *"x");
-		assert_eq!(*<Gc<Text>>::get(Value::from("yesseriie")).as_ref().unwrap(), *"yesseriie");
-		assert_eq!(*<Gc<Text>>::get(Value::from(JABBERWOCKY)).as_ref().unwrap(), *JABBERWOCKY);
+		assert_eq!(
+			*<Gc<Text>>::get(Value::from("yesseriie")).as_ref().unwrap(),
+			*"yesseriie"
+		);
+		assert_eq!(
+			*<Gc<Text>>::get(Value::from(JABBERWOCKY)).as_ref().unwrap(),
+			*JABBERWOCKY
+		);
 	}
 
 	#[test]

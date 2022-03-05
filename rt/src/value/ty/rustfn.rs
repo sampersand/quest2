@@ -2,7 +2,7 @@ use std::fmt::{self, Debug, Formatter};
 
 use crate::value::{AnyValue, Convertible, Value};
 
-pub type Function = fn(&[u8]) -> crate::Result<AnyValue>;
+pub type Function = for<'a> fn(crate::vm::Args<'a>) -> crate::Result<AnyValue>;
 
 #[repr(transparent)]
 #[derive(Clone, Copy)]
