@@ -26,13 +26,11 @@ impl From<Boolean> for Value<Boolean> {
 }
 
 unsafe impl Convertible for Boolean {
-	type Output = Self;
-
 	fn is_a(value: AnyValue) -> bool {
 		value.bits() == Value::TRUE.bits() || value.bits() == Value::FALSE.bits()
 	}
 
-	fn get(value: Value<Self>) -> Self::Output {
+	fn get(value: Value<Self>) -> Self {
 		value.bits() == Value::TRUE.bits()
 	}
 }

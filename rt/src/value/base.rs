@@ -134,7 +134,7 @@ impl Header {
 	///
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
-	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
+	pub fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		if let Some(value) = self.attributes.get_attr(attr, &self.flags)? {
 			Ok(Some(value))
 		} else {
@@ -173,8 +173,7 @@ impl Header {
 	/// # Examples
 	/// TODO: example
 	pub fn parents(&mut self) -> Gc<crate::value::ty::List> {
-		let flags = &self.flags;
-		self.parents.as_list(flags)
+		self.parents.as_list(&self.flags)
 	}
 
 	/// Sets the `self`'s attribute `attr` to `value`.
@@ -186,7 +185,7 @@ impl Header {
 	///
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
-	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
 		self.attributes.set_attr(attr, value, &self.flags)
 	}
 
@@ -199,7 +198,7 @@ impl Header {
 	///
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
-	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
 		self.attributes.del_attr(attr, &self.flags)
 	}
 }

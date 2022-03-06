@@ -259,7 +259,6 @@ impl List {
 
 	fn allocate_more_embeded(&mut self, required_len: usize) {
 		debug_assert!(self.is_embedded());
-		debug_assert!(required_len > MAX_EMBEDDED_LEN); // we should only every realloc at this point.
 
 		let new_cap = std::cmp::max(MAX_EMBEDDED_LEN * 2, required_len);
 		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");

@@ -6,6 +6,7 @@ use std::fmt::{self, Display, Formatter};
 pub enum Error {
 	AlreadyLocked(AnyValue),
 	ValueFrozen(AnyValue),
+	UnknownAttribute(AnyValue, AnyValue),
 	MissingPositionalArgument(usize),
 	MissingKeywordArgument(&'static str),
 	ConversionFailed(AnyValue, &'static str),
@@ -17,6 +18,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		match self {
+			Self::UnknownAttribute(value, attr) => write!(f, "unknown attribute {:?} for {:?}", attr, value),
 			Self::AlreadyLocked(value) => write!(f, "value {:p} is already locked", value),
 			Self::ValueFrozen(value) => write!(f, "value {:p} is frozen", value),
 			Self::MissingPositionalArgument(arg) => write!(f, "missing positional argument {:?}", arg),

@@ -1,6 +1,7 @@
 use crate::value::base::{Flags, HasParents, Parents};
 use crate::value::gc::{Allocated, Gc};
 use std::alloc;
+use std::hash::{Hash, Hasher};
 use std::fmt::{self, Debug, Display, Formatter};
 
 mod builder;
@@ -192,7 +193,7 @@ impl Text {
 	/// ```
 	pub fn len(&self) -> usize {
 		if self.is_embedded() {
-			dbg!(self.embedded_len())
+			self.embedded_len()
 		} else {
 			// SAFETY: we know we're allocated, as per the `if`.
 			unsafe { self.inner().alloc.len }
@@ -201,7 +202,7 @@ impl Text {
 
 	fn embedded_len(&self) -> usize {
 		debug_assert!(self.is_embedded());
-		unmask_len(dbg!(self.flags()).mask(EMBED_LENMASK))
+		unmask_len(self.flags().mask(EMBED_LENMASK))
 	}
 
 	/// Forcibly sets `self`'s length, in bytes.
@@ -423,6 +424,7 @@ impl Text {
 			let mut builder = Self::builder();
 			let builder_ptr = builder.inner_mut() as *mut Inner;
 			builder_ptr.copy_from_nonoverlapping(self.inner() as *const Inner, 1);
+			builder.insert_flag(self.flags().get());
 			builder.finish()
 		}
 	}
@@ -479,7 +481,6 @@ impl Text {
 
 	fn allocate_more_embeded(&mut self, required_len: usize) {
 		debug_assert!(self.is_embedded());
-		debug_assert!(required_len > MAX_EMBEDDED_LEN); // we should only every realloc at this point.
 
 		let new_cap = std::cmp::max(MAX_EMBEDDED_LEN * 2, required_len);
 		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
@@ -512,14 +513,15 @@ impl Text {
 		let new_cap = std::cmp::max(unsafe { self.inner().alloc.cap } * 2, required_len);
 		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
 
-		// If the pointer is immutable, we have to allocate a new buffer, and then copy
-		// over the data.
+		// If the pointer is immutable, we have to allocate a new buffer, and then copy over the data.
 		if self.is_pointer_immutable() || self.is_from_string() {
 			unsafe {
 				self.duplicate_alloc_ptr(new_cap);
 			}
 			return;
 		}
+
+		dbg!(&self);
 
 		// We have unique ownership of our pointer, so we can `realloc` it without worry.
 		unsafe {
@@ -565,6 +567,12 @@ impl Text {
 impl Default for Gc<Text> {
 	fn default() -> Self {
 		Text::new()
+	}
+}
+
+impl Hash for Text {
+	fn hash<H: Hasher>(&self, h: &mut H) {
+		self.as_str().hash(h)
 	}
 }
 
@@ -633,9 +641,15 @@ impl From<String> for Gc<Text> {
 	}
 }
 
-impl From<&'_ str> for crate::Value<Gc<Text>> {
-	fn from(text: &str) -> Self {
-		Text::from_str(text).into()
+impl From<&'static str> for crate::Value<Gc<Text>> {
+	fn from(text: &'static str) -> Self {
+		Text::from_static_str(text).into()
+	}
+}
+
+impl crate::value::ToAny for &'static str {
+	fn to_any(self) -> crate::AnyValue {
+		crate::Value::from(self).any()
 	}
 }
 

@@ -1,8 +1,9 @@
 use std::fmt::{self, Debug, Formatter};
-
+use crate::vm::Args;
+use crate::Result;
 use crate::value::{AnyValue, Convertible, Value};
 
-pub type Function = for<'a> fn(crate::vm::Args<'a>) -> crate::Result<AnyValue>;
+pub type Function = for<'a> fn(AnyValue, Args<'a>) -> Result<AnyValue>;
 
 #[repr(transparent)]
 #[derive(Clone, Copy)]
@@ -34,13 +35,17 @@ impl RustFn {
 	}
 
 	#[must_use]
-	pub const fn name(&self) -> &'static str {
+	pub const fn name(self) -> &'static str {
 		self.0.name
 	}
 
 	#[must_use]
-	pub fn func(&self) -> Function {
+	pub fn func(self) -> Function {
 		self.0.func
+	}
+
+	pub fn call(self, obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+		(self.0.func)(obj, args)
 	}
 }
 
@@ -52,15 +57,12 @@ impl PartialEq for RustFn {
 }
 
 impl RustFn {
-	pub const NOOP: Self = RustFnnew!("noop", |_| Ok(Value::NULL.any()));
+	pub const NOOP: Self = RustFnnew!("noop", |_, _| Ok(Value::NULL.any()));
 }
 
 impl Debug for RustFn {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		f.debug_struct("RustFn")
-			.field("name", &self.name())
-			.field("func", &(self.func() as usize as *const u8))
-			.finish()
+		write!(f, "RustFn({:?}:{:p})", self.name(), &(self.func() as usize as *const u8))
 	}
 }
 
@@ -75,13 +77,11 @@ impl From<RustFn> for Value<RustFn> {
 }
 
 unsafe impl Convertible for RustFn {
-	type Output = Self;
-
 	fn is_a(value: AnyValue) -> bool {
 		value.bits() & 0b1111 == 0b1000 && value.bits() > 0b1111
 	}
 
-	fn get(value: Value<Self>) -> Self::Output {
+	fn get(value: Value<Self>) -> Self {
 		unsafe { Self(&*((value.bits() - 0b1000) as usize as *const Inner)) }
 	}
 }

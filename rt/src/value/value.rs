@@ -1,5 +1,5 @@
 use crate::value::base::{Attribute, HasParents};
-use crate::value::ty::{AttrConversionDefined, List, Wrap, Integer, Float, RustFn};
+use crate::value::ty::{AttrConversionDefined, List, Wrap, Integer, Float, RustFn, Text};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
 use crate::{Result, Error};
@@ -78,7 +78,7 @@ impl<T> Value<T> {
 
 impl<T: Convertible> Value<T> {
 	#[must_use]
-	pub fn get(self) -> T::Output {
+	pub fn get(self) -> T {
 		T::get(self)
 	}
 }
@@ -138,11 +138,11 @@ impl AnyValue {
 		Gc::new_unchecked(self.bits() as usize as *mut _)
 	}
 
-	pub fn has_attr(self, attr: AnyValue) -> Result<bool> {
+	pub fn has_attr<A: Attribute>(self, attr: A) -> Result<bool> {
 		self.get_attr(attr).map(|opt| opt.is_some())
 	}
 
-	pub fn get_attr(self, attr: AnyValue) -> Result<Option<AnyValue>> {
+	pub fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
 		if self.is_allocated() {
 			unsafe { self.get_gc_any_unchecked() }
 				.as_ref()?
@@ -152,7 +152,7 @@ impl AnyValue {
 		}
 	}
 
-	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
 		if !self.is_allocated() {
 			*self = self.allocate_self_and_copy_data_over();
 		}
@@ -162,7 +162,7 @@ impl AnyValue {
 			.set_attr(attr, value)
 	}
 
-	pub fn del_attr(self, attr: AnyValue) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
 		if self.is_allocated() {
 			unsafe { self.get_gc_any_unchecked() }
 				.as_mut()?
@@ -181,8 +181,11 @@ impl AnyValue {
 	}
 
 	pub fn call_attr<A: Attribute>(self, attr: A, args: Args<'_>) -> Result<AnyValue> {
-		let _ = (attr, args);
-		todo!();
+		if self.is_allocated() {
+			return unsafe { self.get_gc_any_unchecked() }.call_attr(attr, args);
+		}
+
+		self.parents_for().call_attr(self, attr, args, &Default::default())
 	}
 }
 
@@ -213,7 +216,11 @@ impl AnyValue {
 		}
 	}
 
-	pub fn to_text(self) -> Result<crate::value::ty::Text> {
+	pub fn to_text(self) -> Result<Gc<Text>> {
+		if let Some(text) = self.downcast::<Gc<Text>>() {
+			return Ok(text.get());
+		}
+
 		todo!()
 		// let bits = self.bits();
 
@@ -236,7 +243,7 @@ impl AnyValue {
 		// }
 	}
 
-	pub fn convert<C: AttrConversionDefined + Convertible>(self) -> Result<C::Output> {
+	pub fn convert<C: AttrConversionDefined + Convertible>(self) -> Result<C> {
 		let conv = self.call_attr(C::ATTR_NAME, Default::default())?;
 
 		if let Some(attr) = conv.downcast::<C>() {
@@ -260,6 +267,15 @@ impl AnyValue {
 
 	pub fn try_hash(self) -> Result<u64> {
 		if self.is_allocated() {
+			if let Some(text) = self.downcast::<Gc<Text>>() {
+				// OPTIMIZE ME!
+				use std::hash::{Hash, Hasher};
+				use std::collections::hash_map::DefaultHasher;
+
+				let mut s = DefaultHasher::new();
+				text.get().as_ref()?.hash(&mut s);
+				return Ok(s.finish())
+			}
 			todo!()
 		} else {
 			Ok(self.bits()) // this can also be modified, but that's a future thing

@@ -25,14 +25,12 @@ impl From<Integer> for Value<Integer> {
 }
 
 unsafe impl Convertible for Integer {
-	type Output = Self;
-
 	#[inline]
 	fn is_a(value: AnyValue) -> bool {
 		(value.bits() & 1) == 1
 	}
 
-	fn get(value: Value<Self>) -> Self::Output {
+	fn get(value: Value<Self>) -> Self {
 		(value.bits() as Self) >> 1
 	}
 }

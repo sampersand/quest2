@@ -1,6 +1,6 @@
-use crate::value::base::Flags;
-use crate::AnyValue;
-use crate::Result;
+use crate::value::{Gc, base::Flags};
+use crate::{AnyValue, Value, Result};
+use crate::value::ty::Text;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::ManuallyDrop;
 
@@ -46,7 +46,7 @@ impl Attributes {
 		AttributesDebug(self, flags)
 	}
 
-	pub fn get_attr(&self, attr: AnyValue, flags: &Flags) -> Result<Option<AnyValue>> {
+	pub fn get_attr<A: Attribute>(&self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
 		if self.is_none() {
 			Ok(None)
 		} else if is_small(flags) {
@@ -56,7 +56,7 @@ impl Attributes {
 		}
 	}
 
-	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue, flags: &Flags) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue, flags: &Flags) -> Result<()> {
 		if self.is_none() {
 			self.list = ManuallyDrop::new(ListMap::default());
 		}
@@ -76,7 +76,7 @@ impl Attributes {
 		unsafe { &mut self.map }.set_attr(attr, value)
 	}
 
-	pub fn del_attr(&mut self, attr: AnyValue, flags: &Flags) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(&mut self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
 		if self.is_none() {
 			Ok(None)
 		} else if is_small(flags) {
@@ -97,10 +97,48 @@ impl Attributes {
 	}
 }
 
-pub trait Attribute {}
+pub trait Attribute : Copy + Debug {
+	fn try_eq(self, rhs: AnyValue) -> Result<bool>;
+	fn try_hash(self) -> Result<u64>;
+	fn to_value(self) -> AnyValue;
+}
 
-impl Attribute for &str {}
-impl Attribute for AnyValue {}
+impl Attribute for &'static str {
+	fn try_eq(self, rhs: AnyValue) -> Result<bool> {
+		if let Some(text) = rhs.downcast::<Gc<Text>>() {
+			Ok(self == text.get().as_ref()?.as_str())
+		} else {
+			Ok(false)
+		}
+	}
+
+	fn try_hash(self) -> Result<u64> {
+		use std::hash::{Hash, Hasher};
+		use std::collections::hash_map::DefaultHasher;
+
+		let mut s = DefaultHasher::new();
+		self.hash(&mut s);
+		Ok(s.finish())
+	}
+
+	fn to_value(self) -> AnyValue {
+		Value::from(Text::from_static_str(self)).any()
+	}
+}
+
+impl Attribute for AnyValue {
+	fn try_eq(self, rhs: AnyValue) -> Result<bool> {
+		AnyValue::try_eq(self, rhs)
+	}
+
+	fn try_hash(self) -> Result<u64> {
+		AnyValue::try_hash(self)
+	}
+
+	fn to_value(self) -> AnyValue {
+		self
+	}
+}
 
 #[cfg(test)]
 mod tests {

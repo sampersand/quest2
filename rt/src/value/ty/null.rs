@@ -25,13 +25,11 @@ impl From<Null> for Value<Null> {
 }
 
 unsafe impl Convertible for Null {
-	type Output = Self;
-
 	fn is_a(value: AnyValue) -> bool {
 		value.bits() == Value::NULL.bits()
 	}
 
-	fn get(_: Value<Self>) -> Self::Output {
+	fn get(_: Value<Self>) -> Self {
 		Self
 	}
 }

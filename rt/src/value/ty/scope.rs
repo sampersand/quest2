@@ -11,6 +11,9 @@ struct Inner {
 // sa::assert_eq_size!(Scope, ());
 
 impl Scope {
+	// pub fn new() -> Gc<Self> {
+		
+	// }
 	// pub const fn new() -> Self {
 	// 	Self { _priv: () }
 	// }

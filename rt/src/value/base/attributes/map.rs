@@ -1,5 +1,5 @@
-use crate::AnyValue;
-use crate::Result;
+use crate::{AnyValue, Result};
+use super::Attribute;
 use hashbrown::{hash_map::RawEntryMut, HashMap};
 
 #[repr(transparent)]
@@ -19,7 +19,7 @@ impl Map {
 }
 
 impl Map {
-	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
+	pub fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
@@ -38,7 +38,7 @@ impl Map {
 		Ok(res.map(|(_key, &val)| val))
 	}
 
-	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
@@ -59,7 +59,7 @@ impl Map {
 				occ.insert(value);
 			},
 			RawEntryMut::Vacant(vac) => {
-				vac.insert_with_hasher(hash, attr, value, |k| {
+				vac.insert_with_hasher(hash, attr.to_value(), value, |k| {
 					k.try_hash()
 						.expect("if the first hash doesn't fail, subsequent ones shouldn't")
 				});
@@ -69,7 +69,7 @@ impl Map {
 		Ok(())
 	}
 
-	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 

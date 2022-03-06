@@ -1,6 +1,6 @@
 //! Types related to allocated Quest types.
 
-use crate::value::base::{Base, Flags, Header};
+use crate::value::base::{Base, Flags, Header, Attribute};
 use crate::value::ty::Wrap;
 use crate::value::{value::Any, AnyValue, Convertible, Value};
 use crate::{Error, Result};
@@ -303,6 +303,19 @@ impl<T: Allocated> Gc<T> {
 		// for constructing it (via `new`).
 		unsafe { &*self.0.as_ptr() }.header().borrows()
 	}
+
+	pub fn call_attr<A: Attribute>(self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
+		let func = self.as_ref()?.get_attr(attr)?
+			.ok_or_else(|| Error::UnknownAttribute(Value::from(self).any(), attr.to_value()))?;
+
+		if let Some(rustfn) = func.downcast::<crate::value::ty::RustFn>() {
+			rustfn.get().call(Value::from(self).any(), args)
+		} else {
+			// TODO: prepend `val` to `args`.
+			// func.call_attr("()", )
+			todo!()
+		}
+	}
 }
 
 impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
@@ -325,8 +338,6 @@ unsafe impl<T: Allocated> Convertible for Gc<T>
 where
 	Ref<T>: Debug,
 {
-	type Output = Self;
-
 	#[inline]
 	fn is_a(value: AnyValue) -> bool {
 		// If the `value` isn't allocated, it's not a `Gc`.
@@ -373,7 +384,7 @@ impl<T: Allocated> Ref<T> {
 		self.0
 	}
 
-	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
+	pub fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		self.header().get_attr(attr)
 	}
 
@@ -436,11 +447,11 @@ impl<T: Allocated> Mut<T> {
 		self.header_mut().parents()
 	}
 
-	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
 		self.header_mut().set_attr(attr, value)
 	}
 
-	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
 		self.header_mut().del_attr(attr)
 	}
 }

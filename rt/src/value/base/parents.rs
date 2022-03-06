@@ -1,7 +1,7 @@
-use crate::value::base::Flags;
+use crate::value::base::{Flags, Attribute};
 use crate::value::ty::List;
-use crate::value::{AnyValue, Gc, Value};
-use crate::Result;
+use crate::value::{AnyValue, Gc};
+use crate::{Result, Error};
 use std::fmt::{self, Debug, Formatter};
 
 #[repr(C)]
@@ -31,13 +31,13 @@ impl Parents {
 		impl Debug for ParentsDebug<'_> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 				if self.0.is_none() {
-					f.debug_tuple("None").finish()
+					f.debug_tuple("Parents::None").finish()
 				} else if is_single(self.1) {
-					f.debug_tuple("Single")
+					f.debug_tuple("Parents::Single")
 						.field(unsafe { &self.0.single })
 						.finish()
 				} else {
-					f.debug_tuple("List")
+					f.debug_tuple("Parents::List")
 						.field(unsafe { &self.0.list })
 						.finish()
 				}
@@ -63,8 +63,7 @@ impl Parents {
 		if self.is_none() {
 			self.list = Gc::default();
 		} else if is_single(flags) {
-			let parent = Value::from(unsafe { self.single }).any();
-			self.list = List::from_slice(&[parent]);
+			self.list = List::from_slice(&[unsafe { self.single }]);
 			flags.remove(Flags::SINGLE_PARENT);
 		}
 
@@ -73,7 +72,7 @@ impl Parents {
 }
 
 impl Parents {
-	pub fn get_attr(&self, attr: AnyValue, flags: &Flags) -> Result<Option<AnyValue>> {
+	pub fn get_attr<A: Attribute>(&self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
 		if self.is_none() {
 			return Ok(None);
 		}
@@ -91,5 +90,20 @@ impl Parents {
 		}
 
 		Ok(None)
+	}
+
+	pub fn call_attr<A: Attribute>(&self, val: AnyValue, attr: A, args: crate::vm::Args<'_>, flags: &Flags) -> Result<AnyValue> {
+		use crate::value::ty::RustFn;
+
+		let func = self.get_attr(attr, flags)?
+			.ok_or_else(|| Error::UnknownAttribute(val, attr.to_value()))?;
+
+		if let Some(rustfn) = func.downcast::<RustFn>() {
+			rustfn.get().call(val, args)
+		} else {
+			// TODO: prepend `val` to `args`.
+			// func.call_attr("()", )
+			todo!()
+		}
 	}
 }

@@ -14,14 +14,12 @@ impl From<Float> for Value<Float> {
 }
 
 unsafe impl Convertible for Float {
-	type Output = Self;
-
 	#[inline]
 	fn is_a(value: AnyValue) -> bool {
 		(value.bits() & 0b011) == 0b010
 	}
 
-	fn get(value: Value<Self>) -> Self::Output {
+	fn get(value: Value<Self>) -> Self {
 		Self::from_bits(value.bits() & !3)
 	}
 }

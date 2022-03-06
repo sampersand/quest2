@@ -1,5 +1,5 @@
-use crate::AnyValue;
-use crate::Result;
+use crate::{AnyValue, Result};
+use super::Attribute;
 
 pub const MAX_LISTMAP_LEN: usize = 8;
 
@@ -30,7 +30,7 @@ impl ListMap {
 		Iter(&*self.0)
 	}
 
-	pub fn get_attr(&self, attr: AnyValue) -> Result<Option<AnyValue>> {
+	pub fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		for i in 0..MAX_LISTMAP_LEN {
 			if let Some((k, v)) = self.0[i] {
 				if attr.try_eq(k)? {
@@ -44,7 +44,7 @@ impl ListMap {
 		Ok(None)
 	}
 
-	pub fn set_attr(&mut self, attr: AnyValue, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
 		for i in 0..MAX_LISTMAP_LEN {
 			if let Some((k, v)) = &mut self.0[i] {
 				if attr.try_eq(*k)? {
@@ -52,7 +52,7 @@ impl ListMap {
 					return Ok(());
 				}
 			} else {
-				self.0[i] = Some((attr, value));
+				self.0[i] = Some((attr.to_value(), value));
 				return Ok(());
 			}
 		}
@@ -60,7 +60,7 @@ impl ListMap {
 		unreachable!("`set_attr` called when maxlen already reached?");
 	}
 
-	pub fn del_attr(&mut self, attr: AnyValue) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
 		// this isn't terribly efficient, but then again most people aren't going to be
 		// deleting things often, so it's alright.
 		for i in 0..MAX_LISTMAP_LEN {
