@@ -12,7 +12,7 @@ mod value;
 pub use gc::Gc;
 pub use value::{AnyValue, Value};
 
-pub unsafe trait Convertible: Into<Value<Self>> + std::fmt::Debug {
+pub unsafe trait Convertible: Into<Value<Self>> {
 	fn is_a(value: AnyValue) -> bool;
 
 	#[must_use]
@@ -27,12 +27,12 @@ pub unsafe trait Convertible: Into<Value<Self>> + std::fmt::Debug {
 	fn get(value: Value<Self>) -> Self;
 }
 
-pub trait ToAny {
-	fn to_any(self) -> AnyValue;
+pub trait AsAny {
+	fn as_any(self) -> AnyValue;
 }
 
-impl<T: Convertible> ToAny for T {
-	fn to_any(self) -> AnyValue {
+impl<T: Convertible> AsAny for T {
+	fn as_any(self) -> AnyValue {
 		self.into().any()
 	}
 }

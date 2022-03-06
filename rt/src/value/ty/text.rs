@@ -647,8 +647,8 @@ impl From<&'static str> for crate::Value<Gc<Text>> {
 	}
 }
 
-impl crate::value::ToAny for &'static str {
-	fn to_any(self) -> crate::AnyValue {
+impl crate::value::AsAny for &'static str {
+	fn as_any(self) -> crate::AnyValue {
 		crate::Value::from(self).any()
 	}
 }

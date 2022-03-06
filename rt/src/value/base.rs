@@ -134,11 +134,13 @@ impl Header {
 	///
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
-	pub fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn get_attr<A: Attribute>(&self, attr: A, search_parents: bool) -> Result<Option<AnyValue>> {
 		if let Some(value) = self.attributes.get_attr(attr, &self.flags)? {
 			Ok(Some(value))
-		} else {
+		} else if search_parents {
 			self.parents.get_attr(attr, &self.flags)
+		} else {
+			Ok(None)
 		}
 	}
 
@@ -172,8 +174,12 @@ impl Header {
 	///
 	/// # Examples
 	/// TODO: example
-	pub fn parents(&mut self) -> Gc<crate::value::ty::List> {
+	pub fn parents_list(&mut self) -> Gc<crate::value::ty::List> {
 		self.parents.as_list(&self.flags)
+	}
+
+	pub(crate) fn parents(&self) -> Parents {
+		self.parents
 	}
 
 	/// Sets the `self`'s attribute `attr` to `value`.

@@ -177,7 +177,7 @@ impl AnyValue {
 			*self = self.allocate_self_and_copy_data_over();
 		}
 
-		Ok(unsafe { self.get_gc_any_unchecked() }.as_mut()?.parents())
+		Ok(unsafe { self.get_gc_any_unchecked() }.as_mut()?.parents_list())
 	}
 
 	pub fn call_attr<A: Attribute>(self, attr: A, args: Args<'_>) -> Result<AnyValue> {
@@ -186,6 +186,16 @@ impl AnyValue {
 		}
 
 		self.parents_for().call_attr(self, attr, args, &Default::default())
+	}
+
+	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
+		if let Some(rustfn) = self.downcast::<RustFn>() {
+			let (args, obj) = args.split_self();
+
+			rustfn.get().call(obj, args)
+		} else {
+			self.call_attr("()", args)
+		}
 	}
 }
 
@@ -291,7 +301,7 @@ impl AnyValue {
 	}
 }
 
-impl<T: Convertible> Debug for Value<T> {
+impl<T: Convertible + Debug> Debug for Value<T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.write_str("Value(")?;
 

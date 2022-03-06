@@ -18,6 +18,14 @@ impl<'a> Args<'a> {
 		self.positional
 	}
 
+	pub fn with_self(self, new: AnyValue) -> Self {
+		todo!()
+	}
+
+	pub fn split_self(self) -> (Self, AnyValue) {
+		todo!()
+	}
+
 	pub const fn keyword(self) -> &'a [(&'a str, AnyValue)] {
 		self.keyword
 	}

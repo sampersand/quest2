@@ -73,3 +73,9 @@ impl Debug for Flags {
 		write!(f, "Flags({:032b})", self.0.load(Ordering::SeqCst))
 	}
 }
+
+impl Clone for Flags {
+	fn clone(&self) -> Self {
+		Self::new(self.get())
+	}
+}

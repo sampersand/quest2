@@ -2,7 +2,7 @@
 
 use crate::value::base::{Base, Flags, Header, Attribute};
 use crate::value::ty::Wrap;
-use crate::value::{value::Any, AnyValue, Convertible, Value};
+use crate::value::{value::Any, AsAny, AnyValue, Convertible, Value};
 use crate::{Error, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
@@ -305,15 +305,17 @@ impl<T: Allocated> Gc<T> {
 	}
 
 	pub fn call_attr<A: Attribute>(self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
-		let func = self.as_ref()?.get_attr(attr)?
-			.ok_or_else(|| Error::UnknownAttribute(Value::from(self).any(), attr.to_value()))?;
-
-		if let Some(rustfn) = func.downcast::<crate::value::ty::RustFn>() {
-			rustfn.get().call(Value::from(self).any(), args)
+		// try to get a function directly defined on `self`, which most likely wont exist.
+		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
+		let selfref = self.as_ref()?;
+		if let Some(func) = selfref.header().get_attr(attr, false)? {
+			drop(selfref);
+			func.call(args.with_self(self.as_any()))
 		} else {
-			// TODO: prepend `val` to `args`.
-			// func.call_attr("()", )
-			todo!()
+			let parents = selfref.parents();
+			let flags = selfref.flags().clone();
+			drop(selfref);
+			parents.call_attr(Value::from(self).any(), attr, args, &flags)
 		}
 	}
 }
@@ -334,10 +336,7 @@ impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 
 // SAFETY: We correctly implemented `is_a` to only return true if the `AnyValue` is a `Gc<T>`.
 // Additionally, `get` will always return a valid `Gc<T>` for any `Value<Gc<T>>`.
-unsafe impl<T: Allocated> Convertible for Gc<T>
-where
-	Ref<T>: Debug,
-{
+unsafe impl<T: Allocated> Convertible for Gc<T> {
 	#[inline]
 	fn is_a(value: AnyValue) -> bool {
 		// If the `value` isn't allocated, it's not a `Gc`.
@@ -385,7 +384,7 @@ impl<T: Allocated> Ref<T> {
 	}
 
 	pub fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
-		self.header().get_attr(attr)
+		self.header().get_attr(attr, true)
 	}
 
 	pub fn flags(&self) -> &Flags {
@@ -394,6 +393,10 @@ impl<T: Allocated> Ref<T> {
 
 	pub fn freeze(&self) {
 		self.header().freeze();
+	}
+
+	fn parents(&self) -> crate::value::base::Parents {
+		self.header().parents()
 	}
 }
 
@@ -443,8 +446,8 @@ impl<T: Debug + Allocated> Debug for Mut<T> {
 }
 
 impl<T: Allocated> Mut<T> {
-	pub fn parents(&mut self) -> crate::value::gc::Gc<crate::value::ty::List> {
-		self.header_mut().parents()
+	pub fn parents_list(&mut self) -> Gc<crate::value::ty::List> {
+		self.header_mut().parents_list()
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {

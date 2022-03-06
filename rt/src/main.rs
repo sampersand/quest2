@@ -12,11 +12,11 @@ use qvm_rt::vm::Args;
 // 	let mut new = obj.downcast::<Gc<Text>>().unwrap().get().as_ref()?.dup();
 // 	new.as_mut()?.parents().as_mut()?.push(obj.parents()?.as_ref()?.as_slice()[0]);
 
-// 	Ok(new.to_any())
+// 	Ok(new.as_any())
 // }
 
 fn exclaim(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-	obj.call_attr("concat", Args::new(&["!".to_any()], &[]))?;
+	obj.call_attr("concat", Args::new(&["!".as_any()], &[]))?;
 
 	Ok(obj)
 }
@@ -27,7 +27,7 @@ fn concat(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 
 	lhs.as_mut()?.push_str(rhs.as_ref()?.as_str());
 
-	Ok(lhs.to_any())
+	Ok(lhs.as_any())
 }
 macro_rules! rustfn {
 	($name:ident) => {
@@ -36,10 +36,10 @@ macro_rules! rustfn {
 }
 
 fn main() -> Result<()> {
-	let mut greeting = "Hello, world".to_any();
+	let mut greeting = "Hello, world".as_any();
 
 	{
-		let mut parent = "<parent>".to_any();
+		let mut parent = "<parent>".as_any();
 		greeting.parents()?.as_mut()?.push(parent);
 
 		parent.set_attr("exclaim", rustfn!(exclaim));
