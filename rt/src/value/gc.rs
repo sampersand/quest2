@@ -99,7 +99,7 @@ where
 }
 
 /*
-impl<T: HasParents + Allocated> Gc<T> {
+impl<T: HasDefaultParent + Allocated> Gc<T> {
 	/// Helper function for `Base::allocate`. See it for safety.
 	pub(crate) unsafe fn allocate() -> Builder<T> {
 		Base::allocate()
@@ -310,7 +310,7 @@ impl<T: Allocated> Gc<T> {
 		let selfref = self.as_ref()?;
 		if let Some(func) = selfref.header().get_attr(attr, false)? {
 			drop(selfref);
-			func.call(args.with_self(self.as_any()))
+			func.call(self.as_any(), args)
 		} else {
 			let parents = selfref.parents();
 			let flags = selfref.flags().clone();

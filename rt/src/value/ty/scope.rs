@@ -25,10 +25,10 @@ impl Scope {
 // 	}
 // }
 
-impl crate::value::base::HasParents for Scope {
+impl crate::value::base::HasDefaultParent for Scope {
 	unsafe fn init() {}
 
-	fn parents() -> crate::value::base::Parents {
+	fn parent() -> crate::AnyValue {
 		Default::default() // todo
 	}
 }

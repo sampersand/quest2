@@ -1,4 +1,4 @@
-use crate::value::base::HasParents;
+use crate::value::base::HasDefaultParent;
 use crate::value::ty::*;
 use std::sync::Once;
 

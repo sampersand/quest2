@@ -28,8 +28,8 @@ impl<T> Builder<T> {
 		}
 	}
 
-	pub unsafe fn _write_parents(&mut self, parents: Parents) {
-		addr_of_mut!((*self.0.as_ptr()).header.parents).write(parents);
+	pub unsafe fn _write_parent(&mut self, parent: crate::AnyValue) {
+		addr_of_mut!((*self.0.as_ptr()).header.parents).write(Parents { single: parent });
 	}
 
 	#[inline]

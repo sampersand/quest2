@@ -1,4 +1,5 @@
 use crate::value::{AnyValue, Convertible, Value};
+use crate::value::base::HasDefaultParent;
 
 pub type Float = f64;
 
@@ -24,12 +25,12 @@ unsafe impl Convertible for Float {
 	}
 }
 
-impl crate::value::base::HasParents for Float {
+impl HasDefaultParent for Float {
 	unsafe fn init() {
 		// todo
 	}
 
-	fn parents() -> crate::value::base::Parents {
+	fn parent() -> AnyValue {
 		Default::default() // todo
 	}
 }
@@ -51,7 +52,7 @@ mod tests {
 
 		assert!(!Float::is_a(Value::TRUE.any()));
 		assert!(!Float::is_a(Value::FALSE.any()));
-		assert!(!Float::is_a(Value::NULL.any()));
+		assert!(!Float::is_a(Default::default()));
 		assert!(!Float::is_a(Value::ZERO.any()));
 		assert!(!Float::is_a(Value::ONE.any()));
 		assert!(!Float::is_a(Value::from("hello").any()));

@@ -1,4 +1,4 @@
-use crate::value::base::{Builder, HasParents};
+use crate::value::base::{Builder, HasDefaultParent};
 use crate::value::gc::Gc;
 
 quest_type! {
@@ -6,11 +6,11 @@ quest_type! {
 	pub struct Wrap<T>(T) where {T: 'static};
 }
 
-impl<T: HasParents + 'static> Wrap<T> {
+impl<T: HasDefaultParent + 'static> Wrap<T> {
 	pub fn new(data: T) -> Gc<Self> {
 		let mut builder = Builder::<T>::allocate();
 		unsafe {
-			builder._write_parents(T::parents());
+			builder._write_parent(T::parent());
 			builder.data_mut().as_mut_ptr().write(data);
 			Gc::new(std::mem::transmute(builder.finish()))
 		}

@@ -1,5 +1,6 @@
+use crate::{Result, AnyValue};
 use crate::value::gc::Gc;
-use crate::vm::ByteCode;
+use crate::vm::{Args, ByteCode};
 
 quest_type! {
 	#[derive(Debug)]
@@ -24,6 +25,10 @@ impl Block {
 		todo!()
 		// }
 	}
+
+	pub fn call(&self, obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+		let _ = (obj, args); todo!();
+	}
 }
 
 impl Default for Gc<Block> {
@@ -38,12 +43,12 @@ impl AsRef<[ByteCode]> for Block {
 	}
 }
 
-impl crate::value::base::HasParents for Block {
+impl crate::value::base::HasDefaultParent for Block {
 	unsafe fn init() {
 		// todo
 	}
 
-	fn parents() -> crate::value::base::Parents {
+	fn parent() -> AnyValue {
 		Default::default() // todo
 	}
 }

@@ -1,4 +1,4 @@
-use crate::value::base::{Flags, HasParents, Parents};
+use crate::value::base::{Flags, HasDefaultParent};
 use crate::value::gc::{Allocated, Gc};
 use std::alloc;
 use std::hash::{Hash, Hasher};
@@ -653,12 +653,12 @@ impl crate::value::AsAny for &'static str {
 	}
 }
 
-impl HasParents for Text {
+impl HasDefaultParent for Text {
 	unsafe fn init() {
 		// todo
 	}
 
-	fn parents() -> Parents {
+	fn parent() -> crate::AnyValue {
 		Default::default() // todo
 	}
 }
@@ -712,7 +712,7 @@ mod tests {
 
 		assert!(!<Gc<Text>>::is_a(Value::TRUE.any()));
 		assert!(!<Gc<Text>>::is_a(Value::FALSE.any()));
-		assert!(!<Gc<Text>>::is_a(Value::NULL.any()));
+		assert!(!<Gc<Text>>::is_a(Default::default()));
 		assert!(!<Gc<Text>>::is_a(Value::ONE.any()));
 		assert!(!<Gc<Text>>::is_a(Value::ZERO.any()));
 		assert!(!<Gc<Text>>::is_a(Value::from(1.0).any()));

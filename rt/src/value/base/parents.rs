@@ -8,7 +8,7 @@ use std::fmt::{self, Debug, Formatter};
 #[derive(Clone, Copy)]
 pub union Parents {
 	none: u64, // this needs to be `0` for it to be none
-	single: AnyValue,
+	pub(crate) single: AnyValue,
 	list: Gc<List>,
 }
 
@@ -22,7 +22,7 @@ impl Default for Parents {
 }
 
 fn is_single(flags: &Flags) -> bool {
-	flags.contains(Flags::SINGLE_PARENT)
+	!flags.contains(Flags::MULTI_PARENT)
 }
 
 impl Parents {
@@ -62,9 +62,10 @@ impl Parents {
 	pub fn as_list(&mut self, flags: &Flags) -> Gc<List> {
 		if self.is_none() {
 			self.list = Gc::default();
+			flags.insert(Flags::MULTI_PARENT);
 		} else if is_single(flags) {
 			self.list = List::from_slice(&[unsafe { self.single }]);
-			flags.remove(Flags::SINGLE_PARENT);
+			flags.insert(Flags::MULTI_PARENT);
 		}
 
 		unsafe { self.list }
@@ -96,6 +97,6 @@ impl Parents {
 		let func = self.get_attr(attr, flags)?
 			.ok_or_else(|| Error::UnknownAttribute(val, attr.to_value()))?;
 
-		func.call(args.with_self(val))
+		func.call(val, args)
 	}
 }

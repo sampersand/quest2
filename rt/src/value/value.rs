@@ -1,5 +1,5 @@
-use crate::value::base::{Attribute, HasParents};
-use crate::value::ty::{AttrConversionDefined, List, Wrap, Integer, Float, RustFn, Text};
+use crate::value::base::{Attribute, HasDefaultParent};
+use crate::value::ty::{AttrConversionDefined, List, Wrap, Integer, Float, RustFn, Text, Block};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
 use crate::{Result, Error};
@@ -88,21 +88,26 @@ pub struct Any {
 }
 pub type AnyValue = Value<Any>;
 
+impl Default for AnyValue {
+	fn default() -> Self {
+		Value::NULL.any()
+	}
+}
 
 impl AnyValue {
-	fn parents_for(self) -> super::base::Parents {
+	fn parents_for(self) -> AnyValue {
 		use crate::value::ty::*;
 
 		if self.is_a::<Integer>() {
-			Integer::parents()
+			Integer::parent()
 		} else if self.is_a::<Float>() {
-			Float::parents()
+			Float::parent()
 		} else if self.is_a::<Boolean>() {
-			Boolean::parents()
+			Boolean::parent()
 		} else if self.is_a::<Null>() {
-			Null::parents()
+			Null::parent()
 		} else if self.is_a::<RustFn>() {
-			RustFn::parents()
+			RustFn::parent()
 		} else {
 			unreachable!("called `parents_for` for an invalid type: {:064b}", self.bits())
 		}
@@ -113,7 +118,7 @@ impl AnyValue {
 	fn allocate_self_and_copy_data_over(self) -> Self {
 		use crate::value::ty::*;
 
-		fn allocate_thing<T: 'static + HasParents>(thing: T) -> AnyValue {
+		fn allocate_thing<T: 'static + HasDefaultParent>(thing: T) -> AnyValue {
 			Value::from(Wrap::new(thing)).any()
 		}
 
@@ -148,7 +153,7 @@ impl AnyValue {
 				.as_ref()?
 				.get_attr(attr)
 		} else {
-			self.parents_for().get_attr(attr, &Default::default())
+			self.parents_for().get_attr(attr)
 		}
 	}
 
@@ -185,15 +190,17 @@ impl AnyValue {
 			return unsafe { self.get_gc_any_unchecked() }.call_attr(attr, args);
 		}
 
-		self.parents_for().call_attr(self, attr, args, &Default::default())
+		// self.parents_for().call_attr(self, attr, args)
+		todo!();
 	}
 
-	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
+	pub fn call(self, obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		if let Some(rustfn) = self.downcast::<RustFn>() {
-			let (args, obj) = args.split_self();
-
 			rustfn.call(obj, args)
+		} else if let Some(block) = self.downcast::<Gc<Block>>() {
+			block.as_ref()?.call(obj, args)
 		} else {
+			// gotta add `self` to the front
 			self.call_attr("()", args)
 		}
 	}

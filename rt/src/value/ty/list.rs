@@ -1,4 +1,4 @@
-use crate::value::base::Flags;
+use crate::value::base::{Flags, HasDefaultParent};
 use crate::value::gc::{Allocated, Gc};
 use crate::AnyValue;
 use std::alloc;
@@ -407,13 +407,13 @@ impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
 	}
 }
 
-impl crate::value::base::HasParents for List {
+impl HasDefaultParent for List {
 	unsafe fn init() {
 		// todo
 	}
 
-	fn parents() -> crate::value::base::Parents {
-		Default::default() // todo
+	fn parent() -> AnyValue {
+		Default::default()
 	}
 }
 
@@ -466,7 +466,7 @@ impl crate::value::base::HasParents for List {
 
 // 		assert!(!<Gc<List>>::is_a(Value::TRUE.any()));
 // 		assert!(!<Gc<List>>::is_a(Value::FALSE.any()));
-// 		assert!(!<Gc<List>>::is_a(Value::NULL.any()));
+// 		assert!(!<Gc<List>>::is_a(Default::default()));
 // 		assert!(!<Gc<List>>::is_a(Value::ONE.any()));
 // 		assert!(!<Gc<List>>::is_a(Value::ZERO.any()));
 // 		assert!(!<Gc<List>>::is_a(Value::from(1.0).any()));

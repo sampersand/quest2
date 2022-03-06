@@ -17,10 +17,10 @@ pub use builder::Builder;
 pub use flags::Flags;
 pub use parents::Parents;
 
-pub trait HasParents {
+pub trait HasDefaultParent {
 	unsafe fn init();
 
-	fn parents() -> Parents;
+	fn parent() -> AnyValue;
 }
 
 #[repr(C)]
@@ -54,7 +54,7 @@ impl Debug for Header {
 	}
 }
 
-impl<T: HasParents> Base<T> {
+impl<T: HasDefaultParent> Base<T> {
 	pub fn new(data: T) -> NonNull<Self> {
 		unsafe {
 			let mut builder = Self::allocate();
@@ -64,12 +64,12 @@ impl<T: HasParents> Base<T> {
 	}
 
 	pub unsafe fn allocate() -> Builder<T> {
-		Self::allocate_with_parents(T::parents())
+		Self::allocate_with_parent(T::parent())
 	}
 
 	pub unsafe fn builder_inplace(base: NonNull<Self>) -> Builder<T> {
 		let mut b = Builder::new(base);
-		b._write_parents(T::parents());
+		b._write_parent(T::parent());
 		b
 	}
 
@@ -81,9 +81,9 @@ impl<T: HasParents> Base<T> {
 }
 
 impl<T> Base<T> {
-	pub unsafe fn allocate_with_parents(parents: Parents) -> Builder<T> {
+	pub unsafe fn allocate_with_parent(parent: AnyValue) -> Builder<T> {
 		let mut b = Builder::allocate();
-		b._write_parents(parents);
+		b._write_parent(parent);
 		b
 	}
 

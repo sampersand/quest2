@@ -1,4 +1,4 @@
-use crate::value::base::{HasParents, Parents};
+use crate::value::base::HasDefaultParent;
 use crate::value::ty::{Boolean, ConvertTo, Float, Integer, List, Text};
 use crate::value::{AnyValue, Convertible, Gc, Value};
 use crate::vm::Args;
@@ -35,15 +35,18 @@ unsafe impl Convertible for Null {
 }
 
 // static mut NULL_PARENT: MaybeUninit<Base<Scope>> = MaybeUninit::uninit();
+macro_rules! name {
+	() => {};
+}
 
-impl HasParents for Null {
+impl HasDefaultParent for Null {
 	unsafe fn init() {
 		// let builder = Base::static_builder(&mut NULL_PARENT);
 		// // update the builder
 		// builder.finish();
 	}
 
-	fn parents() -> Parents {
+	fn parent() -> AnyValue {
 		todo!()
 		// Parents::new_singular(unsafe { Gc::new_unchecked(std::ptr::addr_of_mut!(NULL_PARENT).cast::<Base<Scope>>()) })
 	}
@@ -96,7 +99,7 @@ mod tests {
 
 	#[test]
 	fn test_is_a() {
-		assert!(Null::is_a(Value::NULL.any()));
+		assert!(Null::is_a(Default::default()));
 
 		assert!(!Null::is_a(Value::TRUE.any()));
 		assert!(!Null::is_a(Value::FALSE.any()));

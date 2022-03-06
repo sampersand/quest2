@@ -1,5 +1,6 @@
 use std::fmt::{self, Debug, Formatter};
 use crate::vm::Args;
+use crate::value::base::HasDefaultParent;
 use crate::Result;
 use crate::value::{AnyValue, Convertible, Value};
 
@@ -57,7 +58,7 @@ impl PartialEq for RustFn {
 }
 
 impl RustFn {
-	pub const NOOP: Self = RustFnnew!("noop", |_, _| Ok(Value::NULL.any()));
+	pub const NOOP: Self = RustFnnew!("noop", |_, _| Ok(Default::default()));
 }
 
 impl Debug for RustFn {
@@ -86,13 +87,13 @@ unsafe impl Convertible for RustFn {
 	}
 }
 
-impl crate::value::base::HasParents for RustFn {
+impl HasDefaultParent for RustFn {
 	unsafe fn init() {
 		// todo
 	}
 
-	fn parents() -> crate::value::base::Parents {
-		Default::default() // todo
+	fn parent() -> AnyValue {
+		Default::default()
 	}
 }
 
@@ -106,7 +107,7 @@ mod tests {
 
 		assert!(!RustFn::is_a(Value::TRUE.any()));
 		assert!(!RustFn::is_a(Value::FALSE.any()));
-		assert!(!RustFn::is_a(Value::NULL.any()));
+		assert!(!RustFn::is_a(Default::default()));
 		assert!(!RustFn::is_a(Value::ONE.any()));
 		assert!(!RustFn::is_a(Value::ZERO.any()));
 		assert!(!RustFn::is_a(Value::from(1.0).any()));

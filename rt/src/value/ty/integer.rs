@@ -1,4 +1,4 @@
-use crate::value::base::{HasParents, Parents};
+use crate::value::base::HasDefaultParent;
 use crate::value::ty::{ConvertTo, Float, Text};
 use crate::value::{AnyValue, Convertible, Gc, Value};
 use crate::vm::Args;
@@ -39,13 +39,13 @@ impl super::AttrConversionDefined for Integer {
 	const ATTR_NAME: &'static str = "@int";
 }
 
-impl HasParents for Integer {
+impl HasDefaultParent for Integer {
 	unsafe fn init() {
 		// todo
 	}
 
-	fn parents() -> Parents {
-		Default::default() // todo
+	fn parent() -> AnyValue {
+		Default::default()
 	}
 }
 
@@ -94,7 +94,7 @@ mod tests {
 
 		assert!(!Integer::is_a(Value::TRUE.any()));
 		assert!(!Integer::is_a(Value::FALSE.any()));
-		assert!(!Integer::is_a(Value::NULL.any()));
+		assert!(!Integer::is_a(Default::default()));
 		assert!(!Integer::is_a(Value::from(1.0).any()));
 		assert!(!Integer::is_a(Value::from("hello").any()));
 		assert!(!Integer::is_a(Value::from(RustFn::NOOP).any()));

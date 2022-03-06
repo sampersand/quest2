@@ -1,4 +1,4 @@
-use crate::value::base::{HasParents, Parents};
+use crate::value::base::HasDefaultParent;
 use crate::value::ty::{ConvertTo, Float, Integer, Text};
 use crate::value::{AnyValue, Convertible, Gc, Value};
 use crate::vm::Args;
@@ -35,13 +35,13 @@ unsafe impl Convertible for Boolean {
 	}
 }
 
-impl HasParents for Boolean {
+impl HasDefaultParent for Boolean {
 	unsafe fn init() {
 		// todo
 	}
 
-	fn parents() -> Parents {
-		Default::default() // todo
+	fn parent() -> crate::AnyValue {
+		Default::default()
 	}
 }
 
@@ -79,7 +79,7 @@ mod tests {
 		assert!(Boolean::is_a(Value::FALSE.any()));
 		assert!(Boolean::is_a(Value::TRUE.any()));
 
-		assert!(!Boolean::is_a(Value::NULL.any()));
+		assert!(!Boolean::is_a(Default::default()));
 		assert!(!Boolean::is_a(Value::ZERO.any()));
 		assert!(!Boolean::is_a(Value::ONE.any()));
 		assert!(!Boolean::is_a(Value::from(12.0).any()));

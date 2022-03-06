@@ -26,7 +26,7 @@ impl Flags {
 	pub const NOFREE: u32 = (1 << 17);
 	pub const GCMARK: u32 = (1 << 18);
 	pub const ATTR_MAP: u32 = (1 << 19);
-	pub const SINGLE_PARENT: u32 = (1 << 20);
+	pub const MULTI_PARENT: u32 = (1 << 20);
 	pub const UNUSEDA: u32 = (1 << 21);
 	pub const UNUSED9: u32 = (1 << 22);
 	pub const UNUSED8: u32 = (1 << 23);
