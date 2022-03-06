@@ -93,18 +93,9 @@ impl Parents {
 	}
 
 	pub fn call_attr<A: Attribute>(&self, val: AnyValue, attr: A, args: crate::vm::Args<'_>, flags: &Flags) -> Result<AnyValue> {
-		use crate::value::ty::RustFn;
-
 		let func = self.get_attr(attr, flags)?
 			.ok_or_else(|| Error::UnknownAttribute(val, attr.to_value()))?;
 
-		if let Some(rustfn) = func.downcast::<RustFn>() {
-			rustfn.get().call(val, args)
-		} else {
-			// TODO: prepend `val` to `args`.
-			// func.call_attr("()", )
-			todo!()
-		}
-
+		func.call(args.with_self(val))
 	}
 }

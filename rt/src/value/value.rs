@@ -118,15 +118,15 @@ impl AnyValue {
 		}
 
 		if let Some(i) = self.downcast::<Integer>() {
-			allocate_thing(i.get())
+			allocate_thing(i)
 		} else if let Some(f) = self.downcast::<Float>() {
-			allocate_thing(f.get())
+			allocate_thing(f)
 		} else if let Some(b) = self.downcast::<Boolean>() {
-			allocate_thing(b.get())
+			allocate_thing(b)
 		} else if let Some(n) = self.downcast::<Null>() {
-			allocate_thing(n.get())
+			allocate_thing(n)
 		} else if let Some(f) = self.downcast::<RustFn>() {
-			allocate_thing(f.get())
+			allocate_thing(f)
 		} else {
 			unreachable!("unrecognized copy type: {:064b}", self.bits())
 		}
@@ -192,7 +192,7 @@ impl AnyValue {
 		if let Some(rustfn) = self.downcast::<RustFn>() {
 			let (args, obj) = args.split_self();
 
-			rustfn.get().call(obj, args)
+			rustfn.call(obj, args)
 		} else {
 			self.call_attr("()", args)
 		}
@@ -212,9 +212,9 @@ impl AnyValue {
 		}
 
 		if let Some(integer) = self.downcast::<Integer>() {
-			Ok(integer.get())
+			Ok(integer)
 		} else if let Some(float) = self.downcast::<Float>() {
-			Ok(float.get() as Integer)
+			Ok(float as Integer)
 		} else if bits <= Value::NULL.bits() {
 			debug_assert!(bits == Value::NULL.bits() || bits == Value::FALSE.bits());
 			Ok(0)
@@ -228,7 +228,7 @@ impl AnyValue {
 
 	pub fn to_text(self) -> Result<Gc<Text>> {
 		if let Some(text) = self.downcast::<Gc<Text>>() {
-			return Ok(text.get());
+			return Ok(text);
 		}
 
 		todo!()
@@ -239,7 +239,7 @@ impl AnyValue {
 		// }
 
 		// if let Some(integer) = self.downcast::<Integer>() {
-		// 	Ok(integer.get())
+		// 	Ok(integer)
 		// } else if let Some(float) = self.downcast::<Float>() {
 		// 	Ok(float.get() as Integer)
 		// } else if bits <= Value::NULL.bits() {
@@ -257,7 +257,7 @@ impl AnyValue {
 		let conv = self.call_attr(C::ATTR_NAME, Default::default())?;
 
 		if let Some(attr) = conv.downcast::<C>() {
-			Ok(attr.get())
+			Ok(attr)
 		} else {
 			Err(Error::ConversionFailed(conv, C::ATTR_NAME))
 		}
@@ -271,8 +271,8 @@ impl AnyValue {
 	}
 
 	#[must_use]
-	pub fn downcast<T: Convertible>(self) -> Option<Value<T>> {
-		T::downcast(self)
+	pub fn downcast<T: Convertible>(self) -> Option<T> {
+		T::downcast(self).map(T::get)
 	}
 
 	pub fn try_hash(self) -> Result<u64> {
@@ -283,7 +283,7 @@ impl AnyValue {
 				use std::collections::hash_map::DefaultHasher;
 
 				let mut s = DefaultHasher::new();
-				text.get().as_ref()?.hash(&mut s);
+				text.as_ref()?.hash(&mut s);
 				return Ok(s.finish())
 			}
 			todo!()

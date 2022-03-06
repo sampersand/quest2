@@ -9,7 +9,7 @@ use qvm_rt::value::*;
 use qvm_rt::vm::Args;
 
 // fn dup(mut obj: AnyValue, _: Args<'_>) -> Result<AnyValue> {
-// 	let mut new = obj.downcast::<Gc<Text>>().unwrap().get().as_ref()?.dup();
+// 	let mut new = obj.downcast::<Gc<Text>>().unwrap().as_ref()?.dup();
 // 	new.as_mut()?.parents().as_mut()?.push(obj.parents()?.as_ref()?.as_slice()[0]);
 
 // 	Ok(new.as_any())
@@ -22,7 +22,7 @@ fn exclaim(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 }
 
 fn concat(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-	let lhs = obj.downcast::<Gc<Text>>().unwrap().get();
+	let lhs = obj.downcast::<Gc<Text>>().unwrap();
 	let rhs = args.get(0).unwrap().to_text()?;
 
 	lhs.as_mut()?.push_str(rhs.as_ref()?.as_str());
@@ -84,7 +84,7 @@ fn lists_work() {
 	]);
 	let listvalue = Value::from(list).any();
 
-	Gc::get(listvalue.downcast::<Gc<List>>().unwrap())
+	listvalue.downcast::<Gc<List>>().unwrap()
 		.as_mut()
 		.unwrap()
 		.push(Value::from(12.5).any());

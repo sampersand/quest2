@@ -106,7 +106,7 @@ pub trait Attribute : Copy + Debug {
 impl Attribute for &'static str {
 	fn try_eq(self, rhs: AnyValue) -> Result<bool> {
 		if let Some(text) = rhs.downcast::<Gc<Text>>() {
-			Ok(self == text.get().as_ref()?.as_str())
+			Ok(self == text.as_ref()?.as_str())
 		} else {
 			Ok(false)
 		}
@@ -204,8 +204,7 @@ mod tests {
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
-				.unwrap()
-				.get(),
+				.unwrap(),
 			23
 		);
 
@@ -222,8 +221,7 @@ mod tests {
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
-				.unwrap()
-				.get(),
+				.unwrap(),
 			45
 		);
 
@@ -235,8 +233,7 @@ mod tests {
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
-				.unwrap()
-				.get(),
+				.unwrap(),
 			45
 		);
 		assert_matches!(text.as_ref().unwrap().get_attr(ONE), Ok(None));
@@ -254,8 +251,7 @@ mod tests {
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
-				.unwrap()
-				.get(),
+				.unwrap(),
 			123
 		);
 
@@ -269,8 +265,7 @@ mod tests {
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
-				.unwrap()
-				.get(),
+				.unwrap(),
 			123
 		);
 
@@ -281,8 +276,7 @@ mod tests {
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
-				.unwrap()
-				.get(),
+				.unwrap(),
 			456
 		);
 
@@ -292,8 +286,7 @@ mod tests {
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
-				.unwrap()
-				.get(),
+				.unwrap(),
 			456
 		);
 		assert_eq!(
@@ -302,8 +295,7 @@ mod tests {
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
-				.unwrap()
-				.get(),
+				.unwrap(),
 			123
 		);
 		assert!(child.del_attr(ATTR).unwrap().is_none()); // cannot delete from parents.
