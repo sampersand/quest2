@@ -1,4 +1,5 @@
-use super::{Base, Parents};
+use crate::AnyValue;
+use super::{Base, Parents, Attribute};
 use std::any::TypeId;
 use std::mem::MaybeUninit;
 use std::ptr::{addr_of_mut, NonNull};
@@ -16,6 +17,16 @@ impl<T> Builder<T> {
 
 	pub fn inner_ptr(&self) -> NonNull<Base<T>> {
 		self.0
+	}
+
+	pub fn allocate_with_capacity(attr_capacity: usize) -> Self {
+		let this = Self::allocate();
+
+		unsafe {
+			(*this.0.as_ptr()).header.attributes.initialize_with_capacity(attr_capacity)
+		}
+
+		this
 	}
 
 	pub fn allocate() -> Self {
@@ -57,6 +68,10 @@ impl<T> Builder<T> {
 
 	pub fn data_mut(&mut self) -> &mut MaybeUninit<T> {
 		self.base_mut().data.get_mut()
+	}
+
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> crate::Result<()> {
+		self.base_mut().header_mut().set_attr(attr, value)
 	}
 
 	#[must_use]

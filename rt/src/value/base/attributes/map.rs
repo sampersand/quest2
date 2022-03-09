@@ -4,11 +4,24 @@ use hashbrown::{hash_map::RawEntryMut, HashMap};
 
 #[repr(transparent)]
 #[derive(Debug, Default)]
-pub struct Map(Box<HashMap<AnyValue, AnyValue>>);
+pub struct Map(Box<Inner>);
+
+#[derive(Debug, Default)]
+struct Inner {
+	str_only: HashMap<&'static str, AnyValue>,
+	any: HashMap<AnyValue, AnyValue>
+}
 
 impl Map {
+	pub fn with_capacity(capacity: usize) -> Self {
+		Self(Box::new(Inner {
+			str_only: HashMap::with_capacity(capacity),
+			any: HashMap::new()
+		}))
+	}
+
 	pub fn from_iter(iter: impl IntoIterator<Item = (AnyValue, AnyValue)>) -> Result<Self> {
-		let mut map = Self(Box::new(HashMap::with_capacity(super::list::MAX_LISTMAP_LEN)));
+		let mut map = Self::with_capacity(super::list::MAX_LISTMAP_LEN);
 
 		for (attr, value) in iter {
 			map.set_attr(attr, value)?;
@@ -24,7 +37,7 @@ impl Map {
 		let mut eq_err: Result<()> = Ok(());
 
 		let res = self
-			.0
+			.0.any
 			.raw_entry()
 			.from_hash(hash, |&k| match attr.try_eq(k) {
 				Ok(val) => val,
@@ -43,7 +56,7 @@ impl Map {
 		let mut eq_err: Result<()> = Ok(());
 
 		let res = self
-			.0
+			.0.any
 			.raw_entry_mut()
 			.from_hash(hash, |&k| match attr.try_eq(k) {
 				Ok(val) => val,
@@ -74,7 +87,7 @@ impl Map {
 		let mut eq_err: Result<()> = Ok(());
 
 		let res = self
-			.0
+			.0.any
 			.raw_entry_mut()
 			.from_hash(hash, |&k| match attr.try_eq(k) {
 				Ok(val) => val,

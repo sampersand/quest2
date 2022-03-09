@@ -44,10 +44,6 @@ impl AsRef<[ByteCode]> for Block {
 }
 
 impl crate::value::base::HasDefaultParent for Block {
-	unsafe fn init() {
-		// todo
-	}
-
 	fn parent() -> AnyValue {
 		Default::default() // todo
 	}

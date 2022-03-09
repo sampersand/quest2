@@ -31,22 +31,24 @@ fn concat(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 }
 macro_rules! rustfn {
 	($name:ident) => {
-		Value::from(qvm_rt::RustFnnew!(stringify!($name), $name)).any()
+		Value::from(qvm_rt::RustFn_new!(stringify!($name), $name)).any()
 	}
 }
 
 fn main() -> Result<()> {
 	let mut greeting = "Hello, world".as_any();
 
-	{
-		let mut parent = "<parent>".as_any();
-		greeting.parents()?.as_mut()?.push(parent);
+	// {
+	// 	let mut parent = "<parent>".as_any();
+	// 	greeting.parents()?.as_mut()?.push(parent);
 
-		parent.set_attr("exclaim", rustfn!(exclaim));
-		parent.set_attr("concat", rustfn!(concat));
-	}
+	// 	parent.set_attr("exclaim", rustfn!(exclaim));
+	// 	parent.set_attr("concat", rustfn!(concat));
+	// }
+	greeting.call_attr("concat", Args::new(&["!".as_any()], &[]))?;
 
-	greeting.call_attr("exclaim", Args::default())?;
+
+	// greeting.call_attr("exclaim", Args::default())?;
 
 	println!("{:?}", greeting);
 

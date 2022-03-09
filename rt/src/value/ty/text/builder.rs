@@ -1,3 +1,4 @@
+use crate::value::base::HasDefaultParent;
 use super::{Inner, Text, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
 use crate::value::base::Builder as BaseBuilder;
 use crate::value::gc::Gc;
@@ -7,7 +8,9 @@ pub struct Builder(BaseBuilder<Inner>);
 
 impl Builder {
 	pub unsafe fn new(ptr: std::ptr::NonNull<std::mem::MaybeUninit<Text>>) -> Self {
-		Self(BaseBuilder::new(std::mem::transmute(ptr)))
+		let mut builder = BaseBuilder::new(std::mem::transmute(ptr));
+		builder._write_parent(Text::parent());
+		Self(builder)
 	}
 
 	pub fn allocate() -> Self {

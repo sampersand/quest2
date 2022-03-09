@@ -9,11 +9,9 @@ mod error;
 #[macro_use]
 pub mod value;
 
-mod init_hooks;
 pub mod vm;
 
 pub use error::{Error, Result};
-pub use init_hooks::init;
 pub use value::{AnyValue, Value};
 
 #[allow(clippy::unusual_byte_groupings)]

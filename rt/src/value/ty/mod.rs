@@ -1,42 +1,5 @@
-#[macro_export]
-macro_rules! quest_type {
-	(
-		$(#[$meta:meta])*
-		$vis:vis struct $name:ident $(<$($gen:ident),*>)? ($($inner:tt)*) $(where {$($cond:tt)*})?;
-	) => {
-		$(#[$meta])*
-		#[repr(transparent)]
-		$vis struct $name $(<$($gen)*>)?($crate::value::base::Base<$($inner)*>) $(where $($cond)*)?;
-
-		unsafe impl $(<$($gen),*>)? $crate::value::gc::Allocated for $name $(<$($gen),*>)?
-		$(where $($cond)*)? {
-			#[inline(always)]
-			fn _inner_typeid() -> ::std::any::TypeId {
-				::std::any::TypeId::of::<$($inner)*>()
-			}
-		}
-	};
-}
-
-#[macro_export]
-macro_rules! quest_type_alias {
-	(
-		$(#[$meta:meta])*
-		$vis:vis struct $name:ident $(<$($gen:ident),*>)? ($($inner:tt)*) $(where {$($cond:tt)*})?;
-	) => {
-		$(#[$meta])*
-		#[repr(transparent)]
-		$vis struct $name $(<$($gen)*>)?($($inner)*) $(where $($cond)*)?;
-
-		unsafe impl $(<$($gen),*>)? $crate::value::gc::Allocated for $name $(<$($gen),*>)?
-		$(where $($cond)*)? {
-			#[inline(always)]
-			fn _inner_typeid() -> ::std::any::TypeId {
-				::std::any::TypeId::of::<$name $(<$($gen),*>)?>()
-			}
-		}
-	};
-}
+#[macro_use]
+mod macros;
 
 #[macro_use]
 pub mod rustfn;
@@ -48,7 +11,7 @@ pub mod float;
 pub mod integer;
 mod list;
 mod null;
-mod scope;
+pub mod scope;
 pub mod text;
 mod wrap;
 

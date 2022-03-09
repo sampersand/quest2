@@ -1,4 +1,3 @@
-use crate::value::base::HasDefaultParent;
 use crate::value::ty::{Boolean, ConvertTo, Float, Integer, List, Text};
 use crate::value::{AnyValue, Convertible, Gc, Value};
 use crate::vm::Args;
@@ -34,23 +33,26 @@ unsafe impl Convertible for Null {
 	}
 }
 
-// static mut NULL_PARENT: MaybeUninit<Base<Scope>> = MaybeUninit::uninit();
-macro_rules! name {
-	() => {};
+quest_type_attrs! {
+	for Null;
+
+	"@text" => (|_a, _bc| {
+		panic!()
+	})
 }
 
-impl HasDefaultParent for Null {
-	unsafe fn init() {
-		// let builder = Base::static_builder(&mut NULL_PARENT);
-		// // update the builder
-		// builder.finish();
-	}
+// impl HasDefaultParent for Null {
+// 	unsafe fn init() {
+// 		// let builder = Base::static_builder(&mut NULL_PARENT);
+// 		// // update the builder
+// 		// builder.finish();
+// 	}
 
-	fn parent() -> AnyValue {
-		todo!()
-		// Parents::new_singular(unsafe { Gc::new_unchecked(std::ptr::addr_of_mut!(NULL_PARENT).cast::<Base<Scope>>()) })
-	}
-}
+// 	fn parent() -> AnyValue {
+// 		todo!()
+// 		// Parents::new_singular(unsafe { Gc::new_unchecked(std::ptr::addr_of_mut!(NULL_PARENT).cast::<Base<Scope>>()) })
+// 	}
+// }
 
 impl ConvertTo<Gc<Text>> for Null {
 	fn convert(&self, args: Args<'_>) -> Result<Gc<Text>> {

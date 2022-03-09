@@ -63,6 +63,7 @@ version = "0.1.0"
 dependencies = [
  "assert_matches",
  "hashbrown",
+ "once_cell",
  "radix_fmt",
  "static_assertions",
 ]

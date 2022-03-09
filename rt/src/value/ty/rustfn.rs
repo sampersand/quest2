@@ -18,7 +18,7 @@ pub struct Inner {
 }
 
 #[macro_export]
-macro_rules! RustFnnew {
+macro_rules! RustFn_new {
 	($name:expr, $func:expr) => {{
 		const INNER: &'static $crate::value::ty::rustfn::Inner = &$crate::value::ty::rustfn::Inner {
 			name: $name,
@@ -58,7 +58,7 @@ impl PartialEq for RustFn {
 }
 
 impl RustFn {
-	pub const NOOP: Self = RustFnnew!("noop", |_, _| Ok(Default::default()));
+	pub const NOOP: Self = RustFn_new!("noop", |_, _| Ok(Default::default()));
 }
 
 impl Debug for RustFn {
@@ -88,10 +88,6 @@ unsafe impl Convertible for RustFn {
 }
 
 impl HasDefaultParent for RustFn {
-	unsafe fn init() {
-		// todo
-	}
-
 	fn parent() -> AnyValue {
 		Default::default()
 	}

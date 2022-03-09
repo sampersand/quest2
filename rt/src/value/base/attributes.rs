@@ -24,6 +24,20 @@ fn is_small(flags: &Flags) -> bool {
 }
 
 impl Attributes {
+	// we're able to take `&mut self` as `0` is a valid variant—`none`.
+	pub fn initialize_with_capacity(&mut self, capacity: usize) {
+		if capacity == 0 {
+			return;
+		}
+
+		if capacity <= list::MAX_LISTMAP_LEN {
+			self.list = ManuallyDrop::new(ListMap::default());
+		} else {
+			self.map = ManuallyDrop::new(Map::with_capacity(capacity))
+		}
+	}
+
+
 	const fn is_none(&self) -> bool {
 		unsafe { self.none == 0 }
 	}

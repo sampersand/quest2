@@ -1,4 +1,4 @@
-use crate::value::base::{Flags, HasDefaultParent};
+use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 use std::alloc;
 use std::hash::{Hash, Hasher};
@@ -653,13 +653,14 @@ impl crate::value::AsAny for &'static str {
 	}
 }
 
-impl HasDefaultParent for Text {
-	unsafe fn init() {
-		// todo
-	}
+quest_type_attrs! { for Text;
+	"concat" => |obj, args| {
+		let lhs = obj.downcast::<Gc<Text>>().unwrap();
+		let rhs = args.get(0).unwrap().to_text()?;
 
-	fn parent() -> crate::AnyValue {
-		Default::default() // todo
+		lhs.as_mut()?.push_str(rhs.as_ref()?.as_str());
+
+		Ok(lhs.as_any())
 	}
 }
 

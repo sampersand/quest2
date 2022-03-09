@@ -40,10 +40,6 @@ impl super::AttrConversionDefined for Integer {
 }
 
 impl HasDefaultParent for Integer {
-	unsafe fn init() {
-		// todo
-	}
-
 	fn parent() -> AnyValue {
 		Default::default()
 	}

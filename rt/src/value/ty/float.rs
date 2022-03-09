@@ -26,10 +26,6 @@ unsafe impl Convertible for Float {
 }
 
 impl HasDefaultParent for Float {
-	unsafe fn init() {
-		// todo
-	}
-
 	fn parent() -> AnyValue {
 		Default::default() // todo
 	}
