@@ -1,6 +1,5 @@
-use crate::value::base::HasDefaultParent;
 use crate::value::ty::{ConvertTo, Float, Text};
-use crate::value::{AnyValue, Convertible, Gc, Value};
+use crate::value::{AnyValue, Convertible, Gc, Value, AsAny};
 use crate::vm::Args;
 use crate::Result;
 
@@ -9,6 +8,10 @@ pub type Integer = i64;
 // all but the top two bits
 pub const MAX: Integer = (u64::MAX >> 2) as Integer;
 pub const MIN: Integer = !MAX;
+
+impl crate::value::NamedType for Integer {
+	const TYPENAME: &'static str = "Integer";
+}
 
 impl Value<Integer> {
 	pub const ZERO: Self = unsafe { Self::from_bits_unchecked(0b000_001) };
@@ -39,10 +42,27 @@ impl super::AttrConversionDefined for Integer {
 	const ATTR_NAME: &'static str = "@int";
 }
 
-impl HasDefaultParent for Integer {
-	fn parent() -> AnyValue {
-		Default::default()
+pub trait IntegerExt : Sized {
+	fn qs_add(self, args: Args<'_>) -> Result<AnyValue>;
+	fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue>;
+}
+
+impl IntegerExt for Integer {
+	fn qs_add(self, args: Args<'_>) -> Result<AnyValue> {
+		let rhs = args.get(0)?.to_integer()?;
+
+		Ok((self + rhs).as_any())
 	}
+
+	fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Gc<Text>>::convert(&self, args).map(AsAny::as_any)
+	}
+}
+
+quest_type_attrs! { for Integer;
+	// "concat" => qs_concat,
+	"+" => qs_add,
+	"@text" => qs_at_text,
 }
 
 impl ConvertTo<Gc<Text>> for Integer {

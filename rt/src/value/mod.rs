@@ -12,6 +12,10 @@ mod value;
 pub use gc::Gc;
 pub use value::{AnyValue, Value};
 
+pub trait NamedType {
+	const TYPENAME: &'static str;
+}
+
 pub unsafe trait Convertible: Into<Value<Self>> {
 	fn is_a(value: AnyValue) -> bool;
 

@@ -60,13 +60,13 @@ impl Attributes {
 		AttributesDebug(self, flags)
 	}
 
-	pub fn get_attr<A: Attribute>(&self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr<A: Attribute>(&self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
 		if self.is_none() {
 			Ok(None)
 		} else if is_small(flags) {
-			unsafe { &self.list }.get_attr(attr)
+			unsafe { &self.list }.get_unbound_attr(attr)
 		} else {
-			unsafe { &self.map }.get_attr(attr)
+			unsafe { &self.map }.get_unbound_attr(attr)
 		}
 	}
 
@@ -171,13 +171,13 @@ mod tests {
 			let value = Value::from(i as i64).any();
 			textmut.set_attr(value, value).unwrap();
 
-			// assert!(textmut.r().get_attr(value).unwrap().unwrap().try_eq(value).unwrap());
+			// assert!(textmut.r().get_unbound_attr(value).unwrap().unwrap().try_eq(value).unwrap());
 		}
 
 		let value = Value::from(3).any();
 		assert!(textmut
 			.r()
-			.get_attr(value)
+			.get_unbound_attr(value)
 			.unwrap()
 			.unwrap()
 			.try_eq(value)
@@ -188,7 +188,7 @@ mod tests {
 			let value = Value::from(i as i64).any();
 			assert!(textmut
 				.r()
-				.get_attr(value)
+				.get_unbound_attr(value)
 				.unwrap()
 				.unwrap()
 				.try_eq(value)
@@ -201,7 +201,7 @@ mod tests {
 		let text = Text::from_str("hola mundo");
 		const ONE: AnyValue = Value::ONE.any();
 
-		assert_matches!(text.as_ref().unwrap().get_attr(ONE), Ok(None));
+		assert_matches!(text.as_ref().unwrap().get_unbound_attr(ONE), Ok(None));
 		assert_matches!(text.as_mut().unwrap().del_attr(ONE), Ok(None));
 
 		text
@@ -214,7 +214,7 @@ mod tests {
 			text
 				.as_ref()
 				.unwrap()
-				.get_attr(ONE)
+				.get_unbound_attr(ONE)
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
@@ -231,7 +231,7 @@ mod tests {
 			text
 				.as_ref()
 				.unwrap()
-				.get_attr(ONE)
+				.get_unbound_attr(ONE)
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
@@ -250,7 +250,7 @@ mod tests {
 				.unwrap(),
 			45
 		);
-		assert_matches!(text.as_ref().unwrap().get_attr(ONE), Ok(None));
+		assert_matches!(text.as_ref().unwrap().get_unbound_attr(ONE), Ok(None));
 	}
 
 	#[test]
@@ -261,7 +261,7 @@ mod tests {
 		parent.set_attr(ATTR, Value::from(123).any()).unwrap();
 		assert_eq!(
 			parent
-				.get_attr(ATTR)
+				.get_unbound_attr(ATTR)
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
@@ -275,7 +275,7 @@ mod tests {
 		child.parents().unwrap().as_mut().unwrap().push(parent);
 		assert_eq!(
 			child
-				.get_attr(ATTR)
+				.get_unbound_attr(ATTR)
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
@@ -286,7 +286,7 @@ mod tests {
 		child.set_attr(ATTR, Value::from(456).any()).unwrap();
 		assert_eq!(
 			child
-				.get_attr(ATTR)
+				.get_unbound_attr(ATTR)
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
@@ -305,7 +305,7 @@ mod tests {
 		);
 		assert_eq!(
 			child
-				.get_attr(ATTR)
+				.get_unbound_attr(ATTR)
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()

@@ -44,10 +44,16 @@ macro_rules! _length_of {
 	($_tt:tt $($rest:tt)*) => (1+_length_of!($($rest)*));
 }
 
-#[macro_export]// static mut NULL_PARENT: MaybeUninit<Base<Scope>> = MaybeUninit::uninit();
+#[macro_export]
 macro_rules! _handle_quest_type_attrs {
-	($builder:expr, $name:literal, $body:expr) => {
-		$builder.set_attr($name, $crate::Value::from(RustFn_new!($name, $body)).any())
+	($ty:ty, $builder:expr, $name:literal, $func:ident) => {
+		$builder.set_attr($name, $crate::Value::from(RustFn_new!($name, |obj, args| {
+			let this = obj.downcast::<$ty>().ok_or_else(|| $crate::Error::InvalidTypeGiven {
+				expected: <$ty as $crate::value::NamedType>::TYPENAME,
+				given: obj.typename()
+			})?;
+			<$ty>::$func(this, args)
+		})).any())
 			.expect(concat!("error initializing ", stringify!($ty), " for attr: ", stringify!($name)));
 	};
 }
@@ -55,7 +61,7 @@ macro_rules! _handle_quest_type_attrs {
 #[macro_export]
 macro_rules! quest_type_attrs {
 	(for $type:ty $(where {$($gens:tt)*})?; 
-		$($name:literal => $body:expr),+
+		$($name:literal => $func:ident),*
 		$(,)?
 	) => {
 		impl $crate::value::base::HasDefaultParent for $type {
@@ -72,11 +78,11 @@ macro_rules! quest_type_attrs {
 						.build(Default::default())
 				});
 
-				#[allow(unused_mut)]
 				if is_first_init {
+					#[allow(unused_mut,unused_variables)]
 					let mut parent_mut = parent.as_mut().unwrap();
 					$(
-						_handle_quest_type_attrs!(parent_mut.header_mut(), $name, $body);
+						_handle_quest_type_attrs!($type, parent_mut.header_mut(), $name, $func);
 					)*
 				}
 

@@ -83,6 +83,14 @@ impl<T: HasDefaultParent> Base<T> {
 }
 
 impl<T> Base<T> {
+	pub fn new_with_parent(data: T, parent: AnyValue) -> NonNull<Self> {
+		unsafe {
+			let mut builder = Self::allocate_with_parent(0, parent);
+			builder.data_mut().write(data);
+			builder.finish()
+		}
+	}
+
 	pub unsafe fn allocate_with_parent(attr_capacity: usize, parent: AnyValue) -> Builder<T> {
 		let mut b = Builder::allocate_with_capacity(attr_capacity);
 		b._write_parent(parent);
@@ -136,11 +144,11 @@ impl Header {
 	///
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
-	pub fn get_attr<A: Attribute>(&self, attr: A, search_parents: bool) -> Result<Option<AnyValue>> {
-		if let Some(value) = self.attributes.get_attr(attr, &self.flags)? {
+	pub fn get_unbound_attr<A: Attribute>(&self, attr: A, search_parents: bool) -> Result<Option<AnyValue>> {
+		if let Some(value) = self.attributes.get_unbound_attr(attr, &self.flags)? {
 			Ok(Some(value))
 		} else if search_parents {
-			self.parents.get_attr(attr, &self.flags)
+			self.parents.get_unbound_attr(attr, &self.flags)
 		} else {
 			Ok(None)
 		}

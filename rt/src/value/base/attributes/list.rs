@@ -30,7 +30,7 @@ impl ListMap {
 		Iter(&*self.0)
 	}
 
-	pub fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		for i in 0..MAX_LISTMAP_LEN {
 			if let Some((k, v)) = self.0[i] {
 				if attr.try_eq(k)? {

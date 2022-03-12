@@ -1,5 +1,5 @@
 use crate::value::base::{Attribute, HasDefaultParent};
-use crate::value::ty::{AttrConversionDefined, List, Wrap, Integer, Float, RustFn, Text, Block};
+use crate::value::ty::{AttrConversionDefined, List, Wrap, Integer, Float, RustFn, Text, Block, BoundFn};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
 use crate::{Result, Error};
@@ -112,6 +112,10 @@ impl AnyValue {
 			unreachable!("called `parents_for` for an invalid type: {:064b}", self.bits())
 		}
 	}
+
+	pub fn typename(self) -> &'static str {
+		todo!()
+	}
 }
 
 impl AnyValue {
@@ -144,16 +148,34 @@ impl AnyValue {
 	}
 
 	pub fn has_attr<A: Attribute>(self, attr: A) -> Result<bool> {
-		self.get_attr(attr).map(|opt| opt.is_some())
+		self.get_unbound_attr(attr).map(|opt| opt.is_some())
 	}
 
 	pub fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
+		use crate::value::AsAny;
+
+		let value = 
+			if let Some(value) = self.get_unbound_attr(attr)? {
+				value
+			} else {
+				return Ok(None);
+			};
+
+		// If the value is callable, wrap it in a bound fn.
+		if value.is_a::<RustFn>() || value.has_attr("()")? {
+			Ok(Some(BoundFn::new(self, value).as_any()))
+		} else {
+			Ok(Some(value))
+		}
+	}
+
+	pub fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
 		if self.is_allocated() {
 			unsafe { self.get_gc_any_unchecked() }
 				.as_ref()?
-				.get_attr(attr)
+				.get_unbound_attr(attr)
 		} else {
-			self.parents_for().get_attr(attr)
+			self.parents_for().get_unbound_attr(attr)
 		}
 	}
 
@@ -190,8 +212,11 @@ impl AnyValue {
 			return unsafe { self.get_gc_any_unchecked() }.call_attr(attr, args);
 		}
 
-		// self.parents_for().call_attr(self, attr, args)
-		todo!();
+		// OPTIMIZE ME: This is circumventing potential optimizations from `parents_for`?
+		self.parents_for()
+			.get_unbound_attr(attr)?
+			.ok_or_else(|| Error::UnknownAttribute(self, attr.to_value()))?
+			.call(self, args)
 	}
 
 	pub fn call(self, obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
@@ -355,5 +380,56 @@ impl Debug for AnyValue {
 impl Debug for crate::value::gc::Ref<Wrap<Any>> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		Debug::fmt(&Value::from(self.as_gc()), f)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::value::AsAny;
+	use super::*;
+	use crate::value::ty::{Integer, Boolean};
+
+	macro_rules! args {
+		($($pos:expr),*) => (args!($($pos),* ; ));
+		($($kwn:literal => $kwv:expr),*) => (args!(; $($kwn => $kwv),*));
+		($($pos:expr),* ; $($kwn:literal => $kwv:expr),*) => {
+			Args::new(&[$(value!($pos)),*], &[$(($kwn, value!($kwv))),*])
+		}
+	}
+
+	macro_rules! value {
+		($lit:literal) => ($lit.as_any());
+		($name:expr) => ($name);
+	}
+
+	#[test]
+	fn test_get_attr() {
+		let greeting = value!("Hello, world");
+
+		greeting.get_attr("concat")
+			.unwrap()
+			.unwrap()
+			.call_attr("()", args!["!"])
+			.unwrap();
+
+		assert_eq!("Hello, world!", greeting.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str());
+	}
+
+	#[test]
+	fn test_call_attrs() {
+		let greeting = value!("Hello, world");
+		greeting.call_attr("concat", args!["!"]).unwrap();
+		greeting.call_attr("concat", args![greeting]).unwrap();
+
+		assert_eq!("Hello, world!Hello, world!", greeting.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str());
+
+		assert!(greeting.call_attr("==", args![greeting]).unwrap().downcast::<Boolean>().unwrap());
+
+		let five = value!(5);
+		let twelve = value!(12);
+		assert_eq!(17, five.call_attr("+", args![twelve]).unwrap().downcast::<Integer>().unwrap());
+
+		let ff = value!(255).call_attr("@text", args!["base" => 16]).unwrap();
+		assert_eq!("ff", ff.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str());
 	}
 }

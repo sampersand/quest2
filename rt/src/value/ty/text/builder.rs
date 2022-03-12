@@ -9,7 +9,7 @@ pub struct Builder(BaseBuilder<Inner>);
 impl Builder {
 	pub unsafe fn new(ptr: std::ptr::NonNull<std::mem::MaybeUninit<Text>>) -> Self {
 		let mut builder = BaseBuilder::new(std::mem::transmute(ptr));
-		builder._write_parent(Text::parent());
+		builder._write_parent(Gc::<Text>::parent());
 		Self(builder)
 	}
 

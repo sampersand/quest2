@@ -1,11 +1,16 @@
 use crate::value::ty::{Boolean, ConvertTo, Float, Integer, List, Text};
-use crate::value::{AnyValue, Convertible, Gc, Value};
+use crate::value::{AsAny, AnyValue, Convertible, Gc, Value};
 use crate::vm::Args;
 use crate::Result;
 use std::fmt::{self, Debug, Formatter};
 
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Null;
+
+impl crate::value::NamedType for Null {
+	const TYPENAME: &'static str = "Null";
+}
 
 impl Debug for Null {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -33,26 +38,6 @@ unsafe impl Convertible for Null {
 	}
 }
 
-quest_type_attrs! {
-	for Null;
-
-	"@text" => (|_a, _bc| {
-		panic!()
-	})
-}
-
-// impl HasDefaultParent for Null {
-// 	unsafe fn init() {
-// 		// let builder = Base::static_builder(&mut NULL_PARENT);
-// 		// // update the builder
-// 		// builder.finish();
-// 	}
-
-// 	fn parent() -> AnyValue {
-// 		todo!()
-// 		// Parents::new_singular(unsafe { Gc::new_unchecked(std::ptr::addr_of_mut!(NULL_PARENT).cast::<Base<Scope>>()) })
-// 	}
-// }
 
 impl ConvertTo<Gc<Text>> for Null {
 	fn convert(&self, args: Args<'_>) -> Result<Gc<Text>> {
@@ -92,6 +77,40 @@ impl ConvertTo<Gc<List>> for Null {
 
 		Ok(List::new())
 	}
+}
+
+impl Null {
+	pub fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Gc<Text>>::convert(&self, args).map(AsAny::as_any)
+	}
+
+	pub fn qs_at_int(self, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Integer>::convert(&self, args).map(AsAny::as_any)
+	}
+
+	pub fn qs_at_float(self, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Float>::convert(&self, args).map(AsAny::as_any)
+	}
+
+	pub fn qs_at_list(self, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Gc<List>>::convert(&self, args).map(AsAny::as_any)
+	}
+
+	pub fn qs_at_bool(self, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Boolean>::convert(&self, args).map(AsAny::as_any)
+	}
+
+	pub fn qs_inspect(self, args: Args<'_>) -> Result<AnyValue> {
+		self.qs_at_text(args)
+	}
+}
+
+quest_type_attrs! { for Null;
+	"inspect" => qs_inspect,
+	"@text" => qs_at_text,
+	"@int" => qs_at_int,
+	"@float" => qs_at_float,
+	"@list" => qs_at_list,
 }
 
 #[cfg(test)]

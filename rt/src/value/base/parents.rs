@@ -73,19 +73,19 @@ impl Parents {
 }
 
 impl Parents {
-	pub fn get_attr<A: Attribute>(&self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr<A: Attribute>(&self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
 		if self.is_none() {
 			return Ok(None);
 		}
 
 		if is_single(flags) {
-			return unsafe { self.single }.get_attr(attr);
+			return unsafe { self.single }.get_unbound_attr(attr);
 		}
 
 		let list = unsafe { self.list };
 
 		for parent in list.as_ref()?.as_slice() {
-			if let Some(value) = parent.get_attr(attr)? {
+			if let Some(value) = parent.get_unbound_attr(attr)? {
 				return Ok(Some(value));
 			}
 		}
@@ -94,7 +94,7 @@ impl Parents {
 	}
 
 	pub fn call_attr<A: Attribute>(&self, val: AnyValue, attr: A, args: crate::vm::Args<'_>, flags: &Flags) -> Result<AnyValue> {
-		let func = self.get_attr(attr, flags)?
+		let func = self.get_unbound_attr(attr, flags)?
 			.ok_or_else(|| Error::UnknownAttribute(val, attr.to_value()))?;
 
 		func.call(val, args)

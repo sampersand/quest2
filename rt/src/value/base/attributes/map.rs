@@ -32,7 +32,7 @@ impl Map {
 }
 
 impl Map {
-	pub fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 

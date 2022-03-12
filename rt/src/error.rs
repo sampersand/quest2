@@ -9,6 +9,7 @@ pub enum Error {
 	UnknownAttribute(AnyValue, AnyValue),
 	MissingPositionalArgument(usize),
 	MissingKeywordArgument(&'static str),
+	InvalidTypeGiven { expected: &'static str, given: &'static str },
 	ConversionFailed(AnyValue, &'static str),
 	Message(String),
 }
@@ -18,13 +19,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		match self {
-			Self::UnknownAttribute(value, attr) => write!(f, "unknown attribute {:?} for {:?}", attr, value),
-			Self::AlreadyLocked(value) => write!(f, "value {:p} is already locked", value),
-			Self::ValueFrozen(value) => write!(f, "value {:p} is frozen", value),
-			Self::MissingPositionalArgument(arg) => write!(f, "missing positional argument {:?}", arg),
-			Self::MissingKeywordArgument(arg) => write!(f, "missing keyword argument {:?}", arg),
-			Self::ConversionFailed(value, conv) => write!(f, "conversion {:?} failed for {:?}", conv, value),
-			Self::Message(msg) => write!(f, "{}", msg),
+			Self::UnknownAttribute(value, attr) => write!(f, "unknown attribute {attr:?} for {value:?}"),
+			Self::AlreadyLocked(value) => write!(f, "value {value:p} is already locked"),
+			Self::ValueFrozen(value) => write!(f, "value {value:p} is frozen"),
+			Self::MissingPositionalArgument(arg) => write!(f, "missing positional argument {arg:?}"),
+			Self::MissingKeywordArgument(arg) => write!(f, "missing keyword argument {arg:?}"),
+			Self::ConversionFailed(value, conv) => write!(f, "conversion {value:?} failed for {conv:?}"),
+			Self::InvalidTypeGiven { expected, given } => write!(f, "invalid type {given:?}, expected {expected:?}"),
+			Self::Message(msg) => f.write_str(msg),
 		}
 	}
 }

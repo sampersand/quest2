@@ -14,6 +14,7 @@ mod null;
 pub mod scope;
 pub mod text;
 mod wrap;
+mod boundfn;
 
 pub use basic::Basic;
 pub use block::Block;
@@ -25,6 +26,7 @@ pub use null::Null;
 pub use rustfn::RustFn;
 pub use scope::Scope;
 pub use text::Text;
+pub use boundfn::BoundFn;
 pub use wrap::Wrap;
 
 pub trait AttrConversionDefined {

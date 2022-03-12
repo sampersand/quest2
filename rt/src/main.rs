@@ -35,45 +35,66 @@ macro_rules! rustfn {
 	}
 }
 
+macro_rules! args {
+	($($pos:expr),*) => (args!($($pos),* ; ));
+	($($kwn:literal => $kwv:expr),*) => (args!(; $($kwn => $kwv),*));
+	($($pos:expr),* ; $($kwn:literal => $kwv:expr),*) => {
+		Args::new(&[$(value!($pos)),*], &[$(($kwn, value!($kwv))),*])
+	}
+}
+
+macro_rules! value {
+	($lit:literal) => ($lit.as_any());
+	($name:expr) => ($name);
+}
+
 fn main() -> Result<()> {
-	let mut greeting = "Hello, world".as_any();
+	let greeting = value!("Hello, world");
 
-	// {
-	// 	let mut parent = "<parent>".as_any();
-	// 	greeting.parents()?.as_mut()?.push(parent);
+	greeting.get_attr("concat")?.unwrap().call_attr("()", args!["!"])?;
 
-	// 	parent.set_attr("exclaim", rustfn!(exclaim));
-	// 	parent.set_attr("concat", rustfn!(concat));
-	// }
-	greeting.call_attr("concat", Args::new(&["!".as_any()], &[]))?;
+	dbg!(greeting);
+	Ok(())
+}
 
+fn call_attrs() -> Result<()>{ 
+	let greeting = value!("Hello, world");
+	greeting.call_attr("concat", args!["!"])?;
+	greeting.call_attr("concat", args![greeting])?;
 
-	// greeting.call_attr("exclaim", Args::default())?;
+	println!("{:?}", greeting); //=> "Hello, world!Hello, world!"
+	println!("{:?}", greeting.call_attr("==", args![greeting])); //=> true
+	println!("{:?}", greeting.call_attr("__call_attr__", args!["==", greeting]));
 
-	println!("{:?}", greeting);
+	let five = value!(5);
+	let twelve = value!(12);
+	println!("{:?}", five.call_attr("+", args![twelve])); //=> 17
+
+	let ff = value!(255).call_attr("@text", args!["base" => 16]);
+	println!("{:?}", ff); //=> "ff"
 
 	Ok(())
 }
 
 
-fn get_attrs() -> Result<()> {
+fn get_unbound_attrs() -> Result<()> {
 	let attr = Value::TRUE.any();
 
 	let mut parent = Value::from("hello, world").any();
 	parent.set_attr(attr, Value::from(123).any())?;
-	assert_eq!(parent.get_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
+	assert_eq!(parent.get_unbound_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
 
 	let mut child = Value::ONE.any();
 	assert!(!child.has_attr(attr)?);
 
 	child.parents()?.as_mut()?.push(parent);
-	assert_eq!(child.get_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
+	assert_eq!(child.get_unbound_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
 
 	child.set_attr(attr, Value::from(456).any()).unwrap();
-	assert_eq!(child.get_attr(attr)?.unwrap().bits(), Value::from(456).any().bits());
+	assert_eq!(child.get_unbound_attr(attr)?.unwrap().bits(), Value::from(456).any().bits());
 
 	assert_eq!(child.del_attr(attr)?.unwrap().bits(), Value::from(456).any().bits());
-	assert_eq!(child.get_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
+	assert_eq!(child.get_unbound_attr(attr)?.unwrap().bits(), Value::from(123).any().bits());
 
 	Ok(())
 }
@@ -96,7 +117,7 @@ fn lists_work() {
 		.unwrap()
 		.set_attr(Value::from(0).any(), Value::from("yo").any());
 
-	dbg!(list.as_ref().unwrap().get_attr(Value::from(0).any()));
+	dbg!(list.as_ref().unwrap().get_unbound_attr(Value::from(0).any()));
 
 	dbg!(list);
 }

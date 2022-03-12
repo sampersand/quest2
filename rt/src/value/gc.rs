@@ -308,7 +308,7 @@ impl<T: Allocated> Gc<T> {
 		// try to get a function directly defined on `self`, which most likely wont exist.
 		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
 		let selfref = self.as_ref()?;
-		if let Some(func) = selfref.header().get_attr(attr, false)? {
+		if let Some(func) = selfref.header().get_unbound_attr(attr, false)? {
 			drop(selfref);
 			func.call(self.as_any(), args)
 		} else {
@@ -383,8 +383,8 @@ impl<T: Allocated> Ref<T> {
 		self.0
 	}
 
-	pub fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
-		self.header().get_attr(attr, true)
+	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+		self.header().get_unbound_attr(attr, true)
 	}
 
 	pub fn flags(&self) -> &Flags {

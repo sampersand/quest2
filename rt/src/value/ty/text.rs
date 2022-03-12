@@ -1,4 +1,7 @@
 use crate::value::base::Flags;
+use crate::value::AsAny;
+use crate::vm::Args;
+use crate::{AnyValue, Value, Result};
 use crate::value::gc::{Allocated, Gc};
 use std::alloc;
 use std::hash::{Hash, Hasher};
@@ -9,6 +12,10 @@ pub use builder::Builder;
 
 quest_type! {
 	pub struct Text(Inner);
+}
+
+impl crate::value::NamedType for Gc<Text> {
+	const TYPENAME: &'static str = "Text";
 }
 
 impl super::AttrConversionDefined for Gc<Text> {
@@ -641,27 +648,45 @@ impl From<String> for Gc<Text> {
 	}
 }
 
-impl From<&'static str> for crate::Value<Gc<Text>> {
+impl From<&'static str> for Value<Gc<Text>> {
 	fn from(text: &'static str) -> Self {
 		Text::from_static_str(text).into()
 	}
 }
 
-impl crate::value::AsAny for &'static str {
-	fn as_any(self) -> crate::AnyValue {
-		crate::Value::from(self).any()
+impl AsAny for &'static str {
+	fn as_any(self) -> AnyValue {
+		Value::from(self).any()
 	}
 }
 
-quest_type_attrs! { for Text;
-	"concat" => |obj, args| {
-		let lhs = obj.downcast::<Gc<Text>>().unwrap();
-		let rhs = args.get(0).unwrap().to_text()?;
+impl Gc<Text> {
+	pub fn qs_concat(self, args: Args<'_>) -> Result<AnyValue> {
+		let mut rhs = args.get(0)?.to_text()?;
 
-		lhs.as_mut()?.push_str(rhs.as_ref()?.as_str());
+		if self.ptr_eq(rhs) {
+			rhs = self.as_ref()?.dup();
+		}
 
-		Ok(lhs.as_any())
+		self.as_mut()?.push_str(rhs.as_ref()?.as_str());
+
+		Ok(self.as_any())
 	}
+
+	pub fn qs_eql(self, args: Args<'_>) -> Result<AnyValue> {
+		let rhs = args.get(0)?;
+
+		if let Some(text) = rhs.downcast::<Self>() {
+			Ok((*self.as_ref()? == *text.as_ref()?).as_any())
+		} else {
+			Ok(false.as_any())
+		}
+	}
+}
+
+quest_type_attrs! { for Gc<Text>;
+	"concat" => qs_concat,
+	"==" => qs_eql
 }
 
 impl Eq for Text {}
