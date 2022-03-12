@@ -1,7 +1,7 @@
 //! Types related to allocated Quest types.
 
 use crate::value::base::{Base, Flags, Header, Attribute};
-use crate::value::ty::Wrap;
+use crate::value::ty::{Wrap, List};
 use crate::value::{value::Any, AsAny, AnyValue, Convertible, Value};
 use crate::{Error, Result};
 use std::fmt::{self, Debug, Formatter};
@@ -446,8 +446,12 @@ impl<T: Debug + Allocated> Debug for Mut<T> {
 }
 
 impl<T: Allocated> Mut<T> {
-	pub fn parents_list(&mut self) -> Gc<crate::value::ty::List> {
+	pub fn parents_list(&mut self) -> Gc<List> {
 		self.header_mut().parents_list()
+	}
+
+	pub fn set_parents(&mut self, parents_list: Gc<List>) {
+		self.header_mut().set_parents(parents_list)
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {

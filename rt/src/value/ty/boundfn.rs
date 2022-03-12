@@ -54,12 +54,5 @@ impl Gc<BoundFn> {
 }
 
 quest_type_attrs! { for Gc<BoundFn>;
-	"()" => qs_call,
+	"()" => meth qs_call,
 }
-
-
-// impl Gc<List> {
-// 	pub const fn new() -> Self {
-
-// 	}
-// }

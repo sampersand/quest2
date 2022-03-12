@@ -70,6 +70,11 @@ impl Parents {
 
 		unsafe { self.list }
 	}
+
+	pub fn set_list(&mut self, parents_list: Gc<List>, flags: &Flags) {
+		flags.insert(Flags::MULTI_PARENT);
+		self.list = parents_list;
+	}
 }
 
 impl Parents {

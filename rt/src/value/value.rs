@@ -1,6 +1,6 @@
 use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{AttrConversionDefined, List, Wrap, Integer, Float, RustFn, Text, Block, BoundFn};
-use crate::value::{Convertible, Gc};
+use crate::value::{Convertible, Gc, AsAny};
 use crate::vm::Args;
 use crate::{Result, Error};
 use std::fmt::{self, Debug, Formatter};
@@ -152,8 +152,6 @@ impl AnyValue {
 	}
 
 	pub fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
-		use crate::value::AsAny;
-
 		let value = 
 			if let Some(value) = self.get_unbound_attr(attr)? {
 				value
@@ -170,12 +168,21 @@ impl AnyValue {
 	}
 
 	pub fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
-		if self.is_allocated() {
-			unsafe { self.get_gc_any_unchecked() }
-				.as_ref()?
-				.get_unbound_attr(attr)
+		if !self.is_allocated() {
+			return self.parents_for().get_unbound_attr(attr);
+		}
+
+		let gc = unsafe { self.get_gc_any_unchecked() };
+
+		// 99% of the time it's not special.
+		if !attr.is_special() {
+			return gc.as_ref()?.get_unbound_attr(attr)
+		}
+
+		if attr.is_parents() {
+			Ok(Some(gc.as_mut()?.parents_list().as_any()))
 		} else {
-			self.parents_for().get_unbound_attr(attr)
+			unreachable!("unknown special attribute");
 		}
 	}
 
@@ -184,9 +191,24 @@ impl AnyValue {
 			*self = self.allocate_self_and_copy_data_over();
 		}
 
-		unsafe { self.get_gc_any_unchecked() }
-			.as_mut()?
-			.set_attr(attr, value)
+		let gc = unsafe { self.get_gc_any_unchecked() };
+
+		// 99% of the time it's not special.
+		if !attr.is_special() {
+			return gc.as_mut()?.set_attr(attr, value);
+		}
+
+		if attr.is_parents() {
+			if let Some(list) = value.downcast::<Gc<List>>() {
+				gc.as_mut()?.set_parents(list);
+
+				Ok(())
+			} else {
+				Err(Error::Message("can only set __parents__ to a List".to_string()))
+			}
+		} else {
+			unreachable!("unknown special attribute");
+		}
 	}
 
 	pub fn del_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
@@ -316,9 +338,10 @@ impl AnyValue {
 
 				let mut s = DefaultHasher::new();
 				text.as_ref()?.hash(&mut s);
-				return Ok(s.finish())
+				Ok(s.finish())
+			} else {
+				todo!()
 			}
-			todo!()
 		} else {
 			Ok(self.bits()) // this can also be modified, but that's a future thing
 		}
@@ -326,7 +349,11 @@ impl AnyValue {
 
 	pub fn try_eq(self, rhs: AnyValue) -> Result<bool> {
 		if self.is_allocated() {
-			todo!()
+			if let (Some(lhs), Some(rhs)) = (self.downcast::<Gc<Text>>(), rhs.downcast::<Gc<Text>>()) {
+				Ok(*lhs.as_ref()? == *rhs.as_ref()?)
+			} else {
+				todo!()
+			}
 		} else {
 			Ok(self.bits() == rhs.bits()) // this can also be modified, but that's a future thing
 		}
@@ -385,7 +412,6 @@ impl Debug for crate::value::gc::Ref<Wrap<Any>> {
 
 #[cfg(test)]
 mod tests {
-	use crate::value::AsAny;
 	use super::*;
 	use crate::value::ty::{Integer, Boolean};
 

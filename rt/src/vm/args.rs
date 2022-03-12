@@ -18,14 +18,6 @@ impl<'a> Args<'a> {
 		self.positional
 	}
 
-	pub fn with_self(self, new: AnyValue) -> Self {
-		todo!()
-	}
-
-	pub fn split_self(self) -> (Self, AnyValue) {
-		todo!()
-	}
-
 	pub const fn keyword(self) -> &'a [(&'a str, AnyValue)] {
 		self.keyword
 	}
@@ -50,24 +42,34 @@ impl<'a> Args<'a> {
 		index.get(self)
 	}
 
-	pub fn assert_no_positional(self) -> Result<Self> {
+	pub fn assert_no_positional(self) -> Result<()> {
 		if self.positional.is_empty() {
-			Ok(self)
+			Ok(())
 		} else {
 			Err(Error::Message("positional arguments given when none expected".to_string()))
 		}
 	}
 
-	pub fn assert_no_keyword(self) -> Result<Self> {
+	pub fn assert_positional_len(self, len: usize) -> Result<()> {
+		if self.positional.len() == len {
+			Ok(())
+		} else {
+			Err(Error::Message("positional argument count mismatch".to_string()))
+		}
+	}
+	pub fn assert_no_keyword(self) -> Result<()> {
 		if self.keyword.is_empty() {
-			Ok(self)
+			Ok(())
 		} else {
 			Err(Error::Message("keyword arguments given when none expected".to_string()))
 		}
 	}
 
-	pub fn assert_no_arguments(self) -> Result<Self> {
-		self.assert_no_positional()?.assert_no_keyword()
+	pub fn assert_no_arguments(self) -> Result<()> {
+		self.assert_no_positional()?;
+		self.assert_no_keyword()?;
+
+		Ok(())
 	}
 }
 

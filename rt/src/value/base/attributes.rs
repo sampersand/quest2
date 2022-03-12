@@ -61,6 +61,8 @@ impl Attributes {
 	}
 
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
+		debug_assert!(!attr.is_special());
+
 		if self.is_none() {
 			Ok(None)
 		} else if is_small(flags) {
@@ -71,6 +73,8 @@ impl Attributes {
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue, flags: &Flags) -> Result<()> {
+		debug_assert!(!attr.is_special());
+
 		if self.is_none() {
 			self.list = ManuallyDrop::new(ListMap::default());
 		}
@@ -91,6 +95,8 @@ impl Attributes {
 	}
 
 	pub fn del_attr<A: Attribute>(&mut self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
+		debug_assert!(!attr.is_special());
+
 		if self.is_none() {
 			Ok(None)
 		} else if is_small(flags) {
@@ -115,6 +121,11 @@ pub trait Attribute : Copy + Debug {
 	fn try_eq(self, rhs: AnyValue) -> Result<bool>;
 	fn try_hash(self) -> Result<u64>;
 	fn to_value(self) -> AnyValue;
+
+	fn is_parents(self) -> bool;
+	fn is_special(self) -> bool {
+		self.is_parents()
+	}
 }
 
 impl Attribute for &'static str {
@@ -138,6 +149,10 @@ impl Attribute for &'static str {
 	fn to_value(self) -> AnyValue {
 		Value::from(Text::from_static_str(self)).any()
 	}
+
+	fn is_parents(self) -> bool {
+		self == "__parents__"
+	}
 }
 
 impl Attribute for AnyValue {
@@ -151,6 +166,11 @@ impl Attribute for AnyValue {
 
 	fn to_value(self) -> AnyValue {
 		self
+	}
+
+	fn is_parents(self) -> bool {
+		self.downcast::<Gc<Text>>()
+			.map_or(false, |text| text.as_ref().map_or(false, |r| r.as_str() == "__parents__"))
 	}
 }
 

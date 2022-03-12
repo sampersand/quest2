@@ -662,7 +662,10 @@ impl AsAny for &'static str {
 
 impl Gc<Text> {
 	pub fn qs_concat(self, args: Args<'_>) -> Result<AnyValue> {
-		let mut rhs = args.get(0)?.to_text()?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let mut rhs = args.get(0).unwrap().to_text()?;
 
 		if self.ptr_eq(rhs) {
 			rhs = self.as_ref()?.dup();
@@ -674,7 +677,10 @@ impl Gc<Text> {
 	}
 
 	pub fn qs_eql(self, args: Args<'_>) -> Result<AnyValue> {
-		let rhs = args.get(0)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let rhs = args.get(0).unwrap();
 
 		if let Some(text) = rhs.downcast::<Self>() {
 			Ok((*self.as_ref()? == *text.as_ref()?).as_any())
@@ -682,11 +688,17 @@ impl Gc<Text> {
 			Ok(false.as_any())
 		}
 	}
+
+	pub fn qs_len(self, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_arguments()?;
+		Ok((self.as_ref()?.len() as i64).as_any())
+	}
 }
 
 quest_type_attrs! { for Gc<Text>;
-	"concat" => qs_concat,
-	"==" => qs_eql
+	"concat" => meth qs_concat,
+	"len" => meth qs_len,
+	"==" => meth qs_eql
 }
 
 impl Eq for Text {}

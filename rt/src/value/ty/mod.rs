@@ -15,6 +15,7 @@ pub mod scope;
 pub mod text;
 mod wrap;
 mod boundfn;
+mod pristine;
 
 pub use basic::Basic;
 pub use block::Block;
@@ -28,6 +29,7 @@ pub use scope::Scope;
 pub use text::Text;
 pub use boundfn::BoundFn;
 pub use wrap::Wrap;
+pub use pristine::Pristine;
 
 pub trait AttrConversionDefined {
 	const ATTR_NAME: &'static str;

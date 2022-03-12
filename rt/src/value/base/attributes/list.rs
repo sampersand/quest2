@@ -31,6 +31,8 @@ impl ListMap {
 	}
 
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+		debug_assert!(!attr.is_special());
+
 		for i in 0..MAX_LISTMAP_LEN {
 			if let Some((k, v)) = self.0[i] {
 				if attr.try_eq(k)? {
@@ -45,6 +47,8 @@ impl ListMap {
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
+		debug_assert!(!attr.is_special());
+
 		for i in 0..MAX_LISTMAP_LEN {
 			if let Some((k, v)) = &mut self.0[i] {
 				if attr.try_eq(*k)? {
@@ -61,6 +65,8 @@ impl ListMap {
 	}
 
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
+		debug_assert!(!attr.is_special());
+
 		// this isn't terribly efficient, but then again most people aren't going to be
 		// deleting things often, so it's alright.
 		for i in 0..MAX_LISTMAP_LEN {

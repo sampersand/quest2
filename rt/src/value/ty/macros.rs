@@ -46,14 +46,21 @@ macro_rules! _length_of {
 
 #[macro_export]
 macro_rules! _handle_quest_type_attrs {
-	($ty:ty, $builder:expr, $name:literal, $func:ident) => {
-		$builder.set_attr($name, $crate::Value::from(RustFn_new!($name, |obj, args| {
+	($ty:ty, $builder:expr, $name:literal, meth $func:expr) => {
+		_handle_quest_type_attrs!($ty, $builder, $name, func |obj, args| {
 			let this = obj.downcast::<$ty>().ok_or_else(|| $crate::Error::InvalidTypeGiven {
 				expected: <$ty as $crate::value::NamedType>::TYPENAME,
 				given: obj.typename()
 			})?;
-			<$ty>::$func(this, args)
-		})).any())
+			$func(this, args)
+		})
+
+		// $builder.set_attr($name, $crate::Value::from(RustFn_new!($name, |obj, args| {
+		// })).any())
+		// 	.expect(concat!("error initializing ", stringify!($ty), " for attr: ", stringify!($name)));
+	};
+	($ty:ty, $builder:expr, $name:literal, func $func:expr) => {
+		$builder.set_attr($name, $crate::Value::from(RustFn_new!($name, $func)).any())
 			.expect(concat!("error initializing ", stringify!($ty), " for attr: ", stringify!($name)));
 	};
 }
@@ -61,7 +68,7 @@ macro_rules! _handle_quest_type_attrs {
 #[macro_export]
 macro_rules! quest_type_attrs {
 	(for $type:ty $(where {$($gens:tt)*})?; 
-		$($name:literal => $func:ident),*
+		$($name:literal => $func_kind:ident $func:ident),*
 		$(,)?
 	) => {
 		impl $crate::value::base::HasDefaultParent for $type {
@@ -82,7 +89,7 @@ macro_rules! quest_type_attrs {
 					#[allow(unused_mut,unused_variables)]
 					let mut parent_mut = parent.as_mut().unwrap();
 					$(
-						_handle_quest_type_attrs!($type, parent_mut.header_mut(), $name, $func);
+						_handle_quest_type_attrs!($type, parent_mut.header_mut(), $name, $func_kind <$type>::$func);
 					)*
 				}
 

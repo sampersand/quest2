@@ -61,8 +61,8 @@ impl IntegerExt for Integer {
 
 quest_type_attrs! { for Integer;
 	// "concat" => qs_concat,
-	"+" => qs_add,
-	"@text" => qs_at_text,
+	"+" => meth qs_add,
+	"@text" => meth qs_at_text,
 }
 
 impl ConvertTo<Gc<Text>> for Integer {

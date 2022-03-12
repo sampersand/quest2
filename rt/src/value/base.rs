@@ -1,4 +1,5 @@
 use crate::value::gc::Gc;
+use crate::value::ty::List;
 use std::any::TypeId;
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug, Formatter};
@@ -184,8 +185,12 @@ impl Header {
 	///
 	/// # Examples
 	/// TODO: example
-	pub fn parents_list(&mut self) -> Gc<crate::value::ty::List> {
+	pub fn parents_list(&mut self) -> Gc<List> {
 		self.parents.as_list(&self.flags)
+	}
+
+	pub fn set_parents(&mut self, parents_list: Gc<List>) {
+		self.parents.set_list(parents_list, &self.flags)
 	}
 
 	pub(crate) fn parents(&self) -> Parents {

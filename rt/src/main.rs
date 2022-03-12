@@ -49,11 +49,28 @@ macro_rules! value {
 }
 
 fn main() -> Result<()> {
+	{
+		let text_class =
+			value!("")
+				.get_attr("__parents__")?.unwrap()
+				.downcast::<Gc<List>>().unwrap()
+				.as_ref()?
+				.as_slice()[0];
+
+		text_class
+			.get_attr("__parents__")?.unwrap()
+			.downcast::<Gc<List>>().unwrap()
+			.as_mut()?
+			.push(Pristine::new().as_any());
+	}
+
 	let greeting = value!("Hello, world");
-
 	greeting.get_attr("concat")?.unwrap().call_attr("()", args!["!"])?;
+	greeting.call_attr("__call_attr__", args!["concat", "?"])?;
 
-	dbg!(greeting);
+	println!("{:?}", greeting);
+	println!("{:?}", greeting.call_attr("__call_attr__", args!["len"]));
+
 	Ok(())
 }
 

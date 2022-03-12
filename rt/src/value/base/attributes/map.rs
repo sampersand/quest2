@@ -8,14 +8,15 @@ pub struct Map(Box<Inner>);
 
 #[derive(Debug, Default)]
 struct Inner {
-	str_only: HashMap<&'static str, AnyValue>,
+	// str_only: HashMap<&'static str, AnyValue>,
 	any: HashMap<AnyValue, AnyValue>
 }
 
 impl Map {
 	pub fn with_capacity(capacity: usize) -> Self {
+		let _ = capacity;
 		Self(Box::new(Inner {
-			str_only: HashMap::with_capacity(capacity),
+			// str_only: HashMap::with_capacity(capacity),
 			any: HashMap::new()
 		}))
 	}
@@ -33,6 +34,8 @@ impl Map {
 
 impl Map {
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+		debug_assert!(!attr.is_special());
+
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
@@ -52,6 +55,8 @@ impl Map {
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
+		debug_assert!(!attr.is_special());
+
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
@@ -83,6 +88,8 @@ impl Map {
 	}
 
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
+		debug_assert!(!attr.is_special());
+
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
