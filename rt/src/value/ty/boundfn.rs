@@ -50,5 +50,5 @@ impl Gc<BoundFn> {
 }
 
 quest_type_attrs! { for Gc<BoundFn>, parent Callable;
-	"()" => meth qs_call,
+	"()" => meth Gc::<BoundFn>::qs_call,
 }

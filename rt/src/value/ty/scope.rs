@@ -50,6 +50,6 @@ impl crate::value::gc::Mut<Scope> {
 	}
 }
 
-quest_type_attrs! { for Gc<Scope>,
-	parent Object;
+quest_type_attrs! { for Gc<Scope>, parent Object;
+
 }

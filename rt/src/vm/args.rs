@@ -34,8 +34,7 @@ impl<'a> Args<'a> {
 		if func(self) {
 			Ok(self)
 		} else {
-			panic!();
-			// Err(Error::Message("index error happened".into()))
+			Err(Error::Message("index error happened".into()))
 		}
 	}
 

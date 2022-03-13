@@ -99,7 +99,7 @@ impl RustFn {
 }
 
 quest_type_attrs! { for RustFn, parent Callable;
-	"()" => meth qs_call,
+	"()" => meth RustFn::qs_call,
 }
 
 #[cfg(test)]

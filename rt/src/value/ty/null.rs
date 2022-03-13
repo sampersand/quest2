@@ -106,11 +106,11 @@ impl Null {
 }
 
 quest_type_attrs! { for Null;
-	"inspect" => meth qs_inspect,
-	"@text" => meth qs_at_text,
-	"@int" => meth qs_at_int,
-	"@float" => meth qs_at_float,
-	"@list" => meth qs_at_list,
+	"inspect" => meth Null::qs_inspect,
+	"@text" => meth Null::qs_at_text,
+	"@int" => meth Null::qs_at_int,
+	"@float" => meth Null::qs_at_float,
+	"@list" => meth Null::qs_at_list,
 }
 
 #[cfg(test)]

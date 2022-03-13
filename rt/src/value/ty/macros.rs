@@ -73,7 +73,7 @@ macro_rules! quest_type_attrs {
 			$(, parent $parent:ty)?
 			$(, parents [$($parents:ty),* $(,)?])?
 			$(, late_binding_parent $late_binding_parent:ty)?; 
-		$($name:literal => $func_kind:ident $func:ident),*
+		$($name:literal => $func_kind:ident $func:expr),*
 		$(,)?
 	) => {
 		impl $crate::value::base::HasDefaultParent for $type {
@@ -103,7 +103,7 @@ macro_rules! quest_type_attrs {
 					#[allow(unused_mut,unused_variables)]
 					let mut parent_mut = parent.as_mut().unwrap();
 					$(
-						_handle_quest_type_attrs!($type, parent_mut.header_mut(), $name, $func_kind <$type>::$func);
+						_handle_quest_type_attrs!($type, parent_mut.header_mut(), $name, $func_kind $func);
 					)*
 					$(
 						unsafe {

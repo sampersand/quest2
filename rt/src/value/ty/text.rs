@@ -698,9 +698,9 @@ impl Gc<Text> {
 
 quest_type_attrs! { for Gc<Text>,
 	late_binding_parent Object;
-	"concat" => meth qs_concat,
-	"len" => meth qs_len,
-	"==" => meth qs_eql
+	"concat" => meth Gc::<Text>::qs_concat,
+	"len" => meth Gc::<Text>::qs_len,
+	"==" => meth Gc::<Text>::qs_eql
 }
 
 impl Eq for Text {}

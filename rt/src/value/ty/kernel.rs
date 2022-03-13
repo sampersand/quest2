@@ -90,8 +90,8 @@ impl Gc<Kernel> {
 }
 
 quest_type_attrs! { for Gc<Kernel>, parent Pristine;
-	"if" => meth qs_if,
-	"while" => meth qs_while,
+	"if" => meth Gc::<Kernel>::qs_if,
+	"while" => meth Gc::<Kernel>::qs_while,
 	// "__get_attr__" => func qs__get_attr__,
 	// "__get_bound_attr__" => func qs__get_unbound_attr__,
 	// "__set_attr__" => func qs__set_attr__,
