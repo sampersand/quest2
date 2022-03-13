@@ -3,17 +3,9 @@ use crate::value::Gc;
 use crate::{AnyValue, Result};
 
 quest_type! {
-	#[derive(Debug)]
+	#[derive(Debug, NamedType)]
 	pub struct Scope(Inner);
 }
-
-// quest_type! {
-// 	pub struct Text(Inner);
-// }
-
-// impl super::AttrConversionDefined for Gc<Text> {
-// 	const ATTR_NAME: &'static str = "@text";
-// }
 
 #[derive(Debug)]
 struct Inner {
@@ -32,6 +24,16 @@ impl Builder {
 		self.0.set_attr(attr, value)
 	}
 
+	pub fn parent(mut self, parent: AnyValue) -> Self {
+		unsafe { self.0._write_parent(parent); }
+		self
+	}
+
+	pub fn parents(mut self, parents: crate::value::Gc<crate::value::ty::List>) -> Self {
+		self.0.write_parents(parents);
+		self
+	}
+
 	pub fn build(mut self, src_loc: crate::vm::SourceLocation) -> Gc<Scope> {
 		self.0.data_mut().write(Inner { src_loc });
 
@@ -39,25 +41,15 @@ impl Builder {
 	}
 }
 
-// sa::assert_eq_size!(Scope, ());
+impl crate::value::gc::Mut<Scope> {
+	#[doc(hidden)]
+	pub unsafe fn _set_parent_to(&mut self, parent: AnyValue) {
+		use crate::value::gc::Allocated;
 
-impl Scope {
-	// pub fn new() -> Gc<Self> {
-		
-	// }
-	// pub const fn new() -> Self {
-	// 	Self { _priv: () }
-	// }
+		self.header_mut().set_singular_parent(parent);
+	}
 }
 
-// impl Gc<List> {
-// 	pub const fn new() -> Self {
-
-// 	}
-// }
-
-impl crate::value::base::HasDefaultParent for Scope {
-	fn parent() -> crate::AnyValue {
-		Default::default() // todo
-	}
+quest_type_attrs! { for Gc<Scope>,
+	parent Object;
 }

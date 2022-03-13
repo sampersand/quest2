@@ -8,6 +8,7 @@ static_assertions = "1.1"
 hashbrown = "0.12"
 radix_fmt = "1"
 once_cell = "1"
+qvm-macros = { path = "../macros" }
 
 [dev-dependencies]
 assert_matches = "1.5"

@@ -116,6 +116,10 @@ impl AnyValue {
 	pub fn typename(self) -> &'static str {
 		todo!()
 	}
+
+	pub fn is_truthy(self) -> Result<bool> {
+		self.to_boolean()
+	}
 }
 
 impl AnyValue {
@@ -241,6 +245,10 @@ impl AnyValue {
 			.call(self, args)
 	}
 
+	pub fn call_no_obj(self, args: Args<'_>) -> Result<AnyValue> {
+		self.call_attr("()", args)
+	}
+
 	pub fn call(self, obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		if let Some(rustfn) = self.downcast::<RustFn>() {
 			rustfn.call(obj, args)
@@ -248,14 +256,14 @@ impl AnyValue {
 			block.as_ref()?.call(obj, args)
 		} else {
 			// gotta add `self` to the front
-			self.call_attr("()", args)
+			self.call_no_obj(args)
 		}
 	}
 }
 
 impl AnyValue {
 	pub fn to_boolean(self) -> Result<bool> {
-		Ok(self.bits() == Value::NULL.bits() || self.bits() == Value::FALSE.bits())
+		Ok(self.bits() != Value::NULL.bits() && self.bits() != Value::FALSE.bits())
 	}
 
 	pub fn to_integer(self) -> Result<Integer> {

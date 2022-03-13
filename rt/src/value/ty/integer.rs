@@ -49,9 +49,10 @@ pub trait IntegerExt : Sized {
 
 impl IntegerExt for Integer {
 	fn qs_add(self, args: Args<'_>) -> Result<AnyValue> {
-		let rhs = args.get(0)?.to_integer()?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		Ok((self + rhs).as_any())
+		Ok((self + args[0].to_integer()?).as_any())
 	}
 
 	fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue> {
@@ -59,8 +60,7 @@ impl IntegerExt for Integer {
 	}
 }
 
-quest_type_attrs! { for Integer;
-	// "concat" => qs_concat,
+quest_type_attrs! { for Integer, parent Object;
 	"+" => meth qs_add,
 	"@text" => meth qs_at_text,
 }

@@ -1,4 +1,3 @@
-use crate::value::base::HasDefaultParent;
 use crate::value::ty::{ConvertTo, Float, Integer, Text};
 use crate::value::{AnyValue, Convertible, Gc, Value};
 use crate::vm::Args;
@@ -35,10 +34,9 @@ unsafe impl Convertible for Boolean {
 	}
 }
 
-impl HasDefaultParent for Boolean {
-	fn parent() -> crate::AnyValue {
-		Default::default()
-	}
+quest_type_attrs! { for Boolean, parent Object;
+	// "+" => meth qs_add,
+	// "@text" => meth qs_at_text,
 }
 
 impl ConvertTo<Gc<Text>> for Boolean {

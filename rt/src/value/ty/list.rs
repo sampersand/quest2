@@ -1,4 +1,4 @@
-use crate::value::base::{Flags, HasDefaultParent};
+use crate::value::base::{Flags};
 use crate::value::gc::{Allocated, Gc};
 use crate::AnyValue;
 use std::alloc;
@@ -8,11 +8,8 @@ mod builder;
 pub use builder::Builder;
 
 quest_type! {
+	#[derive(NamedType)]
 	pub struct List(Inner);
-}
-
-impl super::AttrConversionDefined for Gc<List> {
-	const ATTR_NAME: &'static str = "@list";
 }
 
 #[repr(C)]
@@ -407,11 +404,11 @@ impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
 	}
 }
 
-impl HasDefaultParent for List {
-	fn parent() -> AnyValue {
-		Default::default()
-	}
+
+quest_type_attrs! { for List, parent Object;
+	// "()" => meth qs_call,
 }
+
 
 // impl Eq for List {}
 // impl PartialEq for List {

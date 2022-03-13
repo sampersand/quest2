@@ -75,6 +75,11 @@ impl Parents {
 		flags.insert(Flags::MULTI_PARENT);
 		self.list = parents_list;
 	}
+
+	pub fn set_singular(&mut self, parent: AnyValue, flags: &Flags) {
+		self.single = parent;
+		flags.remove(Flags::MULTI_PARENT);
+	}
 }
 
 impl Parents {

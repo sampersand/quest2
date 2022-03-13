@@ -11,11 +11,8 @@ mod builder;
 pub use builder::Builder;
 
 quest_type! {
+	#[derive(NamedType)]
 	pub struct Text(Inner);
-}
-
-impl crate::value::NamedType for Gc<Text> {
-	const TYPENAME: &'static str = "Text";
 }
 
 impl super::AttrConversionDefined for Gc<Text> {
@@ -660,12 +657,18 @@ impl AsAny for &'static str {
 	}
 }
 
+impl AsAny for String {
+	fn as_any(self) -> AnyValue {
+		Gc::<Text>::from(self).as_any()
+	}
+}
+
 impl Gc<Text> {
 	pub fn qs_concat(self, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		let mut rhs = args.get(0).unwrap().to_text()?;
+		let mut rhs = args[0].to_text()?;
 
 		if self.ptr_eq(rhs) {
 			rhs = self.as_ref()?.dup();
@@ -680,9 +683,7 @@ impl Gc<Text> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		let rhs = args.get(0).unwrap();
-
-		if let Some(text) = rhs.downcast::<Self>() {
+		if let Some(text) = args[0].downcast::<Self>() {
 			Ok((*self.as_ref()? == *text.as_ref()?).as_any())
 		} else {
 			Ok(false.as_any())
@@ -695,7 +696,8 @@ impl Gc<Text> {
 	}
 }
 
-quest_type_attrs! { for Gc<Text>;
+quest_type_attrs! { for Gc<Text>,
+	late_binding_parent Object;
 	"concat" => meth qs_concat,
 	"len" => meth qs_len,
 	"==" => meth qs_eql

@@ -2,12 +2,8 @@ use crate::value::Gc;
 use crate::AnyValue;
 
 quest_type! {
-	#[derive(Debug)]
+	#[derive(Debug, NamedType)]
 	pub struct BoundFn(Inner);
-}
-
-impl crate::value::NamedType for Gc<BoundFn> {
-	const TYPENAME: &'static str = "BoundFn";
 }
 
 #[derive(Debug)]
@@ -53,6 +49,6 @@ impl Gc<BoundFn> {
 	}
 }
 
-quest_type_attrs! { for Gc<BoundFn>;
+quest_type_attrs! { for Gc<BoundFn>, parent Callable;
 	"()" => meth qs_call,
 }

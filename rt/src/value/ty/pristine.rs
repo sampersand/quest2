@@ -1,25 +1,24 @@
-use crate::value::{Gc, NamedType, AsAny};
+use crate::value::{Gc, AsAny};
 use crate::{AnyValue, Result};
 use crate::vm::Args;
 
 quest_type! {
-	#[derive(Debug)]
+	#[derive(Debug, NamedType)]
 	pub struct Pristine(());
 }
 
-impl NamedType for Gc<Pristine> {
-	const TYPENAME: &'static str = "Pristine";
-}
-
 impl Pristine {
-	pub fn new() -> Gc<Self> {
-		use crate::value::base::{Base, HasDefaultParent};
+	pub fn instance() -> Gc<Self> {
+		static INSTANCE: once_cell::sync::OnceCell<Gc<Pristine>> = once_cell::sync::OnceCell::new();
 
-		let inner = Base::new_with_parent((), Gc::<Self>::parent());
+		*INSTANCE.get_or_init(|| {
+			let inner = crate::value::base::Builder::<()>::allocate_with_capacity(6);
 
-		unsafe {
-			std::mem::transmute(inner)
-		}
+			// we don't set parents, as empty parents is default.
+			unsafe {
+				std::mem::transmute(inner.finish())
+			}
+		})
 	}
 }
 
@@ -29,8 +28,7 @@ impl Gc<Pristine> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		let attr = args.get(0).unwrap();
-		Ok(obj.has_attr(attr)?.as_any())
+		Ok(obj.has_attr(args[0])?.as_any())
 	}
 
 	#[allow(non_snake_case)]
@@ -38,9 +36,8 @@ impl Gc<Pristine> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		let attr = args.get(0).unwrap();
-		obj.get_attr(attr)?
-			.ok_or_else(|| crate::Error::UnknownAttribute(obj, attr))
+		obj.get_attr(args[0])?
+			.ok_or_else(|| crate::Error::UnknownAttribute(obj, args[0]))
 	}
 
 	#[allow(non_snake_case)]
@@ -48,26 +45,22 @@ impl Gc<Pristine> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		let attr = args.get(0).unwrap();
-		obj.get_unbound_attr(attr)?
-			.ok_or_else(|| crate::Error::UnknownAttribute(obj, attr))
+		obj.get_unbound_attr(args[0])?
+			.ok_or_else(|| crate::Error::UnknownAttribute(obj, args[0]))
 	}
 
 	#[allow(non_snake_case)]
 	pub fn qs__call_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-		let attr = args.get(0)?;
-
-		obj.call_attr(attr, Args::new(&args.positional()[1..], args.keyword()))
+		let (attr, args) = args.split_first()?;
+		obj.call_attr(attr, args)
 	}
 
 	#[allow(non_snake_case)]
 	pub fn qs__set_attr__(mut obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(2)?;
-		let attr = args.get(0).unwrap();
-		let value = args.get(1).unwrap();
 
-		obj.set_attr(attr, value)?;
+		obj.set_attr(args[0], args[1])?;
 		Ok(obj)
 	}
 
@@ -76,8 +69,7 @@ impl Gc<Pristine> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		let attr = args.get(0).unwrap();
-		Ok(obj.del_attr(attr)?.unwrap_or(crate::Value::NULL.any()))
+		Ok(obj.del_attr(args[0])?.unwrap_or(crate::Value::NULL.any()))
 	}
 }
 

@@ -4,6 +4,9 @@ extern crate static_assertions as sa;
 #[macro_use]
 extern crate assert_matches;
 
+#[macro_use]
+extern crate qvm_macros;
+
 mod error;
 
 #[macro_use]

@@ -67,7 +67,12 @@ macro_rules! _handle_quest_type_attrs {
 
 #[macro_export]
 macro_rules! quest_type_attrs {
-	(for $type:ty $(where {$($gens:tt)*})?; 
+	(
+		for $type:ty
+			$(where {$($gens:tt)*})?
+			$(, parent $parent:ty)?
+			$(, parents [$($parents:ty),* $(,)?])?
+			$(, late_binding_parent $late_binding_parent:ty)?; 
 		$($name:literal => $func_kind:ident $func:ident),*
 		$(,)?
 	) => {
@@ -80,8 +85,17 @@ macro_rules! quest_type_attrs {
 
 				let mut is_first_init = false;
 				let parent = *PARENT.get_or_init(|| {
+					#[allow(unused_imports)]
+					use $crate::value::ty::*;
 					is_first_init = true;
+
 					$crate::value::ty::scope::Builder::with_capacity(_length_of!($($name)*))
+						$(.parent(<$parent>::instance().as_any()))?
+						$(.parents($crate::value::ty::List::from_slice(&[
+							$(<$parents>::instance().as_any()),*
+						])))?
+
+						// $(.parent(<$parent as $crate::value::base::HasDefaultParent>::parent()))?
 						.build(Default::default())
 				});
 
@@ -91,6 +105,13 @@ macro_rules! quest_type_attrs {
 					$(
 						_handle_quest_type_attrs!($type, parent_mut.header_mut(), $name, $func_kind <$type>::$func);
 					)*
+					$(
+						unsafe {
+							#[allow(unused_imports)]
+							use $crate::value::ty::*;
+							parent_mut._set_parent_to(<$late_binding_parent>::instance().as_any())
+						}
+					)?
 				}
 
 				crate::Value::from(parent).any()

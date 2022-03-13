@@ -193,6 +193,10 @@ impl Header {
 		self.parents.set_list(parents_list, &self.flags)
 	}
 
+	pub fn set_singular_parent(&mut self, parent: AnyValue) {
+		self.parents.set_singular(parent, &self.flags)
+	}
+
 	pub(crate) fn parents(&self) -> Parents {
 		self.parents
 	}

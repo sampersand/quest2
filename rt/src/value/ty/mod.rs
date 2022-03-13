@@ -4,7 +4,7 @@ mod macros;
 #[macro_use]
 pub mod rustfn;
 
-mod basic;
+mod kernel;
 mod block;
 mod boolean;
 pub mod float;
@@ -16,8 +16,11 @@ pub mod text;
 mod wrap;
 mod boundfn;
 mod pristine;
+mod object;
+mod callable;
 
-pub use basic::Basic;
+pub use kernel::Kernel;
+pub use object::Object;
 pub use block::Block;
 pub use boolean::Boolean;
 pub use float::Float;
@@ -30,6 +33,7 @@ pub use text::Text;
 pub use boundfn::BoundFn;
 pub use wrap::Wrap;
 pub use pristine::Pristine;
+pub use callable::Callable;
 
 pub trait AttrConversionDefined {
 	const ATTR_NAME: &'static str;

@@ -34,7 +34,8 @@ impl<'a> Args<'a> {
 		if func(self) {
 			Ok(self)
 		} else {
-			Err(Error::Message("index error happened".into()))
+			panic!();
+			// Err(Error::Message("index error happened".into()))
 		}
 	}
 
@@ -71,10 +72,26 @@ impl<'a> Args<'a> {
 
 		Ok(())
 	}
+
+	pub fn split_first(self) -> Result<(AnyValue, Self)> { 
+		self.idx_err_unless(|a| a.len() >= 1)?;
+
+		Ok((self[0], Self::new(&self.positional[1..], self.keyword)))
+	}
+}
+
+impl<A: ArgIndexer> std::ops::Index<A> for Args<'_> {
+	type Output = AnyValue;
+
+	fn index(&self, idx: A) -> &Self::Output {
+		idx.index(*self)
+	}
+
 }
 
 pub trait ArgIndexer {
 	fn get(self, args: Args<'_>) -> Result<AnyValue>;
+	fn index<'a>(self, args: Args<'a>) -> &'a AnyValue;
 }
 
 impl ArgIndexer for usize {
@@ -84,6 +101,10 @@ impl ArgIndexer for usize {
 			.get(self)
 			.cloned()
 			.ok_or(Error::MissingPositionalArgument(self))
+	}
+
+	fn index<'a>(self, args: Args<'a>) -> &'a AnyValue {
+		&args.positional[self]
 	}
 }
 
@@ -96,5 +117,15 @@ impl ArgIndexer for &'static str {
 		}
 
 		Err(Error::MissingKeywordArgument(self))
+	}
+
+	fn index<'a>(self, args: Args<'a>) -> &'a AnyValue {
+		for (kw, val) in args.keyword {
+			if *kw == self {
+				return val;
+			}
+		}
+
+		panic!("variable {:?} doesnt exist in {:?}", self, args);
 	}
 }

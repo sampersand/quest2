@@ -43,6 +43,10 @@ impl<T> Builder<T> {
 		addr_of_mut!((*self.0.as_ptr()).header.parents).write(Parents { single: parent });
 	}
 
+	pub fn write_parents(&mut self, parents: crate::value::Gc<crate::value::ty::List>) {
+		self.base_mut().header_mut().set_parents(parents);
+	}
+
 	#[inline]
 	pub fn base(&self) -> &Base<T> {
 		unsafe { self.0.as_ref() }

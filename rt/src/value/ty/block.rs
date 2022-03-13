@@ -3,7 +3,7 @@ use crate::value::gc::Gc;
 use crate::vm::{Args, ByteCode};
 
 quest_type! {
-	#[derive(Debug)]
+	#[derive(Debug, NamedType)]
 	pub struct Block(Inner);
 }
 
@@ -16,14 +16,13 @@ struct Inner {
 impl Block {
 	#[must_use]
 	pub fn new(data: Vec<ByteCode>) -> Gc<Self> {
-		// Gc::
-		// unsafe {
-		// let mut builder = Self::allocate();
-		// builder.data_mut().write(Block { data });
-		// Gc::new(builder.finish())
-		let _ = data;
-		todo!()
-		// }
+		use crate::value::base::{Base, HasDefaultParent};
+
+		let inner = Base::new_with_parent(data, Gc::<Self>::parent());
+
+		unsafe {
+			std::mem::transmute(inner)
+		}
 	}
 
 	pub fn call(&self, obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
@@ -43,8 +42,7 @@ impl AsRef<[ByteCode]> for Block {
 	}
 }
 
-impl crate::value::base::HasDefaultParent for Block {
-	fn parent() -> AnyValue {
-		Default::default() // todo
-	}
+quest_type_attrs! { for Gc<Block>, parents [Callable, Kernel];
+	// "+" => meth qs_add,
+	// "@text" => meth qs_at_text,
 }

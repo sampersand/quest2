@@ -1,6 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
 use crate::vm::Args;
-use crate::value::base::HasDefaultParent;
 use crate::Result;
 use crate::value::{AnyValue, Convertible, Value};
 
@@ -27,6 +26,10 @@ macro_rules! RustFn_new {
 
 		$crate::value::ty::RustFn::new(INNER)
 	}};
+}
+
+impl crate::value::NamedType for RustFn {
+	const TYPENAME: &'static str = "RustFn";
 }
 
 impl RustFn {
@@ -87,10 +90,16 @@ unsafe impl Convertible for RustFn {
 	}
 }
 
-impl HasDefaultParent for RustFn {
-	fn parent() -> AnyValue {
-		Default::default()
+impl RustFn {
+	pub fn qs_call(self, args: Args<'_>) -> Result<AnyValue> {
+		let (obj, args) = args.split_first()?;
+
+		self.call(obj, args)
 	}
+}
+
+quest_type_attrs! { for RustFn, parent Callable;
+	"()" => meth qs_call,
 }
 
 #[cfg(test)]

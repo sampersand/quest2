@@ -1,6 +1,4 @@
 use crate::value::{AnyValue, Convertible, Value};
-use crate::value::base::HasDefaultParent;
-
 pub type Float = f64;
 
 pub const EPSILON: Float = 0.0000000000000008881784197001252;
@@ -25,10 +23,9 @@ unsafe impl Convertible for Float {
 	}
 }
 
-impl HasDefaultParent for Float {
-	fn parent() -> AnyValue {
-		Default::default() // todo
-	}
+quest_type_attrs! { for Float, parent Object;
+	// "+" => meth qs_add,
+	// "@text" => meth qs_at_text,
 }
 
 #[cfg(test)]

@@ -7,7 +7,6 @@ use qvm_rt::Result;
 use qvm_rt::value::ty::*;
 use qvm_rt::value::*;
 use qvm_rt::vm::Args;
-
 // fn dup(mut obj: AnyValue, _: Args<'_>) -> Result<AnyValue> {
 // 	let mut new = obj.downcast::<Gc<Text>>().unwrap().as_ref()?.dup();
 // 	new.as_mut()?.parents().as_mut()?.push(obj.parents()?.as_ref()?.as_slice()[0]);
@@ -23,7 +22,7 @@ fn exclaim(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 
 fn concat(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 	let lhs = obj.downcast::<Gc<Text>>().unwrap();
-	let rhs = args.get(0).unwrap().to_text()?;
+	let rhs = args[0].to_text()?;
 
 	lhs.as_mut()?.push_str(rhs.as_ref()?.as_str());
 
@@ -48,20 +47,39 @@ macro_rules! value {
 	($name:expr) => ($name);
 }
 
-fn main() -> Result<()> {
-	{
-		let text_class =
-			value!("")
-				.get_attr("__parents__")?.unwrap()
-				.downcast::<Gc<List>>().unwrap()
-				.as_ref()?
-				.as_slice()[0];
 
-		text_class
-			.get_attr("__parents__")?.unwrap()
-			.downcast::<Gc<List>>().unwrap()
-			.as_mut()?
-			.push(Pristine::new().as_any());
+fn main() -> Result<()> {
+	let func1 = qvm_rt::RustFn_new!("func1", |obj, args| {
+		println!("func1: {:?} {:?}", obj, args);
+		Ok(obj)
+	});
+
+	let func2 = qvm_rt::RustFn_new!("func2", |obj, args| {
+		println!("func2: {:?} {:?}", obj, args);
+		Ok(obj)
+	});
+
+	println!("result: {:?}", Kernel::instance().as_any()
+		.call_attr("if", Args::new(&[false.as_any(), func1.as_any(), func2.as_any()], &[])));
+
+	Ok(())
+}
+
+
+fn main1() -> Result<()> {
+	{
+		// let text_class =
+		// 	value!("")
+		// 		.get_attr("__parents__")?.unwrap()
+		// 		.downcast::<Gc<List>>().unwrap()
+		// 		.as_ref()?
+		// 		.as_slice()[0];
+
+		// text_class
+		// 	.get_attr("__parents__")?.unwrap()
+		// 	.downcast::<Gc<List>>().unwrap()
+		// 	.as_mut()?
+		// 	.push(Pristine::new().as_any());
 	}
 
 	let greeting = value!("Hello, world");
