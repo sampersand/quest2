@@ -17,7 +17,7 @@ impl<'a> Args<'a> {
 	}
 
 	pub fn with_self(self, this: AnyValue) -> Self {
-		assert!(!self.this.is_some());
+		assert!(!self.this.is_some(), "todo: is this even possible? and if so, how should it work");
 
 		Self { this: Some(this), ..self }
 	}

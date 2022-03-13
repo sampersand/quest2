@@ -25,7 +25,7 @@ fn is_small(flags: &Flags) -> bool {
 
 impl Attributes {
 	// we're able to take `&mut self` as `0` is a valid variant—`none`.
-	pub fn initialize_with_capacity(&mut self, capacity: usize) {
+	pub fn initialize_with_capacity(&mut self, capacity: usize, flags: &Flags) {
 		if capacity == 0 {
 			return;
 		}
@@ -33,7 +33,8 @@ impl Attributes {
 		if capacity <= list::MAX_LISTMAP_LEN {
 			self.list = ManuallyDrop::new(ListMap::default());
 		} else {
-			self.map = ManuallyDrop::new(Map::with_capacity(capacity))
+			self.map = ManuallyDrop::new(Map::with_capacity(capacity));
+			flags.insert(Flags::ATTR_MAP);
 		}
 	}
 

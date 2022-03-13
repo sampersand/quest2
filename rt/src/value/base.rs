@@ -31,6 +31,9 @@ pub struct Header {
 	borrows: AtomicU32,
 }
 
+sa::assert_eq_align!(Header, u64);
+sa::assert_eq_size!(Header, [u64; 4]);
+
 #[derive(Debug)]
 #[repr(C, align(16))]
 pub struct Base<T: 'static> {

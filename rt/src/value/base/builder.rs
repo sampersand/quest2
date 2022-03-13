@@ -23,7 +23,8 @@ impl<T> Builder<T> {
 		let this = Self::allocate();
 
 		unsafe {
-			(*this.0.as_ptr()).header.attributes.initialize_with_capacity(attr_capacity)
+			let header = &mut (*this.0.as_ptr()).header;
+			header.attributes.initialize_with_capacity(attr_capacity, &header.flags)
 		}
 
 		this

@@ -525,8 +525,6 @@ impl Text {
 			return;
 		}
 
-		dbg!(&self);
-
 		// We have unique ownership of our pointer, so we can `realloc` it without worry.
 		unsafe {
 			let mut alloc = &mut self.inner_mut().alloc;
