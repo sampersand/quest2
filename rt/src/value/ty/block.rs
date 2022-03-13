@@ -25,8 +25,8 @@ impl Block {
 		}
 	}
 
-	pub fn call(&self, obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-		let _ = (obj, args); todo!();
+	pub fn call(&self, args: Args<'_>) -> Result<AnyValue> {
+		let _ = args; todo!();
 	}
 }
 

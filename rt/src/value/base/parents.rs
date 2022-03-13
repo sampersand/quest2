@@ -103,10 +103,10 @@ impl Parents {
 		Ok(None)
 	}
 
-	pub fn call_attr<A: Attribute>(&self, val: AnyValue, attr: A, args: crate::vm::Args<'_>, flags: &Flags) -> Result<AnyValue> {
+	pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>, flags: &Flags) -> Result<AnyValue> {
 		let func = self.get_unbound_attr(attr, flags)?
-			.ok_or_else(|| Error::UnknownAttribute(val, attr.to_value()))?;
+			.ok_or_else(|| Error::UnknownAttribute(args.get_self().unwrap(), attr.to_value()))?;
 
-		func.call(val, args)
+		func.call(args)
 	}
 }

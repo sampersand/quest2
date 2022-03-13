@@ -34,7 +34,7 @@ impl BoundFn {
 	}
 
 	pub fn call(&self, args: crate::vm::Args<'_>) -> crate::Result<AnyValue> {
-		self.function().call(self.object(), args)
+		self.function().call(args.with_self(self.object()))
 	}
 }
 
@@ -45,7 +45,7 @@ impl Gc<BoundFn> {
 			(sref.function(), sref.object())
 		};
 
-		func.call(obj, args)
+		func.call(args.with_self(obj))
 	}
 }
 

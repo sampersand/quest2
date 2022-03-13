@@ -242,21 +242,21 @@ impl AnyValue {
 		self.parents_for()
 			.get_unbound_attr(attr)?
 			.ok_or_else(|| Error::UnknownAttribute(self, attr.to_value()))?
-			.call(self, args)
+			.call(args.with_self(self))
 	}
 
 	pub fn call_no_obj(self, args: Args<'_>) -> Result<AnyValue> {
 		self.call_attr("()", args)
 	}
 
-	pub fn call(self, obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
 		if let Some(rustfn) = self.downcast::<RustFn>() {
-			rustfn.call(obj, args)
+			rustfn.call(args)
 		} else if let Some(block) = self.downcast::<Gc<Block>>() {
-			block.as_ref()?.call(obj, args)
+			block.as_ref()?.call(args)
 		} else {
 			// gotta add `self` to the front
-			self.call_no_obj(args)
+			self.call_attr("()", args)
 		}
 	}
 }

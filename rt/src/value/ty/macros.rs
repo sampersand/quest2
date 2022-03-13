@@ -47,10 +47,11 @@ macro_rules! _length_of {
 #[macro_export]
 macro_rules! _handle_quest_type_attrs {
 	($ty:ty, $builder:expr, $name:literal, meth $func:expr) => {
-		_handle_quest_type_attrs!($ty, $builder, $name, func |obj, args| {
-			let this = obj.downcast::<$ty>().ok_or_else(|| $crate::Error::InvalidTypeGiven {
+		_handle_quest_type_attrs!($ty, $builder, $name, func |args| {
+			let (this, args) = args.split_first()?;
+			let this = this.downcast::<$ty>().ok_or_else(|| $crate::Error::InvalidTypeGiven {
 				expected: <$ty as $crate::value::NamedType>::TYPENAME,
-				given: obj.typename()
+				given: this.typename()
 			})?;
 			$func(this, args)
 		})
@@ -100,12 +101,20 @@ macro_rules! quest_type_attrs {
 				if is_first_init {
 					#[allow(unused_macros)]
 					macro_rules! method {
-						($fn:expr) => (|obj, args| {
-							let this = obj.downcast::<$type>()
+						($fn:expr) => (func!(|this: AnyValue, args| {
+							let this = this.downcast::<$type>()
 								.ok_or_else(|| $crate::Error::InvalidTypeGiven {
 									expected: <$type as $crate::value::NamedType>::TYPENAME,
-									given: obj.typename()
+									given: this.typename()
 								})?;
+							$fn(this, args)
+						}));
+					}
+
+					#[allow(unused_macros)]
+					macro_rules! func {
+						($fn:expr) => (|args| {
+							let (this, args) = args.split_first()?;
 							$fn(this, args)
 						});
 					}

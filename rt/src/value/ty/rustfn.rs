@@ -3,7 +3,7 @@ use crate::vm::Args;
 use crate::Result;
 use crate::value::{AnyValue, Convertible, Value};
 
-pub type Function = for<'a> fn(AnyValue, Args<'a>) -> Result<AnyValue>;
+pub type Function = for<'a> fn(Args<'a>) -> Result<AnyValue>;
 
 #[repr(transparent)]
 #[derive(Clone, Copy)]
@@ -48,8 +48,8 @@ impl RustFn {
 		self.0.func
 	}
 
-	pub fn call(self, obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-		(self.0.func)(obj, args)
+	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
+		(self.0.func)(args)
 	}
 }
 
@@ -61,7 +61,7 @@ impl PartialEq for RustFn {
 }
 
 impl RustFn {
-	pub const NOOP: Self = RustFn_new!("noop", |_, _| Ok(Default::default()));
+	pub const NOOP: Self = RustFn_new!("noop", |_| Ok(Default::default()));
 }
 
 impl Debug for RustFn {
@@ -92,9 +92,7 @@ unsafe impl Convertible for RustFn {
 
 impl RustFn {
 	pub fn qs_call(self, args: Args<'_>) -> Result<AnyValue> {
-		let (obj, args) = args.split_first()?;
-
-		self.call(obj, args)
+		self.call(args)
 	}
 }
 

@@ -4,6 +4,7 @@ use crate::{AnyValue, Error, Result};
 pub struct Args<'a> {
 	positional: &'a [AnyValue],
 	keyword: &'a [(&'a str, AnyValue)],
+	this: Option<AnyValue>
 }
 
 impl<'a> Args<'a> {
@@ -11,7 +12,18 @@ impl<'a> Args<'a> {
 		Self {
 			positional,
 			keyword,
+			this: None,
 		}
+	}
+
+	pub fn with_self(self, this: AnyValue) -> Self {
+		assert!(!self.this.is_some());
+
+		Self { this: Some(this), ..self }
+	}
+
+	pub fn get_self(self) -> Option<AnyValue> {
+		self.this
 	}
 
 	pub const fn positional(self) -> &'a [AnyValue] {
@@ -23,7 +35,7 @@ impl<'a> Args<'a> {
 	}
 
 	pub const fn len(self) -> usize {
-		self.positional.len() + self.keyword.len()
+		self.positional.len() + self.keyword.len() + if self.this.is_some() { 1 } else { 0 }
 	}
 
 	pub const fn is_empty(self) -> bool {
@@ -72,7 +84,11 @@ impl<'a> Args<'a> {
 		Ok(())
 	}
 
-	pub fn split_first(self) -> Result<(AnyValue, Self)> { 
+	pub fn split_first(mut self) -> Result<(AnyValue, Self)> { 
+		if let Some(this) = self.this.take() {
+			return Ok((this, self));
+		}
+
 		self.idx_err_unless(|a| a.len() >= 1)?;
 
 		Ok((self[0], Self::new(&self.positional[1..], self.keyword)))

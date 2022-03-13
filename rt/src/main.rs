@@ -50,22 +50,25 @@ macro_rules! value {
 
 fn main() -> Result<()> {
 	dbg!(1.as_any().call_attr("+", args!(2)));
+	main2();
 	Ok(())
 }
 
 fn main2() -> Result<()> {
-	let func1 = qvm_rt::RustFn_new!("func1", |obj, args| {
-		println!("func1: {:?} {:?}", obj, args);
-		Ok(obj)
+	let func1 = qvm_rt::RustFn_new!("func1", |args| {
+		println!("func1: {:?}", args);
+
+		Ok(args.get_self().unwrap_or_default())
 	});
 
-	let func2 = qvm_rt::RustFn_new!("func2", |obj, args| {
-		println!("func2: {:?} {:?}", obj, args);
-		Ok(obj)
+	let func2 = qvm_rt::RustFn_new!("func2", |args| {
+		println!("func2: {:?}", args);
+
+		Ok(args.get_self().unwrap_or_default())
 	});
 
 	println!("result: {:?}", Kernel::instance().as_any()
-		.call_attr("if", Args::new(&[false.as_any(), func1.as_any(), func2.as_any()], &[])));
+		.call_attr("if", Args::new(&[true.as_any(), func1.as_any(), func2.as_any()], &[])));
 
 	Ok(())
 }

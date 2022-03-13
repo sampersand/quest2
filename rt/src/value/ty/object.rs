@@ -94,7 +94,7 @@ impl Gc<Object> {
 
 	pub fn qs_tap_into(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		let (func, args) = args.split_first()?;
-		func.call(obj, args)
+		func.call(args.with_self(obj))
 	}
 
 	pub fn qs_then(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
@@ -111,7 +111,7 @@ impl Gc<Object> {
 		let (func, args) = args.split_first()?;
 
 		if obj.is_truthy()? {
-			func.call(obj, args)
+			func.call(args.with_self(obj))
 		} else {
 			Ok(obj)
 		}
@@ -123,7 +123,7 @@ impl Gc<Object> {
 		if obj.is_truthy()? {
 			Ok(obj)
 		} else {
-			func.call_no_obj(args)
+			func.call(args)
 		}
 	}
 
@@ -133,7 +133,7 @@ impl Gc<Object> {
 		if obj.is_truthy()? {
 			Ok(obj)
 		} else {
-			func.call(obj, args)
+			func.call(args.with_self(obj))
 		}
 	}
 
@@ -169,18 +169,18 @@ impl Gc<Object> {
 
 quest_type_attrs! { for Gc<Object>,
 	parent Pristine;
-	"==" => func Gc::<Object>::qs_eql,
-	"!=" => func Gc::<Object>::qs_neq,
-	"!" => func Gc::<Object>::qs_not,
+	"==" => func func!(Gc::<Object>::qs_eql),
+	"!=" => func func!(Gc::<Object>::qs_neq),
+	"!" => func func!(Gc::<Object>::qs_not),
 
-	"@bool" => func Gc::<Object>::qs_at_bool,
-	"@text" => func Gc::<Object>::qs_at_text,
-	"hash" => func Gc::<Object>::qs_hash,
-	"clone" => func Gc::<Object>::qs_clone,
+	"@bool" => func func!(Gc::<Object>::qs_at_bool),
+	"@text" => func func!(Gc::<Object>::qs_at_text),
+	"hash" => func func!(Gc::<Object>::qs_hash),
+	"clone" => func func!(Gc::<Object>::qs_clone),
 
-	// "print" => func Gc::<Object>::qs_print,
-	// "return" => func Gc::<Object>::qs_return,
-	// "assert" => func Gc::<Object>::qs_assert,
+	// "print" => func func!(Gc::<Object>::qs_print),
+	// "return" => func func!(Gc::<Object>::qs_return),
+	// "assert" => func func!(Gc::<Object>::qs_assert),
 
 	/*
 	tap      : a -> (a -> b) -> a
@@ -192,17 +192,17 @@ quest_type_attrs! { for Gc<Object>,
 	or       : a -> b -> {a/b}, a if its truthy
 	and      : a -> b -> {a/b}, a if its falsey
 	*/
-	"tap" => func Gc::<Object>::qs_tap,
-	"tap_into" => func Gc::<Object>::qs_tap_into,
-	"then" => func Gc::<Object>::qs_then,
-	"and_then" => func Gc::<Object>::qs_and_then,
-	"else" => func Gc::<Object>::qs_else,
-	"or_else" => func Gc::<Object>::qs_or_else,
-	"or" => func Gc::<Object>::qs_or,
-	"and" => func Gc::<Object>::qs_and,
-	"itself" => func Gc::<Object>::qs_itself,
+	"tap" => func func!(Gc::<Object>::qs_tap),
+	"tap_into" => func func!(Gc::<Object>::qs_tap_into),
+	"then" => func func!(Gc::<Object>::qs_then),
+	"and_then" => func func!(Gc::<Object>::qs_and_then),
+	"else" => func func!(Gc::<Object>::qs_else),
+	"or_else" => func func!(Gc::<Object>::qs_or_else),
+	"or" => func func!(Gc::<Object>::qs_or),
+	"and" => func func!(Gc::<Object>::qs_and),
+	"itself" => func func!(Gc::<Object>::qs_itself),
 
-	// "extend" => func Gc::<Object>::qs_extend,
-	// "inherit" => func Gc::<Object>::qs_inherit,
-	// "becomes" => func Gc::<Object>::qs_becomes,
+	// "extend" => func func!(Gc::<Object>::qs_extend),
+	// "inherit" => func func!(Gc::<Object>::qs_inherit),
+	// "becomes" => func func!(Gc::<Object>::qs_becomes),
 }

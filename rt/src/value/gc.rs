@@ -310,12 +310,12 @@ impl<T: Allocated> Gc<T> {
 		let selfref = self.as_ref()?;
 		if let Some(func) = selfref.header().get_unbound_attr(attr, false)? {
 			drop(selfref);
-			func.call(self.as_any(), args)
+			func.call(args.with_self(self.as_any()))
 		} else {
 			let parents = selfref.parents();
 			let flags = selfref.flags().clone();
 			drop(selfref);
-			parents.call_attr(Value::from(self).any(), attr, args, &flags)
+			parents.call_attr(attr, args.with_self(Value::from(self).any()), &flags)
 		}
 	}
 }
