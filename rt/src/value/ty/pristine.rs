@@ -8,17 +8,17 @@ quest_type! {
 }
 
 impl Pristine {
-	pub fn instance() -> Gc<Self> {
+	pub fn instance() -> AnyValue {
 		static INSTANCE: once_cell::sync::OnceCell<Gc<Pristine>> = once_cell::sync::OnceCell::new();
 
-		*INSTANCE.get_or_init(|| {
-			let inner = crate::value::base::Builder::<()>::allocate_with_capacity(6);
+		INSTANCE.get_or_init(|| {
+			let inner = crate::value::base::Builder::<()>::allocate_with_capacity(0);
 
 			// we don't set parents, as empty parents is default.
 			unsafe {
 				std::mem::transmute(inner.finish())
 			}
-		})
+		}).as_any()
 	}
 }
 

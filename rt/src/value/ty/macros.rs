@@ -91,9 +91,9 @@ macro_rules! quest_type_attrs {
 					is_first_init = true;
 
 					$crate::value::ty::scope::Builder::with_capacity(_length_of!($($name)*))
-						$(.parent(<$parent>::instance().as_any()))?
+						$(.parent(<$parent>::instance()))?
 						$(.parents($crate::value::ty::List::from_slice(&[
-							$(<$parents>::instance().as_any()),*
+							$(<$parents>::instance()),*
 						])))?
 						.build(Default::default())
 				});
@@ -128,7 +128,7 @@ macro_rules! quest_type_attrs {
 						unsafe {
 							#[allow(unused_imports)]
 							use $crate::value::ty::*;
-							parent_mut._set_parent_to(<$late_binding_parent>::instance().as_any())
+							parent_mut._set_parent_to(<$late_binding_parent>::instance())
 						}
 					)?
 				}

@@ -67,7 +67,7 @@ fn main2() -> Result<()> {
 		Ok(args.get_self().unwrap_or_default())
 	});
 
-	println!("result: {:?}", Kernel::instance().as_any()
+	println!("result: {:?}", Kernel::instance()
 		.call_attr("if", Args::new(&[true.as_any(), func1.as_any(), func2.as_any()], &[])));
 
 	Ok(())

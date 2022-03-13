@@ -1,4 +1,4 @@
-use crate::value::{Gc, /*AsAny*/};
+use crate::value::{Gc, AsAny};
 use crate::{AnyValue, Result};
 use crate::vm::Args;
 
@@ -8,10 +8,10 @@ quest_type! {
 }
 
 impl Kernel {
-	pub fn instance() -> Gc<Self> {
+	pub fn instance() -> AnyValue {
 		static INSTANCE: once_cell::sync::OnceCell<Gc<Kernel>> = once_cell::sync::OnceCell::new();
 
-		*INSTANCE.get_or_init(|| {
+		INSTANCE.get_or_init(|| {
 			use crate::value::base::{Base, HasDefaultParent};
 
 			let inner = Base::new_with_parent((), Gc::<Self>::parent());
@@ -19,7 +19,7 @@ impl Kernel {
 			unsafe {
 				std::mem::transmute(inner)
 			}
-		})
+		}).as_any()
 	}
 }
 

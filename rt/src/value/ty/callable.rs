@@ -8,10 +8,10 @@ quest_type! {
 }
 
 impl Callable {
-	pub fn instance() -> Gc<Self> {
+	pub fn instance() -> AnyValue/*Gc<Self>*/ {
 		static INSTANCE: once_cell::sync::OnceCell<Gc<Callable>> = once_cell::sync::OnceCell::new();
 
-		*INSTANCE.get_or_init(|| {
+		INSTANCE.get_or_init(|| {
 			use crate::value::base::{Base, HasDefaultParent};
 
 			let inner = Base::new_with_parent((), Gc::<Self>::parent());
@@ -19,7 +19,7 @@ impl Callable {
 			unsafe {
 				std::mem::transmute(inner)
 			}
-		})
+		}).as_any()
 	}}
 
 impl Gc<Callable> {

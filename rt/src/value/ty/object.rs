@@ -8,7 +8,11 @@ quest_type! {
 }
 
 impl Object {
-	pub fn instance() -> Gc<Self> {
+	pub fn instance() -> AnyValue {
+		<Gc<Self> as crate::value::base::HasDefaultParent>::parent()
+	}
+
+	pub fn instance3() -> Gc<Self> {
 		// static INSTANCE: once_cell::sync::OnceCell<Gc<Object>> = once_cell::sync::OnceCell::new();
 
 		// *INSTANCE.get_or_init(|| {
