@@ -49,6 +49,11 @@ macro_rules! value {
 
 
 fn main() -> Result<()> {
+	dbg!(1.as_any().call_attr("+", args!(2)));
+	Ok(())
+}
+
+fn main2() -> Result<()> {
 	let func1 = qvm_rt::RustFn_new!("func1", |obj, args| {
 		println!("func1: {:?} {:?}", obj, args);
 		Ok(obj)

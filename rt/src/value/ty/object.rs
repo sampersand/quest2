@@ -9,9 +9,9 @@ quest_type! {
 
 impl Object {
 	pub fn instance() -> Gc<Self> {
-		static INSTANCE: once_cell::sync::OnceCell<Gc<Object>> = once_cell::sync::OnceCell::new();
+		// static INSTANCE: once_cell::sync::OnceCell<Gc<Object>> = once_cell::sync::OnceCell::new();
 
-		*INSTANCE.get_or_init(|| {
+		// *INSTANCE.get_or_init(|| {
 			use crate::value::base::{Base, HasDefaultParent};
 
 			let inner = Base::new_with_parent((), Gc::<Self>::parent());
@@ -19,7 +19,7 @@ impl Object {
 			unsafe {
 				std::mem::transmute(inner)
 			}
-		})
+		// })
 	}
 }
 

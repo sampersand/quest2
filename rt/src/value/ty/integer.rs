@@ -61,8 +61,8 @@ impl IntegerExt for Integer {
 }
 
 quest_type_attrs! { for Integer, parent Object;
-	"+" => meth Integer::qs_add,
-	"@text" => meth Integer::qs_at_text,
+	"+" => func method!(Integer::qs_add),
+	"@text" => func method!(Integer::qs_at_text),
 }
 
 impl ConvertTo<Gc<Text>> for Integer {

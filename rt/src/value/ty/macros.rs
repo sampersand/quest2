@@ -94,12 +94,22 @@ macro_rules! quest_type_attrs {
 						$(.parents($crate::value::ty::List::from_slice(&[
 							$(<$parents>::instance().as_any()),*
 						])))?
-
-						// $(.parent(<$parent as $crate::value::base::HasDefaultParent>::parent()))?
 						.build(Default::default())
 				});
 
 				if is_first_init {
+					#[allow(unused_macros)]
+					macro_rules! method {
+						($fn:expr) => (|obj, args| {
+							let this = obj.downcast::<$type>()
+								.ok_or_else(|| $crate::Error::InvalidTypeGiven {
+									expected: <$type as $crate::value::NamedType>::TYPENAME,
+									given: obj.typename()
+								})?;
+							$fn(this, args)
+						});
+					}
+
 					#[allow(unused_mut,unused_variables)]
 					let mut parent_mut = parent.as_mut().unwrap();
 					$(
