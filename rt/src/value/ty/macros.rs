@@ -1,4 +1,113 @@
 #[macro_export]
+macro_rules! new_quest_scope {
+	($($attr:literal => $value:expr),* $(,)?) => {
+		new_quest_scope!(parent Object; $($attr => $value),*)
+	};
+
+	($(parentof $child:ty;)?
+	 $(parent $parent:ty;)?
+	 $(parents [$($parents:ty)*];)?
+	 $($attr:literal => $value:expr),*
+	 $(,)?
+	) => { (|| -> $crate::Result<_> {
+			#[allow(unused_mut)]
+			let mut builder = {
+				#[allow(unused_imports)]
+				use $crate::value::ty::*;
+				$crate::value::ty::scope::Builder::with_capacity(_length_of!($($attr)*))
+					$(.parent(<$parent>::instance()))?
+					$(.parents($crate::value::ty::List::from_slice(&[
+						$(<$parents>::instance()),*
+					])))?
+			};
+
+			{
+				#[allow(unused_macros)]
+				macro_rules! method {
+					($fn:ident) => (method!($($child)?, $fn));
+					($type:ty, $fn:ident) => (func!(|this: AnyValue, args| {
+						let this = this.downcast::<$type>()
+							.ok_or_else(|| $crate::Error::InvalidTypeGiven {
+								expected: <$type as $crate::value::NamedType>::TYPENAME,
+								given: this.typename()
+							})?;
+						this.$fn(args)
+					}));
+				}
+
+				#[allow(unused_macros)]
+				macro_rules! func {
+					($fn:expr) => (|args| {
+						let (this, args) = args.split_first()?;
+						$fn(this, args)
+					});
+				}
+
+				$(
+					builder.set_attr($attr, RustFn_new!($attr, $value).as_any())?;
+				)*
+			}
+
+			Ok(builder.build(Default::default()))
+	})()};
+}
+
+#[macro_export]
+macro_rules! singleton_object {
+	(for $type:ty
+			$(where {$($gens:tt)*})?
+			$(, parentof $child:ty)?
+			$(, parent $parent:ty)?
+			$(, parents [$($parents:ty),* $(,)?])?
+			$(, late_binding_parent $late_binding_parent:ty)?
+		;
+		$($attr:literal => $value:expr),*
+		$(,)?
+	) => {
+		impl<$($gens),*> $type {
+			pub fn instance() -> $crate::AnyValue {
+				use ::once_cell::sync::OnceCell;
+				use $crate::value::AsAny;
+
+				static INSTANCE: OnceCell<$crate::AnyValue> = OnceCell::new();
+
+				let mut is_first_init = false;
+
+				let ret = *INSTANCE.get_or_init(|| { is_first_init = true; new_quest_scope!{
+					$(parentof $child;)?
+					$(parent $parent;)?
+					$(parents [$($parents),*];)?
+					$($attr => $value),*
+				}.unwrap().as_any()});
+
+				if is_first_init {
+					$(
+						#[allow(unused_imports)]
+						use $crate::value::ty::*;
+						ret.downcast::<$crate::value::Gc<$type>>()
+							.unwrap()
+							.as_mut()
+							.unwrap()
+							.header_mut()
+							.set_singular_parent(<$late_binding_parent>::instance());
+					)?
+				}
+
+				ret
+			}
+		}
+		$(
+			impl $crate::value::base::HasDefaultParent for $child {
+				fn parent() -> $crate::AnyValue {
+					<$type>::instance()
+				}
+			}
+		)?
+
+	}
+}
+
+#[macro_export]
 macro_rules! quest_type {
 	(
 		$(#[$meta:meta])*

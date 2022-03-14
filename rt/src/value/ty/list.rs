@@ -405,9 +405,16 @@ impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
 }
 
 
-quest_type_attrs! { for List, parent Object;
-	// "()" => meth qs_call,
+quest_type! {
+	#[derive(Debug, NamedType)]
+	pub struct ListClass(());
 }
+
+singleton_object! { for ListClass, parentof List;
+	// "+" => method!(qs_add),
+	// "@text" => method!(qs_at_text)
+}
+
 
 
 // impl Eq for List {}

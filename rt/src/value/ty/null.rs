@@ -105,12 +105,17 @@ impl Null {
 	}
 }
 
-quest_type_attrs! { for Null;
-	"inspect" => meth Null::qs_inspect,
-	"@text" => meth Null::qs_at_text,
-	"@int" => meth Null::qs_at_int,
-	"@float" => meth Null::qs_at_float,
-	"@list" => meth Null::qs_at_list,
+quest_type! {
+	#[derive(Debug, NamedType)]
+	pub struct NullClass(());
+}
+
+singleton_object! { for NullClass, parentof Null;
+	"inspect" => method!(qs_inspect),
+	"@text" => method!(qs_at_text),
+	"@int" => method!(qs_at_int),
+	"@float" => method!(qs_at_float),
+	"@list" => method!(qs_at_list),
 }
 
 #[cfg(test)]

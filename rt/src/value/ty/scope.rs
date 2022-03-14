@@ -50,6 +50,12 @@ impl crate::value::gc::Mut<Scope> {
 	}
 }
 
-quest_type_attrs! { for Gc<Scope>, parent Object;
+
+quest_type! {
+	#[derive(Debug, NamedType)]
+	pub struct ScopeClass(());
+}
+
+singleton_object! { for ScopeClass, parentof Gc<Scope>, parent Callable;
 
 }

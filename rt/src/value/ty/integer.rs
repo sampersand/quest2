@@ -42,29 +42,6 @@ impl super::AttrConversionDefined for Integer {
 	const ATTR_NAME: &'static str = "@int";
 }
 
-pub trait IntegerExt : Sized {
-	fn qs_add(self, args: Args<'_>) -> Result<AnyValue>;
-	fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue>;
-}
-
-impl IntegerExt for Integer {
-	fn qs_add(self, args: Args<'_>) -> Result<AnyValue> {
-		args.assert_no_keyword()?;
-		args.assert_positional_len(1)?;
-
-		Ok((self + args[0].to_integer()?).as_any())
-	}
-
-	fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Gc<Text>>::convert(&self, args).map(AsAny::as_any)
-	}
-}
-
-quest_type_attrs! { for Integer, parent Object;
-	"+" => func method!(Integer::qs_add),
-	"@text" => func method!(Integer::qs_at_text),
-}
-
 impl ConvertTo<Gc<Text>> for Integer {
 	fn convert(&self, args: Args<'_>) -> Result<Gc<Text>> {
 		args.assert_no_positional()?;
@@ -91,6 +68,35 @@ impl ConvertTo<Float> for Integer {
 
 		Ok(*self as Float)
 	}
+}
+
+
+pub trait IntegerExt : Sized {
+	fn qs_add(self, args: Args<'_>) -> Result<AnyValue>;
+	fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue>;
+}
+
+impl IntegerExt for Integer {
+	fn qs_add(self, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((self + args[0].to_integer()?).as_any())
+	}
+
+	fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Gc<Text>>::convert(&self, args).map(AsAny::as_any)
+	}
+}
+
+quest_type! {
+	#[derive(Debug, NamedType)]
+	pub struct IntegerClass(());
+}
+
+singleton_object! { for IntegerClass, parentof Integer;
+	"+" => method!(qs_add),
+	"@text" => method!(qs_at_text)
 }
 
 #[cfg(test)]

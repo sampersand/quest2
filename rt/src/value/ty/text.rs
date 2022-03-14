@@ -661,6 +661,38 @@ impl AsAny for String {
 	}
 }
 
+
+impl Eq for Text {}
+impl PartialEq for Text {
+	fn eq(&self, rhs: &Self) -> bool {
+		self == rhs.as_str()
+	}
+}
+
+impl PartialEq<str> for Text {
+	fn eq(&self, rhs: &str) -> bool {
+		self.as_str() == rhs
+	}
+}
+
+impl PartialOrd for Text {
+	fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
+		Some(self.cmp(rhs))
+	}
+}
+
+impl Ord for Text {
+	fn cmp(&self, rhs: &Self) -> std::cmp::Ordering {
+		self.as_str().cmp(rhs.as_str())
+	}
+}
+
+impl PartialOrd<str> for Text {
+	fn partial_cmp(&self, rhs: &str) -> Option<std::cmp::Ordering> {
+		self.as_str().partial_cmp(rhs)
+	}
+}
+
 impl Gc<Text> {
 	pub fn qs_concat(self, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
@@ -694,42 +726,22 @@ impl Gc<Text> {
 	}
 }
 
-quest_type_attrs! { for Gc<Text>,
-	late_binding_parent Object;
-	"concat" => meth Gc::<Text>::qs_concat,
-	"len" => meth Gc::<Text>::qs_len,
-	"==" => meth Gc::<Text>::qs_eql
+// quest_type_attrs! { for Gc<Text>,
+// 	late_binding_parent Object;
+// 	"concat" => meth Gc::<Text>::qs_concat,
+// 	"len" => meth Gc::<Text>::qs_len,
+// 	"==" => meth Gc::<Text>::qs_eql
+// }
+
+quest_type! {
+	#[derive(Debug, NamedType)]
+	pub struct TextClass(());
 }
 
-impl Eq for Text {}
-impl PartialEq for Text {
-	fn eq(&self, rhs: &Self) -> bool {
-		self == rhs.as_str()
-	}
-}
-
-impl PartialEq<str> for Text {
-	fn eq(&self, rhs: &str) -> bool {
-		self.as_str() == rhs
-	}
-}
-
-impl PartialOrd for Text {
-	fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
-		Some(self.cmp(rhs))
-	}
-}
-
-impl Ord for Text {
-	fn cmp(&self, rhs: &Self) -> std::cmp::Ordering {
-		self.as_str().cmp(rhs.as_str())
-	}
-}
-
-impl PartialOrd<str> for Text {
-	fn partial_cmp(&self, rhs: &str) -> Option<std::cmp::Ordering> {
-		self.as_str().partial_cmp(rhs)
-	}
+singleton_object! { for TextClass, parentof Gc<Text>, late_binding_parent Object;
+	"concat" => method!(qs_concat),
+	"len" => method!(qs_len),
+	"==" => method!(qs_eql),
 }
 
 #[cfg(test)]

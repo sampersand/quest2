@@ -230,3 +230,22 @@ impl Header {
 		self.attributes.del_attr(attr, &self.flags)
 	}
 }
+
+unsafe impl<T: 'static> super::gc::Allocated for Base<T> {
+	#[doc(hidden)]
+	fn _inner_typeid() -> std::any::TypeId {
+		std::any::TypeId::of::<T>()
+	}
+
+	fn header(&self) -> &Header {
+		&self.header
+	}
+
+	fn header_mut(&mut self) -> &mut Header {
+		&mut self.header
+	}
+
+	fn flags(&self) -> &Flags {
+		&self.header.flags
+	}
+}

@@ -2,34 +2,46 @@ use crate::value::{Gc, AsAny};
 use crate::{AnyValue, Result};
 use crate::vm::Args;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct Callable1;
+
+impl Callable {
+	pub fn instance1() -> AnyValue {
+		use once_cell::sync::OnceCell;
+
+		static INSTANCE: OnceCell<AnyValue> = OnceCell::new();
+
+		*INSTANCE.get_or_init(|| new_quest_scope!{
+			"whatever" => Gc::<Callable>::qs_ignore
+		}.unwrap().as_any())
+	}
+}
+
 quest_type! {
 	#[derive(Debug, NamedType)]
 	pub struct Callable(());
 }
 
 impl Callable {
-	pub fn instance() -> AnyValue/*Gc<Self>*/ {
-		static INSTANCE: once_cell::sync::OnceCell<Gc<Callable>> = once_cell::sync::OnceCell::new();
+	pub fn instance() -> AnyValue {
+		use once_cell::sync::OnceCell;
 
-		INSTANCE.get_or_init(|| {
-			use crate::value::base::{Base, HasDefaultParent};
+		static INSTANCE: OnceCell<AnyValue> = OnceCell::new();
 
-			let inner = Base::new_with_parent((), Gc::<Self>::parent());
-
-			unsafe {
-				std::mem::transmute(inner)
-			}
-		}).as_any()
+		*INSTANCE.get_or_init(|| new_quest_scope!{
+			"whatever" => Gc::<Callable>::qs_ignore
+		}.unwrap().as_any())
 	}}
 
 impl Gc<Callable> {
-	pub fn qs_ignore(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn qs_ignore(args: Args<'_>) -> Result<AnyValue> {
 		let _ = true.as_any();
-		let _ = (obj, args);
+		let _ = args;
 		todo!()
 	}
 }
 
 quest_type_attrs! { for Gc<Callable>, parent Object;
+	"whatever" => func Gc::<Callable>::qs_ignore
 	// in the future, this will be stuff like composing functions.
 }

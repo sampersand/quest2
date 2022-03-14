@@ -34,11 +34,6 @@ unsafe impl Convertible for Boolean {
 	}
 }
 
-quest_type_attrs! { for Boolean, parent Object;
-	// "+" => meth qs_add,
-	// "@text" => meth qs_at_text,
-}
-
 impl ConvertTo<Gc<Text>> for Boolean {
 	fn convert(&self, args: Args<'_>) -> Result<Gc<Text>> {
 		args.assert_no_arguments()?;
@@ -61,6 +56,21 @@ impl ConvertTo<Float> for Boolean {
 
 		Ok(if *self { 1.0 } else { 0.0 })
 	}
+}
+
+
+// quest_type! {
+// 	#[derive(Debug, NamedType)]
+// 	pub struct BooleanClass(());
+// }
+
+// singleton_object! { for BooleanClass;
+// 	"@text"
+// }
+
+quest_type_attrs! { for Boolean, parent Object;
+	// "+" => meth qs_add,
+	// "@text" => meth qs_at_text,
 }
 
 #[cfg(test)]

@@ -96,8 +96,13 @@ impl RustFn {
 	}
 }
 
-quest_type_attrs! { for RustFn, parent Callable;
-	"()" => meth RustFn::qs_call,
+quest_type! {
+	#[derive(Debug, NamedType)]
+	pub struct RustFnClass(());
+}
+
+singleton_object! { for RustFnClass, parentof RustFn, parent Callable;
+	"()" => method!(qs_call),
 }
 
 #[cfg(test)]

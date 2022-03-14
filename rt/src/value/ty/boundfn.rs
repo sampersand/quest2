@@ -49,6 +49,16 @@ impl Gc<BoundFn> {
 	}
 }
 
-quest_type_attrs! { for Gc<BoundFn>, parent Callable;
-	"()" => meth Gc::<BoundFn>::qs_call,
+
+quest_type! {
+	#[derive(Debug, NamedType)]
+	pub struct BoundFnClass(());
+}
+
+singleton_object! {
+	for BoundFnClass,
+		parentof Gc<BoundFn>,
+		parent Callable;
+
+	"()" => method!(qs_call),
 }

@@ -7,26 +7,6 @@ quest_type! {
 	pub struct Object(());
 }
 
-impl Object {
-	pub fn instance() -> AnyValue {
-		<Gc<Self> as crate::value::base::HasDefaultParent>::parent()
-	}
-
-	pub fn instance3() -> Gc<Self> {
-		// static INSTANCE: once_cell::sync::OnceCell<Gc<Object>> = once_cell::sync::OnceCell::new();
-
-		// *INSTANCE.get_or_init(|| {
-			use crate::value::base::{Base, HasDefaultParent};
-
-			let inner = Base::new_with_parent((), Gc::<Self>::parent());
-
-			unsafe {
-				std::mem::transmute(inner)
-			}
-		// })
-	}
-}
-
 impl Gc<Object> {
 	pub fn qs_eql(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
@@ -171,20 +151,19 @@ impl Gc<Object> {
 	}
 }
 
-quest_type_attrs! { for Gc<Object>,
-	parent Pristine;
-	"==" => func func!(Gc::<Object>::qs_eql),
-	"!=" => func func!(Gc::<Object>::qs_neq),
-	"!" => func func!(Gc::<Object>::qs_not),
+singleton_object! { for Object, parent Pristine;
+	"==" => func!(Gc::<Object>::qs_eql),
+	"!=" => func!(Gc::<Object>::qs_neq),
+	"!" => func!(Gc::<Object>::qs_not),
 
-	"@bool" => func func!(Gc::<Object>::qs_at_bool),
-	"@text" => func func!(Gc::<Object>::qs_at_text),
-	"hash" => func func!(Gc::<Object>::qs_hash),
-	"clone" => func func!(Gc::<Object>::qs_clone),
+	"@bool" => func!(Gc::<Object>::qs_at_bool),
+	"@text" => func!(Gc::<Object>::qs_at_text),
+	"hash" => func!(Gc::<Object>::qs_hash),
+	"clone" => func!(Gc::<Object>::qs_clone),
 
-	// "print" => func func!(Gc::<Object>::qs_print),
-	// "return" => func func!(Gc::<Object>::qs_return),
-	// "assert" => func func!(Gc::<Object>::qs_assert),
+	// "print" => func!(Gc::<Object>::qs_print),
+	// "return" => func!(Gc::<Object>::qs_return),
+	// "assert" => func!(Gc::<Object>::qs_assert),
 
 	/*
 	tap      : a -> (a -> b) -> a
@@ -196,17 +175,17 @@ quest_type_attrs! { for Gc<Object>,
 	or       : a -> b -> {a/b}, a if its truthy
 	and      : a -> b -> {a/b}, a if its falsey
 	*/
-	"tap" => func func!(Gc::<Object>::qs_tap),
-	"tap_into" => func func!(Gc::<Object>::qs_tap_into),
-	"then" => func func!(Gc::<Object>::qs_then),
-	"and_then" => func func!(Gc::<Object>::qs_and_then),
-	"else" => func func!(Gc::<Object>::qs_else),
-	"or_else" => func func!(Gc::<Object>::qs_or_else),
-	"or" => func func!(Gc::<Object>::qs_or),
-	"and" => func func!(Gc::<Object>::qs_and),
-	"itself" => func func!(Gc::<Object>::qs_itself),
+	"tap" => func!(Gc::<Object>::qs_tap),
+	"tap_into" => func!(Gc::<Object>::qs_tap_into),
+	"then" => func!(Gc::<Object>::qs_then),
+	"and_then" => func!(Gc::<Object>::qs_and_then),
+	"else" => func!(Gc::<Object>::qs_else),
+	"or_else" => func!(Gc::<Object>::qs_or_else),
+	"or" => func!(Gc::<Object>::qs_or),
+	"and" => func!(Gc::<Object>::qs_and),
+	"itself" => func!(Gc::<Object>::qs_itself),
 
-	// "extend" => func func!(Gc::<Object>::qs_extend),
-	// "inherit" => func func!(Gc::<Object>::qs_inherit),
-	// "becomes" => func func!(Gc::<Object>::qs_becomes),
+	// "extend" => func!(Gc::<Object>::qs_extend),
+	// "inherit" => func!(Gc::<Object>::qs_inherit),
+	// "becomes" => func!(Gc::<Object>::qs_becomes),
 }
