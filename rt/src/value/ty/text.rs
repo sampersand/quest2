@@ -1,3 +1,7 @@
+//! The string representation within quest.
+
+#[allow(unused)]
+use crate::value::ty::List;
 use crate::value::base::Flags;
 use crate::value::AsAny;
 use crate::vm::Args;
@@ -11,6 +15,44 @@ mod builder;
 pub use builder::Builder;
 
 quest_type! {
+	/// The type that represents text (ie Strings) in Quest.
+	///
+	/// Note that `Text`s must contain valid utf-8 (just like [`str`])s. This means that a [`List`]
+	/// must be used for arbitrary series of bytes. See the [`str`] docs for more details on this.
+	/// 
+	/// For efficiency's sake, there's multiple ways to create strings, such as from
+	/// [a `&'static str`](Text::from_static_str), [a `String`](Text::from_string), or, for the
+	/// finest control, you can use [`Builder`] ([`Text::builder`] is a provided shorthand).
+	///
+	/// # `Gc<Text>`
+	/// Note that you can never construct a `Text` by-value; it must always be wrapped in a [`Gc`].
+	/// This is to make it compatible with other [`Allocated`](crate::value::Base::Allocated). As
+	/// such, you'll need to go through [`Gc::as_ref`] or [`Gc::as_mut`] if you want to access the
+	/// methods defined on `Text`.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let text = Text::from_static_str("Hello");
+	/// 
+	/// // Immutably borrow it. Since we just created it,
+	/// // nothing should have a mutable reference.
+	/// assert_eq!(*text.as_ref().unwrap(), "Hello");
+	///
+	/// // Mutably borrow it and then add something to it.
+	/// let mut textmut = text.as_mut().unwrap();
+	/// textmut.push_str(", world");
+	/// textmut.push('!');
+	/// assert_eq!(*textmut, "Hello, world!");
+	///
+	/// // We're unable to mutably borrow it as `textmut` is
+	/// // still in scope.
+	/// assert!(text.as_ref().is_err());
+	/// 
+	/// // Dropping `textmut` allows us to reference it again.
+	/// drop(textmut);
+	/// assert_eq!(*text.as_ref().unwrap(), "Hello, world!");
+	/// ```
 	#[derive(NamedType)]
 	pub struct Text(Inner);
 }
@@ -99,66 +141,168 @@ impl Text {
 		self.0.data_mut()
 	}
 
+	/// A helper function that simply returns [`Builder::allocate`].
+	///
+	/// # Examples
+	/// ```
+	/// use qvm_rt::value::ty::Text;
+	///
+	/// let mut builder = Text::builder();
+	/// // ... use the builder
+	/// # let _ = builder;
+	/// ```
 	#[must_use]
 	pub fn builder() -> Builder {
 		Builder::allocate()
 	}
 
+	/// Creates a new, empty [`Text`]. 
+	///
+	/// If you have an idea of the required capacity, consider calling [`Text::with_capacity`]
+	/// instead. For finer-tuned construction, see [`Builder`].
+	///
+	/// Note that this will still allocate memory for the underlying [`Text`] object, but it won't
+	/// allocate a separate buffer.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let text = Text::new();
+	/// assert!(text.as_ref()?.is_empty());
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
 	#[must_use]
 	pub fn new() -> Gc<Self> {
 		Self::with_capacity(0)
 	}
 
+	/// Creates a new, empty [`Text`] with at least the given capacity.
+	///
+	/// To use this you have to call [`Gc::as_mut`]; to skip this step and just initialize directly,
+	/// you can use the somewhat-clumsier [`Builder`].
+	///
+	/// Note that this will still allocate memory for the underlying [`Text`] object regardless of
+	/// the capacity.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let text = Text::with_capacity(13);
+	///
+	/// let mut textmut = text.as_mut()?;
+	/// textmut.push_str("Hello, ");
+	/// textmut.push_str("world");
+	/// textmut.push('!');
+	///
+	/// assert_eq!(*textmut, "Hello, world!");
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
 	#[must_use]
 	pub fn with_capacity(capacity: usize) -> Gc<Self> {
 		let mut builder = Self::builder();
 
+		// SAFETY: TODO
 		unsafe {
 			builder.allocate_buffer(capacity);
 			builder.finish() // Nothing else to do, as the default state is valid.
 		}
 	}
 
+	/// Creates a new [`Text`] from the given `&str`.
+	///
+	/// Note that because we do not own the `text`, a new buffer may potentially be allocated. If
+	/// you have a [`String`], use [`Text::from_string`] so as to reuse the buffer, and for
+	/// `&'static str`s, use [`Text::from_static_str`] which will reference the buffer.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let fruit = "Banana";
+	///
+	/// // You really should use `from_static_str` as `fruit`
+	/// // is `'static`, but this is just an example.
+	/// let text = Text::from_str(fruit);
+	///
+	/// assert_eq!(*text.as_ref()?, "Banana");
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
 	#[allow(clippy::should_implement_trait)]
 	#[must_use]
-	pub fn from_str(inp: &str) -> Gc<Self> {
+	pub fn from_str(text: &str) -> Gc<Self> {
 		let mut builder = Self::builder();
 
+		// SAFETY: TODO
 		unsafe {
-			builder.allocate_buffer(inp.len());
-			builder.text_mut().push_str_unchecked(inp);
+			builder.allocate_buffer(text.len());
+			builder.text_mut().push_str_unchecked(text);
 			builder.finish()
 		}
 	}
 
+	/// Creates a new [`Text`] from the given `&'static str`.
+	///
+	/// Note that because `text` lives for the lifetime of the program and is guaranteed not to
+	/// change, this function will simply reference it and not allocate a new buffer. As such, this
+	/// is preferred to [`Text::from_str`] which may potentially allocate a new buffer.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let fruit = "Orange";
+	/// let text = Text::from_static_str(fruit);
+	/// assert_eq!(*text.as_ref()?, "Orange");
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
 	#[must_use]
-	pub fn from_static_str(inp: &'static str) -> Gc<Self> {
+	pub fn from_static_str(text: &'static str) -> Gc<Self> {
 		let mut builder = Self::builder();
-		builder.insert_flag(FLAG_NOFREE);
+		builder.insert_flag(FLAG_NOFREE | FLAG_SHARED);
 
+		// SAFETY: TODO
 		unsafe {
 			let mut alloc = &mut builder.inner_mut().alloc;
 
-			alloc.ptr = inp.as_ptr() as *mut u8;
-			alloc.len = inp.len();
-			alloc.cap = alloc.len;
+			// Even though we cast it to a `*mut u8`, the `FLAG_SHARED` ensures we won't be
+			// modifying it.
+			alloc.ptr = text.as_ptr() as *mut u8;
+			alloc.len = text.len();
+			alloc.cap = alloc.len; // The capacity is the same as the length.
 
 			builder.finish()
 		}
 	}
 
+
+	/// Creates a new [`Text`] from the given [`String`].
+	///
+	/// Note that because [`String`] owns its buffer, we're able to salvage that and not allocate an
+	/// additional one. Note that if you don't have a [`String`], you should use [`Text::from_str`]
+	/// or [`Text::from_static_str`].
+	///
+	/// As [`Text`]s can be embedded, it's more efficient to use a [`Builder`] if you're going to 
+	/// be created a [`Text`] on-the-fly.
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let fruit = "Apple".to_string();
+	/// let text = Text::from_string(fruit);
+	/// assert_eq!(*text.as_ref()?, "Apple");
+	/// # qvm_rt::Result::<()>::Ok(())
+	/// ```
 	#[must_use]
-	pub fn from_string(inp: String) -> Gc<Self> {
+	pub fn from_string(text: String) -> Gc<Self> {
 		let mut builder = Self::builder();
 		builder.insert_flag(FLAG_FROM_STRING);
 
+		// SAFETY: TODO
 		unsafe {
 			let mut alloc = &mut builder.inner_mut().alloc;
 
-			alloc.ptr = inp.as_ptr() as *mut u8;
-			alloc.len = inp.len();
-			alloc.cap = inp.capacity();
-			std::mem::forget(inp); // so it doesn't become freed
+			alloc.ptr = text.as_ptr() as *mut u8;
+			alloc.len = text.len();
+			alloc.cap = text.capacity();
+			std::mem::forget(text); // so it doesn't become freed
 
 			builder.finish()
 		}
@@ -191,7 +335,7 @@ impl Text {
 	/// let emoji = Text::from_static_str("😀, 🌎");
 	/// assert_eq!(emoji.as_ref()?.len(), 10);
 	///
-	/// # // ensure allocated thigns have valid length too
+	/// # // ensure allocated things have valid length too
 	/// # assert_eq!(Text::from_str(&"hi".repeat(123)).as_ref()?.len(), 246);
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
@@ -206,6 +350,7 @@ impl Text {
 
 	fn embedded_len(&self) -> usize {
 		debug_assert!(self.is_embedded());
+
 		unmask_len(self.flags().mask(EMBED_LENMASK))
 	}
 
@@ -233,7 +378,7 @@ impl Text {
 	/// }
 	///
 	/// // Now the data's initialized
-	/// assert_eq!(textmut.as_str(), "Hello, world");
+	/// assert_eq!(*textmut, "Hello, world");
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub unsafe fn set_len(&mut self, new_len: usize) {
@@ -248,6 +393,7 @@ impl Text {
 
 	fn set_embedded_len(&mut self, new_len: usize) {
 		debug_assert!(self.is_embedded());
+
 		self.flags().remove(EMBED_LENMASK);
 		self.flags().insert(mask_len(new_len));
 	}
@@ -341,7 +487,7 @@ impl Text {
 	/// }
 	///
 	/// // Now the data's initialized
-	/// assert_eq!(textmut.as_str(), "Hello, world");
+	/// assert_eq!(*textmut, "Hello, world");
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
@@ -401,12 +547,12 @@ impl Text {
 	/// let text = Text::from_str("Hello, 🌎");
 	/// let dup = text.as_ref()?.dup();
 	///
-	/// assert_eq!(text.as_ref()?.as_str(), "Hello, 🌎");
-	/// assert_eq!(dup.as_ref()?.as_str(), "Hello, 🌎");
+	/// assert_eq!(*text.as_ref()?, "Hello, 🌎");
+	/// assert_eq!(*dup.as_ref()?, "Hello, 🌎");
 	///
 	/// text.as_mut()?.push('!');
-	/// assert_eq!(text.as_ref()?.as_str(), "Hello, 🌎!");
-	/// assert_eq!(dup.as_ref()?.as_str(), "Hello, 🌎");
+	/// assert_eq!(*text.as_ref()?, "Hello, 🌎!");
+	/// assert_eq!(*dup.as_ref()?, "Hello, 🌎");
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	// NOTE: currently, if you `dup` then mutably borrow, it'll make a new buffer and ignore the old
@@ -486,7 +632,7 @@ impl Text {
 	fn allocate_more_embeded(&mut self, required_len: usize) {
 		debug_assert!(self.is_embedded());
 
-		let new_cap = std::cmp::max(MAX_EMBEDDED_LEN * 2, required_len);
+		let new_cap = MAX_EMBEDDED_LEN * 2 + required_len;
 		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
 
 		let layout = alloc_ptr_layout(new_cap);
@@ -514,7 +660,7 @@ impl Text {
 		}
 
 		// Find the new capacity we'll need.
-		let new_cap = std::cmp::max(unsafe { self.inner().alloc.cap } * 2, required_len);
+		let new_cap = unsafe { self.inner().alloc.cap * 2 } + required_len;
 		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
 
 		// If the pointer is immutable, we have to allocate a new buffer, and then copy over the data.
@@ -559,8 +705,6 @@ impl Text {
 	}
 
 	pub unsafe fn push_str_unchecked(&mut self, string: &str) {
-		debug_assert!(self.capacity() >= self.len() + string.len());
-
 		std::ptr::copy(string.as_ptr(), self.mut_end_ptr(), string.len());
 		self.set_len(self.len() + string.len());
 	}
@@ -675,6 +819,12 @@ impl PartialEq<str> for Text {
 	}
 }
 
+impl PartialEq<&str> for Text {
+	fn eq(&self, rhs: &&str) -> bool {
+		self == *rhs
+	}
+}
+
 impl PartialOrd for Text {
 	fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
 		Some(self.cmp(rhs))
@@ -696,7 +846,7 @@ impl PartialOrd<str> for Text {
 pub mod funcs {
 	use super::*;
 
-	pub fn qs_concat(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn concat(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -711,7 +861,7 @@ pub mod funcs {
 		Ok(text.as_any())
 	}
 
-	pub fn qs_eql(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn eql(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -722,7 +872,7 @@ pub mod funcs {
 		}
 	}
 
-	pub fn qs_len(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn len(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
 		Ok((text.as_ref()?.len() as i64).as_any())
 	}
@@ -730,9 +880,9 @@ pub mod funcs {
 
 quest_type_attrs! { for Gc<Text>,
 	late_binding_parent Object;
-	"concat" => meth funcs::qs_concat,
-	"len" => meth funcs::qs_len,
-	"==" => meth funcs::qs_eql
+	"concat" => meth funcs::concat,
+	"len" => meth funcs::len,
+	"==" => meth funcs::eql
 }
 
 // quest_type! {

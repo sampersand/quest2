@@ -185,7 +185,7 @@ mod tests {
 
 	#[test]
 	fn it_transitions_over_to_full_map() {
-		let text = Text::from_str("yo waddup");
+		let text = Text::from_static_str("yo waddup");
 		let mut textmut = text.as_mut().unwrap();
 
 		for i in 0..=list::MAX_LISTMAP_LEN * 2 {

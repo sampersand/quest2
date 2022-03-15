@@ -4,7 +4,7 @@ use crate::value::base::{Base, Flags, Header, Attribute};
 use crate::value::ty::{Wrap, List};
 use crate::value::{value::Any, AsAny, AnyValue, Convertible, Value};
 use crate::{Error, Result};
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::{self, Debug, Pointer, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -44,16 +44,16 @@ pub unsafe trait Allocated: 'static {
 /// # Examples
 /// ```
 /// # use qvm_rt::value::{gc::{Gc, Ref, Mut}, ty::Text};
-/// let text = Text::from_str("Quest is cool");
+/// let text = Text::from_static_str("Quest is cool");
 ///
 /// let textref: Ref<Text> = text.as_ref()?;
-/// assert_eq!(textref.as_str(), "Quest is cool");
+/// assert_eq!(*textref, "Quest is cool");
 ///
 /// drop(textref);
 /// let mut textmut: Mut<Text> = text.as_mut()?;
 /// textmut.push('!');
 ///
-/// assert_eq!(textmut.as_str(), "Quest is cool!");
+/// assert_eq!(*textmut, "Quest is cool!");
 /// # qvm_rt::Result::<()>::Ok(())
 /// ```
 #[repr(transparent)]
@@ -95,6 +95,12 @@ where
 		}
 
 		write!(f, ")")
+	}
+}
+
+impl<T: Allocated> Pointer for Gc<T> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		Debug::fmt(&self.0, f)
 	}
 }
 
@@ -151,16 +157,16 @@ impl<T: Allocated> Gc<T> {
 	/// Getting an immutable reference when no mutable ones exist.
 	/// ```
 	/// # use qvm_rt::value::ty::Text;
-	/// let text = Text::from_str("what a wonderful day");
+	/// let text = Text::from_static_str("what a wonderful day");
 	///
-	/// assert_eq!(text.as_ref()?.as_str(), "what a wonderful day");
+	/// assert_eq!(*text.as_ref()?, "what a wonderful day");
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	/// You cannot get an immutable reference when a mutable one exists.
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
 	/// # use qvm_rt::{Error, value::ty::Text};
-	/// let text = Text::from_str("what a wonderful day");
+	/// let text = Text::from_static_str("what a wonderful day");
 	/// let textmut = text.as_mut()?;
 	///
 	/// // `textmut` is in scope, we cant get a reference.
@@ -168,7 +174,7 @@ impl<T: Allocated> Gc<T> {
 	/// drop(textmut);
 	///
 	/// // now it isn't, so we can get a reference.
-	/// assert_eq!(text.as_ref()?.as_str(), "what a wonderful day");
+	/// assert_eq!(*text.as_ref()?, "what a wonderful day");
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub fn as_ref(self) -> Result<Ref<T>> {
@@ -205,18 +211,18 @@ impl<T: Allocated> Gc<T> {
 	/// Getting a mutable reference when no immutable ones exist.
 	/// ```
 	/// # use qvm_rt::value::ty::Text;
-	/// let text = Text::from_str("what a wonderful day");
+	/// let text = Text::from_static_str("what a wonderful day");
 	/// let mut textmut = text.as_mut()?;
 	///
 	/// textmut.push('!');
-	/// assert_eq!(textmut.as_str(), "what a wonderful day!");
+	/// assert_eq!(*textmut, "what a wonderful day!");
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	/// You cannot get a mutable reference when any immutable ones exist.
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
 	/// # use qvm_rt::{Error, value::ty::Text};
-	/// let text = Text::from_str("what a wonderful day");
+	/// let text = Text::from_static_str("what a wonderful day");
 	/// let textref = text.as_ref()?;
 	///
 	/// // `textref` is in scope, we cant get a reference.
@@ -226,7 +232,7 @@ impl<T: Allocated> Gc<T> {
 	/// // now it isn't, so we can get a reference.
 	/// let mut textmut = text.as_mut()?;
 	/// textmut.push('!');
-	/// assert_eq!(textmut.as_str(), "what a wonderful day!");
+	/// assert_eq!(*textmut, "what a wonderful day!");
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub fn as_mut(self) -> Result<Mut<T>> {
@@ -250,8 +256,8 @@ impl<T: Allocated> Gc<T> {
 	/// # Examples
 	/// ```
 	/// # use qvm_rt::value::ty::Text;
-	/// let text1 = Text::from_str("Hello");
-	/// let text2 = Text::from_str("Hello");
+	/// let text1 = Text::from_static_str("Hello");
+	/// let text2 = Text::from_static_str("Hello");
 	/// let text3 = text1;
 	///
 	/// assert!(text1.ptr_eq(text3));
@@ -270,7 +276,7 @@ impl<T: Allocated> Gc<T> {
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
 	/// # use qvm_rt::{Error, value::ty::Text};
-	/// let text = Text::from_str("Quest is cool");
+	/// let text = Text::from_static_str("Quest is cool");
 	///
 	/// text.as_ref()?.freeze();
 	/// assert!(text.is_frozen());
@@ -291,7 +297,7 @@ impl<T: Allocated> Gc<T> {
 	/// Technically this could be publicly visible, but outside the crate, you should get a reference
 	/// and go through the [`Header`].
 	fn flags(&self) -> &Flags {
-		unsafe { &*self.0.as_ptr() }.header().flags()
+		unsafe { &*self.as_ptr() }.header().flags()
 	}
 
 	/// Gets the header of `self`.
@@ -301,7 +307,7 @@ impl<T: Allocated> Gc<T> {
 	fn borrows(&self) -> &AtomicU32 {
 		// SAFETY: we know `self.as_ptr()` always points to a valid `Base<T>`, as that's a requirement
 		// for constructing it (via `new`).
-		unsafe { &*self.0.as_ptr() }.header().borrows()
+		unsafe { &*self.as_ptr() }.header().borrows()
 	}
 
 	pub fn call_attr<A: Attribute>(self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
@@ -416,7 +422,7 @@ impl<T: Allocated> Deref for Ref<T> {
 	fn deref(&self) -> &Self::Target {
 		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`,
 		// which means that its `data` must also have been initialized.
-		unsafe { &*(self.0).0.as_ptr() }
+		unsafe { &*self.0.as_ptr() }
 	}
 }
 
@@ -476,13 +482,13 @@ impl<T: Allocated> Mut<T> {
 	/// # Examples
 	/// ```
 	/// # use qvm_rt::{Error, value::ty::Text};
-	/// let text = Text::from_str("Quest is cool");
+	/// let text = Text::from_static_str("Quest is cool");
 	/// let mut textmut = text.as_mut()?;
 	/// textmut.push('!');
 	///
-	/// // Text only defines `as_str` on `Ref<Text>`. Thus, we
-	/// // need to convert reference before we can call `as_str`.
-	/// assert_eq!(textmut.r().as_str(), "Quest is cool!");
+	/// // Text only defines `len` on `Ref<Text>`. Thus, we
+	/// // need to convert reference before we can call `len`.
+	/// assert_eq!(textmut.r().len(), 14);
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	#[inline(always)]
@@ -497,7 +503,7 @@ impl<T: Allocated> Deref for Mut<T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {
-		unsafe { &*(self.0).0.as_ptr() }
+		unsafe { &*self.0.as_ptr() }
 	}
 }
 
@@ -506,7 +512,7 @@ impl<T: Allocated> DerefMut for Mut<T> {
 		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`,
 		// which means that its `data` must also have been initialized. Additionally, we have unique
 		// access over `data`, so we can mutably borrow it
-		unsafe { &mut *(self.0).0.as_ptr() }
+		unsafe { &mut *(self.0.as_ptr() as *mut Self::Target) }
 	}
 }
 
@@ -529,7 +535,7 @@ mod tests {
 	#[should_panic = "too many immutable borrows"]
 	#[test]
 	fn too_many_immutable_borrows_cause_a_panick() {
-		let text = Text::from_str("g'day mate");
+		let text = Text::from_static_str("g'day mate");
 
 		text.borrows().store(MAX_BORROWS as u32, Ordering::Release);
 
@@ -538,7 +544,7 @@ mod tests {
 
 	#[test]
 	fn respects_refcell_rules() {
-		let text = Text::from_str("g'day mate");
+		let text = Text::from_static_str("g'day mate");
 
 		let mut1 = text.as_mut().unwrap();
 		assert_matches!(text.as_ref(), Err(Error::AlreadyLocked(_)));
@@ -559,7 +565,7 @@ mod tests {
 
 	#[test]
 	fn respects_frozen() {
-		let text = Text::from_str("Hello, world");
+		let text = Text::from_static_str("Hello, world");
 
 		text.as_mut().unwrap().push('!');
 		assert_eq!(*text.as_ref().unwrap(), *"Hello, world!");

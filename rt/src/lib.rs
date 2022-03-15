@@ -11,7 +11,6 @@ mod error;
 
 #[macro_use]
 pub mod value;
-
 pub mod vm;
 
 pub use error::{Error, Result};
