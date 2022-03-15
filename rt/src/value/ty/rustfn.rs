@@ -116,10 +116,16 @@ impl RustFn {
 pub struct RustFnClass;
 
 impl Singleton for RustFnClass {
-	fn initialize() -> AnyValue {
-		create_class! { "RustFn", parent Callable::instance();
-			"()" => method RustFn::qs_call,
-		}
+	fn instance() -> crate::AnyValue {
+		use once_cell::sync::OnceCell;
+
+		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+
+		*INSTANCE.get_or_init(|| 
+			create_class! { "RustFn", parent Callable::instance();
+				"()" => method RustFn::qs_call,
+			}
+		)
 	}
 }
 

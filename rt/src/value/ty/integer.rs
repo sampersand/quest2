@@ -89,11 +89,17 @@ pub mod funcs {
 pub struct IntegerClass;
 
 impl Singleton for IntegerClass {
-	fn initialize() -> AnyValue {
-		create_class! { "Integer", parent Object::instance();
-			"+" => method funcs::add,
-			"@text" => method funcs::at_text
-		}
+	fn instance() -> crate::AnyValue {
+		use once_cell::sync::OnceCell;
+
+		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+
+		*INSTANCE.get_or_init(|| 
+			create_class! { "Integer", parent Object::instance();
+				"+" => method funcs::add,
+				"@text" => method funcs::at_text
+			}
+		)
 	}
 }
 

@@ -54,22 +54,7 @@ impl<T: Clone> ConvertTo<T> for T {
 }
 
 pub trait Singleton : Sized {
-	fn initialize() -> crate::AnyValue;
-	fn instance() -> crate::AnyValue {
-		use once_cell::sync::OnceCell;
-		struct SingletonVTable<T>(std::marker::PhantomData<T>);
-
-		impl<T: Singleton> SingletonVTable<T> {
-			fn foo<Y>() -> crate::AnyValue {
-				static VTABLE: OnceCell<crate::AnyValue> = OnceCell::new();
-				*VTABLE.get_or_init(T::initialize)
-			}
-		}
-
-		// todo!()
-		SingletonVTable::<Self>::foo::<Self>()
-		// *SingletonVTable::<Self>::VTABLE.get_or_init(Self::initialize)
-	}
+	fn instance() -> crate::AnyValue;
 }
 
 pub trait InstanceOf {
