@@ -1,23 +1,63 @@
-use crate::value::{Gc, AsAny};
+use crate::value::AsAny;
 use crate::{AnyValue, Result};
 use crate::vm::Args;
 
-quest_type! {
-	#[derive(Debug, NamedType)]
-	pub struct Object(());
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct Object;
+
+impl crate::value::NamedType for Object {
+	const TYPENAME: &'static str = "Object";
 }
 
-impl Gc<Object> {
+impl Object {
+	pub fn instance() -> AnyValue {
+
+		use ::once_cell::sync::OnceCell;
+
+		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+
+		let mut first = false;
+
+		let mut thing = *INSTANCE.get_or_init(|| { first = true; new_quest_scope! { parent Pristine; }.unwrap().as_any() });
+
+		if first {
+			thing.set_attr("==", RustFn_new!("==", function funcs::qs_eql).as_any()).unwrap();
+			thing.set_attr("!=", RustFn_new!("!=", function funcs::qs_neq).as_any()).unwrap();
+			thing.set_attr("!", RustFn_new!("!", function funcs::qs_not).as_any()).unwrap();
+
+			thing.set_attr("@bool", RustFn_new!("@bool", function funcs::qs_at_bool).as_any()).unwrap();
+			thing.set_attr("@text", RustFn_new!("@text", function funcs::qs_at_text).as_any()).unwrap();
+			thing.set_attr("hash", RustFn_new!("hash", function funcs::qs_hash).as_any()).unwrap();
+			thing.set_attr("clone", RustFn_new!("clone", function funcs::qs_clone).as_any()).unwrap();
+
+			thing.set_attr("tap", RustFn_new!("tap", function funcs::qs_tap).as_any()).unwrap();
+			thing.set_attr("tap_into", RustFn_new!("tap_into", function funcs::qs_tap_into).as_any()).unwrap();
+			thing.set_attr("then", RustFn_new!("then", function funcs::qs_then).as_any()).unwrap();
+			thing.set_attr("and_then", RustFn_new!("and_then", function funcs::qs_and_then).as_any()).unwrap();
+			thing.set_attr("else", RustFn_new!("else", function funcs::qs_else).as_any()).unwrap();
+			thing.set_attr("or_else", RustFn_new!("or_else", function funcs::qs_or_else).as_any()).unwrap();
+			thing.set_attr("or", RustFn_new!("or", function funcs::qs_or).as_any()).unwrap();
+			thing.set_attr("and", RustFn_new!("and", function funcs::qs_and).as_any()).unwrap();
+			thing.set_attr("itself", RustFn_new!("itself", function funcs::qs_itself).as_any()).unwrap();
+		}
+
+		thing
+	}
+}
+
+pub mod funcs {
+	use super::*;
+
 	pub fn qs_eql(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((obj.bits() == args[0].bits()).as_any())
+		Ok((obj.id() == args[0].id()).as_any())
 	}
 
 	pub fn qs_neq(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		obj.call_attr("==", args)?
-			.call_attr("!", Default::default())
+			.call_attr("!", Args::default())
 	}
 
 	pub fn qs_not(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
@@ -73,7 +113,7 @@ impl Gc<Object> {
 	}
 
 	pub fn qs_tap(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-		Self::qs_tap_into(obj, args).and(Ok(obj))
+		qs_tap_into(obj, args).and(Ok(obj))
 	}
 
 	pub fn qs_tap_into(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
@@ -150,20 +190,20 @@ impl Gc<Object> {
 		todo!("itself (probs implemented via bound function)")
 	}
 }
-
+/*
 singleton_object! { for Object, parent Pristine;
-	"==" => func!(Gc::<Object>::qs_eql),
-	"!=" => func!(Gc::<Object>::qs_neq),
-	"!" => func!(Gc::<Object>::qs_not),
+	"==" => func!(funcs::qs_eql),
+	"!=" => func!(funcs::qs_neq),
+	"!" => func!(funcs::qs_not),
 
-	"@bool" => func!(Gc::<Object>::qs_at_bool),
-	"@text" => func!(Gc::<Object>::qs_at_text),
-	"hash" => func!(Gc::<Object>::qs_hash),
-	"clone" => func!(Gc::<Object>::qs_clone),
+	"@bool" => func!(funcs::qs_at_bool),
+	"@text" => func!(funcs::qs_at_text),
+	"hash" => func!(funcs::qs_hash),
+	"clone" => func!(funcs::qs_clone),
 
-	// "print" => func!(Gc::<Object>::qs_print),
-	// "return" => func!(Gc::<Object>::qs_return),
-	// "assert" => func!(Gc::<Object>::qs_assert),
+	// "print" => func!(funcs::qs_print),
+	// "return" => func!(funcs::qs_return),
+	// "assert" => func!(funcs::qs_assert),
 
 	/*
 	tap      : a -> (a -> b) -> a
@@ -175,17 +215,18 @@ singleton_object! { for Object, parent Pristine;
 	or       : a -> b -> {a/b}, a if its truthy
 	and      : a -> b -> {a/b}, a if its falsey
 	*/
-	"tap" => func!(Gc::<Object>::qs_tap),
-	"tap_into" => func!(Gc::<Object>::qs_tap_into),
-	"then" => func!(Gc::<Object>::qs_then),
-	"and_then" => func!(Gc::<Object>::qs_and_then),
-	"else" => func!(Gc::<Object>::qs_else),
-	"or_else" => func!(Gc::<Object>::qs_or_else),
-	"or" => func!(Gc::<Object>::qs_or),
-	"and" => func!(Gc::<Object>::qs_and),
-	"itself" => func!(Gc::<Object>::qs_itself),
+	"tap" => func!(funcs::qs_tap),
+	"tap_into" => func!(funcs::qs_tap_into),
+	"then" => func!(funcs::qs_then),
+	"and_then" => func!(funcs::qs_and_then),
+	"else" => func!(funcs::qs_else),
+	"or_else" => func!(funcs::qs_or_else),
+	"or" => func!(funcs::qs_or),
+	"and" => func!(funcs::qs_and),
+	"itself" => func!(funcs::qs_itself),
 
-	// "extend" => func!(Gc::<Object>::qs_extend),
-	// "inherit" => func!(Gc::<Object>::qs_inherit),
-	// "becomes" => func!(Gc::<Object>::qs_becomes),
+	// "extend" => func!(funcs::qs_extend),
+	// "inherit" => func!(funcs::qs_inherit),
+	// "becomes" => func!(funcs::qs_becomes),
 }
+*/

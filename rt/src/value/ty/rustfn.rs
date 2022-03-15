@@ -2,6 +2,7 @@ use std::fmt::{self, Debug, Formatter};
 use crate::vm::Args;
 use crate::Result;
 use crate::value::{AnyValue, Convertible, Value};
+use crate::value::ty::{InstanceOf, Singleton};
 
 pub type Function = for<'a> fn(Args<'a>) -> Result<AnyValue>;
 
@@ -18,7 +19,19 @@ pub struct Inner {
 
 #[macro_export]
 macro_rules! RustFn_new {
-	($name:expr, $func:expr) => {{
+	($name:expr, method $func:expr) => {
+		RustFn_new!($name, function |obj: $crate::AnyValue, args: $crate::vm::Args<'_>| -> $crate::Result<$crate::AnyValue> {
+			$func(obj.try_downcast()?, args)
+		})
+	};
+
+	($name:expr, function $func:expr) => {
+		RustFn_new!($name, justargs |args: crate::vm::Args<'_>| -> $crate::Result<$crate::AnyValue> {
+			let (this, args) = args.split_first()?;
+			($func)(this, args)
+		})
+	};
+	($name:expr, justargs $func:expr) => {{
 		const INNER: &'static $crate::value::ty::rustfn::Inner = &$crate::value::ty::rustfn::Inner {
 			name: $name,
 			func: $func,
@@ -26,6 +39,9 @@ macro_rules! RustFn_new {
 
 		$crate::value::ty::RustFn::new(INNER)
 	}};
+	($_name:expr, $other:tt $_func:expr) => {
+		compile_error!(concat!("Unknown rustfn kind '", $other, "'; Please use `method`, `function`, or `justargs`"))
+	}
 }
 
 impl crate::value::NamedType for RustFn {
@@ -61,7 +77,7 @@ impl PartialEq for RustFn {
 }
 
 impl RustFn {
-	pub const NOOP: Self = RustFn_new!("noop", |_| Ok(Default::default()));
+	pub const NOOP: Self = RustFn_new!("noop", justargs |_| Ok(Default::default()));
 }
 
 impl Debug for RustFn {
@@ -96,14 +112,21 @@ impl RustFn {
 	}
 }
 
-quest_type! {
-	#[derive(Debug, NamedType)]
-	pub struct RustFnClass(());
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct RustFnClass;
+
+impl Singleton for RustFnClass {
+	fn initialize() -> AnyValue {
+		create_class! { "RustFn", parent Callable::instance();
+			"()" => method RustFn::qs_call,
+		}
+	}
 }
 
-singleton_object! { for RustFnClass, parentof RustFn, parent Callable;
-	"()" => method!(qs_call),
+impl InstanceOf for RustFn {
+	type Parent = RustFnClass;
 }
+
 
 #[cfg(test)]
 mod tests {

@@ -1,3 +1,41 @@
+// #[macro_export]
+// macro_rules! new_object {
+
+// 	(
+// 		with
+// 			$(@data $data:expr;)?
+// 			$(@parent $parent:ty;)?
+// 			$(@parents [$($parents:ty)*];)?
+// 		$($attr:expr => $kind:ident $value:expr),* $(,)?
+// 	) => {
+
+// 	};
+
+// 	($($attr:expr => $kind:ident $value:expr),* $(,)?) => {
+// 		new_object!(; $($attr => $kind $value)*)
+// 	};
+// }
+
+#[macro_export]
+macro_rules! create_class {
+	($name:expr $(, parent $parent:expr)?; $($attr:literal => $kind:ident $value:expr),* $(,)?) => {(|| -> $crate::Result<$crate::AnyValue> {
+		use $crate::value::AsAny;
+		#[allow(unused_mut)]
+		let mut builder = $crate::value::ty::Class::builder($name, _length_of!($($attr)*));
+
+		$({
+			use $crate::value::ty::*;
+			builder.parent($parent);
+		})?
+
+		$(
+			builder.set_attr($attr, $crate::RustFn_new!($attr, $kind $value).as_any())?;
+		)*
+
+		Ok(builder.finish().as_any())
+	})().expect(concat!("Class creation for '", $name, "' failed!"))}
+}
+
 #[macro_export]
 macro_rules! new_quest_scope {
 	($($attr:literal => $value:expr),* $(,)?) => {
@@ -44,7 +82,7 @@ macro_rules! new_quest_scope {
 				}
 
 				$(
-					builder.set_attr($attr, RustFn_new!($attr, $value).as_any())?;
+					builder.set_attr($attr, RustFn_new!($attr, justargs $value).as_any())?;
 				)*
 			}
 
@@ -170,7 +208,7 @@ macro_rules! _handle_quest_type_attrs {
 		// 	.expect(concat!("error initializing ", stringify!($ty), " for attr: ", stringify!($name)));
 	};
 	($ty:ty, $builder:expr, $name:literal, func $func:expr) => {
-		$builder.set_attr($name, $crate::Value::from(RustFn_new!($name, $func)).any())
+		$builder.set_attr($name, $crate::Value::from(RustFn_new!($name, justargs $func)).any())
 			.expect(concat!("error initializing ", stringify!($ty), " for attr: ", stringify!($name)));
 	};
 }

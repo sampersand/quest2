@@ -693,56 +693,58 @@ impl PartialOrd<str> for Text {
 	}
 }
 
-impl Gc<Text> {
-	pub fn qs_concat(self, args: Args<'_>) -> Result<AnyValue> {
+pub mod funcs {
+	use super::*;
+
+	pub fn qs_concat(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		let mut rhs = args[0].to_text()?;
 
-		if self.ptr_eq(rhs) {
-			rhs = self.as_ref()?.dup();
+		if text.ptr_eq(rhs) {
+			rhs = text.as_ref()?.dup();
 		}
 
-		self.as_mut()?.push_str(rhs.as_ref()?.as_str());
+		text.as_mut()?.push_str(rhs.as_ref()?.as_str());
 
-		Ok(self.as_any())
+		Ok(text.as_any())
 	}
 
-	pub fn qs_eql(self, args: Args<'_>) -> Result<AnyValue> {
+	pub fn qs_eql(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		if let Some(text) = args[0].downcast::<Self>() {
-			Ok((*self.as_ref()? == *text.as_ref()?).as_any())
+		if let Some(rhs) = args[0].downcast::<Gc<Text>>() {
+			Ok((*text.as_ref()? == *rhs.as_ref()?).as_any())
 		} else {
 			Ok(false.as_any())
 		}
 	}
 
-	pub fn qs_len(self, args: Args<'_>) -> Result<AnyValue> {
+	pub fn qs_len(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
-		Ok((self.as_ref()?.len() as i64).as_any())
+		Ok((text.as_ref()?.len() as i64).as_any())
 	}
 }
 
-// quest_type_attrs! { for Gc<Text>,
-// 	late_binding_parent Object;
-// 	"concat" => meth Gc::<Text>::qs_concat,
-// 	"len" => meth Gc::<Text>::qs_len,
-// 	"==" => meth Gc::<Text>::qs_eql
+quest_type_attrs! { for Gc<Text>,
+	late_binding_parent Object;
+	"concat" => meth funcs::qs_concat,
+	"len" => meth funcs::qs_len,
+	"==" => meth funcs::qs_eql
+}
+
+// quest_type! {
+// 	#[derive(Debug, NamedType)]
+// 	pub struct TextClass(());
 // }
 
-quest_type! {
-	#[derive(Debug, NamedType)]
-	pub struct TextClass(());
-}
-
-singleton_object! { for TextClass, parentof Gc<Text>, late_binding_parent Object;
-	"concat" => method!(qs_concat),
-	"len" => method!(qs_len),
-	"==" => method!(qs_eql),
-}
+// singleton_object! { for TextClass, parentof Gc<Text>, late_binding_parent Object;
+// 	"concat" => method!(qs_concat),
+// 	"len" => method!(qs_len),
+// 	"==" => method!(qs_eql),
+// }
 
 #[cfg(test)]
 mod tests {

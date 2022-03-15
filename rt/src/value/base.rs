@@ -88,8 +88,12 @@ impl<T: HasDefaultParent> Base<T> {
 
 impl<T> Base<T> {
 	pub fn new_with_parent(data: T, parent: AnyValue) -> NonNull<Self> {
+		Self::with_parent_and_capacity(data, parent, 0)
+	}
+
+	pub fn with_parent_and_capacity(data: T, parent: AnyValue, cap: usize) -> NonNull<Self> {
 		unsafe {
-			let mut builder = Self::allocate_with_parent(0, parent);
+			let mut builder = Self::allocate_with_parent(cap, parent);
 			builder.data_mut().write(data);
 			builder.finish()
 		}

@@ -120,9 +120,7 @@ impl AnyValue {
 	pub fn is_truthy(self) -> Result<bool> {
 		self.to_boolean()
 	}
-}
 
-impl AnyValue {
 	fn allocate_self_and_copy_data_over(self) -> Self {
 		use crate::value::ty::*;
 
@@ -259,9 +257,7 @@ impl AnyValue {
 			self.call_attr("()", args)
 		}
 	}
-}
 
-impl AnyValue {
 	pub fn to_boolean(self) -> Result<bool> {
 		Ok(self.bits() != Value::NULL.bits() && self.bits() != Value::FALSE.bits())
 	}
@@ -324,9 +320,7 @@ impl AnyValue {
 			Err(Error::ConversionFailed(conv, C::ATTR_NAME))
 		}
 	}
-}
 
-impl AnyValue {
 	#[must_use]
 	pub fn is_a<T: Convertible>(self) -> bool {
 		T::is_a(self)
@@ -336,6 +330,16 @@ impl AnyValue {
 	pub fn downcast<T: Convertible>(self) -> Option<T> {
 		T::downcast(self).map(T::get)
 	}
+
+	#[must_use]
+	pub fn try_downcast<T: Convertible + crate::value::NamedType>(self) -> Result<T> {
+		self.downcast()
+			.ok_or_else(|| crate::Error::InvalidTypeGiven {
+				expected: T::TYPENAME,
+				given: self.typename()
+			})
+	}
+
 
 	pub fn try_hash(self) -> Result<u64> {
 		if self.is_allocated() {

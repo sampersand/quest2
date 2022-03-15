@@ -1,4 +1,4 @@
-use crate::value::ty::{ConvertTo, Float, Text};
+use crate::value::ty::{ConvertTo, Float, Text, Singleton, InstanceOf};
 use crate::value::{AnyValue, Convertible, Gc, Value, AsAny};
 use crate::vm::Args;
 use crate::Result;
@@ -70,33 +70,35 @@ impl ConvertTo<Float> for Integer {
 	}
 }
 
+pub mod funcs {
+	use super::*;
 
-pub trait IntegerExt : Sized {
-	fn qs_add(self, args: Args<'_>) -> Result<AnyValue>;
-	fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue>;
-}
-
-impl IntegerExt for Integer {
-	fn qs_add(self, args: Args<'_>) -> Result<AnyValue> {
+	pub fn add(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((self + args[0].to_integer()?).as_any())
+		Ok((int + args[0].to_integer()?).as_any())
 	}
 
-	fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Gc<Text>>::convert(&self, args).map(AsAny::as_any)
+	pub fn at_text(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Gc<Text>>::convert(&int, args).map(AsAny::as_any)
 	}
 }
 
-quest_type! {
-	#[derive(Debug, NamedType)]
-	pub struct IntegerClass(());
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct IntegerClass;
+
+impl Singleton for IntegerClass {
+	fn initialize() -> AnyValue {
+		create_class! { "Integer", parent Object::instance();
+			"+" => method funcs::add,
+			"@text" => method funcs::at_text
+		}
+	}
 }
 
-singleton_object! { for IntegerClass, parentof Integer;
-	"+" => method!(qs_add),
-	"@text" => method!(qs_at_text)
+impl InstanceOf for Integer {
+	type Parent = IntegerClass;
 }
 
 #[cfg(test)]
