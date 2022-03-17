@@ -49,6 +49,17 @@ macro_rules! value {
 
 
 fn main() -> Result<()> {
+	dbg!(1.as_any()
+			.get_attr(Intern::op_add)
+			.unwrap().unwrap()
+			.get_attr(Intern::op_call)
+			.unwrap().unwrap()
+			.call_attr(Intern::op_call, args!(2)));
+
+	Ok(())
+}
+
+fn main3() -> Result<()> {
 	dbg!(1.as_any().call_attr(Intern::op_add, args!(2)));
 	dbg!(1.as_any().get_unbound_attr(Intern::op_add).unwrap().unwrap().call_attr(Intern::op_call, args![]));
 	// main2();

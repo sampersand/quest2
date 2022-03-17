@@ -24,7 +24,10 @@ impl<T> Builder<T> {
 
 		unsafe {
 			let header = &mut (*this.0.as_ptr()).header;
-			header.attributes.initialize_with_capacity(attr_capacity, &header.flags)
+
+			if attr_capacity != 0 {
+				header.attributes = Some(Box::new(super::Attributes::with_capacity(attr_capacity, &header.flags)));
+			}
 		}
 
 		this

@@ -9,48 +9,41 @@ mod map;
 use list::ListMap;
 use map::Map;
 
-#[repr(C, align(8))]
 pub union Attributes {
-	none: u64,
-	list: ManuallyDrop<Box<ListMap>>,
-	map: ManuallyDrop<Box<Map>>,
+	list: ManuallyDrop<ListMap>,
+	map: ManuallyDrop<Map>,
 }
-
-sa::assert_eq_size!(Attributes, u64);
-sa::assert_eq_align!(Attributes, u64);
 
 fn is_small(flags: &Flags) -> bool {
 	!flags.contains(Flags::ATTR_MAP)
 }
 
 impl Attributes {
+	pub fn new(flags: &Flags) -> Self {
+		debug_assert!(is_small(flags)); // shouldn't be set to begin with
+
+		Self { list: ManuallyDrop::new(ListMap::default()) }
+	}
+
 	// we're able to take `&mut self` as `0` is a valid variant—`none`.
-	pub fn initialize_with_capacity(&mut self, capacity: usize, flags: &Flags) {
-		if capacity == 0 {
-			return;
-		}
+	pub fn with_capacity(capacity: usize, flags: &Flags) -> Self {
+		debug_assert_ne!(capacity, 0); // with 0 capacity, `Attributes` shouldn't be allocated
 
 		if capacity <= list::MAX_LISTMAP_LEN {
-			self.list = ManuallyDrop::new(Box::new(ListMap::default()));
+			Self { list: ManuallyDrop::new(ListMap::default()) }
 		} else {
-			self.map = ManuallyDrop::new(Box::new(Map::with_capacity(capacity)));
 			flags.insert(Flags::ATTR_MAP);
+			Self { map: ManuallyDrop::new(Map::with_capacity(capacity)) }
 		}
 	}
 
-
-	const fn is_none(&self) -> bool {
-		unsafe { self.none == 0 }
-	}
 
 	pub fn debug<'a>(&'a self, flags: &'a Flags) -> impl Debug + 'a {
 		struct AttributesDebug<'a>(&'a Attributes, &'a Flags);
 
 		impl Debug for AttributesDebug<'_> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-				if self.0.is_none() {
-					f.debug_map().finish()
-				} else if is_small(self.1) {
+				if is_small(self.1) {
 					Debug::fmt(unsafe { &self.0.list }, f)
 				} else {
 					Debug::fmt(unsafe { &self.0.map }, f)
@@ -64,9 +57,7 @@ impl Attributes {
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
 		debug_assert!(!attr.is_special());
 
-		if self.is_none() {
-			Ok(None)
-		} else if is_small(flags) {
+		if is_small(flags) {
 			unsafe { &self.list }.get_unbound_attr(attr)
 		} else {
 			unsafe { &self.map }.get_unbound_attr(attr)
@@ -76,10 +67,6 @@ impl Attributes {
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue, flags: &Flags) -> Result<()> {
 		debug_assert!(!attr.is_special());
 
-		if self.is_none() {
-			self.list = ManuallyDrop::new(Box::new(ListMap::default()));
-		}
-
 		if is_small(flags) {
 			unsafe {
 				if !self.list.is_full() {
@@ -87,7 +74,7 @@ impl Attributes {
 				}
 
 				self.map =
-					ManuallyDrop::new(Box::new(Map::from_iter(ManuallyDrop::take(&mut self.list).iter())?));
+					ManuallyDrop::new(Map::from_iter(ManuallyDrop::take(&mut self.list).iter())?);
 				flags.insert(Flags::ATTR_MAP);
 			}
 		}
@@ -98,9 +85,7 @@ impl Attributes {
 	pub fn del_attr<A: Attribute>(&mut self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
 		debug_assert!(!attr.is_special());
 
-		if self.is_none() {
-			Ok(None)
-		} else if is_small(flags) {
+		if is_small(flags) {
 			unsafe { &mut self.list }.del_attr(attr)
 		} else {
 			unsafe { &mut self.map }.del_attr(attr)
@@ -108,9 +93,7 @@ impl Attributes {
 	}
 
 	pub unsafe fn drop(this: &mut Attributes, flags: &Flags) {
-		if this.is_none() {
-			// do nothing
-		} else if is_small(flags) {
+		if is_small(flags) {
 			ManuallyDrop::drop(&mut this.list)
 		} else {
 			ManuallyDrop::drop(&mut this.map)

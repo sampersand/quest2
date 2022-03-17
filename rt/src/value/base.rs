@@ -23,7 +23,7 @@ pub use parents::Parents;
 pub struct Header {
 	pub(super) typeid: TypeId,
 	parents: Parents,
-	attributes: Attributes,
+	attributes: Option<Box<Attributes>>,
 	flags: Flags,
 	borrows: AtomicU32,
 }
@@ -46,7 +46,7 @@ impl Debug for Header {
 		f.debug_struct("Header")
 			.field("typeid", &self.typeid)
 			.field("parents", &self.parents.debug(self.flags()))
-			.field("attributes", &self.attributes.debug(self.flags()))
+			.field("attributes", &self.attributes.as_ref().map(|x| x.debug(self.flags())))
 			.field("flags", &self.flags)
 			.field("borrows", &self.borrows)
 			.finish()
@@ -121,8 +121,10 @@ impl<T> Base<T> {
 
 impl Drop for Header {
 	fn drop(&mut self) {
-		unsafe {
-			Attributes::drop(&mut self.attributes, &self.flags);
+		if let Some(attrs) = &mut self.attributes {
+			unsafe {
+				Attributes::drop(attrs, &self.flags);
+			}
 		}
 	}
 }
@@ -150,9 +152,13 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A, search_parents: bool) -> Result<Option<AnyValue>> {
-		if let Some(value) = self.attributes.get_unbound_attr(attr, &self.flags)? {
-			Ok(Some(value))
-		} else if search_parents {
+		if let Some(attributes) = &self.attributes {
+			if let Some(value) = attributes.get_unbound_attr(attr, &self.flags)? {
+				return Ok(Some(value));
+			}
+		}
+
+		if search_parents {
 			self.parents.get_unbound_attr(attr, &self.flags)
 		} else {
 			Ok(None)
@@ -215,7 +221,11 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
-		self.attributes.set_attr(attr, value, &self.flags)
+		if self.attributes.is_none() {
+			self.attributes = Some(Box::new(Attributes::new(&self.flags)));
+		}
+
+		self.attributes.as_mut().unwrap().set_attr(attr, value, &self.flags)
 	}
 
 	/// Attempts to delete `self`'s attribute `attr`, returning the old value if it was present.
@@ -228,7 +238,11 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
-		self.attributes.del_attr(attr, &self.flags)
+		if let Some(attributes) = &mut self.attributes {
+			attributes.del_attr(attr, &self.flags)
+		} else {
+			Ok(None)
+		}
 	}
 }
 
