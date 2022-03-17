@@ -10,12 +10,14 @@ use std::num::NonZeroU64;
 /*
 000...000 0000 = undefined
 XXX...XXX 0000 = `Base<T>` (nonzero `X`)
-XXX...XXX 1000 = rustfn (nonzero `X`, gotta remove the `1`)
+XXX...XXX 1000 = RustFn (nonzero `X`, gotta remove the `1`)
 XXX...XXX XXX1 = i63
 XXX...XXX XX10 = f62
 000...000 0100 = false
-000...000 1000 = null
-000...000 1100 = true
+000...001 0100 = null
+000...010 0100 = true
+XXX...XXX 1100 = Interned
+
 
 NOTE: Technically, the first page can be allocated in some architectures
 (and thus `false`/`true`/`null` constants could ~technically~ be allocated).

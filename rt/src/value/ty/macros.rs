@@ -18,7 +18,7 @@
 
 #[macro_export]
 macro_rules! create_class {
-	($name:expr $(, parent $parent:expr)?; $($attr:literal => $kind:ident $value:expr),* $(,)?) => {(|| -> $crate::Result<$crate::AnyValue> {
+	($name:expr $(, parent $parent:expr)?; $($attr:expr => $kind:ident $value:expr),* $(,)?) => {(|| -> $crate::Result<$crate::AnyValue> {
 		use $crate::value::AsAny;
 		#[allow(unused_mut)]
 		let mut builder = $crate::value::ty::Class::builder($name, _length_of!($($attr)*));
@@ -245,7 +245,12 @@ macro_rules! quest_type_attrs {
 						.build(Default::default())
 				});
 
+				if !is_first_init {
+					// dbg!(concat!("!is_first_init: ", stringify!($type)));
+				}
+
 				if is_first_init {
+					// dbg!(concat!("is_first_init: ", stringify!($type)));
 					#[allow(unused_macros)]
 					macro_rules! method {
 						($fn:expr) => (func!(|this: AnyValue, args| {

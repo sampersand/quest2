@@ -19,7 +19,7 @@ impl Debug for Null {
 }
 
 impl Value<Null> {
-	pub const NULL: Self = unsafe { Self::from_bits_unchecked(0b1000) };
+	pub const NULL: Self = unsafe { Self::from_bits_unchecked(0b10100) };
 }
 
 impl From<Null> for Value<Null> {

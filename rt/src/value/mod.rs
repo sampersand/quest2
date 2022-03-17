@@ -7,6 +7,11 @@ mod value;
 
 pub use gc::Gc;
 pub use value::{AnyValue, Value};
+pub use ty::Intern;
+
+pub trait HasDefaultParent {
+	fn parent() -> AnyValue;
+}
 
 pub trait NamedType {
 	const TYPENAME: &'static str;

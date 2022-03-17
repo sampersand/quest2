@@ -19,7 +19,9 @@ mod pristine;
 pub mod object;
 mod callable;
 pub mod class;
+mod intern;
 
+pub use intern::Intern;
 pub use kernel::Kernel;
 pub use object::Object;
 pub use block::Block;

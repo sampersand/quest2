@@ -6,6 +6,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::ptr::NonNull;
 use std::sync::atomic::AtomicU32;
+pub use super::HasDefaultParent; // pub is deprecated here, just to fix other things.
 
 mod attributes;
 mod builder;
@@ -17,10 +18,6 @@ use attributes::Attributes;
 pub use builder::Builder;
 pub use flags::Flags;
 pub use parents::Parents;
-
-pub trait HasDefaultParent {
-	fn parent() -> AnyValue;
-}
 
 #[repr(C)]
 pub struct Header {

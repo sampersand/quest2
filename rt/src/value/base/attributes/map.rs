@@ -1,4 +1,5 @@
 use crate::{AnyValue, Result};
+// use crate::value::Intern;
 use super::Attribute;
 use hashbrown::{hash_map::RawEntryMut, HashMap};
 
@@ -8,7 +9,7 @@ pub struct Map(Box<Inner>);
 
 #[derive(Debug, Default)]
 struct Inner {
-	// str_only: HashMap<&'static str, AnyValue>,
+	// interned: HashMap<Intern, AnyValue>,
 	any: HashMap<AnyValue, AnyValue>
 }
 
@@ -16,7 +17,7 @@ impl Map {
 	pub fn with_capacity(capacity: usize) -> Self {
 		let _ = capacity;
 		Self(Box::new(Inner {
-			// str_only: HashMap::with_capacity(capacity),
+			// interned: HashMap::with_capacity(capacity),
 			any: HashMap::new()
 		}))
 	}

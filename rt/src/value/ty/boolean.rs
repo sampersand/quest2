@@ -1,5 +1,5 @@
 use crate::value::ty::{ConvertTo, Float, Integer, Text};
-use crate::value::{AnyValue, Convertible, Gc, Value};
+use crate::value::{AnyValue, Convertible, Gc, Value, HasDefaultParent};
 use crate::vm::Args;
 use crate::Result;
 
@@ -10,8 +10,8 @@ impl super::AttrConversionDefined for Boolean {
 }
 
 impl Value<Boolean> {
-	pub const FALSE: Self = unsafe { Self::from_bits_unchecked(0b0100) };
-	pub const TRUE: Self = unsafe { Self::from_bits_unchecked(0b1100) };
+	pub const FALSE: Self = unsafe { Self::from_bits_unchecked(0b000100) };
+	pub const TRUE: Self = unsafe { Self::from_bits_unchecked(0b100100) };
 }
 
 impl From<Boolean> for Value<Boolean> {
@@ -58,6 +58,21 @@ impl ConvertTo<Float> for Boolean {
 	}
 }
 
+impl HasDefaultParent for Boolean {
+	fn parent() -> AnyValue {
+		use once_cell::sync::OnceCell;
+
+		static INSTANCE: OnceCell<AnyValue> = OnceCell::new();
+
+		*INSTANCE.get_or_init(|| 
+			create_class! { "Boolean", parent Object::instance();
+				// "+" => method funcs::add,
+				// "@text" => method funcs::at_text
+			}
+		)
+	}
+}
+
 
 // quest_type! {
 // 	#[derive(Debug, NamedType)]
@@ -67,11 +82,6 @@ impl ConvertTo<Float> for Boolean {
 // singleton_object! { for BooleanClass;
 // 	"@text"
 // }
-
-quest_type_attrs! { for Boolean, parent Object;
-	// "+" => meth qs_add,
-	// "@text" => meth qs_at_text,
-}
 
 #[cfg(test)]
 mod tests {
