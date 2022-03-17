@@ -31,9 +31,17 @@ macro_rules! RustFn_new {
 			($func)(this, args)
 		})
 	};
-	($name:expr, justargs $func:expr) => {{
+	($name:literal, justargs $func:expr) => {{
 		const INNER: &'static $crate::value::ty::rustfn::Inner = &$crate::value::ty::rustfn::Inner {
 			name: $name,
+			func: $func,
+		};
+
+		$crate::value::ty::RustFn::new(INNER)
+	}};
+	($name:expr, justargs $func:expr) => {{
+		const INNER: &'static $crate::value::ty::rustfn::Inner = &$crate::value::ty::rustfn::Inner {
+			name: $name.as_str(),
 			func: $func,
 		};
 
@@ -123,7 +131,7 @@ impl Singleton for RustFnClass {
 
 		*INSTANCE.get_or_init(|| 
 			create_class! { "RustFn", parent Callable::instance();
-				"()" => method RustFn::qs_call,
+				Intern::op_call => method RustFn::qs_call,
 			}
 		)
 	}

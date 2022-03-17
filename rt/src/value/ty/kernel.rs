@@ -36,6 +36,6 @@ impl Gc<Kernel> {
 }
 
 singleton_object! { for Kernel, parent Pristine;
-	"if" => func!(Gc::<Kernel>::qs_if),
-	"while" => func!(Gc::<Kernel>::qs_while),
+	Intern::r#if => func!(Gc::<Kernel>::qs_if),
+	Intern::r#while => func!(Gc::<Kernel>::qs_while),
 }

@@ -60,5 +60,5 @@ singleton_object! {
 		parentof Gc<BoundFn>,
 		parent Callable;
 
-	"()" => method!(qs_call),
+	Intern::op_call => method!(qs_call),
 }

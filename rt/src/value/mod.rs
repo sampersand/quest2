@@ -4,10 +4,11 @@ pub mod ty;
 pub mod base;
 pub mod gc;
 mod value;
+mod intern;
 
 pub use gc::Gc;
 pub use value::{AnyValue, Value};
-pub use ty::Intern;
+pub use intern::Intern;
 
 pub trait HasDefaultParent {
 	fn parent() -> AnyValue;

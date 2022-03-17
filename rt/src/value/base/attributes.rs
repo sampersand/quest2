@@ -1,5 +1,5 @@
-use crate::value::{Gc, base::Flags};
-use crate::{AnyValue, Value, Result};
+use crate::value::{Gc, base::Flags, Intern, AsAny};
+use crate::{AnyValue, Result};
 use crate::value::ty::Text;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::ManuallyDrop;
@@ -12,8 +12,8 @@ use map::Map;
 #[repr(C, align(8))]
 pub union Attributes {
 	none: u64,
-	list: ManuallyDrop<ListMap>,
-	map: ManuallyDrop<Map>,
+	list: ManuallyDrop<Box<ListMap>>,
+	map: ManuallyDrop<Box<Map>>,
 }
 
 sa::assert_eq_size!(Attributes, u64);
@@ -31,9 +31,9 @@ impl Attributes {
 		}
 
 		if capacity <= list::MAX_LISTMAP_LEN {
-			self.list = ManuallyDrop::new(ListMap::default());
+			self.list = ManuallyDrop::new(Box::new(ListMap::default()));
 		} else {
-			self.map = ManuallyDrop::new(Map::with_capacity(capacity));
+			self.map = ManuallyDrop::new(Box::new(Map::with_capacity(capacity)));
 			flags.insert(Flags::ATTR_MAP);
 		}
 	}
@@ -77,7 +77,7 @@ impl Attributes {
 		debug_assert!(!attr.is_special());
 
 		if self.is_none() {
-			self.list = ManuallyDrop::new(ListMap::default());
+			self.list = ManuallyDrop::new(Box::new(ListMap::default()));
 		}
 
 		if is_small(flags) {
@@ -87,7 +87,7 @@ impl Attributes {
 				}
 
 				self.map =
-					ManuallyDrop::new(Map::from_iter(ManuallyDrop::take(&mut self.list).iter())?);
+					ManuallyDrop::new(Box::new(Map::from_iter(ManuallyDrop::take(&mut self.list).iter())?));
 				flags.insert(Flags::ATTR_MAP);
 			}
 		}
@@ -119,9 +119,12 @@ impl Attributes {
 }
 
 pub trait Attribute : Copy + Debug {
-	fn try_eq(self, rhs: AnyValue) -> Result<bool>;
+	fn try_eq_value(self, rhs: AnyValue) -> Result<bool>;
+	fn try_eq_intern(self, rhs: Intern) -> Result<bool>;
+
 	fn try_hash(self) -> Result<u64>;
 	fn to_value(self) -> AnyValue;
+	unsafe fn to_repr(self) -> (u64, bool);
 
 	fn is_parents(self) -> bool;
 	fn is_special(self) -> bool {
@@ -129,13 +132,52 @@ pub trait Attribute : Copy + Debug {
 	}
 }
 
+impl Attribute for crate::value::Intern {
+	fn try_eq_value(self, rhs: AnyValue) -> Result<bool> {
+		if let Some(text) = rhs.downcast::<Gc<Text>>() {
+			Ok(&*self == text.as_ref()?.as_str())
+		} else {
+			Ok(false)
+		}
+	}
+
+	fn try_eq_intern(self, rhs: Intern) -> Result<bool> {
+		Ok(self == rhs)
+	}
+
+	fn try_hash(self) -> Result<u64> {
+		use std::hash::{Hash, Hasher};
+		use std::collections::hash_map::DefaultHasher;
+
+		let mut s = DefaultHasher::new();
+		self.hash(&mut s);
+		Ok(s.finish())
+	}
+
+	fn to_value(self) -> AnyValue {
+		self.as_text().as_any()
+	}
+
+	unsafe fn to_repr(self) -> (u64, bool) {
+		(self as u64, true)
+	}
+
+	fn is_parents(self) -> bool {
+		self == Self::__parents__
+	}
+}
+/*
 impl Attribute for &'static str {
-	fn try_eq(self, rhs: AnyValue) -> Result<bool> {
+	fn try_eq_value(self, rhs: AnyValue) -> Result<bool> {
 		if let Some(text) = rhs.downcast::<Gc<Text>>() {
 			Ok(self == text.as_ref()?.as_str())
 		} else {
 			Ok(false)
 		}
+	}
+
+	fn try_eq_intern(self, rhs: Intern) -> Result<bool> {
+		Ok(self == rhs.as_str())
 	}
 
 	fn try_hash(self) -> Result<u64> {
@@ -151,14 +193,22 @@ impl Attribute for &'static str {
 		Value::from(Text::from_static_str(self)).any()
 	}
 
+	unsafe fn to_repr(self) -> (u64, bool) {
+		(self.to_value().bits(), false)
+	}
+
 	fn is_parents(self) -> bool {
 		self == "__parents__"
 	}
-}
+}*/
 
 impl Attribute for AnyValue {
-	fn try_eq(self, rhs: AnyValue) -> Result<bool> {
+	fn try_eq_value(self, rhs: AnyValue) -> Result<bool> {
 		AnyValue::try_eq(self, rhs)
+	}
+
+	fn try_eq_intern(self, rhs: Intern) -> Result<bool> {
+		self.try_eq_value(rhs.as_text().as_any())
 	}
 
 	fn try_hash(self) -> Result<u64> {
@@ -167,6 +217,10 @@ impl Attribute for AnyValue {
 
 	fn to_value(self) -> AnyValue {
 		self
+	}
+
+	unsafe fn to_repr(self) -> (u64, bool) {
+		(self.bits(), false)
 	}
 
 	fn is_parents(self) -> bool {

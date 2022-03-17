@@ -74,10 +74,10 @@ impl Gc<Pristine> {
 }
 
 quest_type_attrs! { for Gc<Pristine>;
-	"__get_attr__" => func func!(Gc::<Pristine>::qs__get_attr__),
-	"__get_bound_attr__" => func func!(Gc::<Pristine>::qs__get_unbound_attr__),
-	"__set_attr__" => func func!(Gc::<Pristine>::qs__set_attr__),
-	"__del_attr__" => func func!(Gc::<Pristine>::qs__del_attr__),
-	"__has_attr__" => func func!(Gc::<Pristine>::qs__has_attr__),
-	"__call_attr__" => func func!(Gc::<Pristine>::qs__call_attr__),
+	__get_attr__ => func func!(Gc::<Pristine>::qs__get_attr__),
+	__get_unbound_attr__ => func func!(Gc::<Pristine>::qs__get_unbound_attr__),
+	__set_attr__ => func func!(Gc::<Pristine>::qs__set_attr__),
+	__del_attr__ => func func!(Gc::<Pristine>::qs__del_attr__),
+	__has_attr__ => func func!(Gc::<Pristine>::qs__has_attr__),
+	__call_attr__ => func func!(Gc::<Pristine>::qs__call_attr__),
 }

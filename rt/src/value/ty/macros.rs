@@ -19,7 +19,9 @@
 #[macro_export]
 macro_rules! create_class {
 	($name:expr $(, parent $parent:expr)?; $($attr:expr => $kind:ident $value:expr),* $(,)?) => {(|| -> $crate::Result<$crate::AnyValue> {
-		use $crate::value::AsAny;
+		#[allow(unused_imports)]
+		use $crate::value::{AsAny, Intern};
+
 		#[allow(unused_mut)]
 		let mut builder = $crate::value::ty::Class::builder($name, _length_of!($($attr)*));
 
@@ -38,14 +40,14 @@ macro_rules! create_class {
 
 #[macro_export]
 macro_rules! new_quest_scope {
-	($($attr:literal => $value:expr),* $(,)?) => {
-		new_quest_scope!(parent Object; $($attr => $value),*)
+	($($attr:expr => $value:expr),* $(,)?) => {
+		new_quest_scope!(@parent Object; $($attr => $value),*)
 	};
 
-	($(parentof $child:ty;)?
-	 $(parent $parent:ty;)?
-	 $(parents [$($parents:ty)*];)?
-	 $($attr:literal => $value:expr),*
+	($(@parentof $child:ty;)?
+	 $(@parent $parent:ty;)?
+	 $(@parents [$($parents:ty)*];)?
+	 $($attr:expr => $value:expr),*
 	 $(,)?
 	) => { (|| -> $crate::Result<_> {
 			#[allow(unused_mut)]
@@ -81,6 +83,9 @@ macro_rules! new_quest_scope {
 					});
 				}
 
+				#[allow(unused_imports)]
+				use $crate::value::Intern;
+
 				$(
 					builder.set_attr($attr, RustFn_new!($attr, justargs $value).as_any())?;
 				)*
@@ -99,7 +104,7 @@ macro_rules! singleton_object {
 			$(, parents [$($parents:ty),* $(,)?])?
 			$(, late_binding_parent $late_binding_parent:ty)?
 		;
-		$($attr:literal => $value:expr),*
+		$($attr:expr => $value:expr),*
 		$(,)?
 	) => {
 		impl<$($gens),*> $type {
@@ -112,9 +117,9 @@ macro_rules! singleton_object {
 				let mut is_first_init = false;
 
 				let ret = *INSTANCE.get_or_init(|| { is_first_init = true; new_quest_scope!{
-					$(parentof $child;)?
-					$(parent $parent;)?
-					$(parents [$($parents),*];)?
+					$(@parentof $child;)?
+					$(@parent $parent;)?
+					$(@parents [$($parents),*];)?
 					$($attr => $value),*
 				}.unwrap().as_any()});
 
@@ -193,7 +198,7 @@ macro_rules! _length_of {
 
 #[macro_export]
 macro_rules! _handle_quest_type_attrs {
-	($ty:ty, $builder:expr, $name:literal, meth $func:expr) => {
+	($ty:ty, $builder:expr, $name:expr, meth $func:expr) => {
 		_handle_quest_type_attrs!($ty, $builder, $name, func |args| {
 			let (this, args) = args.split_first()?;
 			let this = this.downcast::<$ty>().ok_or_else(|| $crate::Error::InvalidTypeGiven {
@@ -207,7 +212,7 @@ macro_rules! _handle_quest_type_attrs {
 		// })).any())
 		// 	.expect(concat!("error initializing ", stringify!($ty), " for attr: ", stringify!($name)));
 	};
-	($ty:ty, $builder:expr, $name:literal, func $func:expr) => {
+	($ty:ty, $builder:expr, $name:expr, func $func:expr) => {
 		$builder.set_attr($name, $crate::Value::from(RustFn_new!($name, justargs $func)).any())
 			.expect(concat!("error initializing ", stringify!($ty), " for attr: ", stringify!($name)));
 	};
@@ -221,7 +226,7 @@ macro_rules! quest_type_attrs {
 			$(, parent $parent:ty)?
 			$(, parents [$($parents:ty),* $(,)?])?
 			$(, late_binding_parent $late_binding_parent:ty)?; 
-		$($name:literal => $func_kind:ident $func:expr),*
+		$($name:ident => $func_kind:ident $func:expr),*
 		$(,)?
 	) => {
 		impl $crate::value::base::HasDefaultParent for $type {
@@ -274,7 +279,7 @@ macro_rules! quest_type_attrs {
 					#[allow(unused_mut,unused_variables)]
 					let mut parent_mut = parent.as_mut().unwrap();
 					$(
-						_handle_quest_type_attrs!($type, parent_mut.header_mut(), $name, $func_kind $func);
+						_handle_quest_type_attrs!($type, parent_mut.header_mut(), $crate::value::Intern::$name, $func_kind $func);
 					)*
 					$(
 						unsafe {

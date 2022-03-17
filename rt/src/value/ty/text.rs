@@ -58,7 +58,7 @@ quest_type! {
 }
 
 impl super::AttrConversionDefined for Gc<Text> {
-	const ATTR_NAME: &'static str = "@text";
+	const ATTR_NAME: crate::value::Intern = crate::value::Intern::at_text;
 }
 
 // #[macro_export]
@@ -879,10 +879,10 @@ pub mod funcs {
 }
 
 quest_type_attrs! { for Gc<Text>,
-	late_binding_parent Object;
-	"concat" => meth funcs::concat,
-	"len" => meth funcs::len,
-	"==" => meth funcs::eql
+	parent Object;
+	concat => meth funcs::concat,
+	len => meth funcs::len,
+	op_eql => meth funcs::eql
 }
 
 // quest_type! {

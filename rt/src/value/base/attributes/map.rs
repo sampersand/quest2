@@ -1,25 +1,20 @@
 use crate::{AnyValue, Result};
-// use crate::value::Intern;
+use crate::value::Intern;
 use super::Attribute;
 use hashbrown::{hash_map::RawEntryMut, HashMap};
 
-#[repr(transparent)]
 #[derive(Debug, Default)]
-pub struct Map(Box<Inner>);
-
-#[derive(Debug, Default)]
-struct Inner {
-	// interned: HashMap<Intern, AnyValue>,
+pub struct Map {
+	interned: HashMap<Intern, AnyValue>,
 	any: HashMap<AnyValue, AnyValue>
 }
 
 impl Map {
 	pub fn with_capacity(capacity: usize) -> Self {
-		let _ = capacity;
-		Self(Box::new(Inner {
-			// interned: HashMap::with_capacity(capacity),
+		Self {
+			interned: HashMap::with_capacity(capacity),
 			any: HashMap::new()
-		}))
+		}
 	}
 
 	pub fn from_iter(iter: impl IntoIterator<Item = (AnyValue, AnyValue)>) -> Result<Self> {
@@ -41,9 +36,9 @@ impl Map {
 		let mut eq_err: Result<()> = Ok(());
 
 		let res = self
-			.0.any
+			.any
 			.raw_entry()
-			.from_hash(hash, |&k| match attr.try_eq(k) {
+			.from_hash(hash, |&k| match attr.try_eq_value(k) {
 				Ok(val) => val,
 				Err(err) => {
 					eq_err = Err(err);
@@ -62,9 +57,9 @@ impl Map {
 		let mut eq_err: Result<()> = Ok(());
 
 		let res = self
-			.0.any
+			.any
 			.raw_entry_mut()
-			.from_hash(hash, |&k| match attr.try_eq(k) {
+			.from_hash(hash, |&k| match attr.try_eq_value(k) {
 				Ok(val) => val,
 				Err(err) => {
 					eq_err = Err(err);
@@ -95,9 +90,9 @@ impl Map {
 		let mut eq_err: Result<()> = Ok(());
 
 		let res = self
-			.0.any
+			.any
 			.raw_entry_mut()
-			.from_hash(hash, |&k| match attr.try_eq(k) {
+			.from_hash(hash, |&k| match attr.try_eq_value(k) {
 				Ok(val) => val,
 				Err(err) => {
 					eq_err = Err(err);

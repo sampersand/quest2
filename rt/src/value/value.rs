@@ -1,6 +1,6 @@
 use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{AttrConversionDefined, List, Wrap, Integer, Float, RustFn, Text, Block, BoundFn};
-use crate::value::{Convertible, Gc, AsAny};
+use crate::value::{Convertible, Gc, AsAny, Intern};
 use crate::vm::Args;
 use crate::{Result, Error};
 use std::fmt::{self, Debug, Formatter};
@@ -164,7 +164,7 @@ impl AnyValue {
 			};
 
 		// If the value is callable, wrap it in a bound fn.
-		if value.is_a::<RustFn>() || value.has_attr("()")? {
+		if value.is_a::<RustFn>() || value.has_attr(Intern::op_call)? {
 			Ok(Some(BoundFn::new(self, value).as_any()))
 		} else {
 			Ok(Some(value))
@@ -246,7 +246,7 @@ impl AnyValue {
 	}
 
 	pub fn call_no_obj(self, args: Args<'_>) -> Result<AnyValue> {
-		self.call_attr("()", args)
+		self.call_attr(Intern::op_call, args)
 	}
 
 	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
@@ -256,7 +256,7 @@ impl AnyValue {
 			block.as_ref()?.call(args)
 		} else {
 			// gotta add `self` to the front
-			self.call_attr("()", args)
+			self.call_attr(Intern::op_call, args)
 		}
 	}
 
@@ -446,10 +446,10 @@ mod tests {
 	fn test_get_attr() {
 		let greeting = value!("Hello, world");
 
-		greeting.get_attr("concat")
+		greeting.get_attr(Intern::concat)
 			.unwrap()
 			.unwrap()
-			.call_attr("()", args!["!"])
+			.call_attr(Intern::op_call, args!["!"])
 			.unwrap();
 
 		assert_eq!("Hello, world!", greeting.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str());
@@ -458,18 +458,18 @@ mod tests {
 	#[test]
 	fn test_call_attrs() {
 		let greeting = value!("Hello, world");
-		greeting.call_attr("concat", args!["!"]).unwrap();
-		greeting.call_attr("concat", args![greeting]).unwrap();
+		greeting.call_attr(Intern::concat, args!["!"]).unwrap();
+		greeting.call_attr(Intern::concat, args![greeting]).unwrap();
 
 		assert_eq!("Hello, world!Hello, world!", greeting.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str());
 
-		assert!(greeting.call_attr("==", args![greeting]).unwrap().downcast::<Boolean>().unwrap());
+		assert!(greeting.call_attr(Intern::op_eql, args![greeting]).unwrap().downcast::<Boolean>().unwrap());
 
 		let five = value!(5);
 		let twelve = value!(12);
-		assert_eq!(17, five.call_attr("+", args![twelve]).unwrap().downcast::<Integer>().unwrap());
+		assert_eq!(17, five.call_attr(Intern::op_add, args![twelve]).unwrap().downcast::<Integer>().unwrap());
 
-		let ff = value!(255).call_attr("@text", args!["base" => 16]).unwrap();
+		let ff = value!(255).call_attr(Intern::at_text, args!["base" => 16]).unwrap();
 		assert_eq!("ff", ff.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str());
 	}
 }

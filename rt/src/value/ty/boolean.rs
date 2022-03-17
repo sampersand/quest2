@@ -6,7 +6,7 @@ use crate::Result;
 pub type Boolean = bool;
 
 impl super::AttrConversionDefined for Boolean {
-	const ATTR_NAME: &'static str = "@bool";
+	const ATTR_NAME: crate::value::Intern = crate::value::Intern::at_bool;
 }
 
 impl Value<Boolean> {

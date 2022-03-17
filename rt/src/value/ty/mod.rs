@@ -19,9 +19,7 @@ mod pristine;
 pub mod object;
 mod callable;
 pub mod class;
-mod intern;
 
-pub use intern::Intern;
 pub use kernel::Kernel;
 pub use object::Object;
 pub use block::Block;
@@ -40,7 +38,7 @@ pub use callable::Callable;
 pub use class::Class;
 
 pub trait AttrConversionDefined {
-	const ATTR_NAME: &'static str;
+	const ATTR_NAME: crate::value::Intern;
 }
 
 pub trait ConvertTo<T> {

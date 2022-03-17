@@ -39,7 +39,7 @@ unsafe impl Convertible for Integer {
 }
 
 impl super::AttrConversionDefined for Integer {
-	const ATTR_NAME: &'static str = "@int";
+	const ATTR_NAME: crate::value::Intern = crate::value::Intern::at_int;
 }
 
 impl ConvertTo<Gc<Text>> for Integer {
@@ -96,8 +96,8 @@ impl Singleton for IntegerClass {
 
 		*INSTANCE.get_or_init(|| 
 			create_class! { "Integer", parent Object::instance();
-				"+" => method funcs::add,
-				"@text" => method funcs::at_text
+				Intern::op_add => method funcs::add,
+				Intern::at_text => method funcs::at_text
 			}
 		)
 	}

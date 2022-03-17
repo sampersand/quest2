@@ -111,11 +111,11 @@ quest_type! {
 }
 
 singleton_object! { for NullClass, parentof Null;
-	"inspect" => method!(qs_inspect),
-	"@text" => method!(qs_at_text),
-	"@int" => method!(qs_at_int),
-	"@float" => method!(qs_at_float),
-	"@list" => method!(qs_at_list),
+	Intern::inspect => method!(qs_inspect),
+	Intern::at_text => method!(qs_at_text),
+	Intern::at_int => method!(qs_at_int),
+	Intern::at_float => method!(qs_at_float),
+	Intern::at_list => method!(qs_at_list),
 }
 
 #[cfg(test)]

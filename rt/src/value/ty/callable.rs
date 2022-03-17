@@ -12,7 +12,7 @@ impl Callable {
 		static INSTANCE: OnceCell<AnyValue> = OnceCell::new();
 
 		*INSTANCE.get_or_init(|| new_quest_scope!{
-			"whatever" => Gc::<Callable>::qs_ignore
+			// "whatever" => Gc::<Callable>::qs_ignore
 		}.unwrap().as_any())
 	}
 }
@@ -29,7 +29,7 @@ impl Callable {
 		static INSTANCE: OnceCell<AnyValue> = OnceCell::new();
 
 		*INSTANCE.get_or_init(|| new_quest_scope!{
-			"whatever" => Gc::<Callable>::qs_ignore
+			// "whatever" => Gc::<Callable>::qs_ignore
 		}.unwrap().as_any())
 	}}
 
@@ -42,6 +42,6 @@ impl Gc<Callable> {
 }
 
 quest_type_attrs! { for Gc<Callable>, parent Object;
-	"whatever" => func Gc::<Callable>::qs_ignore
+	// "whatever" => func Gc::<Callable>::qs_ignore
 	// in the future, this will be stuff like composing functions.
 }

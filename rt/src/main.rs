@@ -15,7 +15,7 @@ use qvm_rt::vm::Args;
 // }
 
 fn exclaim(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-	obj.call_attr("concat", Args::new(&["!".as_any()], &[]))?;
+	obj.call_attr(Intern::concat, Args::new(&["!".as_any()], &[]))?;
 
 	Ok(obj)
 }
@@ -49,8 +49,8 @@ macro_rules! value {
 
 
 fn main() -> Result<()> {
-	dbg!(1.as_any().call_attr("+", args!(2)));
-	dbg!(1.as_any().get_unbound_attr("+").unwrap().unwrap().call_attr("()", args![]));
+	dbg!(1.as_any().call_attr(Intern::op_add, args!(2)));
+	dbg!(1.as_any().get_unbound_attr(Intern::op_add).unwrap().unwrap().call_attr(Intern::op_call, args![]));
 	// main2();
 	Ok(())
 }
@@ -68,12 +68,12 @@ fn main2() -> Result<()> {
 		Ok(args.get_self().unwrap_or_default())
 	});
 
-	dbg!(Kernel::instance().get_unbound_attr("if")?.unwrap().get_unbound_attr("whatever"));
+	// dbg!(Kernel::instance().get_unbound_attr(Intern::r#if)?.unwrap().get_unbound_attr("whatever"));
 
 	println!("result: {:?}", Kernel::instance()
-		.call_attr("if", Args::new(&[true.as_any(), func1.as_any(), func2.as_any()], &[])));
+		.call_attr(Intern::r#if, Args::new(&[true.as_any(), func1.as_any(), func2.as_any()], &[])));
 
-	println!("{:?}", 1.as_any().call_attr("==", args!(2)));
+	println!("{:?}", 1.as_any().call_attr(Intern::op_eql, args!(2)));
 
 	Ok(())
 }
@@ -96,29 +96,29 @@ fn main1() -> Result<()> {
 	}
 
 	let greeting = value!("Hello, world");
-	greeting.get_attr("concat")?.unwrap().call_attr("()", args!["!"])?;
-	greeting.call_attr("__call_attr__", args!["concat", "?"])?;
+	greeting.get_attr(Intern::concat)?.unwrap().call_attr(Intern::op_call, args!["!"])?;
+	greeting.call_attr(Intern::__call_attr__, args!["==", "?"])?;
 
 	println!("{:?}", greeting);
-	println!("{:?}", greeting.call_attr("__call_attr__", args!["len"]));
+	println!("{:?}", greeting.call_attr(Intern::__call_attr__, args!["len"]));
 
 	Ok(())
 }
 
 fn call_attrs() -> Result<()>{ 
 	let greeting = value!("Hello, world");
-	greeting.call_attr("concat", args!["!"])?;
-	greeting.call_attr("concat", args![greeting])?;
+	greeting.call_attr(Intern::concat, args!["!"])?;
+	greeting.call_attr(Intern::concat, args![greeting])?;
 
 	println!("{:?}", greeting); //=> "Hello, world!Hello, world!"
-	println!("{:?}", greeting.call_attr("==", args![greeting])); //=> true
-	println!("{:?}", greeting.call_attr("__call_attr__", args!["==", greeting]));
+	println!("{:?}", greeting.call_attr(Intern::op_eql, args![greeting])); //=> true
+	println!("{:?}", greeting.call_attr(Intern::__call_attr__, args!["==", greeting]));
 
 	let five = value!(5);
 	let twelve = value!(12);
-	println!("{:?}", five.call_attr("+", args![twelve])); //=> 17
+	println!("{:?}", five.call_attr(Intern::op_add, args![twelve])); //=> 17
 
-	let ff = value!(255).call_attr("@text", args!["base" => 16]);
+	let ff = value!(255).call_attr(Intern::at_text, args!["base" => 16]);
 	println!("{:?}", ff); //=> "ff"
 
 	Ok(())

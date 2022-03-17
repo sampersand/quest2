@@ -1,4 +1,4 @@
-use crate::AnyValue;
+use crate::{AnyValue, value::Intern};
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
@@ -10,7 +10,7 @@ pub enum Error {
 	MissingPositionalArgument(usize),
 	MissingKeywordArgument(&'static str),
 	InvalidTypeGiven { expected: &'static str, given: &'static str },
-	ConversionFailed(AnyValue, &'static str),
+	ConversionFailed(AnyValue, Intern),
 	Message(String),
 }
 
