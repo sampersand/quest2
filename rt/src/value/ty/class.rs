@@ -1,7 +1,7 @@
-use crate::value::{Gc, base::Attribute};
-use crate::{AnyValue, Result};
+use crate::value::base::Base;
 use crate::value::ty::Pristine;
-use crate::value::base::{Base};
+use crate::value::{base::Attribute, Gc};
+use crate::{AnyValue, Result};
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -10,18 +10,22 @@ quest_type! {
 
 #[derive(Debug)]
 struct Inner {
-	name: &'static str
+	name: &'static str,
 }
 
 pub struct Builder(std::ptr::NonNull<Base<Inner>>);
 
 impl Builder {
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
-		unsafe { &mut *self.0.as_ptr() }.header_mut().set_attr(attr, value)
+		unsafe { &mut *self.0.as_ptr() }
+			.header_mut()
+			.set_attr(attr, value)
 	}
 
 	pub fn parent(&mut self, parent: AnyValue) {
-		unsafe { &mut *self.0.as_ptr() }.header_mut().set_singular_parent(parent);
+		unsafe { &mut *self.0.as_ptr() }
+			.header_mut()
+			.set_parents(parent);
 	}
 
 	// pub fn function(&mut self, name: &'static str, value: fn(AnyValue, Args<'_>) -> Result<AnyValue>) {
@@ -29,12 +33,9 @@ impl Builder {
 	// }
 
 	pub fn finish(self) -> Gc<Class> {
-		unsafe {
-			std::mem::transmute(self)
-		}
+		unsafe { std::mem::transmute(self) }
 	}
 }
-
 
 impl Class {
 	pub fn builder(name: &'static str, cap: usize) -> Builder {

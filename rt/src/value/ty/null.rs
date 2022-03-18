@@ -1,9 +1,8 @@
 use crate::value::ty::{Boolean, ConvertTo, Float, Integer, List, Text};
-use crate::value::{AsAny, AnyValue, Convertible, Gc, Value};
+use crate::value::{AnyValue, AsAny, Convertible, Gc, Value};
 use crate::vm::Args;
 use crate::Result;
 use std::fmt::{self, Debug, Formatter};
-
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Null;
@@ -37,7 +36,6 @@ unsafe impl Convertible for Null {
 		Self
 	}
 }
-
 
 impl ConvertTo<Gc<Text>> for Null {
 	fn convert(&self, args: Args<'_>) -> Result<Gc<Text>> {

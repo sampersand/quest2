@@ -1,10 +1,10 @@
 //! Types related to allocated Quest types.
 
-use crate::value::base::{Base, Flags, Header, Attribute};
-use crate::value::ty::{Wrap, List};
-use crate::value::{value::Any, AsAny, AnyValue, Convertible, Value};
+use crate::value::base::{Attribute, Base, Flags, Header};
+use crate::value::ty::{List, Wrap};
+use crate::value::{value::Any, AnyValue, AsAny, Convertible, Value};
 use crate::{Error, Result};
-use std::fmt::{self, Debug, Pointer, Formatter};
+use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -317,11 +317,14 @@ impl<T: Allocated> Gc<T> {
 		if let Some(func) = selfref.header().get_unbound_attr(attr, false)? {
 			drop(selfref);
 			func.call(args.with_self(self.as_any()))
-		} else {
-			let parents = selfref.parents();
+		} else if let Some(parents) = selfref.parents() {
 			let flags = selfref.flags().clone();
 			drop(selfref);
-			parents.call_attr(attr, args.with_self(Value::from(self).any()), &flags)
+			unsafe {
+				parents.call_attr(attr, args.with_self(Value::from(self).any()), &flags)
+			}
+		} else {
+			Err(Error::UnknownAttribute(self.as_any(), attr.to_value()))
 		}
 	}
 }
@@ -401,7 +404,7 @@ impl<T: Allocated> Ref<T> {
 		self.header().freeze();
 	}
 
-	fn parents(&self) -> crate::value::base::Parents {
+	fn parents(&self) -> Option<crate::value::base::Parents> {
 		self.header().parents()
 	}
 }

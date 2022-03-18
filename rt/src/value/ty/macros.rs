@@ -55,8 +55,8 @@ macro_rules! new_quest_scope {
 				#[allow(unused_imports)]
 				use $crate::value::ty::*;
 				$crate::value::ty::scope::Builder::with_capacity(_length_of!($($attr)*))
-					$(.parent(<$parent>::instance()))?
-					$(.parents($crate::value::ty::List::from_slice(&[
+					$(.set_parents(<$parent>::instance()))?
+					$(.set_parents($crate::value::ty::List::from_slice(&[
 						$(<$parents>::instance()),*
 					])))?
 			};
@@ -225,7 +225,7 @@ macro_rules! quest_type_attrs {
 			$(where {$($gens:tt)*})?
 			$(, parent $parent:ty)?
 			$(, parents [$($parents:ty),* $(,)?])?
-			$(, late_binding_parent $late_binding_parent:ty)?; 
+			$(, late_binding_parent $late_binding_parent:ty)?;
 		$($name:ident => $func_kind:ident $func:expr),*
 		$(,)?
 	) => {
@@ -243,8 +243,8 @@ macro_rules! quest_type_attrs {
 					is_first_init = true;
 
 					$crate::value::ty::scope::Builder::with_capacity(_length_of!($($name)*))
-						$(.parent(<$parent>::instance()))?
-						$(.parents($crate::value::ty::List::from_slice(&[
+						$(.set_parents(<$parent>::instance()))?
+						$(.set_parents($crate::value::ty::List::from_slice(&[
 							$(<$parents>::instance()),*
 						])))?
 						.build(Default::default())
@@ -295,4 +295,3 @@ macro_rules! quest_type_attrs {
 		}
 	};
 }
-

@@ -1,8 +1,8 @@
-use std::fmt::{self, Debug, Formatter};
+use crate::value::ty::{InstanceOf, Singleton};
+use crate::value::{AnyValue, Convertible, Value};
 use crate::vm::Args;
 use crate::Result;
-use crate::value::{AnyValue, Convertible, Value};
-use crate::value::ty::{InstanceOf, Singleton};
+use std::fmt::{self, Debug, Formatter};
 
 pub type Function = for<'a> fn(Args<'a>) -> Result<AnyValue>;
 
@@ -85,7 +85,7 @@ impl PartialEq for RustFn {
 }
 
 impl RustFn {
-	pub const NOOP: Self = RustFn_new!("noop", justargs |_| Ok(Default::default()));
+	pub const NOOP: Self = RustFn_new!("noop", justargs | _ | Ok(Default::default()));
 }
 
 impl Debug for RustFn {
@@ -129,18 +129,17 @@ impl Singleton for RustFnClass {
 
 		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
 
-		*INSTANCE.get_or_init(|| 
+		*INSTANCE.get_or_init(|| {
 			create_class! { "RustFn", parent Callable::instance();
 				Intern::op_call => method RustFn::qs_call,
 			}
-		)
+		})
 	}
 }
 
 impl InstanceOf for RustFn {
 	type Parent = RustFnClass;
 }
-
 
 #[cfg(test)]
 mod tests {

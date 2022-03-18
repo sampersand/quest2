@@ -1,8 +1,10 @@
 use crate::value::base::{Attribute, HasDefaultParent};
-use crate::value::ty::{AttrConversionDefined, List, Wrap, Integer, Float, RustFn, Text, Block, BoundFn};
-use crate::value::{Convertible, Gc, AsAny, Intern};
+use crate::value::ty::{
+	AttrConversionDefined, Block, BoundFn, Float, Integer, List, RustFn, Text, Wrap,
+};
+use crate::value::{AsAny, Convertible, Gc, Intern};
 use crate::vm::Args;
-use crate::{Result, Error};
+use crate::{Error, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
@@ -50,6 +52,11 @@ impl<T> Value<T> {
 	}
 
 	#[inline]
+	pub const fn raw_bits(self) -> NonZeroU64 {
+		self.0
+	}
+
+	#[inline]
 	#[must_use]
 	pub const unsafe fn from_bits_unchecked(bits: u64) -> Self {
 		Self::from_bits(NonZeroU64::new_unchecked(bits))
@@ -76,7 +83,6 @@ impl<T> Value<T> {
 		self.bits() & 0b1111 == 0
 	}
 }
-
 
 impl<T: Convertible> Value<T> {
 	#[must_use]
@@ -156,12 +162,11 @@ impl AnyValue {
 	}
 
 	pub fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
-		let value = 
-			if let Some(value) = self.get_unbound_attr(attr)? {
-				value
-			} else {
-				return Ok(None);
-			};
+		let value = if let Some(value) = self.get_unbound_attr(attr)? {
+			value
+		} else {
+			return Ok(None);
+		};
 
 		// If the value is callable, wrap it in a bound fn.
 		if value.is_a::<RustFn>() || value.has_attr(Intern::op_call)? {
@@ -180,7 +185,7 @@ impl AnyValue {
 
 		// 99% of the time it's not special.
 		if !attr.is_special() {
-			return gc.as_ref()?.get_unbound_attr(attr)
+			return gc.as_ref()?.get_unbound_attr(attr);
 		}
 
 		if attr.is_parents() {
@@ -230,7 +235,9 @@ impl AnyValue {
 			*self = self.allocate_self_and_copy_data_over();
 		}
 
-		Ok(unsafe { self.get_gc_any_unchecked() }.as_mut()?.parents_list())
+		Ok(unsafe { self.get_gc_any_unchecked() }
+			.as_mut()?
+			.parents_list())
 	}
 
 	pub fn call_attr<A: Attribute>(self, attr: A, args: Args<'_>) -> Result<AnyValue> {
@@ -239,7 +246,8 @@ impl AnyValue {
 		}
 
 		// OPTIMIZE ME: This is circumventing potential optimizations from `parents_for`?
-		self.parents_for()
+		self
+			.parents_for()
 			.get_unbound_attr(attr)?
 			.ok_or_else(|| Error::UnknownAttribute(self, attr.to_value()))?
 			.call(args.with_self(self))
@@ -335,20 +343,20 @@ impl AnyValue {
 
 	#[must_use]
 	pub fn try_downcast<T: Convertible + crate::value::NamedType>(self) -> Result<T> {
-		self.downcast()
+		self
+			.downcast()
 			.ok_or_else(|| crate::Error::InvalidTypeGiven {
 				expected: T::TYPENAME,
-				given: self.typename()
+				given: self.typename(),
 			})
 	}
-
 
 	pub fn try_hash(self) -> Result<u64> {
 		if self.is_allocated() {
 			if let Some(text) = self.downcast::<Gc<Text>>() {
 				// OPTIMIZE ME!
-				use std::hash::{Hash, Hasher};
 				use std::collections::hash_map::DefaultHasher;
+				use std::hash::{Hash, Hasher};
 
 				let mut s = DefaultHasher::new();
 				text.as_ref()?.hash(&mut s);
@@ -402,6 +410,10 @@ impl Debug for AnyValue {
 			Debug::fmt(&t, fmt)
 		} else if let Some(l) = self.downcast::<Gc<List>>() {
 			Debug::fmt(&l, fmt)
+		} else if let Some(l) = self.downcast::<Gc<Class>>() {
+			Debug::fmt(&l, fmt)
+		} else if let Some(l) = self.downcast::<Gc<Scope>>() {
+			Debug::fmt(&l, fmt)
 		} else if let Some(i) = self.downcast::<Gc<Wrap<Integer>>>() {
 			Debug::fmt(&i, fmt)
 		} else if let Some(f) = self.downcast::<Gc<Wrap<Float>>>() {
@@ -427,7 +439,7 @@ impl Debug for crate::value::gc::Ref<Wrap<Any>> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::value::ty::{Integer, Boolean};
+	use crate::value::ty::{Boolean, Integer};
 
 	macro_rules! args {
 		($($pos:expr),*) => (args!($($pos),* ; ));
@@ -438,21 +450,34 @@ mod tests {
 	}
 
 	macro_rules! value {
-		($lit:literal) => ($lit.as_any());
-		($name:expr) => ($name);
+		($lit:literal) => {
+			$lit.as_any()
+		};
+		($name:expr) => {
+			$name
+		};
 	}
 
 	#[test]
 	fn test_get_attr() {
 		let greeting = value!("Hello, world");
 
-		greeting.get_attr(Intern::concat)
+		greeting
+			.get_attr(Intern::concat)
 			.unwrap()
 			.unwrap()
 			.call_attr(Intern::op_call, args!["!"])
 			.unwrap();
 
-		assert_eq!("Hello, world!", greeting.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str());
+		assert_eq!(
+			"Hello, world!",
+			greeting
+				.downcast::<Gc<Text>>()
+				.unwrap()
+				.as_ref()
+				.unwrap()
+				.as_str()
+		);
 	}
 
 	#[test]
@@ -461,15 +486,43 @@ mod tests {
 		greeting.call_attr(Intern::concat, args!["!"]).unwrap();
 		greeting.call_attr(Intern::concat, args![greeting]).unwrap();
 
-		assert_eq!("Hello, world!Hello, world!", greeting.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str());
+		assert_eq!(
+			"Hello, world!Hello, world!",
+			greeting
+				.downcast::<Gc<Text>>()
+				.unwrap()
+				.as_ref()
+				.unwrap()
+				.as_str()
+		);
 
-		assert!(greeting.call_attr(Intern::op_eql, args![greeting]).unwrap().downcast::<Boolean>().unwrap());
+		assert!(greeting
+			.call_attr(Intern::op_eql, args![greeting])
+			.unwrap()
+			.downcast::<Boolean>()
+			.unwrap());
 
 		let five = value!(5);
 		let twelve = value!(12);
-		assert_eq!(17, five.call_attr(Intern::op_add, args![twelve]).unwrap().downcast::<Integer>().unwrap());
+		assert_eq!(
+			17,
+			five
+				.call_attr(Intern::op_add, args![twelve])
+				.unwrap()
+				.downcast::<Integer>()
+				.unwrap()
+		);
 
-		let ff = value!(255).call_attr(Intern::at_text, args!["base" => 16]).unwrap();
-		assert_eq!("ff", ff.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str());
+		let ff = value!(255)
+			.call_attr(Intern::at_text, args!["base" => 16])
+			.unwrap();
+		assert_eq!(
+			"ff",
+			ff.downcast::<Gc<Text>>()
+				.unwrap()
+				.as_ref()
+				.unwrap()
+				.as_str()
+		);
 	}
 }

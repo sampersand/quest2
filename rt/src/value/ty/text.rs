@@ -1,15 +1,15 @@
 //! The string representation within quest.
 
+use crate::value::base::Flags;
+use crate::value::gc::{Allocated, Gc};
 #[allow(unused)]
 use crate::value::ty::List;
-use crate::value::base::Flags;
 use crate::value::AsAny;
 use crate::vm::Args;
-use crate::{AnyValue, Value, Result};
-use crate::value::gc::{Allocated, Gc};
+use crate::{AnyValue, Result, Value};
 use std::alloc;
-use std::hash::{Hash, Hasher};
 use std::fmt::{self, Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 
 mod builder;
 pub use builder::Builder;
@@ -19,7 +19,7 @@ quest_type! {
 	///
 	/// Note that `Text`s must contain valid utf-8 (just like [`str`])s. This means that a [`List`]
 	/// must be used for arbitrary series of bytes. See the [`str`] docs for more details on this.
-	/// 
+	///
 	/// For efficiency's sake, there's multiple ways to create strings, such as from
 	/// [a `&'static str`](Text::from_static_str), [a `String`](Text::from_string), or, for the
 	/// finest control, you can use [`Builder`] ([`Text::builder`] is a provided shorthand).
@@ -34,7 +34,7 @@ quest_type! {
 	/// ```
 	/// # use qvm_rt::value::ty::Text;
 	/// let text = Text::from_static_str("Hello");
-	/// 
+	///
 	/// // Immutably borrow it. Since we just created it,
 	/// // nothing should have a mutable reference.
 	/// assert_eq!(*text.as_ref().unwrap(), "Hello");
@@ -48,7 +48,7 @@ quest_type! {
 	/// // We're unable to mutably borrow it as `textmut` is
 	/// // still in scope.
 	/// assert!(text.as_ref().is_err());
-	/// 
+	///
 	/// // Dropping `textmut` allows us to reference it again.
 	/// drop(textmut);
 	/// assert_eq!(*text.as_ref().unwrap(), "Hello, world!");
@@ -156,7 +156,7 @@ impl Text {
 		Builder::allocate()
 	}
 
-	/// Creates a new, empty [`Text`]. 
+	/// Creates a new, empty [`Text`].
 	///
 	/// If you have an idea of the required capacity, consider calling [`Text::with_capacity`]
 	/// instead. For finer-tuned construction, see [`Builder`].
@@ -272,14 +272,13 @@ impl Text {
 		}
 	}
 
-
 	/// Creates a new [`Text`] from the given [`String`].
 	///
 	/// Note that because [`String`] owns its buffer, we're able to salvage that and not allocate an
 	/// additional one. Note that if you don't have a [`String`], you should use [`Text::from_str`]
 	/// or [`Text::from_static_str`].
 	///
-	/// As [`Text`]s can be embedded, it's more efficient to use a [`Builder`] if you're going to 
+	/// As [`Text`]s can be embedded, it's more efficient to use a [`Builder`] if you're going to
 	/// be created a [`Text`] on-the-fly.
 	///
 	/// # Examples
@@ -804,7 +803,6 @@ impl AsAny for String {
 		Gc::<Text>::from(self).as_any()
 	}
 }
-
 
 impl Eq for Text {}
 impl PartialEq for Text {

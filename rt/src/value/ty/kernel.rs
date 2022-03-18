@@ -1,6 +1,6 @@
 use crate::value::Gc;
-use crate::{AnyValue, Result};
 use crate::vm::Args;
+use crate::{AnyValue, Result};
 
 quest_type! {
 	#[derive(Debug, NamedType)]

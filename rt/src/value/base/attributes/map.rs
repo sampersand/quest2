@@ -1,19 +1,19 @@
-use crate::{AnyValue, Result};
-use crate::value::Intern;
 use super::Attribute;
+use crate::value::Intern;
+use crate::{AnyValue, Result};
 use hashbrown::{hash_map::RawEntryMut, HashMap};
 
 #[derive(Debug, Default)]
 pub struct Map {
 	interned: HashMap<Intern, AnyValue>,
-	any: HashMap<AnyValue, AnyValue>
+	any: HashMap<AnyValue, AnyValue>,
 }
 
 impl Map {
 	pub fn with_capacity(capacity: usize) -> Self {
 		Self {
 			interned: HashMap::with_capacity(capacity),
-			any: HashMap::new()
+			any: HashMap::new(),
 		}
 	}
 
@@ -30,6 +30,7 @@ impl Map {
 
 impl Map {
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+		let _ = &self.interned;
 		debug_assert!(!attr.is_special());
 
 		let hash = attr.try_hash()?;

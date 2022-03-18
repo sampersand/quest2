@@ -1,6 +1,6 @@
-use crate::value::{Gc, base::Flags, Intern, AsAny};
-use crate::{AnyValue, Result};
 use crate::value::ty::Text;
+use crate::value::{base::Flags, AsAny, Gc, Intern};
+use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::mem::ManuallyDrop;
 
@@ -22,7 +22,9 @@ impl Attributes {
 	pub fn new(flags: &Flags) -> Self {
 		debug_assert!(is_small(flags)); // shouldn't be set to begin with
 
-		Self { list: ManuallyDrop::new(ListMap::default()) }
+		Self {
+			list: ManuallyDrop::new(ListMap::default()),
+		}
 	}
 
 	// we're able to take `&mut self` as `0` is a valid variant—`none`.
@@ -30,23 +32,26 @@ impl Attributes {
 		debug_assert_ne!(capacity, 0); // with 0 capacity, `Attributes` shouldn't be allocated
 
 		if capacity <= list::MAX_LISTMAP_LEN {
-			Self { list: ManuallyDrop::new(ListMap::default()) }
+			Self {
+				list: ManuallyDrop::new(ListMap::default()),
+			}
 		} else {
 			flags.insert(Flags::ATTR_MAP);
-			Self { map: ManuallyDrop::new(Map::with_capacity(capacity)) }
+			Self {
+				map: ManuallyDrop::new(Map::with_capacity(capacity)),
+			}
 		}
 	}
 
-
-	pub fn debug<'a>(&'a self, flags: &'a Flags) -> impl Debug + 'a {
+	pub unsafe fn debug<'a>(&'a self, flags: &'a Flags) -> impl Debug + 'a {
 		struct AttributesDebug<'a>(&'a Attributes, &'a Flags);
 
 		impl Debug for AttributesDebug<'_> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 				if is_small(self.1) {
-					Debug::fmt(unsafe { &self.0.list }, f)
+					Debug::fmt(unsafe { &*self.0.list }, f)
 				} else {
-					Debug::fmt(unsafe { &self.0.map }, f)
+					Debug::fmt(unsafe { &*self.0.map }, f)
 				}
 			}
 		}
@@ -54,7 +59,11 @@ impl Attributes {
 		AttributesDebug(self, flags)
 	}
 
-	pub fn get_unbound_attr<A: Attribute>(&self, attr: A, flags: &Flags) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr<A: Attribute>(
+		&self,
+		attr: A,
+		flags: &Flags,
+	) -> Result<Option<AnyValue>> {
 		debug_assert!(!attr.is_special());
 
 		if is_small(flags) {
@@ -101,7 +110,7 @@ impl Attributes {
 	}
 }
 
-pub trait Attribute : Copy + Debug {
+pub trait Attribute: Copy + Debug {
 	fn try_eq_value(self, rhs: AnyValue) -> Result<bool>;
 	fn try_eq_intern(self, rhs: Intern) -> Result<bool>;
 
@@ -129,8 +138,8 @@ impl Attribute for crate::value::Intern {
 	}
 
 	fn try_hash(self) -> Result<u64> {
-		use std::hash::{Hash, Hasher};
 		use std::collections::hash_map::DefaultHasher;
+		use std::hash::{Hash, Hasher};
 
 		let mut s = DefaultHasher::new();
 		self.hash(&mut s);
@@ -207,7 +216,8 @@ impl Attribute for AnyValue {
 	}
 
 	fn is_parents(self) -> bool {
-		self.downcast::<Gc<Text>>()
+		self
+			.downcast::<Gc<Text>>()
 			.map_or(false, |text| text.as_ref().map_or(false, |r| r.as_str() == "__parents__"))
 	}
 }
@@ -326,6 +336,7 @@ mod tests {
 				.unwrap(),
 			123
 		);
+
 
 		let mut child = Value::ONE.any();
 		assert!(!child.has_attr(ATTR).unwrap());

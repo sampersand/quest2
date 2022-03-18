@@ -1,6 +1,6 @@
-use crate::value::{Gc, AsAny};
-use crate::{AnyValue, Result};
+use crate::value::{AsAny, Gc};
 use crate::vm::Args;
+use crate::{AnyValue, Result};
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -11,14 +11,14 @@ impl Pristine {
 	pub fn instance() -> AnyValue {
 		static INSTANCE: once_cell::sync::OnceCell<Gc<Pristine>> = once_cell::sync::OnceCell::new();
 
-		INSTANCE.get_or_init(|| {
-			let inner = crate::value::base::Builder::<()>::allocate_with_capacity(0);
+		INSTANCE
+			.get_or_init(|| {
+				let inner = crate::value::base::Builder::<()>::allocate_with_capacity(0);
 
-			// we don't set parents, as empty parents is default.
-			unsafe {
-				std::mem::transmute(inner.finish())
-			}
-		}).as_any()
+				// we don't set parents, as empty parents is default.
+				unsafe { std::mem::transmute(inner.finish()) }
+			})
+			.as_any()
 	}
 }
 

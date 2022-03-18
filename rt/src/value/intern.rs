@@ -1,5 +1,6 @@
+use crate::value::{gc::Gc, ty::Text, AsAny};
+use std::fmt::{self, Display, Formatter};
 use std::ops::Deref;
-use crate::value::{gc::Gc, ty::Text};
 
 macro_rules! define_interned {
 	(@ $name:ident) => (stringify!($name));
@@ -29,13 +30,12 @@ macro_rules! define_interned {
 	};
 }
 
-
 define_interned! {
 	__parents__
 	__id__
 	__get_attr__ __get_unbound_attr__ __set_attr__
 	__del_attr__ __has_attr__ __call_attr__
-	
+
 	concat
 	len
 	op_eql "=="
@@ -54,7 +54,7 @@ define_interned! {
 
 	r#if "if"
 	r#while "while"
-	r#else "else" 
+	r#else "else"
 
 	inspect
 	at_int "@int"
@@ -87,17 +87,20 @@ impl Intern {
 	}
 }
 
-
-
-
 impl From<Intern> for crate::Value<crate::value::gc::Gc<crate::value::ty::Text>> {
 	fn from(intern: Intern) -> Self {
 		crate::value::ty::Text::from_static_str(intern.as_str()).into()
 	}
 }
 
-impl crate::value::AsAny for Intern {
+impl AsAny for Intern {
 	fn as_any(self) -> crate::AnyValue {
 		crate::Value::from(self).any()
+	}
+}
+
+impl Display for Intern {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		f.write_str(self.as_str())
 	}
 }

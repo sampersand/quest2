@@ -1,4 +1,4 @@
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::{self, Debug, Binary, Formatter};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 #[derive(Default)]
@@ -69,6 +69,38 @@ impl Flags {
 }
 
 impl Debug for Flags {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		write!(f, "Flags(")?;
+		let mut is_first = true;
+		macro_rules! check {
+			($($flag:ident)*) => {
+				$(
+					if self.contains(Self::$flag) {
+						if is_first {
+							is_first = false;
+						} else {
+							write!(f, " | ")?;
+						}
+						write!(f, stringify!($flag))?;
+					}
+				)*
+			};
+		}
+
+		check!(
+			USER0 USER1 USER2 USER3 USER4 USER5 USER6 USER7 USER8 USER9
+			USER10 USER11 USER12 USER13 USER14 USER15
+			FROZEN NOFREE GCMARK ATTR_MAP MULTI_PARENT
+			UNUSEDA UNUSED9 UNUSED8 UNUSED7 UNUSED6 UNUSED5 UNUSED4 UNUSED3 UNUSED2 UNUSED1 UNUSED0
+		);
+
+		let _ = is_first;
+
+		write!(f, ")")
+	}
+}
+
+impl Binary for Flags {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(f, "Flags({:032b})", self.0.load(Ordering::SeqCst))
 	}

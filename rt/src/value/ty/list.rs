@@ -1,4 +1,4 @@
-use crate::value::base::{Flags};
+use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 use crate::AnyValue;
 use std::alloc;
@@ -404,7 +404,6 @@ impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
 	}
 }
 
-
 quest_type! {
 	#[derive(Debug, NamedType)]
 	pub struct ListClass(());
@@ -414,8 +413,6 @@ singleton_object! { for ListClass, parentof List;
 	// "+" => method!(qs_add),
 	// "@text" => method!(qs_at_text)
 }
-
-
 
 // impl Eq for List {}
 // impl PartialEq for List {

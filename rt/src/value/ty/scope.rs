@@ -10,7 +10,7 @@ quest_type! {
 #[derive(Debug)]
 struct Inner {
 	#[allow(unused)]
-	src_loc: crate::vm::SourceLocation
+	src_loc: crate::vm::SourceLocation,
 }
 
 pub struct Builder(BaseBuilder<Inner>);
@@ -24,13 +24,8 @@ impl Builder {
 		self.0.set_attr(attr, value)
 	}
 
-	pub fn parent(mut self, parent: AnyValue) -> Self {
-		unsafe { self.0._write_parent(parent); }
-		self
-	}
-
-	pub fn parents(mut self, parents: crate::value::Gc<crate::value::ty::List>) -> Self {
-		self.0.write_parents(parents);
+	pub fn set_parents<P: crate::value::base::IntoParent>(mut self, parents: P) -> Self {
+		self.0.set_parents(parents);
 		self
 	}
 
@@ -46,10 +41,9 @@ impl crate::value::gc::Mut<Scope> {
 	pub unsafe fn _set_parent_to(&mut self, parent: AnyValue) {
 		use crate::value::gc::Allocated;
 
-		self.header_mut().set_singular_parent(parent);
+		self.header_mut().set_parents(parent);
 	}
 }
-
 
 quest_type! {
 	#[derive(Debug, NamedType)]

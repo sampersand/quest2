@@ -3,12 +3,12 @@ pub mod ty;
 
 pub mod base;
 pub mod gc;
-mod value;
 mod intern;
+mod value;
 
 pub use gc::Gc;
-pub use value::{AnyValue, Value};
 pub use intern::Intern;
+pub use value::{AnyValue, Value};
 
 pub trait HasDefaultParent {
 	fn parent() -> AnyValue;
@@ -42,4 +42,3 @@ impl<T: Convertible> AsAny for T {
 		self.into().any()
 	}
 }
-

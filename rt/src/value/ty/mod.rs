@@ -4,38 +4,38 @@ mod macros;
 #[macro_use]
 pub mod rustfn;
 
-mod kernel;
 mod block;
 mod boolean;
+mod boundfn;
+mod callable;
+pub mod class;
 pub mod float;
 pub mod integer;
+mod kernel;
 mod list;
 mod null;
+pub mod object;
+mod pristine;
 pub mod scope;
 pub mod text;
 mod wrap;
-mod boundfn;
-mod pristine;
-pub mod object;
-mod callable;
-pub mod class;
 
-pub use kernel::Kernel;
-pub use object::Object;
 pub use block::Block;
 pub use boolean::Boolean;
+pub use boundfn::BoundFn;
+pub use callable::Callable;
+pub use class::Class;
 pub use float::Float;
 pub use integer::Integer;
+pub use kernel::Kernel;
 pub use list::List;
 pub use null::Null;
+pub use object::Object;
+pub use pristine::Pristine;
 pub use rustfn::RustFn;
 pub use scope::Scope;
 pub use text::Text;
-pub use boundfn::BoundFn;
 pub use wrap::Wrap;
-pub use pristine::Pristine;
-pub use callable::Callable;
-pub use class::Class;
 
 pub trait AttrConversionDefined {
 	const ATTR_NAME: crate::value::Intern;
@@ -53,7 +53,7 @@ impl<T: Clone> ConvertTo<T> for T {
 	}
 }
 
-pub trait Singleton : Sized {
+pub trait Singleton: Sized {
 	fn instance() -> crate::AnyValue;
 }
 

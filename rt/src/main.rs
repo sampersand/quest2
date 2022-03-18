@@ -3,10 +3,10 @@
 
 #[macro_use]
 use qvm_rt;
-use qvm_rt::Result;
 use qvm_rt::value::ty::*;
 use qvm_rt::value::*;
 use qvm_rt::vm::Args;
+use qvm_rt::Result;
 // fn dup(mut obj: AnyValue, _: Args<'_>) -> Result<AnyValue> {
 // 	let mut new = obj.downcast::<Gc<Text>>().unwrap().as_ref()?.dup();
 // 	new.as_mut()?.parents().as_mut()?.push(obj.parents()?.as_ref()?.as_slice()[0]);
@@ -31,7 +31,7 @@ fn concat(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 macro_rules! rustfn {
 	($name:ident) => {
 		Value::from(qvm_rt::RustFn_new!(stringify!($name), $name)).any()
-	}
+	};
 }
 
 macro_rules! args {
@@ -43,52 +43,71 @@ macro_rules! args {
 }
 
 macro_rules! value {
-	($lit:literal) => ($lit.as_any());
-	($name:expr) => ($name);
+	($lit:literal) => {
+		$lit.as_any()
+	};
+	($name:expr) => {
+		$name
+	};
 }
 
-
 fn main() -> Result<()> {
-	dbg!(1.as_any()
-			.get_attr(Intern::op_add)
-			.unwrap().unwrap()
-			.get_attr(Intern::op_call)
-			.unwrap().unwrap()
-			.call_attr(Intern::op_call, args!(2)));
+	dbg!(1
+		.as_any()
+		.get_attr(Intern::op_add)
+		.unwrap()
+		.unwrap()
+		.get_attr(Intern::op_call)
+		.unwrap()
+		.unwrap()
+		.call_attr(Intern::op_call, args!(2)));
 
 	Ok(())
 }
 
 fn main3() -> Result<()> {
 	dbg!(1.as_any().call_attr(Intern::op_add, args!(2)));
-	dbg!(1.as_any().get_unbound_attr(Intern::op_add).unwrap().unwrap().call_attr(Intern::op_call, args![]));
+	dbg!(1
+		.as_any()
+		.get_unbound_attr(Intern::op_add)
+		.unwrap()
+		.unwrap()
+		.call_attr(Intern::op_call, args![]));
 	// main2();
 	Ok(())
 }
 
 fn main2() -> Result<()> {
-	let func1 = qvm_rt::RustFn_new!("func1", justargs |args| {
-		println!("func1: {:?}", args);
+	let func1 = qvm_rt::RustFn_new!(
+		"func1",
+		justargs | args | {
+			println!("func1: {:?}", args);
 
-		Ok(args.get_self().unwrap_or_default())
-	});
+			Ok(args.get_self().unwrap_or_default())
+		}
+	);
 
-	let func2 = qvm_rt::RustFn_new!("func2", justargs |args| {
-		println!("func2: {:?}", args);
+	let func2 = qvm_rt::RustFn_new!(
+		"func2",
+		justargs | args | {
+			println!("func2: {:?}", args);
 
-		Ok(args.get_self().unwrap_or_default())
-	});
+			Ok(args.get_self().unwrap_or_default())
+		}
+	);
 
 	// dbg!(Kernel::instance().get_unbound_attr(Intern::r#if)?.unwrap().get_unbound_attr("whatever"));
 
-	println!("result: {:?}", Kernel::instance()
-		.call_attr(Intern::r#if, Args::new(&[true.as_any(), func1.as_any(), func2.as_any()], &[])));
+	println!(
+		"result: {:?}",
+		Kernel::instance()
+			.call_attr(Intern::r#if, Args::new(&[true.as_any(), func1.as_any(), func2.as_any()], &[]))
+	);
 
 	println!("{:?}", 1.as_any().call_attr(Intern::op_eql, args!(2)));
 
 	Ok(())
 }
-
 
 fn main1() -> Result<()> {
 	{
@@ -107,7 +126,10 @@ fn main1() -> Result<()> {
 	}
 
 	let greeting = value!("Hello, world");
-	greeting.get_attr(Intern::concat)?.unwrap().call_attr(Intern::op_call, args!["!"])?;
+	greeting
+		.get_attr(Intern::concat)?
+		.unwrap()
+		.call_attr(Intern::op_call, args!["!"])?;
 	greeting.call_attr(Intern::__call_attr__, args!["==", "?"])?;
 
 	println!("{:?}", greeting);
@@ -116,7 +138,7 @@ fn main1() -> Result<()> {
 	Ok(())
 }
 
-fn call_attrs() -> Result<()>{ 
+fn call_attrs() -> Result<()> {
 	let greeting = value!("Hello, world");
 	greeting.call_attr(Intern::concat, args!["!"])?;
 	greeting.call_attr(Intern::concat, args![greeting])?;
@@ -134,7 +156,6 @@ fn call_attrs() -> Result<()>{
 
 	Ok(())
 }
-
 
 fn get_unbound_attrs() -> Result<()> {
 	let attr = Value::TRUE.any();
@@ -166,7 +187,9 @@ fn lists_work() {
 	]);
 	let listvalue = Value::from(list).any();
 
-	listvalue.downcast::<Gc<List>>().unwrap()
+	listvalue
+		.downcast::<Gc<List>>()
+		.unwrap()
 		.as_mut()
 		.unwrap()
 		.push(Value::from(12.5).any());
@@ -176,7 +199,10 @@ fn lists_work() {
 		.unwrap()
 		.set_attr(Value::from(0).any(), Value::from("yo").any());
 
-	dbg!(list.as_ref().unwrap().get_unbound_attr(Value::from(0).any()));
+	dbg!(list
+		.as_ref()
+		.unwrap()
+		.get_unbound_attr(Value::from(0).any()));
 
 	dbg!(list);
 }

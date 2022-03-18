@@ -1,22 +1,22 @@
-use crate::{AnyValue, Result};
-use crate::value::AsAny;
-use std::fmt::{self, Debug, Formatter};
-use crate::value::Intern;
 use super::Attribute;
+use crate::value::AsAny;
+use crate::value::Intern;
+use crate::{AnyValue, Result};
+use std::fmt::{self, Debug, Formatter};
 
-pub const MAX_LISTMAP_LEN: usize = u8::BITS as usize;
+pub const MAX_LISTMAP_LEN: usize = 32;//u8::BITS as usize;
 
 #[derive(Clone, Copy)]
 union Key {
 	raw_data: u64,
 	intern: Intern,
-	value: AnyValue
+	value: AnyValue,
 }
 
 #[derive(Default)]
 pub struct ListMap {
 	data: [Option<(Key, AnyValue)>; MAX_LISTMAP_LEN],
-	interned: u8
+	interned: u32,
 }
 
 impl Debug for ListMap {
@@ -59,12 +59,11 @@ impl ListMap {
 
 			fn next(&mut self) -> Option<Self::Item> {
 				if let Some((k, v)) = self.0.data.get(self.1).map(|x| *x).flatten() {
-					let k =
-						if self.0.interned & (1 << self.1) != 0 {
-							unsafe { k.intern }.as_text().as_any()
-						} else {
-							unsafe { k.value }
-						};
+					let k = if self.0.interned & (1 << self.1) != 0 {
+						unsafe { k.intern }.as_text().as_any()
+					} else {
+						unsafe { k.value }
+					};
 					self.1 += 1;
 					Some((k, v))
 				} else {
@@ -123,7 +122,6 @@ impl ListMap {
 		// this isn't terribly efficient, but then again most people aren't going to be
 		// deleting things often, so it's alright.
 		for (idx, entry) in self.data.iter_mut().enumerate() {
-
 			if let Some((k, v)) = entry {
 				if !is_eql_at!(self, idx, attr, k) {
 					continue;

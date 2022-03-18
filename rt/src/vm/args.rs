@@ -4,7 +4,7 @@ use crate::{AnyValue, Error, Result};
 pub struct Args<'a> {
 	positional: &'a [AnyValue],
 	keyword: &'a [(&'a str, AnyValue)],
-	this: Option<AnyValue>
+	this: Option<AnyValue>,
 }
 
 impl<'a> Args<'a> {
@@ -17,9 +17,15 @@ impl<'a> Args<'a> {
 	}
 
 	pub fn with_self(self, this: AnyValue) -> Self {
-		assert!(!self.this.is_some(), "todo: is this even possible? and if so, how should it work");
+		assert!(
+			!self.this.is_some(),
+			"todo: is this even possible? and if so, how should it work"
+		);
 
-		Self { this: Some(this), ..self }
+		Self {
+			this: Some(this),
+			..self
+		}
 	}
 
 	pub fn get_self(self) -> Option<AnyValue> {
@@ -84,7 +90,7 @@ impl<'a> Args<'a> {
 		Ok(())
 	}
 
-	pub fn split_first(mut self) -> Result<(AnyValue, Self)> { 
+	pub fn split_first(mut self) -> Result<(AnyValue, Self)> {
 		if let Some(this) = self.this.take() {
 			return Ok((this, self));
 		}
@@ -101,7 +107,6 @@ impl<A: ArgIndexer> std::ops::Index<A> for Args<'_> {
 	fn index(&self, idx: A) -> &Self::Output {
 		idx.index(*self)
 	}
-
 }
 
 pub trait ArgIndexer {

@@ -1,6 +1,6 @@
-use crate::value::{Gc, AsAny};
-use crate::{AnyValue, Result};
+use crate::value::{AsAny, Gc};
 use crate::vm::Args;
+use crate::{AnyValue, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Callable1;
@@ -11,9 +11,13 @@ impl Callable {
 
 		static INSTANCE: OnceCell<AnyValue> = OnceCell::new();
 
-		*INSTANCE.get_or_init(|| new_quest_scope!{
-			// "whatever" => Gc::<Callable>::qs_ignore
-		}.unwrap().as_any())
+		*INSTANCE.get_or_init(|| {
+			new_quest_scope! {
+				// "whatever" => Gc::<Callable>::qs_ignore
+			}
+			.unwrap()
+			.as_any()
+		})
 	}
 }
 
@@ -28,10 +32,15 @@ impl Callable {
 
 		static INSTANCE: OnceCell<AnyValue> = OnceCell::new();
 
-		*INSTANCE.get_or_init(|| new_quest_scope!{
-			// "whatever" => Gc::<Callable>::qs_ignore
-		}.unwrap().as_any())
-	}}
+		*INSTANCE.get_or_init(|| {
+			new_quest_scope! {
+				// "whatever" => Gc::<Callable>::qs_ignore
+			}
+			.unwrap()
+			.as_any()
+		})
+	}
+}
 
 impl Gc<Callable> {
 	pub fn qs_ignore(args: Args<'_>) -> Result<AnyValue> {

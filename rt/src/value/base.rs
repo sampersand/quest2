@@ -1,3 +1,4 @@
+pub use super::HasDefaultParent;
 use crate::value::gc::Gc;
 use crate::value::ty::List;
 use std::any::TypeId;
@@ -5,8 +6,7 @@ use std::cell::UnsafeCell;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::ptr::NonNull;
-use std::sync::atomic::AtomicU32;
-pub use super::HasDefaultParent; // pub is deprecated here, just to fix other things.
+use std::sync::atomic::AtomicU32; // pub is deprecated here, just to fix other things.
 
 mod attributes;
 mod builder;
@@ -17,21 +17,20 @@ pub use attributes::Attribute;
 use attributes::Attributes;
 pub use builder::Builder;
 pub use flags::Flags;
-pub use parents::Parents;
+pub use parents::IntoParent;
+pub(crate) use parents::Parents;
 
 #[repr(C)]
 pub struct Header {
 	pub(super) typeid: TypeId,
-	parents: Parents,
+	parents: Option<Parents>,
 	attributes: Option<Box<Attributes>>,
 	flags: Flags,
 	borrows: AtomicU32,
 }
 
-sa::assert_eq_align!(Header, u64);
 sa::assert_eq_size!(Header, [u64; 4]);
 
-#[derive(Debug)]
 #[repr(C, align(16))]
 pub struct Base<T: 'static> {
 	pub(super) header: Header,
@@ -43,17 +42,79 @@ unsafe impl<T: Sync + 'static> Sync for Base<T> {}
 
 impl Debug for Header {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		struct TypeIdDebug(TypeId);
+		impl Debug for TypeIdDebug {
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+				write!(f, "{:?}", self.0)
+			}
+		}
+
+		struct ParentsDebug<'a>(&'a Option<Parents>, &'a Flags);
+		impl Debug for ParentsDebug<'_> {
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+				if let Some(parent) = self.0 {
+					// SAFETY: The flags come from the same header as the parents.
+					Debug::fmt(&unsafe { parent.debug(self.1) }, f)
+				} else {
+					f.debug_list().finish()
+				}
+			}
+		}
+
+		struct AttributesDebug<'a>(&'a Option<Box<Attributes>>, &'a Flags);
+		impl Debug for AttributesDebug<'_> {
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+				if let Some(attributes) = self.0 {
+					// SAFETY: The flags come from the same header as the attributes.
+					Debug::fmt(&unsafe { attributes.debug(self.1) }, f)
+				} else {
+					f.debug_map().finish()
+				}
+			}
+		}
 		f.debug_struct("Header")
-			.field("typeid", &self.typeid)
-			.field("parents", &self.parents.debug(self.flags()))
-			.field("attributes", &self.attributes.as_ref().map(|x| x.debug(self.flags())))
+			.field("typeid", &TypeIdDebug(self.typeid))
+			.field("parents", &ParentsDebug(&self.parents, &self.flags))
+			.field("attributes", &AttributesDebug(&self.attributes, &self.flags))
 			.field("flags", &self.flags)
 			.field("borrows", &self.borrows)
 			.finish()
 	}
 }
 
+impl<T: Debug> Debug for Base<T> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		f.debug_struct("Base")
+			.field("header", &self.header)
+			.field("data", &self.data())
+			.finish()
+	}
+}
+
+
+// impl<T> Base<T> {
+// 	pub fn new<P: IntoParent>(data: T, parent: P) -> NonNull<Self> {
+// 		unsafe {
+// 			let mut builder = Self::allocate();
+// 			builder.write_data(data);
+// 			builder.set_parents(parent);
+// 			builder.finish()
+// 		}
+// 	}
+
+// 	pub unsafe fn allocate<P: IntoParent>(parent: P) -> Builder<T> {
+// 		Self::allocate_with_capacity(0)
+// 	}
+
+
+// 	pub unsafe fn allocate_with_capacity(attr_capacity: usize) -> Builder<T> {
+// 		Self::allocate_with_parent(attr_capacity, T::parent())
+// 	}
+// }
+
 impl<T: HasDefaultParent> Base<T> {
+	/*)
+	/// Creates a new `Base<T>` with the given data, and its parents.
 	pub fn new(data: T) -> NonNull<Self> {
 		unsafe {
 			let mut builder = Self::allocate();
@@ -72,7 +133,7 @@ impl<T: HasDefaultParent> Base<T> {
 
 	pub unsafe fn builder_inplace(base: NonNull<Self>) -> Builder<T> {
 		let mut b = Builder::new(base);
-		b._write_parent(T::parent());
+		b.set_parents(T::parent());
 		b
 	}
 
@@ -80,7 +141,7 @@ impl<T: HasDefaultParent> Base<T> {
 		let builder = Self::builder_inplace(NonNull::new_unchecked(base.as_mut_ptr()));
 		builder.flags().insert(Flags::NOFREE);
 		builder
-	}
+	}*/
 }
 
 impl<T> Base<T> {
@@ -98,7 +159,7 @@ impl<T> Base<T> {
 
 	pub unsafe fn allocate_with_parent(attr_capacity: usize, parent: AnyValue) -> Builder<T> {
 		let mut b = Builder::allocate_with_capacity(attr_capacity);
-		b._write_parent(parent);
+		b.set_parents(parent);
 		b
 	}
 
@@ -151,7 +212,11 @@ impl Header {
 	///
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
-	pub fn get_unbound_attr<A: Attribute>(&self, attr: A, search_parents: bool) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr<A: Attribute>(
+		&self,
+		attr: A,
+		search_parents: bool,
+	) -> Result<Option<AnyValue>> {
 		if let Some(attributes) = &self.attributes {
 			if let Some(value) = attributes.get_unbound_attr(attr, &self.flags)? {
 				return Ok(Some(value));
@@ -159,10 +224,13 @@ impl Header {
 		}
 
 		if search_parents {
-			self.parents.get_unbound_attr(attr, &self.flags)
-		} else {
-			Ok(None)
+			if let Some(parents) = &self.parents {
+				// SAFETY: the flags are from `self`, just like `parents`, so this is sound.
+				return unsafe { parents.get_unbound_attr(attr, &self.flags) };
+			}
 		}
+
+		Ok(None)
 	}
 
 	/// Gets the flags associated with the current object.
@@ -196,18 +264,21 @@ impl Header {
 	/// # Examples
 	/// TODO: example
 	pub fn parents_list(&mut self) -> Gc<List> {
-		self.parents.as_list(&self.flags)
+		if let Some(parents) = &mut self.parents {
+			// SAFETY: the flags are from `self`, just like `parents`, so this is sound.
+			unsafe { parents.as_list(&self.flags) }
+		} else {
+			let list = List::new();
+			self.parents = Some(Parents::new(list.into_parent(&self.flags).unwrap()));
+			list
+		}
 	}
 
-	pub fn set_parents(&mut self, parents_list: Gc<List>) {
-		self.parents.set_list(parents_list, &self.flags)
+	pub fn set_parents<P: IntoParent>(&mut self, parents: P) {
+		self.parents = parents.into_parent(&self.flags).map(Parents::new);
 	}
 
-	pub fn set_singular_parent(&mut self, parent: AnyValue) {
-		self.parents.set_singular(parent, &self.flags)
-	}
-
-	pub(crate) fn parents(&self) -> Parents {
+	pub(crate) fn parents(&self) -> Option<Parents> {
 		self.parents
 	}
 
@@ -225,7 +296,11 @@ impl Header {
 			self.attributes = Some(Box::new(Attributes::new(&self.flags)));
 		}
 
-		self.attributes.as_mut().unwrap().set_attr(attr, value, &self.flags)
+		self
+			.attributes
+			.as_mut()
+			.unwrap()
+			.set_attr(attr, value, &self.flags)
 	}
 
 	/// Attempts to delete `self`'s attribute `attr`, returning the old value if it was present.

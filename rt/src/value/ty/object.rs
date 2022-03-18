@@ -1,6 +1,6 @@
 use crate::value::{AsAny, Intern};
-use crate::{AnyValue, Result};
 use crate::vm::Args;
+use crate::{AnyValue, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Object;
@@ -11,34 +11,83 @@ impl crate::value::NamedType for Object {
 
 impl Object {
 	pub fn instance() -> AnyValue {
-
 		use ::once_cell::sync::OnceCell;
 
 		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
 
 		let mut first = false;
 
-		let mut thing = *INSTANCE.get_or_init(|| { first = true; new_quest_scope! { @parent Pristine; }.unwrap().as_any() });
+		let mut thing = *INSTANCE.get_or_init(|| {
+			first = true;
+			new_quest_scope! { @parent Pristine; }.unwrap().as_any()
+		});
 
 		if first {
-			thing.set_attr(Intern::op_eql, RustFn_new!(Intern::op_eql, function funcs::eql).as_any()).unwrap();
-			thing.set_attr(Intern::op_neq, RustFn_new!(Intern::op_neq, function funcs::neq).as_any()).unwrap();
-			thing.set_attr(Intern::op_not, RustFn_new!(Intern::op_not, function funcs::not).as_any()).unwrap();
+			thing
+				.set_attr(Intern::op_eql, RustFn_new!(Intern::op_eql, function funcs::eql).as_any())
+				.unwrap();
+			thing
+				.set_attr(Intern::op_neq, RustFn_new!(Intern::op_neq, function funcs::neq).as_any())
+				.unwrap();
+			thing
+				.set_attr(Intern::op_not, RustFn_new!(Intern::op_not, function funcs::not).as_any())
+				.unwrap();
 
-			thing.set_attr(Intern::at_bool, RustFn_new!(Intern::at_bool, function funcs::at_bool).as_any()).unwrap();
-			thing.set_attr(Intern::at_text, RustFn_new!(Intern::at_text, function funcs::at_text).as_any()).unwrap();
-			thing.set_attr(Intern::hash, RustFn_new!(Intern::hash, function funcs::hash).as_any()).unwrap();
-			thing.set_attr(Intern::clone, RustFn_new!(Intern::clone, function funcs::clone).as_any()).unwrap();
+			thing
+				.set_attr(
+					Intern::at_bool,
+					RustFn_new!(Intern::at_bool, function funcs::at_bool).as_any(),
+				)
+				.unwrap();
+			thing
+				.set_attr(
+					Intern::at_text,
+					RustFn_new!(Intern::at_text, function funcs::at_text).as_any(),
+				)
+				.unwrap();
+			thing
+				.set_attr(Intern::hash, RustFn_new!(Intern::hash, function funcs::hash).as_any())
+				.unwrap();
+			thing
+				.set_attr(Intern::clone, RustFn_new!(Intern::clone, function funcs::clone).as_any())
+				.unwrap();
 
-			thing.set_attr(Intern::tap, RustFn_new!(Intern::tap, function funcs::tap).as_any()).unwrap();
-			thing.set_attr(Intern::tap_into, RustFn_new!(Intern::tap_into, function funcs::tap_into).as_any()).unwrap();
-			thing.set_attr(Intern::then, RustFn_new!(Intern::then, function funcs::then).as_any()).unwrap();
-			thing.set_attr(Intern::and_then, RustFn_new!(Intern::and_then, function funcs::and_then).as_any()).unwrap();
-			thing.set_attr(Intern::r#else, RustFn_new!(Intern::r#else, function funcs::r#else).as_any()).unwrap();
-			thing.set_attr(Intern::or_else, RustFn_new!(Intern::or_else, function funcs::or_else).as_any()).unwrap();
-			thing.set_attr(Intern::or, RustFn_new!(Intern::or, function funcs::or).as_any()).unwrap();
-			thing.set_attr(Intern::and, RustFn_new!(Intern::and, function funcs::and).as_any()).unwrap();
-			thing.set_attr(Intern::itself, RustFn_new!(Intern::itself, function funcs::itself).as_any()).unwrap();
+			thing
+				.set_attr(Intern::tap, RustFn_new!(Intern::tap, function funcs::tap).as_any())
+				.unwrap();
+			thing
+				.set_attr(
+					Intern::tap_into,
+					RustFn_new!(Intern::tap_into, function funcs::tap_into).as_any(),
+				)
+				.unwrap();
+			thing
+				.set_attr(Intern::then, RustFn_new!(Intern::then, function funcs::then).as_any())
+				.unwrap();
+			thing
+				.set_attr(
+					Intern::and_then,
+					RustFn_new!(Intern::and_then, function funcs::and_then).as_any(),
+				)
+				.unwrap();
+			thing
+				.set_attr(Intern::r#else, RustFn_new!(Intern::r#else, function funcs::r#else).as_any())
+				.unwrap();
+			thing
+				.set_attr(
+					Intern::or_else,
+					RustFn_new!(Intern::or_else, function funcs::or_else).as_any(),
+				)
+				.unwrap();
+			thing
+				.set_attr(Intern::or, RustFn_new!(Intern::or, function funcs::or).as_any())
+				.unwrap();
+			thing
+				.set_attr(Intern::and, RustFn_new!(Intern::and, function funcs::and).as_any())
+				.unwrap();
+			thing
+				.set_attr(Intern::itself, RustFn_new!(Intern::itself, function funcs::itself).as_any())
+				.unwrap();
 		}
 
 		thing

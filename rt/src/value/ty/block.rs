@@ -1,6 +1,6 @@
-use crate::{Result, AnyValue};
 use crate::value::gc::Gc;
 use crate::vm::{Args, ByteCode};
+use crate::{AnyValue, Result};
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -20,13 +20,12 @@ impl Block {
 
 		let inner = Base::new_with_parent(data, Gc::<Self>::parent());
 
-		unsafe {
-			std::mem::transmute(inner)
-		}
+		unsafe { std::mem::transmute(inner) }
 	}
 
 	pub fn call(&self, args: Args<'_>) -> Result<AnyValue> {
-		let _ = args; todo!();
+		let _ = args;
+		todo!();
 	}
 }
 

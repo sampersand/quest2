@@ -9,20 +9,16 @@ quest_type! {
 #[derive(Debug)]
 struct Inner {
 	object: AnyValue,
-	function: AnyValue
+	function: AnyValue,
 }
 
 impl BoundFn {
 	pub fn new(object: AnyValue, function: AnyValue) -> Gc<Self> {
 		use crate::value::base::{Base, HasDefaultParent};
 
-		let inner = Base::new_with_parent(
-			Inner { object, function },
-			Gc::<Self>::parent());
+		let inner = Base::new_with_parent(Inner { object, function }, Gc::<Self>::parent());
 
-		unsafe {
-			std::mem::transmute(inner)
-		}
+		unsafe { std::mem::transmute(inner) }
 	}
 
 	pub fn object(&self) -> AnyValue {
@@ -48,7 +44,6 @@ impl Gc<BoundFn> {
 		func.call(args.with_self(obj))
 	}
 }
-
 
 quest_type! {
 	#[derive(Debug, NamedType)]

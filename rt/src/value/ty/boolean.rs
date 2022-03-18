@@ -1,5 +1,5 @@
 use crate::value::ty::{ConvertTo, Float, Integer, Text};
-use crate::value::{AnyValue, Convertible, Gc, Value, HasDefaultParent};
+use crate::value::{AnyValue, Convertible, Gc, HasDefaultParent, Value};
 use crate::vm::Args;
 use crate::Result;
 
@@ -64,15 +64,14 @@ impl HasDefaultParent for Boolean {
 
 		static INSTANCE: OnceCell<AnyValue> = OnceCell::new();
 
-		*INSTANCE.get_or_init(|| 
+		*INSTANCE.get_or_init(|| {
 			create_class! { "Boolean", parent Object::instance();
 				// "+" => method funcs::add,
 				// "@text" => method funcs::at_text
 			}
-		)
+		})
 	}
 }
-
 
 // quest_type! {
 // 	#[derive(Debug, NamedType)]

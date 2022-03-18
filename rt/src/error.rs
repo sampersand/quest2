@@ -1,4 +1,4 @@
-use crate::{AnyValue, value::Intern};
+use crate::{value::Intern, AnyValue};
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
@@ -9,7 +9,10 @@ pub enum Error {
 	UnknownAttribute(AnyValue, AnyValue),
 	MissingPositionalArgument(usize),
 	MissingKeywordArgument(&'static str),
-	InvalidTypeGiven { expected: &'static str, given: &'static str },
+	InvalidTypeGiven {
+		expected: &'static str,
+		given: &'static str,
+	},
 	ConversionFailed(AnyValue, Intern),
 	Message(String),
 }
@@ -19,13 +22,19 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		match self {
-			Self::UnknownAttribute(value, attr) => write!(f, "unknown attribute {attr:?} for {value:?}"),
+			Self::UnknownAttribute(value, attr) => {
+				write!(f, "unknown attribute {attr:?} for {value:?}")
+			},
 			Self::AlreadyLocked(value) => write!(f, "value {value:p} is already locked"),
 			Self::ValueFrozen(value) => write!(f, "value {value:p} is frozen"),
 			Self::MissingPositionalArgument(arg) => write!(f, "missing positional argument {arg:?}"),
 			Self::MissingKeywordArgument(arg) => write!(f, "missing keyword argument {arg:?}"),
-			Self::ConversionFailed(value, conv) => write!(f, "conversion {value:?} failed for {conv:?}"),
-			Self::InvalidTypeGiven { expected, given } => write!(f, "invalid type {given:?}, expected {expected:?}"),
+			Self::ConversionFailed(value, conv) => {
+				write!(f, "conversion {value:?} failed for {conv:?}")
+			},
+			Self::InvalidTypeGiven { expected, given } => {
+				write!(f, "invalid type {given:?}, expected {expected:?}")
+			},
 			Self::Message(msg) => f.write_str(msg),
 		}
 	}
