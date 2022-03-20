@@ -1,4 +1,4 @@
-use crate::value::{AsAny, Gc};
+use crate::value::{base::Base, AsAny, Gc};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
 
@@ -13,10 +13,10 @@ impl Pristine {
 
 		INSTANCE
 			.get_or_init(|| {
-				let inner = crate::value::base::Builder::<()>::allocate_with_capacity(0);
+				let builder = Base::<()>::builder();
 
 				// we don't set parents, as empty parents is default.
-				unsafe { std::mem::transmute(inner.finish()) }
+				Gc::from_inner(unsafe { builder.finish() })
 			})
 			.as_any()
 	}

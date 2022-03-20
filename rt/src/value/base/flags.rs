@@ -1,4 +1,4 @@
-use std::fmt::{self, Debug, Binary, Formatter};
+use std::fmt::{self, Binary, Debug, Formatter};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 #[derive(Default)]

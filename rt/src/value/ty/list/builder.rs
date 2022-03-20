@@ -14,16 +14,16 @@ impl Builder {
 		unsafe { Self::new(BaseBuilder::<Inner>::allocate()) }
 	}
 
-	pub fn insert_flag(&mut self, flag: u32) {
-		self.0.flags().insert(flag);
+	pub fn insert_flags(&mut self, flag: u32) {
+		self.0.insert_flags(flag);
 	}
 
 	pub unsafe fn inner_mut(&mut self) -> &mut Inner {
-		self.0.data_mut().assume_init_mut()
+		&mut *self.0.data_mut()
 	}
 
 	pub unsafe fn list_mut(&mut self) -> &mut List {
-		&mut *self.0.base_mut_ptr().cast::<List>()
+		&mut *self.0.base_mut().cast::<List>()
 	}
 
 	// pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
@@ -33,7 +33,7 @@ impl Builder {
 	// unsafe because you should call this before you edit anything.
 	pub unsafe fn allocate_buffer(&mut self, capacity: usize) {
 		if capacity <= MAX_EMBEDDED_LEN {
-			self.insert_flag(FLAG_EMBEDDED);
+			self.insert_flags(FLAG_EMBEDDED);
 			return;
 		}
 
@@ -41,11 +41,13 @@ impl Builder {
 
 		// alloc.len is `0` because `Base::<T>::allocate` always zero allocates.
 		alloc.cap = capacity;
-		alloc.ptr = crate::alloc(super::alloc_ptr_layout(capacity)).cast();
+		alloc.ptr = crate::alloc(super::alloc_ptr_layout(capacity))
+			.as_ptr()
+			.cast();
 	}
 
 	#[must_use]
 	pub unsafe fn finish(self) -> Gc<List> {
-		std::mem::transmute(self.0.finish())
+		Gc::from_inner(self.0.finish())
 	}
 }

@@ -337,7 +337,6 @@ mod tests {
 			123
 		);
 
-
 		let mut child = Value::ONE.any();
 		assert!(!child.has_attr(ATTR).unwrap());
 

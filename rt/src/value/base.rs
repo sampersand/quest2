@@ -4,8 +4,6 @@ use crate::value::ty::List;
 use std::any::TypeId;
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug, Formatter};
-use std::mem::MaybeUninit;
-use std::ptr::NonNull;
 use std::sync::atomic::AtomicU32; // pub is deprecated here, just to fix other things.
 
 mod attributes;
@@ -17,12 +15,12 @@ pub use attributes::Attribute;
 use attributes::Attributes;
 pub use builder::Builder;
 pub use flags::Flags;
-pub use parents::IntoParent;
 pub(crate) use parents::Parents;
+pub use parents::{IntoParent, NoParents};
 
 #[repr(C)]
 pub struct Header {
-	pub(super) typeid: TypeId,
+	typeid: TypeId,
 	parents: Option<Parents>,
 	attributes: Option<Box<Attributes>>,
 	flags: Flags,
@@ -32,9 +30,10 @@ pub struct Header {
 sa::assert_eq_size!(Header, [u64; 4]);
 
 #[repr(C, align(16))]
+#[derive(Debug)]
 pub struct Base<T: 'static> {
-	pub(super) header: Header,
-	data: UnsafeCell<MaybeUninit<T>>,
+	header: Header,
+	data: UnsafeCell<T>,
 }
 
 unsafe impl<T: Send + 'static> Send for Base<T> {}
@@ -82,16 +81,6 @@ impl Debug for Header {
 	}
 }
 
-impl<T: Debug> Debug for Base<T> {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		f.debug_struct("Base")
-			.field("header", &self.header)
-			.field("data", &self.data())
-			.finish()
-	}
-}
-
-
 // impl<T> Base<T> {
 // 	pub fn new<P: IntoParent>(data: T, parent: P) -> NonNull<Self> {
 // 		unsafe {
@@ -105,7 +94,6 @@ impl<T: Debug> Debug for Base<T> {
 // 	pub unsafe fn allocate<P: IntoParent>(parent: P) -> Builder<T> {
 // 		Self::allocate_with_capacity(0)
 // 	}
-
 
 // 	pub unsafe fn allocate_with_capacity(attr_capacity: usize) -> Builder<T> {
 // 		Self::allocate_with_parent(attr_capacity, T::parent())
@@ -144,26 +132,39 @@ impl<T: HasDefaultParent> Base<T> {
 	}*/
 }
 
+impl Base<crate::value::value::Any> {
+	pub(crate) unsafe fn _typeid(this: *const Self) -> TypeId {
+		*std::ptr::addr_of!((*this).header.typeid)
+	}
+}
+
 impl<T> Base<T> {
-	pub fn new_with_parent(data: T, parent: AnyValue) -> NonNull<Self> {
-		Self::with_parent_and_capacity(data, parent, 0)
+	pub fn builder() -> Builder<T> {
+		Builder::allocate()
 	}
 
-	pub fn with_parent_and_capacity(data: T, parent: AnyValue, cap: usize) -> NonNull<Self> {
-		unsafe {
-			let mut builder = Self::allocate_with_parent(cap, parent);
-			builder.data_mut().write(data);
-			builder.finish()
-		}
+	pub fn new(data: T, parent: AnyValue) -> Gc<Self> {
+		Self::new_with_capacity(data, parent, 0)
+	}
+
+	pub fn new_with_capacity(data: T, parent: AnyValue, attr_capacity: usize) -> Gc<Self> {
+		let mut builder = Self::builder();
+
+		builder.set_parents(parent);
+		builder.set_data(data);
+		builder.allocate_attributes(attr_capacity);
+
+		unsafe { builder.finish() }
 	}
 
 	pub unsafe fn allocate_with_parent(attr_capacity: usize, parent: AnyValue) -> Builder<T> {
-		let mut b = Builder::allocate_with_capacity(attr_capacity);
+		let mut b = Builder::allocate();
+		b.allocate_attributes(attr_capacity);
 		b.set_parents(parent);
 		b
 	}
 
-	pub const fn header(&self) -> &Header {
+	pub fn header(&self) -> &Header {
 		&self.header
 	}
 
@@ -171,12 +172,12 @@ impl<T> Base<T> {
 		&mut self.header
 	}
 
-	pub const fn data(&self) -> &T {
-		unsafe { (*(self.data.get() as *const MaybeUninit<T>)).assume_init_ref() }
+	pub fn data(&self) -> &T {
+		unsafe { &*self.data.get() }
 	}
 
 	pub fn data_mut(&mut self) -> &mut T {
-		unsafe { (*self.data.get()).assume_init_mut() }
+		unsafe { &mut *self.data.get() }
 	}
 }
 
@@ -199,11 +200,15 @@ impl<T> Drop for Base<T> {
 use crate::{value::AnyValue, Result};
 
 impl Header {
-	pub(crate) const fn borrows(&self) -> &AtomicU32 {
+	pub(crate) fn borrows(&self) -> &AtomicU32 {
 		&self.borrows
 	}
 
 	/// Retrieves `self`'s attribute `attr`, returning `None` if it doesn't exist.
+	///
+	/// If `search_parents` is `false`, this function will only search the attributes defined
+	/// directly on `self`. If `true`, it will also look through the parents for the attribute if it
+	/// does not exist within our immediate attributes.
 	///
 	/// # Errors
 	/// If the [`try_hash`](AnyValue::try_hash) or [`try_eq`](AnyValue::try_eq) functions on `attr`
@@ -235,7 +240,7 @@ impl Header {
 
 	/// Gets the flags associated with the current object.
 	// TODO: we need to somehow not expose the internal flags.
-	pub const fn flags(&self) -> &Flags {
+	pub fn flags(&self) -> &Flags {
 		&self.flags
 	}
 
@@ -282,6 +287,23 @@ impl Header {
 		self.parents
 	}
 
+	/// Sets the the attribute, but on a possibly-uninitialized `ptr`.
+	///
+	/// # Safety
+	/// - `ptr` must be a valid pointer to a `Self` for read & writes
+	/// - The `attribute`s field must have been initialized.
+	/// - The `flags` field must have been initialized.
+	unsafe fn set_attr_raw<A: Attribute>(ptr: *mut Self, attr: A, value: AnyValue) -> Result<()> {
+		let attributes = &mut *std::ptr::addr_of_mut!((*ptr).attributes);
+		let flags = &*std::ptr::addr_of!((*ptr).flags);
+
+		if attributes.is_none() {
+			*attributes = Some(Box::new(Attributes::new(flags)));
+		}
+
+		attributes.as_mut().unwrap().set_attr(attr, value, flags)
+	}
+
 	/// Sets the `self`'s attribute `attr` to `value`.
 	///
 	/// # Errors
@@ -292,15 +314,8 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
-		if self.attributes.is_none() {
-			self.attributes = Some(Box::new(Attributes::new(&self.flags)));
-		}
-
-		self
-			.attributes
-			.as_mut()
-			.unwrap()
-			.set_attr(attr, value, &self.flags)
+		// SAFETY: Since we're already initialized, all the safety concerns are fulfilled.
+		unsafe { Self::set_attr_raw(self as *mut Self, attr, value) }
 	}
 
 	/// Attempts to delete `self`'s attribute `attr`, returning the old value if it was present.
@@ -322,10 +337,7 @@ impl Header {
 }
 
 unsafe impl<T: 'static> super::gc::Allocated for Base<T> {
-	#[doc(hidden)]
-	fn _inner_typeid() -> std::any::TypeId {
-		std::any::TypeId::of::<T>()
-	}
+	type Inner = T;
 
 	fn header(&self) -> &Header {
 		&self.header

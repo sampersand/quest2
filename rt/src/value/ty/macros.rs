@@ -162,10 +162,7 @@ macro_rules! quest_type {
 
 		unsafe impl $(<$($gen),*>)? $crate::value::gc::Allocated for $name $(<$($gen),*>)?
 		$(where $($cond)*)? {
-			#[inline(always)]
-			fn _inner_typeid() -> ::std::any::TypeId {
-				::std::any::TypeId::of::<$($inner)*>()
-			}
+			type Inner = $($inner)*;
 		}
 	};
 }

@@ -12,16 +12,26 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// A trait that indicates a type contains at a minimum a [`Header`].
 ///
 /// # Safety
-/// To correctly implement this trait, the struct must guarantee that you can safely cast a
-/// pointer to `Self` to a pointer to [`Header`]—that is, the first struct is `#[repr(C)]`, and
-/// the first field is a [`Header`]. This can be trivially achieved if your struct is simply a
-/// `#[repr(transparent)]` wrapper around [`Base<...>`](Base).
+/// To safely implement this trait, you must guarantee that your type is a `#[repr(transparent)]`
+/// wrapper around a `Base<T::Inner>`. That is, your struct must look like this:
+/// ```no_run
+/// use qvm_rt::value::{gc::Allocated, base::Base};
+///
+/// #[repr(transparent)]
+/// struct MyStruct(Base<Inner>);
+///
+/// struct Inner { /* ... */ }
+///
+/// unsafe impl Allocated for MyStruct {
+///     type Inner = Inner;
+/// }
+/// ```
 ///
 /// # See Also
 /// - [`quest_type`] A macro that's used to create allocated types.
 pub unsafe trait Allocated: 'static {
 	#[doc(hidden)]
-	fn _inner_typeid() -> std::any::TypeId;
+	type Inner;
 
 	fn header(&self) -> &Header {
 		unsafe { &*(self as *const Self).cast::<Header>() }
@@ -120,8 +130,9 @@ impl<T: Allocated> Gc<T> {
 	/// Creates a new `Gc<T>` from `ptr`.
 	///
 	/// # Safety
-	/// The `Base<T>` must have been allocated via `crate::alloc`. Additionally, the pointer
-	/// point to a valid `Base<T>` instance, which means it must have been properly initialized.
+	/// The `Base<T>` must have been allocated via [`qvm_rt::alloc`]/[`qvm_rt::alloc_zeroed`]/
+	/// [`qvm_rt::realloc`]. Additionally, the pointer point to a valid `Base<T>` instance, which
+	/// means it must have been properly initialized.
 	///
 	/// Note that a `Base<Any>` is allowed to be constructed from any valid `Base<T>` pointer, as
 	/// long as you never attempt to access the contents of it (ie either through [`Gc::to_ptr`]) or
@@ -129,6 +140,17 @@ impl<T: Allocated> Gc<T> {
 	/// for objects when the type is irrelevant.
 	pub(crate) unsafe fn new(ptr: NonNull<T>) -> Self {
 		Self(ptr)
+	}
+
+	/// Creates a new `Gc<T>` from a `Gc` referencing a base wrapping `T::Inner`.
+	///
+	/// As [`Base`] doesn't require an [`Allocated`] type, [`Base::new`] and friends return a
+	/// `Gc<Base<T>>`. As such, the way you convert from this `Gc` to a `Gc` of the outer type is
+	/// through this function.
+	pub fn from_inner(inner: Gc<Base<T::Inner>>) -> Self {
+		// SAFETY: This is valid, as `Allocated` guarantees that `T` and `Base<T>` are represented
+		// identically, and thus converting a `Gc` of the two is valid.
+		unsafe { std::mem::transmute(inner) }
 	}
 
 	/// Creates a new `Gc<t>` from the raw pointer `ptr`.
@@ -320,9 +342,7 @@ impl<T: Allocated> Gc<T> {
 		} else if let Some(parents) = selfref.parents() {
 			let flags = selfref.flags().clone();
 			drop(selfref);
-			unsafe {
-				parents.call_attr(attr, args.with_self(Value::from(self).any()), &flags)
-			}
+			unsafe { parents.call_attr(attr, args.with_self(Value::from(self).any()), &flags) }
 		} else {
 			Err(Error::UnknownAttribute(self.as_any(), attr.to_value()))
 		}
@@ -359,11 +379,11 @@ unsafe impl<T: Allocated> Convertible for Gc<T> {
 		// we're not accessing the `data` at all. (We're only getting the `typeid` from the header.)
 		let typeid = unsafe {
 			let gc = Gc::new_unchecked(value.bits() as usize as *mut Wrap<Any>);
-			(*gc.as_ptr().cast::<Base<Any>>()).header.typeid
+			Base::_typeid(gc.as_ptr().cast())
 		};
 
 		// Make sure the `typeid` matches that of `T`.
-		typeid == T::_inner_typeid()
+		typeid == std::any::TypeId::of::<T::Inner>()
 	}
 
 	fn get(value: Value<Self>) -> Self {

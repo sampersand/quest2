@@ -4,7 +4,7 @@ use crate::value::Intern;
 use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 
-pub const MAX_LISTMAP_LEN: usize = 32;//u8::BITS as usize;
+pub const MAX_LISTMAP_LEN: usize = 32; //u8::BITS as usize;
 
 #[derive(Clone, Copy)]
 union Key {

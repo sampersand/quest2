@@ -7,6 +7,8 @@ use std::num::NonZeroU64;
 
 #[repr(transparent)]
 #[derive(Clone, Copy)]
+// Note that this is not a `union` because `sizeof<Option<union { AnyValue, Gc<List> }>>` is not
+// eight, which is required for the header. This is a workaround
 pub(crate) struct Parents(NonZeroU64);
 // pub union Parents {
 // 	single: AnyValue,
@@ -17,7 +19,10 @@ pub unsafe trait IntoParent {
 	fn into_parent(self, flags: &Flags) -> Option<NonZeroU64>;
 }
 
-unsafe impl IntoParent for () {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct NoParents;
+
+unsafe impl IntoParent for NoParents {
 	#[inline]
 	fn into_parent(self, flags: &Flags) -> Option<NonZeroU64> {
 		flags.remove(Flags::MULTI_PARENT);
@@ -65,13 +70,15 @@ impl Parents {
 		impl Debug for ParentsDebug<'_> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 				if is_single(self.1) {
-					f.debug_list()
-						.entry(unsafe { &self.0.singular() })
-						.finish()
-
+					f.debug_list().entry(unsafe { &self.0.singular() }).finish()
 				} else {
 					f.debug_list()
-						.entries(unsafe { &self.0.list() }.as_ref().expect("asref failed for entries").as_slice())
+						.entries(
+							unsafe { &self.0.list() }
+								.as_ref()
+								.expect("asref failed for entries")
+								.as_slice(),
+						)
 						.finish()
 				}
 			}

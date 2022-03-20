@@ -58,7 +58,7 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 }
 
 impl List {
-	const fn inner(&self) -> &Inner {
+	fn inner(&self) -> &Inner {
 		self.0.data()
 	}
 
@@ -100,7 +100,7 @@ impl List {
 	#[must_use]
 	pub fn from_static_slice(inp: &'static [AnyValue]) -> Gc<Self> {
 		let mut builder = Self::builder();
-		builder.insert_flag(FLAG_NOFREE | FLAG_SHARED);
+		builder.insert_flags(FLAG_NOFREE | FLAG_SHARED);
 
 		unsafe {
 			let mut alloc = &mut builder.inner_mut().alloc;
@@ -212,7 +212,7 @@ impl List {
 			self.flags().insert(FLAG_SHARED);
 
 			let mut builder = Self::builder();
-			builder.insert_flag(FLAG_SHARED);
+			builder.insert_flags(FLAG_SHARED);
 			builder.inner_mut().alloc = AllocatedList {
 				ptr: slice.as_ptr() as *mut AnyValue,
 				len: slice.len(),
@@ -228,7 +228,9 @@ impl List {
 
 		let mut alloc = &mut self.inner_mut().alloc;
 		let old_ptr = alloc.ptr;
-		alloc.ptr = crate::alloc(alloc_ptr_layout(capacity)).cast::<AnyValue>();
+		alloc.ptr = crate::alloc(alloc_ptr_layout(capacity))
+			.as_ptr()
+			.cast::<AnyValue>();
 		alloc.cap = capacity;
 		std::ptr::copy(old_ptr, alloc.ptr, alloc.len);
 
@@ -264,7 +266,7 @@ impl List {
 
 		unsafe {
 			let len = self.embedded_len();
-			let ptr = crate::alloc(layout).cast::<AnyValue>();
+			let ptr = crate::alloc(layout).as_ptr().cast::<AnyValue>();
 			std::ptr::copy(self.inner().embed.buf.as_ptr(), ptr, len);
 
 			self.inner_mut().alloc = AllocatedList {
@@ -301,13 +303,14 @@ impl List {
 		unsafe {
 			let mut alloc = &mut self.inner_mut().alloc;
 
-			let orig_layout = alloc_ptr_layout(alloc.cap);
 			alloc.ptr = crate::realloc(
 				alloc.ptr.cast::<u8>(),
-				orig_layout,
+				alloc_ptr_layout(alloc.cap),
 				new_cap * std::mem::size_of::<AnyValue>(),
 			)
+			.as_ptr()
 			.cast::<AnyValue>();
+
 			alloc.cap = new_cap;
 		}
 	}

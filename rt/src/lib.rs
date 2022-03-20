@@ -22,7 +22,7 @@ extern "Rust" {
 }
 
 #[allow(clippy::unusual_byte_groupings)]
-unsafe fn alloc(layout: std::alloc::Layout) -> *mut u8 {
+pub unsafe fn alloc(layout: std::alloc::Layout) -> std::ptr::NonNull<u8> {
 	let ptr = std::alloc::alloc(layout);
 
 	if ptr.is_null() || (ptr as u64 <= 0b111_111) {
@@ -32,11 +32,11 @@ unsafe fn alloc(layout: std::alloc::Layout) -> *mut u8 {
 	#[cfg(miri)]
 	miri_static_root(ptr); // TODO: garbage collection
 
-	ptr
+	std::ptr::NonNull::new_unchecked(ptr)
 }
 
 #[allow(clippy::unusual_byte_groupings)]
-unsafe fn alloc_zeroed(layout: std::alloc::Layout) -> *mut u8 {
+pub unsafe fn alloc_zeroed(layout: std::alloc::Layout) -> std::ptr::NonNull<u8> {
 	let ptr = std::alloc::alloc_zeroed(layout);
 
 	if ptr.is_null() || (ptr as u64 <= 0b111_111) {
@@ -46,11 +46,15 @@ unsafe fn alloc_zeroed(layout: std::alloc::Layout) -> *mut u8 {
 	#[cfg(miri)]
 	miri_static_root(ptr); // TODO: garbage collection
 
-	ptr
+	std::ptr::NonNull::new_unchecked(ptr)
 }
 
 #[allow(clippy::unusual_byte_groupings)]
-unsafe fn realloc(ptr: *mut u8, layout: std::alloc::Layout, new_size: usize) -> *mut u8 {
+pub unsafe fn realloc(
+	ptr: *mut u8,
+	layout: std::alloc::Layout,
+	new_size: usize,
+) -> std::ptr::NonNull<u8> {
 	let ptr = std::alloc::realloc(ptr, layout, new_size);
 
 	if ptr.is_null() || (ptr as u64 <= 0b111_111) {
@@ -60,5 +64,5 @@ unsafe fn realloc(ptr: *mut u8, layout: std::alloc::Layout, new_size: usize) -> 
 	#[cfg(miri)]
 	miri_static_root(ptr); // TODO: garbage collection
 
-	ptr
+	std::ptr::NonNull::new_unchecked(ptr)
 }

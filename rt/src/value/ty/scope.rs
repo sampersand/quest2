@@ -8,7 +8,8 @@ quest_type! {
 }
 
 #[derive(Debug)]
-struct Inner {
+#[doc(hidden)]
+pub struct Inner {
 	#[allow(unused)]
 	src_loc: crate::vm::SourceLocation,
 }
@@ -17,11 +18,13 @@ pub struct Builder(BaseBuilder<Inner>);
 
 impl Builder {
 	pub fn with_capacity(cap: usize) -> Self {
-		Self(BaseBuilder::allocate_with_capacity(cap))
+		let mut builder = BaseBuilder::allocate();
+		builder.allocate_attributes(cap);
+		Self(builder)
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
-		self.0.set_attr(attr, value)
+		unsafe { self.0.set_attr(attr, value) }
 	}
 
 	pub fn set_parents<P: crate::value::base::IntoParent>(mut self, parents: P) -> Self {
@@ -30,9 +33,9 @@ impl Builder {
 	}
 
 	pub fn build(mut self, src_loc: crate::vm::SourceLocation) -> Gc<Scope> {
-		self.0.data_mut().write(Inner { src_loc });
+		self.0.set_data(Inner { src_loc });
 
-		unsafe { std::mem::transmute(self.0.finish()) }
+		Gc::from_inner(unsafe { self.0.finish() })
 	}
 }
 

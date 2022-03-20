@@ -8,7 +8,8 @@ quest_type! {
 }
 
 #[derive(Debug)]
-struct Inner {
+#[doc(hidden)]
+pub struct Inner {
 	data: Vec<ByteCode>,
 	// "source location" ?
 }
@@ -18,9 +19,7 @@ impl Block {
 	pub fn new(data: Vec<ByteCode>) -> Gc<Self> {
 		use crate::value::base::{Base, HasDefaultParent};
 
-		let inner = Base::new_with_parent(data, Gc::<Self>::parent());
-
-		unsafe { std::mem::transmute(inner) }
+		Gc::from_inner(Base::new(Inner { data }, Gc::<Self>::parent()))
 	}
 
 	pub fn call(&self, args: Args<'_>) -> Result<AnyValue> {

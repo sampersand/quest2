@@ -133,7 +133,7 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 }
 
 impl Text {
-	const fn inner(&self) -> &Inner {
+	fn inner(&self) -> &Inner {
 		self.0.data()
 	}
 
@@ -256,7 +256,7 @@ impl Text {
 	#[must_use]
 	pub fn from_static_str(text: &'static str) -> Gc<Self> {
 		let mut builder = Self::builder();
-		builder.insert_flag(FLAG_NOFREE | FLAG_SHARED);
+		builder.insert_flags(FLAG_NOFREE | FLAG_SHARED);
 
 		// SAFETY: TODO
 		unsafe {
@@ -292,7 +292,7 @@ impl Text {
 	#[must_use]
 	pub fn from_string(text: String) -> Gc<Self> {
 		let mut builder = Self::builder();
-		builder.insert_flag(FLAG_FROM_STRING);
+		builder.insert_flags(FLAG_FROM_STRING);
 
 		// SAFETY: TODO
 		unsafe {
@@ -573,7 +573,7 @@ impl Text {
 			let mut builder = Self::builder();
 			let builder_ptr = builder.inner_mut() as *mut Inner;
 			builder_ptr.copy_from_nonoverlapping(self.inner() as *const Inner, 1);
-			builder.insert_flag(self.flags().get());
+			builder.insert_flags(self.flags().get());
 			builder.finish()
 		}
 	}
@@ -590,7 +590,7 @@ impl Text {
 			self.flags().insert(FLAG_SHARED);
 
 			let mut builder = Self::builder();
-			builder.insert_flag(FLAG_SHARED);
+			builder.insert_flags(FLAG_SHARED);
 			builder.inner_mut().alloc = AllocatedText {
 				ptr: slice.as_ptr() as *mut u8,
 				len: slice.len(),
@@ -608,7 +608,7 @@ impl Text {
 		let old_ptr = alloc.ptr;
 		let old_cap = alloc.cap;
 		let len = alloc.len;
-		alloc.ptr = crate::alloc(alloc_ptr_layout(capacity));
+		alloc.ptr = crate::alloc(alloc_ptr_layout(capacity)).as_ptr();
 		alloc.cap = capacity;
 		std::ptr::copy(old_ptr, alloc.ptr, alloc.len);
 
@@ -638,7 +638,7 @@ impl Text {
 
 		unsafe {
 			let len = self.embedded_len();
-			let ptr = crate::alloc(layout);
+			let ptr = crate::alloc(layout).as_ptr();
 			std::ptr::copy(self.inner().embed.buf.as_ptr(), ptr, len);
 
 			self.inner_mut().alloc = AllocatedText {
@@ -675,7 +675,7 @@ impl Text {
 			let mut alloc = &mut self.inner_mut().alloc;
 
 			let orig_layout = alloc_ptr_layout(alloc.cap);
-			alloc.ptr = crate::realloc(alloc.ptr, orig_layout, new_cap);
+			alloc.ptr = crate::realloc(alloc.ptr, orig_layout, new_cap).as_ptr();
 			alloc.cap = new_cap;
 		}
 	}
