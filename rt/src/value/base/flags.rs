@@ -93,6 +93,7 @@ impl Debug for Flags {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(f, "Flags(")?;
 		let mut is_first = true;
+
 		macro_rules! check {
 			($($flag:ident)*) => {
 				$(
@@ -123,7 +124,7 @@ impl Debug for Flags {
 
 impl Binary for Flags {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "Flags({:032b})", self.0.load(Ordering::SeqCst))
+		write!(f, "Flags({:032b})", self.get())
 	}
 }
 

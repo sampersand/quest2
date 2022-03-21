@@ -247,12 +247,7 @@ macro_rules! quest_type_attrs {
 						.build(Default::default())
 				});
 
-				if !is_first_init {
-					// dbg!(concat!("!is_first_init: ", stringify!($type)));
-				}
-
 				if is_first_init {
-					// dbg!(concat!("is_first_init: ", stringify!($type)));
 					#[allow(unused_macros)]
 					macro_rules! method {
 						($fn:expr) => (func!(|this: AnyValue, args| {

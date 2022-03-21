@@ -29,7 +29,9 @@ impl Attributes {
 
 	// we're able to take `&mut self` as `0` is a valid variant—`none`.
 	pub fn with_capacity(capacity: usize, flags: &Flags) -> Self {
-		debug_assert_ne!(capacity, 0); // with 0 capacity, `Attributes` shouldn't be allocated
+		// With 0 capacity, `Attributes` shouldn't be allocated---it should be `None`.
+		// (however, it's still _safe_ and logically valid, just shouldnt be done.)
+		debug_assert_ne!(capacity, 0);
 
 		if capacity <= list::MAX_LISTMAP_LEN {
 			Self {
@@ -114,6 +116,10 @@ pub trait Attribute: Copy + Debug {
 	fn try_eq_value(self, rhs: AnyValue) -> Result<bool>;
 	fn try_eq_intern(self, rhs: Intern) -> Result<bool>;
 
+	fn as_intern(self) -> Option<Intern> {
+		None
+	}
+
 	fn try_hash(self) -> Result<u64>;
 	fn to_value(self) -> AnyValue;
 	unsafe fn to_repr(self) -> (u64, bool);
@@ -144,6 +150,10 @@ impl Attribute for crate::value::Intern {
 		let mut s = DefaultHasher::new();
 		self.hash(&mut s);
 		Ok(s.finish())
+	}
+
+	fn as_intern(self) -> Option<Intern> {
+		Some(self)
 	}
 
 	fn to_value(self) -> AnyValue {

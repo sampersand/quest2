@@ -30,9 +30,16 @@ impl Map {
 
 impl Map {
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
-		let _ = &self.interned;
 		debug_assert!(!attr.is_special());
 
+		if let Some(intern) = attr.as_intern() {
+			Ok(self.interned.get(&intern).cloned())
+		} else {
+			self.get_unbound_any_attr(attr)
+		}
+	}
+
+	fn get_unbound_any_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
@@ -54,6 +61,16 @@ impl Map {
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
 		debug_assert!(!attr.is_special());
 
+		if let Some(intern) = attr.as_intern() {
+			self.interned.insert(intern, value);
+
+			Ok(())
+		} else {
+			self.set_any_attr(attr, value)
+		}
+	}
+
+	fn set_any_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
@@ -87,6 +104,16 @@ impl Map {
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
 		debug_assert!(!attr.is_special());
 
+		if let Some(_intern) = attr.as_intern() {
+			// You cannot remove interned values
+			// TODO: is this actually the semantics we want?
+			Ok(None)
+		} else {
+			self.del_any_attr(attr)
+		}
+	}
+
+	fn del_any_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
