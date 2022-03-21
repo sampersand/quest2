@@ -36,7 +36,7 @@ impl Attributes {
 				list: ManuallyDrop::new(ListMap::default()),
 			}
 		} else {
-			flags.insert(Flags::ATTR_MAP);
+			flags.insert_internal(Flags::ATTR_MAP);
 			Self {
 				map: ManuallyDrop::new(Map::with_capacity(capacity)),
 			}
@@ -84,7 +84,7 @@ impl Attributes {
 
 				self.map =
 					ManuallyDrop::new(Map::from_iter(ManuallyDrop::take(&mut self.list).iter())?);
-				flags.insert(Flags::ATTR_MAP);
+				flags.insert_internal(Flags::ATTR_MAP);
 			}
 		}
 

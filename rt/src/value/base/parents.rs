@@ -25,7 +25,7 @@ pub struct NoParents;
 unsafe impl IntoParent for NoParents {
 	#[inline]
 	fn into_parent(self, flags: &Flags) -> Option<NonZeroU64> {
-		flags.remove(Flags::MULTI_PARENT);
+		flags.remove_internal(Flags::MULTI_PARENT);
 		None
 	}
 }
@@ -33,7 +33,7 @@ unsafe impl IntoParent for NoParents {
 unsafe impl IntoParent for AnyValue {
 	#[inline]
 	fn into_parent(self, flags: &Flags) -> Option<NonZeroU64> {
-		flags.remove(Flags::MULTI_PARENT);
+		flags.remove_internal(Flags::MULTI_PARENT);
 
 		Some(unsafe { std::mem::transmute(self) })
 	}
@@ -42,7 +42,7 @@ unsafe impl IntoParent for AnyValue {
 unsafe impl IntoParent for Gc<List> {
 	#[inline]
 	fn into_parent(self, flags: &Flags) -> Option<NonZeroU64> {
-		flags.insert(Flags::MULTI_PARENT);
+		flags.insert_internal(Flags::MULTI_PARENT);
 
 		Some(unsafe { std::mem::transmute(self) })
 	}

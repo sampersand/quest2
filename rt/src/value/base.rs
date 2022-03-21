@@ -258,7 +258,7 @@ impl Header {
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub fn freeze(&self) {
-		self.flags().insert(Flags::FROZEN);
+		self.flags().insert_internal(Flags::FROZEN);
 	}
 
 	/// Gets a reference to the parents of this type.

@@ -20,7 +20,7 @@ impl Builder {
 	}
 
 	pub fn insert_flags(&mut self, flag: u32) {
-		self.0.insert_flags(flag);
+		self.0.insert_user_flags(flag);
 	}
 
 	pub unsafe fn inner_mut(&mut self) -> &mut Inner {

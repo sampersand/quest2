@@ -87,7 +87,6 @@ impl super::AttrConversionDefined for Gc<Text> {
 #[repr(C)]
 #[doc(hidden)]
 pub union Inner {
-	// TODO: remove pub
 	alloc: AllocatedText,
 	embed: EmbeddedText,
 }
@@ -393,8 +392,8 @@ impl Text {
 	fn set_embedded_len(&mut self, new_len: usize) {
 		debug_assert!(self.is_embedded());
 
-		self.flags().remove(EMBED_LENMASK);
-		self.flags().insert(mask_len(new_len));
+		self.flags().remove_user(EMBED_LENMASK);
+		self.flags().insert_user(mask_len(new_len));
 	}
 
 	/// Checks to see if `self` has a length of zero bytes.
@@ -566,7 +565,7 @@ impl Text {
 
 		// For allocated strings, you can actually one-for-one copy the body, as we now
 		// have `FLAG_SHARED` marked.
-		self.flags().insert(FLAG_SHARED);
+		self.flags().insert_user(FLAG_SHARED);
 
 		// SAFETY: TODO
 		unsafe {
@@ -587,7 +586,7 @@ impl Text {
 		let slice = &self.as_str()[idx];
 
 		unsafe {
-			self.flags().insert(FLAG_SHARED);
+			self.flags().insert_user(FLAG_SHARED);
 
 			let mut builder = Self::builder();
 			builder.insert_flags(FLAG_SHARED);
@@ -614,10 +613,10 @@ impl Text {
 
 		if self.is_from_string() {
 			drop(String::from_raw_parts(old_ptr, len, old_cap));
-			self.flags().remove(FLAG_FROM_STRING);
+			self.flags().remove_user(FLAG_FROM_STRING);
 		}
 
-		self.flags().remove(FLAG_NOFREE | FLAG_SHARED);
+		self.flags().remove_user(FLAG_NOFREE | FLAG_SHARED);
 	}
 
 	pub unsafe fn as_mut_bytes(&mut self) -> &mut [u8] {
@@ -647,7 +646,7 @@ impl Text {
 				ptr,
 			};
 
-			self.flags().remove(FLAG_EMBEDDED | EMBED_LENMASK);
+			self.flags().remove_user(FLAG_EMBEDDED | EMBED_LENMASK);
 		}
 	}
 

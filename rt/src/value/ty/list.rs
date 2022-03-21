@@ -152,8 +152,8 @@ impl List {
 	fn set_embedded_len(&mut self, new_len: usize) {
 		debug_assert!(self.is_embedded());
 
-		self.flags().remove(EMBED_LENMASK);
-		self.flags().insert(mask_len(new_len));
+		self.flags().remove_user(EMBED_LENMASK);
+		self.flags().insert_user(mask_len(new_len));
 	}
 
 	pub fn capacity(&self) -> usize {
@@ -187,7 +187,7 @@ impl List {
 		unsafe {
 			// For allocated strings, you can actually one-for-one copy the body, as we now
 			// have `FLAG_SHARED` marked.
-			self.flags().insert(FLAG_SHARED);
+			self.flags().insert_user(FLAG_SHARED);
 
 			let mut builder = Self::builder();
 			let builder_ptr = builder.inner_mut() as *mut Inner;
@@ -209,7 +209,7 @@ impl List {
 		let slice = &self.as_slice()[idx];
 
 		unsafe {
-			self.flags().insert(FLAG_SHARED);
+			self.flags().insert_user(FLAG_SHARED);
 
 			let mut builder = Self::builder();
 			builder.insert_flags(FLAG_SHARED);
@@ -234,7 +234,7 @@ impl List {
 		alloc.cap = capacity;
 		std::ptr::copy(old_ptr, alloc.ptr, alloc.len);
 
-		self.flags().remove(FLAG_NOFREE | FLAG_SHARED);
+		self.flags().remove_user(FLAG_NOFREE | FLAG_SHARED);
 	}
 
 	pub unsafe fn as_mut_ptr(&mut self) -> *mut AnyValue {
@@ -275,7 +275,7 @@ impl List {
 				ptr,
 			};
 
-			self.flags().remove(FLAG_EMBEDDED | EMBED_LENMASK);
+			self.flags().remove_user(FLAG_EMBEDDED | EMBED_LENMASK);
 		}
 	}
 

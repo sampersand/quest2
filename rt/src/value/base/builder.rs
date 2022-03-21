@@ -31,7 +31,7 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 ///
 /// // You can also set custom flags, if you attribute meanings to them.
 /// const FLAG_IS_SPECIAL: u32 = Flags::USER0;
-/// builder.insert_flags(FLAG_IS_SPECIAL);
+/// builder.insert_user_flags(FLAG_IS_SPECIAL);
 ///
 /// // SAFETY: Since `builder` was zero-initialized, we only had to set `data`.
 /// let base = unsafe { builder.finish() };
@@ -290,7 +290,7 @@ impl<T> Builder<T> {
 
 	/// Access the flags in the header.
 	///
-	/// If you simply want to set flags, you can use the [`insert_flags`] shorthand. See [`Flags`]
+	/// If you simply want to set flags, you can use the [`insert_user_flags`] shorthand. See [`Flags`]
 	/// for more details on custom flags in general.
 	///
 	/// # Examples
@@ -300,7 +300,7 @@ impl<T> Builder<T> {
 	///
 	/// const FLAG_IS_SUPER_DUPER_COOL: u32 = Flags::USER0;
 	/// assert!(!builder.flags().contains(FLAG_IS_SUPER_DUPER_COOL));
-	/// builder.insert_flags(FLAG_IS_SUPER_DUPER_COOL);
+	/// builder.insert_user_flags(FLAG_IS_SUPER_DUPER_COOL);
 	///
 	/// // SAFETY: Since `builder` was zero-initialized to a ZST, we didn't have to do anything.
 	/// let base = unsafe { builder.finish() };
@@ -327,7 +327,7 @@ impl<T> Builder<T> {
 	///
 	/// // Set custom flags, if you attribute meanings to them.
 	/// const FLAG_IS_SUPER_DUPER_COOL: u32 = Flags::USER0;
-	/// builder.insert_flags(FLAG_IS_SUPER_DUPER_COOL);
+	/// builder.insert_user_flags(FLAG_IS_SUPER_DUPER_COOL);
 	///
 	/// // SAFETY: Since `builder` was zero-initialized to a ZST, we didn't have to do anything.
 	/// let base = unsafe { builder.finish() };
@@ -337,8 +337,8 @@ impl<T> Builder<T> {
 	///         .flags()
 	///         .contains(FLAG_IS_SUPER_DUPER_COOL)
 	/// );
-	pub fn insert_flags(&self, flag: u32) {
-		self.flags().insert(flag);
+	pub fn insert_user_flags(&self, flag: u32) {
+		self.flags().insert_user(flag);
 	}
 
 	/// Assigns the data for the underlying `Base<T>`.
