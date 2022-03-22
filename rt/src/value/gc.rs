@@ -258,18 +258,26 @@ impl<T: Allocated> Gc<T> {
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub fn as_mut(self) -> Result<Mut<T>> {
-		if self.flags().contains(Flags::FROZEN) {
+		if self.is_frozen() {
 			return Err(Error::ValueFrozen(Value::from(self).any()));
 		}
 
 		if self
 			.borrows()
 			.compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed)
-			.is_ok()
+			.is_err()
 		{
-			Ok(Mut(self))
+			return Err(Error::AlreadyLocked(Value::from(self).any()))
+		}
+
+		let mutref = Mut(self);
+
+		// We have to check again to see if it's frozen just in case.
+		if self.is_frozen() {
+			// this will drop `mutref` and thus release the mutable ownership.
+			Err(Error::ValueFrozen(Value::from(self).any()))
 		} else {
-			Err(Error::AlreadyLocked(Value::from(self).any()))
+			Ok(mutref)
 		}
 	}
 

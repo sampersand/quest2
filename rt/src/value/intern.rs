@@ -1,4 +1,6 @@
-use crate::value::{gc::Gc, ty::Text, AsAny};
+use crate::value::{Gc, AsAny};
+use crate::value::ty::Text;
+use crate::{Value, AnyValue};
 use std::fmt::{self, Display, Formatter};
 use std::ops::Deref;
 
@@ -87,15 +89,15 @@ impl Intern {
 	}
 }
 
-impl From<Intern> for crate::Value<crate::value::gc::Gc<crate::value::ty::Text>> {
+impl From<Intern> for Value<Gc<Text>> {
 	fn from(intern: Intern) -> Self {
-		crate::value::ty::Text::from_static_str(intern.as_str()).into()
+		intern.as_text().into()
 	}
 }
 
 impl AsAny for Intern {
-	fn as_any(self) -> crate::AnyValue {
-		crate::Value::from(self).any()
+	fn as_any(self) -> AnyValue {
+		Value::from(self).any()
 	}
 }
 

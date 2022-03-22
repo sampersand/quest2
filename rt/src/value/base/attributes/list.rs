@@ -4,7 +4,9 @@ use crate::value::Intern;
 use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 
-pub const MAX_LISTMAP_LEN: usize = u8::BITS as usize;
+type InternedLength = u8;
+pub const MAX_LISTMAP_LEN: usize = InternedLength::BITS as usize;
+sa::const_assert!(MAX_LISTMAP_LEN <= InternedLength::BITS as usize);
 
 #[derive(Clone, Copy)]
 union Key {
@@ -14,22 +16,20 @@ union Key {
 }
 
 #[derive(Default)]
-pub struct ListMap {
+pub(super) struct ListMap {
 	data: [Option<(Key, AnyValue)>; MAX_LISTMAP_LEN],
-	interned: u8,
+	interned: InternedLength,
 }
 
 impl Debug for ListMap {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		let mut m = f.debug_map();
 
-		for (idx, entry) in self.data.iter().enumerate() {
-			if let Some((key, value)) = entry {
-				if self.interned & (1 << idx) != 0 {
-					m.entry(unsafe { &key.intern }, value);
-				} else {
-					m.entry(unsafe { &key.value }, value);
-				}
+		for (idx, (key, value)) in self.data.iter().map_while(|o| *o).enumerate() {
+			if self.interned & (1 << idx) != 0 {
+				m.entry(unsafe { &key.intern }, &value);
+			} else {
+				m.entry(unsafe { &key.value }, &value);
 			}
 		}
 
@@ -40,9 +40,9 @@ impl Debug for ListMap {
 macro_rules! is_eql_at {
 	($list:ident, $idx:expr, $attr:expr, $value:expr) => {
 		if $list.interned & (1 << $idx) != 0 {
-			$attr.try_eq_intern(unsafe { $value.intern })?
+			$attr.try_eq_intern(unsafe { $value.intern })
 		} else {
-			$attr.try_eq_value(unsafe { $value.value })?
+			$attr.try_eq_value(unsafe { $value.value })
 		}
 	};
 }
@@ -75,16 +75,24 @@ impl ListMap {
 		Iter(self, 0)
 	}
 
-	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
-		debug_assert!(!attr.is_special());
+	// pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+	// 	for (idx, &entry) in self.data.iter().enumerate() {
+	// 		if let Some((k, v)) = entry {
+	// 			if is_eql_at!(self, idx, attr, k)? {
+	// 				return Ok(Some(v));
+	// 			}
+	// 		} else {
+	// 			break;
+	// 		}
+	// 	}
 
-		for (idx, &entry) in self.data.iter().enumerate() {
-			if let Some((k, v)) = entry {
-				if is_eql_at!(self, idx, attr, k) {
-					return Ok(Some(v));
-				}
-			} else {
-				break;
+	// 	Ok(None)
+	// }
+
+	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+		for (idx, (key, value)) in self.data.iter().map_while(|opt| *opt).enumerate() {
+			if is_eql_at!(self, idx, attr, key)? {
+				return Ok(Some(value));
 			}
 		}
 
@@ -92,57 +100,53 @@ impl ListMap {
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
-		debug_assert!(!attr.is_special());
-
 		for (idx, entry) in self.data.iter_mut().enumerate() {
 			if let Some((k, v)) = entry {
-				if is_eql_at!(self, idx, attr, k) {
-					*v = value;
-					// no need to update the interned value here, as the key doesnt change.
-					return Ok(());
-				}
-			} else {
-				let (raw_data, is_intern) = unsafe { attr.to_repr() };
-				self.data[idx] = Some((Key { raw_data }, value));
-
-				if is_intern {
-					self.interned |= 1 << idx;
+				if !is_eql_at!(self, idx, attr, k)? {
+					continue;
 				}
 
+				// no need to update the interned value here, as the key doesnt change.
+				*v = value;
 				return Ok(());
 			}
+
+			let (raw_data, is_intern) = unsafe { attr.to_repr() };
+			self.data[idx] = Some((Key { raw_data }, value));
+
+			if is_intern {
+				self.interned |= 1 << idx;
+			}
+
+			return Ok(());
 		}
 
 		unreachable!("`set_attr` called when maxlen already reached?");
 	}
 
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
-		debug_assert!(!attr.is_special());
-
 		// this isn't terribly efficient, but then again most people aren't going to be
 		// deleting things often, so it's alright.
-		for (idx, entry) in self.data.iter_mut().enumerate() {
-			if let Some((k, v)) = entry {
-				if !is_eql_at!(self, idx, attr, k) {
-					continue;
-				}
-
-				let value = *v;
-				self.data[idx] = None;
-
-				for j in idx + 1..MAX_LISTMAP_LEN {
-					if self.data[j].is_none() {
-						self.data.swap(idx, j - 1);
-						break;
-					}
-				}
-
-				self.interned &= !(1 << idx);
-
-				return Ok(Some(value));
-			} else {
-				break;
+		for (idx, (key, value)) in self.data.iter_mut().map_while(|opt| *opt).enumerate() {
+			if !is_eql_at!(self, idx, attr, key)? {
+				continue;
 			}
+
+			self.data[idx] = None;
+			self.interned &= !(1 << idx);
+
+			// Find the last `None` element and swap it with the current one.
+			for j in (idx + 1..=MAX_LISTMAP_LEN-1).rev() {
+				if self.data[j].is_none() {
+					self.data.swap(idx, j - 1);
+
+					self.interned |= self.interned & (1 << j);
+					self.interned &= !(1 << j);
+					break;
+				}
+			}
+
+			return Ok(Some(value));
 		}
 
 		Ok(None)

@@ -44,12 +44,14 @@ impl Flags {
 		Self(AtomicU32::new(flags))
 	}
 
+	#[inline]
 	pub fn insert_user(&self, flag: u32) {
 		debug_assert_eq!(flag & !Self::USER_FLAGS_MASK, 0, "attempted to set non-user flags.");
 
 		self.0.fetch_or(flag & Self::USER_FLAGS_MASK, Ordering::SeqCst);
 	}
 
+	#[inline]
 	pub(crate) fn insert_internal(&self, flag: u32) {
 		debug_assert_eq!(flag & Self::USER_FLAGS_MASK, 0, "attempted to set user flags.");
 
@@ -72,12 +74,11 @@ impl Flags {
 		self.mask(flag) != 0
 	}
 
+	#[inline]
 	pub fn remove_user(&self, flag: u32) {
 		debug_assert_eq!(flag & !Self::USER_FLAGS_MASK, 0, "attempted to set non-user flags.");
 
-		// FIXME: bitwise flag with user flags mask, but is it right?
-
-		self.0.fetch_and(!flag, Ordering::SeqCst);
+		self.0.fetch_and(!(flag & Self::USER_FLAGS_MASK), Ordering::SeqCst);
 	}
 
 	pub(crate) fn remove_internal(&self, flag: u32) {
@@ -85,7 +86,7 @@ impl Flags {
 
 		// FIXME: bitwise flag with user flags mask, but is it right?
 
-		self.0.fetch_and(!flag, Ordering::SeqCst);
+		self.0.fetch_and(!(flag & !Self::USER_FLAGS_MASK), Ordering::SeqCst);
 	}
 }
 

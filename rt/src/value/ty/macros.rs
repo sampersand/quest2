@@ -16,6 +16,14 @@
 // 	};
 // }
 
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! _length_of {
+	() => (0);
+	($_tt:tt $($rest:tt)*) => (1+_length_of!($($rest)*));
+}
+
 #[macro_export]
 macro_rules! create_class {
 	($name:expr $(, parent $parent:expr)?; $($attr:expr => $kind:ident $value:expr),* $(,)?) => {(|| -> $crate::Result<$crate::AnyValue> {
@@ -23,7 +31,7 @@ macro_rules! create_class {
 		use $crate::value::{AsAny, Intern};
 
 		#[allow(unused_mut)]
-		let mut builder = $crate::value::ty::Class::builder($name, _length_of!($($attr)*));
+		let mut builder = $crate::value::ty::Class::builder($name, $crate::_length_of!($($attr)*));
 
 		$({
 			use $crate::value::ty::*;
@@ -185,12 +193,6 @@ macro_rules! quest_type_alias {
 			}
 		}
 	};
-}
-
-#[macro_export]
-macro_rules! _length_of {
-	() => (0);
-	($_tt:tt $($rest:tt)*) => (1+_length_of!($($rest)*));
 }
 
 #[macro_export]

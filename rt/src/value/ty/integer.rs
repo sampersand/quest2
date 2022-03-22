@@ -85,6 +85,10 @@ pub mod funcs {
 	}
 }
 
+// impl crate::value::base::HasDefaultParent for Integer {
+// 	fn parent() -> AnyValue {}
+// }
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct IntegerClass;
 
