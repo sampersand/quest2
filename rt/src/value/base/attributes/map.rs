@@ -3,6 +3,28 @@ use crate::value::Intern;
 use crate::{AnyValue, Result};
 use hashbrown::{hash_map::RawEntryMut, HashMap};
 
+
+/*
+Under the (hopefully final) design, `Text::attr==` is the function that's used to compare a text
+and another value for equality. This function is not able to be overwritten, just as `Text::hash` is
+not.
+
+Note that `Intern` shares the exact same implementation for `==` and `hash`.
+
+There's three different options for looking up values:
+	- If youre looking up an `Intern`
+	- If youre looking up an `Text`
+	- If youre looking up anything else
+
+The `anythign else` is easy, because that'll never be an `Intern`.
+
+The problem is `Intern`/`Text`. We cant convert all `Text`s into `Intern`ed values, as they might
+have special attributes on them. As such, whenever you lookup an `Intern`, you first must check the
+`Intern`s, and then check the uninterned ones, as it may or may not be there. Likewise, when you
+lookup a `Text` dynamically, you must also check the `Intern`s. 
+
+*/
+
 #[derive(Debug, Default)]
 pub struct Map {
 	interned: HashMap<Intern, AnyValue>,

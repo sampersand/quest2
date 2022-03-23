@@ -52,7 +52,7 @@ macro_rules! value {
 }
 
 fn main() -> Result<()> {
-	dbg!(1
+	let x = 1
 		.as_any()
 		.get_attr(Intern::op_add)
 		.unwrap()
@@ -60,7 +60,10 @@ fn main() -> Result<()> {
 		.get_attr(Intern::op_call)
 		.unwrap()
 		.unwrap()
-		.call_attr(Intern::op_call, args!(2)));
+		.call_attr(Intern::op_call, args!(2));
+
+	dbg!(x);
+	dbg!(Intern::op_call.as_any());
 
 	Ok(())
 }

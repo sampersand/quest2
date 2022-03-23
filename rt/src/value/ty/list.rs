@@ -41,7 +41,7 @@ const FLAG_SHARED: u32 = Flags::USER1;
 const FLAG_NOFREE: u32 = Flags::USER2;
 const EMBED_LENMASK: u32 = Flags::USER3 | Flags::USER4;
 
-sa::const_assert!(MAX_EMBEDDED_LEN <= unmask_len(EMBED_LENMASK));
+const _: () = assert!(MAX_EMBEDDED_LEN <= unmask_len(EMBED_LENMASK));
 
 const fn unmask_len(len: u32) -> usize {
 	debug_assert!(len & !EMBED_LENMASK == 0);

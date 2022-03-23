@@ -1,16 +1,15 @@
-use super::Attribute;
+use super::{Attribute};
 use crate::value::AsAny;
 use crate::value::Intern;
+
 use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 
-type InternedLength = u8;
-pub const MAX_LISTMAP_LEN: usize = InternedLength::BITS as usize;
-sa::const_assert!(MAX_LISTMAP_LEN <= InternedLength::BITS as usize);
-
+pub const MAX_LISTMAP_LEN: usize = 8;
 #[derive(Clone, Copy)]
 union Key {
 	raw_data: u64,
+	#[allow(dead_code)] // never explicitly read, it's read via `Intern::try_from_repr`.
 	intern: Intern,
 	value: AnyValue,
 }
@@ -18,33 +17,41 @@ union Key {
 #[derive(Default)]
 pub(super) struct ListMap {
 	data: [Option<(Key, AnyValue)>; MAX_LISTMAP_LEN],
-	interned: InternedLength,
+}
+
+macro_rules! if_intern {
+	($key:expr, |$intern:ident| $ifi:expr, |$value:ident| $ifv:expr) => {{
+		let key = $key;
+
+		if let Some($intern) = Intern::try_from_repr(unsafe { key.raw_data }) {
+			$ifi
+		} else {
+			let $value = unsafe { key.value };
+			$ifv
+		}
+	}};
 }
 
 impl Debug for ListMap {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		let mut m = f.debug_map();
 
-		for (idx, (key, value)) in self.data.iter().map_while(|o| *o).enumerate() {
-			if self.interned & (1 << idx) != 0 {
-				m.entry(unsafe { &key.intern }, &value);
-			} else {
-				m.entry(unsafe { &key.value }, &value);
-			}
+		for (key, value) in self.data.iter().map_while(|o| *o) {
+			if_intern!(key,
+				|intern| m.entry(&intern, &value),
+				|value| m.entry(&value, &value));
 		}
 
 		m.finish()
 	}
 }
 
-macro_rules! is_eql_at {
-	($list:ident, $idx:expr, $attr:expr, $value:expr) => {
-		if $list.interned & (1 << $idx) != 0 {
-			$attr.try_eq_intern(unsafe { $value.intern })
-		} else {
-			$attr.try_eq_value(unsafe { $value.value })
-		}
-	};
+impl Key {
+	fn is_eql<A: Attribute>(self, attr: A) -> Result<bool> {
+		if_intern!(self,
+			|intern| attr.try_eq_intern(intern),
+			|value| attr.try_eq_value(value))
+	}
 }
 
 impl ListMap {
@@ -59,11 +66,7 @@ impl ListMap {
 
 			fn next(&mut self) -> Option<Self::Item> {
 				if let Some((k, v)) = self.0.data.get(self.1).map(|x| *x).flatten() {
-					let k = if self.0.interned & (1 << self.1) != 0 {
-						unsafe { k.intern }.as_text().as_any()
-					} else {
-						unsafe { k.value }
-					};
+					let k = if_intern!(k, |intern| intern.as_text().as_any(), |value| value);
 					self.1 += 1;
 					Some((k, v))
 				} else {
@@ -75,23 +78,9 @@ impl ListMap {
 		Iter(self, 0)
 	}
 
-	// pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
-	// 	for (idx, &entry) in self.data.iter().enumerate() {
-	// 		if let Some((k, v)) = entry {
-	// 			if is_eql_at!(self, idx, attr, k)? {
-	// 				return Ok(Some(v));
-	// 			}
-	// 		} else {
-	// 			break;
-	// 		}
-	// 	}
-
-	// 	Ok(None)
-	// }
-
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
-		for (idx, (key, value)) in self.data.iter().map_while(|opt| *opt).enumerate() {
-			if is_eql_at!(self, idx, attr, key)? {
+		for (key, value) in self.data.iter().map_while(|o| *o) {
+			if key.is_eql(attr)? {
 				return Ok(Some(value));
 			}
 		}
@@ -99,23 +88,22 @@ impl ListMap {
 		Ok(None)
 	}
 
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, new_value: AnyValue) -> Result<()> {
 		for (idx, entry) in self.data.iter_mut().enumerate() {
-			if let Some((k, v)) = entry {
-				if !is_eql_at!(self, idx, attr, k)? {
+			if let Some((key, value)) = entry {
+				if !key.is_eql(attr)? {
 					continue;
 				}
 
-				// no need to update the interned value here, as the key doesnt change.
-				*v = value;
-				return Ok(());
-			}
+				// if let Some(intern) = Intern::try_from_repr(unsafe { key.raw_data }) {
+				// 	if intern.is_frozen() {
+				// 		return Err(crate::Error::Message("attribute is frozen, cannot set it".to_string()))
+				// 	}
+				// }
 
-			let (raw_data, is_intern) = unsafe { attr.to_repr() };
-			self.data[idx] = Some((Key { raw_data }, value));
-
-			if is_intern {
-				self.interned |= 1 << idx;
+				*value = new_value;
+			} else {
+				self.data[idx] = Some((Key { raw_data: attr.to_repr() }, new_value));
 			}
 
 			return Ok(());
@@ -128,20 +116,16 @@ impl ListMap {
 		// this isn't terribly efficient, but then again most people aren't going to be
 		// deleting things often, so it's alright.
 		for (idx, (key, value)) in self.data.iter_mut().map_while(|opt| *opt).enumerate() {
-			if !is_eql_at!(self, idx, attr, key)? {
+			if !key.is_eql(attr)? {
 				continue;
 			}
 
 			self.data[idx] = None;
-			self.interned &= !(1 << idx);
 
 			// Find the last `None` element and swap it with the current one.
 			for j in (idx + 1..=MAX_LISTMAP_LEN-1).rev() {
 				if self.data[j].is_none() {
 					self.data.swap(idx, j - 1);
-
-					self.interned |= self.interned & (1 << j);
-					self.interned &= !(1 << j);
 					break;
 				}
 			}

@@ -6,8 +6,10 @@ use std::mem::ManuallyDrop;
 
 mod list;
 mod map;
+mod internkey;
 use list::ListMap;
 use map::Map;
+use internkey::InternKey;
 
 pub union Attributes {
 	list: ManuallyDrop<ListMap>,
@@ -122,7 +124,7 @@ pub trait Attribute: Copy + Debug {
 
 	fn try_hash(self) -> Result<u64>;
 	fn to_value(self) -> AnyValue;
-	unsafe fn to_repr(self) -> (u64, bool);
+	fn to_repr(self) -> u64;
 
 	fn is_parents(self) -> bool;
 	fn is_special(self) -> bool {
@@ -160,8 +162,8 @@ impl Attribute for crate::value::Intern {
 		self.as_text().as_any()
 	}
 
-	unsafe fn to_repr(self) -> (u64, bool) {
-		(self as u64, true)
+	fn to_repr(self) -> u64 {
+		self as u64
 	}
 
 	fn is_parents(self) -> bool {
@@ -195,7 +197,7 @@ impl Attribute for &'static str {
 		Value::from(Text::from_static_str(self)).any()
 	}
 
-	unsafe fn to_repr(self) -> (u64, bool) {
+	fn to_repr(self) -> (u64, bool) {
 		(self.to_value().bits(), false)
 	}
 
@@ -221,8 +223,8 @@ impl Attribute for AnyValue {
 		self
 	}
 
-	unsafe fn to_repr(self) -> (u64, bool) {
-		(self.bits(), false)
+	fn to_repr(self) -> u64 {
+		self.bits()
 	}
 
 	fn is_parents(self) -> bool {

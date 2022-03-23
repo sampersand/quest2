@@ -10,16 +10,18 @@ use std::marker::PhantomData;
 use std::num::NonZeroU64;
 
 /*
-000...000 0000 = undefined
-XXX...XXX 0000 = `Base<T>` (nonzero `X`)
-XXX...XXX 1000 = RustFn (nonzero `X`, gotta remove the `1`)
-XXX...XXX XXX1 = i63
-XXX...XXX XX10 = f62
-000...000 0100 = false
-000...001 0100 = null
-000...010 0100 = true
-XXX...XXX 1100 = Interned
+000...0000 0000 = undefined
+XXX...XXXX 0000 = `Base<T>` (nonzero `X`)
+XXX...XXXX 1000 = RustFn (nonzero `X`, gotta remove the `1`)
+XXX...XXXX XXX1 = i63
+XXX...XXXX XX10 = f62
+000...0000 0100 = false
+000...0001 0100 = null
+000...0010 0100 = true
+XXX...X1Y0 0100 = undefined, `Y` is used to indicate frozen in InternKey.
 
+Note that the `XXX...X100 0100` variant is used to make it so a union between `AnyValue` and
+`Intern` will be unambiguously one type or the other.
 
 NOTE: Technically, the first page can be allocated in some architectures
 (and thus `false`/`true`/`null` constants could ~technically~ be allocated).
