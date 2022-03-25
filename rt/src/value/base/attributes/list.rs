@@ -1,7 +1,5 @@
-use super::{Attribute};
+use super::{Attribute, InternKey};
 use crate::value::AsAny;
-use crate::value::Intern;
-
 use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 
@@ -10,7 +8,7 @@ pub const MAX_LISTMAP_LEN: usize = 8;
 union Key {
 	raw_data: u64,
 	#[allow(dead_code)] // never explicitly read, it's read via `Intern::try_from_repr`.
-	intern: Intern,
+	intern: InternKey,
 	value: AnyValue,
 }
 
@@ -23,7 +21,7 @@ macro_rules! if_intern {
 	($key:expr, |$intern:ident| $ifi:expr, |$value:ident| $ifv:expr) => {{
 		let key = $key;
 
-		if let Some($intern) = Intern::try_from_repr(unsafe { key.raw_data }) {
+		if let Some($intern) = InternKey::try_from_repr(unsafe { key.raw_data }).map(InternKey::as_intern) {
 			$ifi
 		} else {
 			let $value = unsafe { key.value };
@@ -59,6 +57,7 @@ impl ListMap {
 		self.data[MAX_LISTMAP_LEN - 1].is_some()
 	}
 
+	// Note that this drops the "intern"ness, but that's ok (i guess?)
 	pub fn iter(&self) -> impl Iterator<Item = (AnyValue, AnyValue)> + '_ {
 		struct Iter<'a>(&'a ListMap, usize);
 		impl Iterator for Iter<'_> {
@@ -95,11 +94,11 @@ impl ListMap {
 					continue;
 				}
 
-				// if let Some(intern) = Intern::try_from_repr(unsafe { key.raw_data }) {
-				// 	if intern.is_frozen() {
-				// 		return Err(crate::Error::Message("attribute is frozen, cannot set it".to_string()))
-				// 	}
-				// }
+				if let Some(intern) = InternKey::try_from_repr(unsafe { key.raw_data }) {
+					if intern.is_frozen() {
+						return Err(crate::Error::Message("attribute is frozen, cannot set it".to_string()))
+					}
+				}
 
 				*value = new_value;
 			} else {
@@ -118,6 +117,12 @@ impl ListMap {
 		for (idx, (key, value)) in self.data.iter_mut().map_while(|opt| *opt).enumerate() {
 			if !key.is_eql(attr)? {
 				continue;
+			}
+
+			if let Some(intern) = InternKey::try_from_repr(unsafe { key.raw_data }) {
+				if intern.is_frozen() {
+					return Err(crate::Error::Message("attribute is frozen, cannot set it".to_string()))
+				}
 			}
 
 			self.data[idx] = None;

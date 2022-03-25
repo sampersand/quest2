@@ -22,7 +22,6 @@ The problem is `Intern`/`Text`. We cant convert all `Text`s into `Intern`ed valu
 have special attributes on them. As such, whenever you lookup an `Intern`, you first must check the
 `Intern`s, and then check the uninterned ones, as it may or may not be there. Likewise, when you
 lookup a `Text` dynamically, you must also check the `Intern`s. 
-
 */
 
 #[derive(Debug, Default)]

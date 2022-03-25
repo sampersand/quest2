@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 #[repr(transparent)]
 pub struct InternKey(u64);
 
-const FROZEN_BIT: u64 = 0b10_0100;
+const FROZEN_BIT: u64 = 0b10_0000;
 
 impl InternKey {
 	#[allow(unused)]
@@ -22,7 +22,7 @@ impl InternKey {
 		self.0 & FROZEN_BIT != 0
 	}
 
-	pub fn try_from_repr(repr: u64) -> Option<Self> {
+	pub const fn try_from_repr(repr: u64) -> Option<Self> {
 		if Intern::try_from_repr(repr & !FROZEN_BIT).is_some() {
 			Some(Self(repr))
 		} else {
