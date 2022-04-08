@@ -52,6 +52,19 @@ macro_rules! value {
 }
 
 fn main() -> Result<()> {
+	let mut stream = qvm_rt::parser::Stream::new(r###"
+add = fn (bar, baz) {
+	return bar ++ baz
+}
+"###, None);
+
+	while let Some(tkn) = qvm_rt::parser::SpannedToken::parse(&mut stream).unwrap() {
+		dbg!(tkn.token);
+	}
+
+	Ok(())
+}
+fn main4() -> Result<()> {
 	let x = 1
 		.as_any()
 		.get_attr(Intern::op_add)

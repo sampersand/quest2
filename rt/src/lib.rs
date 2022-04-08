@@ -13,6 +13,8 @@ mod error;
 pub mod value;
 pub mod vm;
 
+pub mod parser;
+
 pub use error::{Error, Result};
 pub use value::{AnyValue, Value};
 

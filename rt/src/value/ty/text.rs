@@ -12,7 +12,10 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 
 mod builder;
+mod simple_builder;
+
 pub use builder::Builder;
+pub use simple_builder::SimpleBuilder;
 
 quest_type! {
 	/// The type that represents text (ie Strings) in Quest.
@@ -153,6 +156,10 @@ impl Text {
 	#[must_use]
 	pub fn builder() -> Builder {
 		Builder::allocate()
+	}
+
+	pub fn simple_builder() -> SimpleBuilder {
+		SimpleBuilder::new()
 	}
 
 	/// Creates a new, empty [`Text`].

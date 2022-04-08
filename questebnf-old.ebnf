@@ -1,0 +1,48 @@
+program := {<expr>} ;
+expr := <block> | <unary-op> | <binary-op> | <ecall>
+
+unary-op := UNARY_OP <expr> ;
+binary-op := <expr> BINARY_OP <expr> ;
+
+fn-call := <primary> '(' <fn-call-args> ')' ;
+attr-access := <primary> '.' <primary>;
+array-access := <primarY> '[' <fn-call-args> ']' ;
+
+literal := STRING_LITERAL | 
+
+array-literal := '[' {<expression> ','} [<expression>] '}' ;
+block := '{' {<expression> NEWLINE} [<expression>] '}' ;
+
+number-literal := ['+' | '-'] (<integer-literal> | <float-literal>) ;
+(* NOTE: {...}'_' is the same as )
+integer-literal
+ := '0' 'x' {'_'} HEX_DIGIT {'_' | HEX_DIGIT}
+  | '0' 'b' {'_'} ('0' | '1') {'_' | '0' | '1'}
+  | '0' 'o' {'_'} OCTAL_DIGIT {'_' | OCTAL_DIGIT}
+  | ['0' 'd'] {'_'} DIGIT {'_' | DIGIT} ;
+float-literal
+ := DIGIT {'_' | DIGIT}
+ 	('.' {'_'} DIGIT {'_' DIGIT}
+ 		| ('e' | 'E') ['+' | '-'] {'_'} DIGIT {'_' DIGIT}) ;
+
+
+string-literal := <string-single> | <string-double> | <string-raw> ;
+string-single := "'" ( BACKSLASH <string-single-escape> | (? any non-"'" char ?) ) "'" ;
+string-single-escape := "'" | '"' | BACKSLASH ;
+string-double := '"' ( BACKSLASH <string-double-escape> | (? any non-'"' char ?) ) '"' ;
+string-double-escape
+ := <string-single-escape>
+  | 'x' HEX_DIGIT HEX_DIGIT
+  | 'u' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
+  | 'n' | 'r' | 't' | 'f' | '0' ;
+string-raw := 'r' {'#'} '"' (? any character, but not greedily ?) '"' (? same amount of `#`s as the start ?) ;
+
+BACKSLASH := '\\' ;
+HEX_DIGIT
+ := 'a' | 'b' | 'c' | 'd' | 'e' | 'f'
+  | 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+  | DIGIT ;
+
+OCTAL_DIGIT := '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' ;
+DIGIT := '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' ;
+NEWLINE := ';' | '\n' ;
