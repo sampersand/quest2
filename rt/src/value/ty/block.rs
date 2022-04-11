@@ -1,5 +1,5 @@
 use crate::value::gc::Gc;
-use crate::vm::{Args, ByteCode};
+use crate::vm::{Args, Frame};
 use crate::{AnyValue, Result};
 
 quest_type! {
@@ -10,35 +10,22 @@ quest_type! {
 #[derive(Debug)]
 #[doc(hidden)]
 pub struct Inner {
-	data: Vec<ByteCode>,
-	// "source location" ?
+	frame: Frame,
 }
 
 impl Block {
 	#[must_use]
-	pub fn new(data: Vec<ByteCode>) -> Gc<Self> {
+	pub fn new(frame: Frame) -> Gc<Self> {
 		use crate::value::base::{Base, HasDefaultParent};
 
-		Gc::from_inner(Base::new(Inner { data }, Gc::<Self>::parent()))
+		Gc::from_inner(Base::new(Inner { frame }, Gc::<Self>::parent()))
 	}
 
 	pub fn call(&self, args: Args<'_>) -> Result<AnyValue> {
-		let _ = args;
-		todo!();
+		self.0.data().frame.run(args)
 	}
 }
 
-impl Default for Gc<Block> {
-	fn default() -> Self {
-		Block::new(Vec::new())
-	}
-}
-
-impl AsRef<[ByteCode]> for Block {
-	fn as_ref(&self) -> &[ByteCode] {
-		&self.0.data().data
-	}
-}
 
 quest_type_attrs! { for Gc<Block>, parents [Callable, Kernel];
 	// "+" => meth qs_add,

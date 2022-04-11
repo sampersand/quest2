@@ -5,7 +5,7 @@
 use qvm_rt;
 use qvm_rt::value::ty::*;
 use qvm_rt::value::*;
-use qvm_rt::vm::Args;
+use qvm_rt::vm::*;
 use qvm_rt::Result;
 // fn dup(mut obj: AnyValue, _: Args<'_>) -> Result<AnyValue> {
 // 	let mut new = obj.downcast::<Gc<Text>>().unwrap().as_ref()?.dup();
@@ -52,6 +52,47 @@ macro_rules! value {
 }
 
 fn main() -> Result<()> {
+	let frame = Frame::_new(
+		vec![
+			Opcode::ConstLoad as u8,
+			0,
+			0,
+			Opcode::ConstLoad as u8,
+			1,
+			1,
+			Opcode::Return as u8,
+			0,
+			1,
+		],
+		SourceLocation{},
+		vec![
+			1.as_any(),
+			2.as_any(),
+		],
+		2,
+		vec![]
+	);
+
+	dbg!(frame.run(Default::default()));
+
+	Ok(())
+// #[derive(Debug)]
+// pub struct Frame {
+// 	code: Vec<u8>,
+// 	loc: SourceLocation,
+// 	constants: Vec<AnyValue>,
+// 	locals: Vec<String> // we need their names
+// }
+
+// impl Frame {
+// 	pub fn _new(code: Vec<u8>, loc: SourceLocation, constants: Vec<AnyValue>, locals: Vec<String>) -> Self {
+// 		Self { code, loc, constants, locals }
+// 	}
+// }
+
+}
+
+fn main5() -> Result<()> {
 	let mut stream = qvm_rt::parser::Stream::new(r###"
 add = fn (bar, baz) {
 	return bar ++ baz
