@@ -52,7 +52,7 @@ impl Flags {
 	}
 
 	// Attempts to acquire a "lock" on a flag mask, such that all the flags are valid
-	#[inline]
+	// Returns `true` if we could acquire it.
 	pub fn try_acquire_all_user(&self, flag: u32) -> bool {
 		debug_assert_eq!(flag & !Self::USER_FLAGS_MASK, 0, "attempted to set non-user flags.");
 
@@ -90,10 +90,11 @@ impl Flags {
 	}
 
 	#[inline]
-	pub fn remove_user(&self, flag: u32) {
+	pub fn remove_user(&self, flag: u32) -> bool {
 		debug_assert_eq!(flag & !Self::USER_FLAGS_MASK, 0, "attempted to set non-user flags.");
 
-		self.0.fetch_and(!(flag & Self::USER_FLAGS_MASK), Ordering::SeqCst);
+		// TODO: is this the right way to remove
+		self.0.fetch_and(!(flag & Self::USER_FLAGS_MASK), Ordering::SeqCst) & flag != 0
 	}
 
 	pub(crate) fn remove_internal(&self, flag: u32) {
