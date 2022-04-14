@@ -1,4 +1,4 @@
-use super::{Attribute, Attributes, Base, Flags, Header, IntoParent, Parents};
+use super::{Attribute, Attributes, Base, Flags, Header, IntoParent};
 use crate::value::gc::Gc;
 use crate::AnyValue;
 use std::any::TypeId;
@@ -60,7 +60,7 @@ impl<T> Builder<T> {
 
 		// We have to use `addr_of_mut` in case the entire header wasn't zero-initialized,
 		// as this function is also called from `new_uninit`.
-		addr_of_mut!((*builder.header_mut()).typeid).write(TypeId::of::<T>());
+		addr_of_mut!((*builder.base_mut()).header.typeid).write(TypeId::of::<T>());
 
 		builder
 	}
@@ -275,16 +275,18 @@ impl<T> Builder<T> {
 	/// assert!(
 	///     base.as_mut().expect("we hold the only reference")
 	///         .header_mut()
-	///         .parents_list()
+	///         .parents().expect("we hold the only reference")
+	///         .as_list()
 	///         .ptr_eq(parents)
 	/// );
 	/// ```
-	pub fn set_parents<P: IntoParent>(&mut self, parents: P) {
-		let new_parents = parents.into_parent(self.flags()).map(Parents::new);
+	pub fn set_parents<P: IntoParent>(&mut self, parent: P) {
+		let ptr = unsafe { (*addr_of!((*self.header()).parents)).get() };
 
-		// SAFETY: We know the pointer is aligned and can be written to b/c of Builder's invariants.
-		unsafe {
-			addr_of_mut!((*self.header_mut()).parents).write(new_parents);
+		if let Some(mut parents) = super::ParentsGuard::new(ptr, self.flags()) {
+			parents.set(parent);
+		} else {
+			unreachable!("parents shouldn't be locked")
 		}
 	}
 

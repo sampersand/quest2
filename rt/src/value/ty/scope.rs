@@ -44,7 +44,7 @@ impl crate::value::gc::Mut<Scope> {
 	pub unsafe fn _set_parent_to(&mut self, parent: AnyValue) {
 		use crate::value::gc::Allocated;
 
-		self.header_mut().set_parents(parent);
+		self.header().parents().expect("parents shouldnt be set when we're mutable").set(parent);
 	}
 }
 

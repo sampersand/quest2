@@ -25,8 +25,10 @@ impl Builder {
 
 	pub fn parent(&mut self, parent: AnyValue) {
 		unsafe { &mut *self.0.as_ptr().as_ptr() }
-			.header_mut()
-			.set_parents(parent);
+			.header()
+			.parents()
+			.expect("parents shouldnt be locked in the builder")
+			.set(parent);
 	}
 
 	// pub fn function(&mut self, name: &'static str, value: fn(AnyValue, Args<'_>) -> Result<AnyValue>) {

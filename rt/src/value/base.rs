@@ -1,6 +1,5 @@
 pub use super::HasDefaultParent;
 use crate::value::gc::Gc;
-use crate::value::ty::List;
 use std::any::TypeId;
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug, Formatter};
@@ -15,13 +14,13 @@ pub use attributes::Attribute;
 use attributes::Attributes;
 pub use builder::Builder;
 pub use flags::Flags;
-pub(crate) use parents::Parents;
+pub use parents::ParentsGuard;
 pub use parents::{IntoParent, NoParents};
 
 #[repr(C)]
 pub struct Header {
 	typeid: TypeId,
-	parents: Option<Parents>,
+	parents: UnsafeCell<parents::Parents>,
 	attributes: Option<Box<Attributes>>,
 	flags: Flags,
 	borrows: AtomicU32,
@@ -47,19 +46,6 @@ impl Debug for Header {
 				write!(f, "{:?}", self.0)
 			}
 		}
-
-		struct ParentsDebug<'a>(&'a Option<Parents>, &'a Flags);
-		impl Debug for ParentsDebug<'_> {
-			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-				if let Some(parent) = self.0 {
-					// SAFETY: The flags come from the same header as the parents.
-					Debug::fmt(&unsafe { parent.debug(self.1) }, f)
-				} else {
-					f.debug_list().finish()
-				}
-			}
-		}
-
 		struct AttributesDebug<'a>(&'a Option<Box<Attributes>>, &'a Flags);
 		impl Debug for AttributesDebug<'_> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -73,7 +59,7 @@ impl Debug for Header {
 		}
 		f.debug_struct("Header")
 			.field("typeid", &TypeIdDebug(self.typeid))
-			.field("parents", &ParentsDebug(&self.parents, &self.flags))
+			.field("parents", &self.parents())
 			.field("attributes", &AttributesDebug(&self.attributes, &self.flags))
 			.field("flags", &self.flags)
 			.field("borrows", &self.borrows)
@@ -240,12 +226,7 @@ impl Header {
 	}
 
 	pub fn get_unbound_attr_from_parents<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
-		if let Some(parents) = &self.parents {
-			// SAFETY: the flags are from `self`, just like `parents`, so this is sound.
-			unsafe { parents.get_unbound_attr(attr, &self.flags) }
-		} else {
-			Ok(None)
-		}
+		self.parents()?.get_unbound_attr(attr)
 	}
 
 	/// Gets the flags associated with the current object.
@@ -271,31 +252,6 @@ impl Header {
 		self.flags().insert_internal(Flags::FROZEN);
 	}
 
-	/// Gets a reference to the parents of this type.
-	///
-	/// Note that this is mutable because, internally, not all parents are stored as a `Gc<List>`.
-	/// When this function is called, the internal representation is set to a list, and then returned.
-	///
-	/// # Examples
-	/// TODO: example
-	pub fn parents_list(&mut self) -> Gc<List> {
-		if let Some(parents) = &mut self.parents {
-			// SAFETY: the flags are from `self`, just like `parents`, so this is sound.
-			unsafe { parents.as_list(&self.flags) }
-		} else {
-			let list = List::new();
-			self.parents = Some(Parents::new(list.into_parent(&self.flags).unwrap()));
-			list
-		}
-	}
-
-	pub fn set_parents<P: IntoParent>(&mut self, parents: P) {
-		self.parents = parents.into_parent(&self.flags).map(Parents::new);
-	}
-
-	pub(crate) fn parents(&self) -> Option<Parents> {
-		self.parents
-	}
 
 	/// Sets the the attribute, but on a possibly-uninitialized `ptr`.
 	///
@@ -343,6 +299,11 @@ impl Header {
 		} else {
 			Ok(None)
 		}
+	}
+
+	pub fn parents(&self) -> Result<ParentsGuard<'_>> {
+		ParentsGuard::new(self.parents.get(), &self.flags)
+			.ok_or_else(|| "parents are already locked".to_string().into())
 	}
 }
 

@@ -28,7 +28,7 @@ impl Flags {
 	pub(crate) const GCMARK: u32 = 1 << 18;
 	pub(crate) const ATTR_MAP: u32 = 1 << 19;
 	pub(crate) const MULTI_PARENT: u32 = 1 << 20;
-	const UNUSEDA: u32 = 1 << 21;
+	pub(crate) const LOCK_PARENTS: u32 = 1 << 21;
 	const UNUSED9: u32 = 1 << 22;
 	const UNUSED8: u32 = 1 << 23;
 	const UNUSED7: u32 = 1 << 24;
@@ -57,8 +57,8 @@ impl Flags {
 		debug_assert_eq!(flag & !Self::USER_FLAGS_MASK, 0, "attempted to set non-user flags.");
 
 		self.0.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-			if (value & flag) == 0 {
-				Some(value | flag)
+			if (value & (flag & Self::USER_FLAGS_MASK)) == 0 {
+				Some(value | (flag & & Self::USER_FLAGS_MASK))
 			} else {
 				None
 			}
@@ -71,6 +71,20 @@ impl Flags {
 		debug_assert_eq!(flag & Self::USER_FLAGS_MASK, 0, "attempted to set user flags.");
 
 		self.0.fetch_or(flag & !Self::USER_FLAGS_MASK, Ordering::SeqCst);
+	}
+
+	// Attempts to acquire a "lock" on a flag mask, such that all the flags are valid
+	// Returns `true` if we could acquire it.
+	pub(crate) fn try_acquire_all_internal(&self, flag: u32) -> bool {
+		debug_assert_eq!(flag & Self::USER_FLAGS_MASK, 0, "attempted to set user flags.");
+
+		self.0.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
+			if (value & (flag & !Self::USER_FLAGS_MASK)) == 0 {
+				Some(value | (flag & !Self::USER_FLAGS_MASK))
+			} else {
+				None
+			}
+		}).is_ok()
 	}
 
 	pub fn get(&self) -> u32 {
@@ -97,12 +111,11 @@ impl Flags {
 		self.0.fetch_and(!(flag & Self::USER_FLAGS_MASK), Ordering::SeqCst) & flag != 0
 	}
 
-	pub(crate) fn remove_internal(&self, flag: u32) {
+	pub(crate) fn remove_internal(&self, flag: u32) -> bool {
 		debug_assert_eq!(flag & Self::USER_FLAGS_MASK, 0, "attempted to set user flags.");
 
 		// FIXME: bitwise flag with user flags mask, but is it right?
-
-		self.0.fetch_and(!(flag & !Self::USER_FLAGS_MASK), Ordering::SeqCst);
+		self.0.fetch_and(!(flag & !Self::USER_FLAGS_MASK), Ordering::SeqCst) & flag != 0
 	}
 }
 
@@ -130,7 +143,8 @@ impl Debug for Flags {
 			USER0 USER1 USER2 USER3 USER4 USER5 USER6 USER7 USER8 USER9
 			USER10 USER11 USER12 USER13 USER14 USER15
 			FROZEN NOFREE GCMARK ATTR_MAP MULTI_PARENT
-			UNUSEDA UNUSED9 UNUSED8 UNUSED7 UNUSED6 UNUSED5 UNUSED4 UNUSED3 UNUSED2 UNUSED1 UNUSED0
+			LOCK_PARENTS
+			UNUSED9 UNUSED8 UNUSED7 UNUSED6 UNUSED5 UNUSED4 UNUSED3 UNUSED2 UNUSED1 UNUSED0
 		);
 
 		let _ = is_first;

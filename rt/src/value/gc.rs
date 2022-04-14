@@ -347,12 +347,9 @@ impl<T: Allocated> Gc<T> {
 		if let Some(func) = selfref.header().get_unbound_attr(attr, false)? {
 			drop(selfref);
 			func.call(args.with_self(self.as_any()))
-		} else if let Some(parents) = selfref.parents() {
-			let flags = selfref.flags().clone();
-			drop(selfref);
-			unsafe { parents.call_attr(attr, args.with_self(Value::from(self).any()), &flags) }
 		} else {
-			Err(Error::UnknownAttribute(self.as_any(), attr.to_value()))
+			let parents = selfref.parents()?;
+			parents.call_attr(attr, args.with_self(Value::from(self).any()))
 		}
 	}
 }
@@ -432,7 +429,7 @@ impl<T: Allocated> Ref<T> {
 		self.header().freeze();
 	}
 
-	fn parents(&self) -> Option<crate::value::base::Parents> {
+	pub fn parents(&self) -> Result<crate::value::base::ParentsGuard> {
 		self.header().parents()
 	}
 }
@@ -484,11 +481,11 @@ impl<T: Debug + Allocated> Debug for Mut<T> {
 
 impl<T: Allocated> Mut<T> {
 	pub fn parents_list(&mut self) -> Gc<List> {
-		self.header_mut().parents_list()
+		self.header().parents().expect("we really shouldnt be using mut for parents").as_list()
 	}
 
 	pub fn set_parents(&mut self, parents_list: Gc<List>) {
-		self.header_mut().set_parents(parents_list)
+		self.header().parents().expect("we really shouldnt be using mut for parents").set(parents_list);
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
