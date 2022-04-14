@@ -1,4 +1,4 @@
-use super::{Attribute, Attributes, Base, Flags, Header, IntoParent};
+use super::{Attribute, Base, Flags, Header, IntoParent};
 use crate::value::gc::Gc;
 use crate::AnyValue;
 use std::any::TypeId;
@@ -234,23 +234,10 @@ impl<T> Builder<T> {
 	/// # qvm_rt::Result::Ok(())
 	/// ```
 	pub fn allocate_attributes(&mut self, attr_capacity: usize) {
-		// SAFETY: We know the pointer is aligned & able to be written to b/c of `_new`'s safety reqs.
-		let attr_ptr = unsafe { addr_of_mut!((*self.header_mut()).attributes) };
-
-		if attr_capacity == 0 {
-			// SAFETY: We know `attr_ptr` is valid for writes and aligned, because it is created from
-			// `self.0`, which is valid.
-			unsafe {
-				attr_ptr.write(None);
-			}
+		if let Ok(mut attrs) = unsafe { Header::attributes_raw(self.header()) } {
+			attrs.allocate(attr_capacity);
 		} else {
-			let attrs = Box::new(Attributes::with_capacity(attr_capacity, self.flags()));
-
-			// SAFETY: We know `attr_ptr` is valid for writes and aligned, because it is created from
-			// `self.0`, which is valid.
-			unsafe {
-				attr_ptr.write(Some(attrs));
-			}
+			unreachable!("attributes shouldn't be locked in header")
 		}
 	}
 
@@ -281,9 +268,7 @@ impl<T> Builder<T> {
 	/// );
 	/// ```
 	pub fn set_parents<P: IntoParent>(&mut self, parent: P) {
-		let ptr = unsafe { (*addr_of!((*self.header()).parents)).get() };
-
-		if let Some(mut parents) = super::ParentsGuard::new(ptr, self.flags()) {
+		if let Ok(mut parents) = unsafe { Header::parents_raw(self.header()) } {
 			parents.set(parent);
 		} else {
 			unreachable!("parents shouldn't be locked")

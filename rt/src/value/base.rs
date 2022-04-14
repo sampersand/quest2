@@ -10,18 +10,16 @@ mod builder;
 mod flags;
 mod parents;
 
-pub use attributes::Attribute;
-use attributes::Attributes;
 pub use builder::Builder;
 pub use flags::Flags;
-pub use parents::ParentsGuard;
-pub use parents::{IntoParent, NoParents};
+pub use attributes::{AttributesGuard, Attribute};
+pub use parents::{ParentsGuard, IntoParent, NoParents};
 
 #[repr(C)]
 pub struct Header {
 	typeid: TypeId,
 	parents: UnsafeCell<parents::Parents>,
-	attributes: Option<Box<Attributes>>,
+	attributes: UnsafeCell<attributes::Attributes>,
 	flags: Flags,
 	borrows: AtomicU32,
 }
@@ -46,21 +44,11 @@ impl Debug for Header {
 				write!(f, "{:?}", self.0)
 			}
 		}
-		struct AttributesDebug<'a>(&'a Option<Box<Attributes>>, &'a Flags);
-		impl Debug for AttributesDebug<'_> {
-			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-				if let Some(attributes) = self.0 {
-					// SAFETY: The flags come from the same header as the attributes.
-					Debug::fmt(&unsafe { attributes.debug(self.1) }, f)
-				} else {
-					f.debug_map().finish()
-				}
-			}
-		}
+
 		f.debug_struct("Header")
 			.field("typeid", &TypeIdDebug(self.typeid))
 			.field("parents", &self.parents())
-			.field("attributes", &AttributesDebug(&self.attributes, &self.flags))
+			.field("attributes", &self.attributes())
 			.field("flags", &self.flags)
 			.field("borrows", &self.borrows)
 			.finish()
@@ -173,9 +161,9 @@ impl<T> Base<T> {
 
 impl Drop for Header {
 	fn drop(&mut self) {
-		if let Some(attrs) = &mut self.attributes {
+		if let Ok(mut attrs) = self.attributes() {
 			unsafe {
-				Attributes::drop(attrs, &self.flags);
+				attrs.drop_internal();
 			}
 		}
 	}
@@ -212,10 +200,8 @@ impl Header {
 		attr: A,
 		search_parents: bool,
 	) -> Result<Option<AnyValue>> {
-		if let Some(attributes) = &self.attributes {
-			if let Some(value) = attributes.get_unbound_attr(attr, &self.flags)? {
-				return Ok(Some(value));
-			}
+		if let Some(value) = self.attributes()?.get_unbound_attr(attr)? {
+			return Ok(Some(value));
 		}
 
 		if search_parents {
@@ -260,14 +246,11 @@ impl Header {
 	/// - The `attribute`s field must have been initialized.
 	/// - The `flags` field must have been initialized.
 	unsafe fn set_attr_raw<A: Attribute>(ptr: *mut Self, attr: A, value: AnyValue) -> Result<()> {
-		let attributes = &mut *std::ptr::addr_of_mut!((*ptr).attributes);
+		let attrs_ptr = (*std::ptr::addr_of!((*ptr).attributes)).get();
 		let flags = &*std::ptr::addr_of!((*ptr).flags);
-
-		if attributes.is_none() {
-			*attributes = Some(Box::new(Attributes::new(flags)));
-		}
-
-		attributes.as_mut().unwrap().set_attr(attr, value, flags)
+		AttributesGuard::new(attrs_ptr, flags)
+			.map(|mut attrs| attrs.set_attr(attr, value))
+			.ok_or_else(|| "attributes are already locked".to_string())?
 	}
 
 	/// Sets the `self`'s attribute `attr` to `value`.
@@ -294,16 +277,31 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
-		if let Some(attributes) = &mut self.attributes {
-			attributes.del_attr(attr, &self.flags)
-		} else {
-			Ok(None)
-		}
+		self.attributes()?.del_attr(attr)
 	}
 
 	pub fn parents(&self) -> Result<ParentsGuard<'_>> {
-		ParentsGuard::new(self.parents.get(), &self.flags)
-			.ok_or_else(|| "parents are already locked".to_string().into())
+		unsafe { Self::parents_raw(self as *const Self) }
+	}
+
+	pub fn attributes(&self) -> Result<AttributesGuard<'_>> {
+		unsafe { Self::attributes_raw(self as *const Self) }
+	}
+
+	pub unsafe fn parents_raw<'a>(ptr: *const Self) -> Result<ParentsGuard<'a>> {
+		let parents_ptr = (*std::ptr::addr_of!((*ptr).parents)).get();
+		let flags = &*std::ptr::addr_of!((*ptr).flags);
+
+		ParentsGuard::new(parents_ptr, flags)
+			.ok_or_else(|| "attributes are already locked".to_string().into())
+	}
+
+	pub unsafe fn attributes_raw<'a>(ptr: *const Self) -> Result<AttributesGuard<'a>> {
+		let attrs_ptr = (*std::ptr::addr_of!((*ptr).attributes)).get();
+		let flags = &*std::ptr::addr_of!((*ptr).flags);
+
+		AttributesGuard::new(attrs_ptr, flags)
+			.ok_or_else(|| "attributes are already locked".to_string().into())
 	}
 }
 

@@ -58,14 +58,15 @@ unsafe impl IntoParent for Gc<List> {
 	}
 }
 
-enum ParentKind {
-	None(*mut Parents),
+enum ParentsKind {
+	None,
 	Single(*mut AnyValue),
 	List(*mut Gc<List>)
 }
 
 impl<'a> ParentsGuard<'a> {
-	pub(super) fn new(ptr: *mut Parents, flags: &'a Flags) -> Option<Self> {
+	// safety: parents and flags have to correspond
+	pub(super) unsafe fn new(ptr: *mut Parents, flags: &'a Flags) -> Option<Self> {
 		if flags.try_acquire_all_internal(Flags::LOCK_PARENTS) {
 			Some(Self { ptr, flags })
 		} else {
@@ -77,14 +78,14 @@ impl<'a> ParentsGuard<'a> {
 		parent.into_parent(self);
 	}
 
-	fn classify(&self) -> ParentKind {
+	fn classify(&self) -> ParentsKind {
 		unsafe {
 			if (*self.ptr).none == 0 {
-				ParentKind::None(self.ptr)
+				ParentsKind::None
 			} else if !self.flags.contains(Flags::MULTI_PARENT) {
-				ParentKind::Single(self.ptr.cast::<AnyValue>())
+				ParentsKind::Single(self.ptr.cast::<AnyValue>())
 			} else {
-				ParentKind::List(self.ptr.cast::<Gc<List>>())
+				ParentsKind::List(self.ptr.cast::<Gc<List>>())
 			}
 		}
 	}
@@ -94,9 +95,9 @@ impl Debug for ParentsGuard<'_> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		let mut l = f.debug_list();
 		match self.classify() {
-			ParentKind::None(_) => {},
-			ParentKind::Single(s) => { l.entry(unsafe { &*s }); },
-			ParentKind::List(s) => {
+			ParentsKind::None => {},
+			ParentsKind::Single(s) => { l.entry(unsafe { &*s }); },
+			ParentsKind::List(s) => {
 				l.entries(unsafe { *s }.as_ref().expect("asref failed for entries").as_slice());
 			},
 		};
@@ -110,15 +111,15 @@ impl ParentsGuard<'_> {
 	pub fn as_list(&mut self) -> Gc<List> {
 		let list;
 		match self.classify() {
-			ParentKind::None(_) => {
+			ParentsKind::None => {
 				list = List::new();
 				self.set(list);
 			},
-			ParentKind::Single(singular) => {
+			ParentsKind::Single(singular) => {
 				list = List::from_slice(&[unsafe { *singular }]);
 				self.set(list);
 			},
-			ParentKind::List(list_) => list = unsafe { *list_ }
+			ParentsKind::List(list_) => list = unsafe { *list_ }
 		}
 		list
 	}
@@ -126,9 +127,9 @@ impl ParentsGuard<'_> {
 	/// Attempts to get the unbound attribute `attr` on `self`.
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		match self.classify() {
-			ParentKind::None(_) => Ok(None),
-			ParentKind::Single(single) => unsafe { *single }.get_unbound_attr(attr),
-			ParentKind::List(list) => {
+			ParentsKind::None => Ok(None),
+			ParentsKind::Single(single) => unsafe { *single }.get_unbound_attr(attr),
+			ParentsKind::List(list) => {
 				for parent in unsafe { *list }.as_ref()?.as_slice() {
 					if let Some(value) = parent.get_unbound_attr(attr)? {
 						return Ok(Some(value));

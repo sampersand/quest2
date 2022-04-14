@@ -340,6 +340,10 @@ impl<T: Allocated> Gc<T> {
 		unsafe { &*self.as_ptr() }.header().borrows()
 	}
 
+	fn parents(&self) -> Result<crate::value::base::ParentsGuard> {
+		unsafe { Header::parents_raw(self.as_ptr().cast::<Header>()) }
+	}
+
 	pub fn call_attr<A: Attribute>(self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
 		// try to get a function directly defined on `self`, which most likely wont exist.
 		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
@@ -348,8 +352,8 @@ impl<T: Allocated> Gc<T> {
 			drop(selfref);
 			func.call(args.with_self(self.as_any()))
 		} else {
-			let parents = selfref.parents()?;
-			parents.call_attr(attr, args.with_self(Value::from(self).any()))
+			drop(selfref);
+			self.parents()?.call_attr(attr, args.with_self(Value::from(self).any()))
 		}
 	}
 }
