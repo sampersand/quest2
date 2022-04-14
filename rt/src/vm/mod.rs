@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 mod args;
 mod bytecode;
 mod frame;

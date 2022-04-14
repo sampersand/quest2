@@ -169,7 +169,11 @@ impl<T> Base<T> {
 	}
 
 	pub fn header_mut(&mut self) -> &mut Header {
-		&mut self.header
+		self.header_data_mut().0
+	}
+
+	pub fn header_data_mut(&mut self) -> (&mut Header, &mut T) {
+		(&mut self.header, unsafe { &mut *self.data.get() })
 	}
 
 	pub fn data(&self) -> &T {
@@ -177,7 +181,7 @@ impl<T> Base<T> {
 	}
 
 	pub fn data_mut(&mut self) -> &mut T {
-		unsafe { &mut *self.data.get() }
+		self.header_data_mut().1
 	}
 }
 
@@ -229,13 +233,19 @@ impl Header {
 		}
 
 		if search_parents {
-			if let Some(parents) = &self.parents {
-				// SAFETY: the flags are from `self`, just like `parents`, so this is sound.
-				return unsafe { parents.get_unbound_attr(attr, &self.flags) };
-			}
+			self.get_unbound_attr_from_parents(attr)
+		} else {
+			Ok(None)
 		}
+	}
 
-		Ok(None)
+	pub fn get_unbound_attr_from_parents<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+		if let Some(parents) = &self.parents {
+			// SAFETY: the flags are from `self`, just like `parents`, so this is sound.
+			unsafe { parents.get_unbound_attr(attr, &self.flags) }
+		} else {
+			Ok(None)
+		}
 	}
 
 	/// Gets the flags associated with the current object.

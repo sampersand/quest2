@@ -15,6 +15,8 @@ pub enum Bytecode {
 #[repr(u8)]
 pub enum Opcode {
 	NoOp,
+	Debug,
+
 	Mov,
 	// Jmp,
 	// JmpFalse,

@@ -51,6 +51,21 @@ impl Flags {
 		self.0.fetch_or(flag & Self::USER_FLAGS_MASK, Ordering::SeqCst);
 	}
 
+	// Attempts to acquire a "lock" on a flag mask, such that all the flags are valid
+	#[inline]
+	pub fn try_acquire_all_user(&self, flag: u32) -> bool {
+		debug_assert_eq!(flag & !Self::USER_FLAGS_MASK, 0, "attempted to set non-user flags.");
+
+		self.0.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
+			if (value & flag) == 0 {
+				Some(value | flag)
+			} else {
+				None
+			}
+		}).is_ok()
+	}
+
+
 	#[inline]
 	pub(crate) fn insert_internal(&self, flag: u32) {
 		debug_assert_eq!(flag & Self::USER_FLAGS_MASK, 0, "attempted to set user flags.");

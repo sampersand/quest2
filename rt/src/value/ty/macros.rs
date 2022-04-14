@@ -162,11 +162,11 @@ macro_rules! singleton_object {
 macro_rules! quest_type {
 	(
 		$(#[$meta:meta])*
-		$vis:vis struct $name:ident $(<$($gen:ident),*>)? ($($inner:tt)*) $(where {$($cond:tt)*})?;
+		$vis:vis struct $name:ident $(<$($gen:ident),*>)? $({$innervis:vis})? ($($inner:tt)*) $(where {$($cond:tt)*})?;
 	) => {
 		$(#[$meta])*
 		#[repr(transparent)]
-		$vis struct $name $(<$($gen)*>)?($crate::value::base::Base<$($inner)*>) $(where $($cond)*)?;
+		$vis struct $name $(<$($gen)*>)?($($innervis)? $crate::value::base::Base<$($inner)*>) $(where $($cond)*)?;
 
 		unsafe impl $(<$($gen),*>)? $crate::value::gc::Allocated for $name $(<$($gen),*>)?
 		$(where $($cond)*)? {

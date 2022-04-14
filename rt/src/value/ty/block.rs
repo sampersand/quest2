@@ -10,12 +10,12 @@ quest_type! {
 #[derive(Debug)]
 #[doc(hidden)]
 pub struct Inner {
-	frame: Frame,
+	frame: Gc<Frame>,
 }
 
 impl Block {
 	#[must_use]
-	pub fn new(frame: Frame) -> Gc<Self> {
+	pub fn new(frame: Gc<Frame>) -> Gc<Self> {
 		use crate::value::base::{Base, HasDefaultParent};
 
 		Gc::from_inner(Base::new(Inner { frame }, Gc::<Self>::parent()))
