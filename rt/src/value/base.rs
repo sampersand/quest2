@@ -144,20 +144,12 @@ impl<T> Base<T> {
 		&self.header
 	}
 
-	pub fn header_mut(&mut self) -> &mut Header {
-		self.header_data_mut().0
-	}
-
-	pub fn header_data_mut(&mut self) -> (&mut Header, &mut T) {
-		(&mut self.header, unsafe { &mut *self.data.get() })
-	}
-
 	pub fn data(&self) -> &T {
 		unsafe { &*self.data.get() }
 	}
 
 	pub fn data_mut(&mut self) -> &mut T {
-		self.header_data_mut().1
+		unsafe { &mut *self.data.get() }
 	}
 
 	pub unsafe fn data_mut_raw<'a>(ptr: *const Self) -> Result<DataMutGuard<'a, T>> {

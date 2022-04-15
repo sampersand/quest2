@@ -18,9 +18,9 @@ pub struct Builder(BaseBuilder<Inner>);
 
 impl Builder {
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
-		unsafe { &mut *self.0.as_ptr().as_ptr() }
-			.header_mut()
-			.set_attr(attr, value)
+		unsafe {
+			self.0.set_attr(attr, value)
+		}
 	}
 
 	pub fn parent(&mut self, parent: AnyValue) {
