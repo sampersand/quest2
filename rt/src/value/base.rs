@@ -9,17 +9,19 @@ mod attributes;
 mod builder;
 mod flags;
 mod parents;
+mod data;
 
 pub use builder::Builder;
 pub use flags::Flags;
 pub use attributes::{AttributesGuard, Attribute};
 pub use parents::{ParentsGuard, IntoParent, NoParents};
+pub use data::{DataRefGuard, DataMutGuard};
 
 #[repr(C)]
 pub struct Header {
-	typeid: TypeId,
-	parents: UnsafeCell<parents::Parents>,
 	attributes: UnsafeCell<attributes::Attributes>,
+	parents: UnsafeCell<parents::Parents>,
+	typeid: TypeId,
 	flags: Flags,
 	borrows: AtomicU32,
 }
@@ -157,7 +159,32 @@ impl<T> Base<T> {
 	pub fn data_mut(&mut self) -> &mut T {
 		self.header_data_mut().1
 	}
+
+	pub unsafe fn data_mut_raw<'a>(ptr: *const Self) -> Result<DataMutGuard<'a, T>> {
+		let data_ptr = (*std::ptr::addr_of!((*ptr).data)).get();
+		let flags = &*std::ptr::addr_of!((*ptr).header.flags);
+		let borrows = &*std::ptr::addr_of!((*ptr).header.borrows);
+
+		// TODO: you can currently make something froze whilst it's mutably borrowed, fix it.
+		if flags.contains(Flags::FROZEN) {
+			panic!("todo: how do we want to return an error here");
+			// return Err(Error::ValueFrozen(Gc::new(ptr).any()));
+		}
+
+		DataMutGuard::new(data_ptr, flags, borrows)
+			.ok_or_else(|| "data is already locked".to_string().into())		
+	}
+
+	pub unsafe fn data_ref_raw<'a>(ptr: *const Self) -> Result<DataRefGuard<'a, T>> {
+		let data_ptr = (*std::ptr::addr_of!((*ptr).data)).get();
+		let flags = &*std::ptr::addr_of!((*ptr).header.flags);
+		let borrows = &*std::ptr::addr_of!((*ptr).header.borrows);
+
+		DataRefGuard::new(data_ptr, flags, borrows)
+			.ok_or_else(|| "data is already locked".to_string().into())		
+	}
 }
+
 
 impl Drop for Header {
 	fn drop(&mut self) {
