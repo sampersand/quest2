@@ -140,7 +140,7 @@ impl Text {
 	}
 
 	fn inner_mut(&mut self) -> &mut Inner {
-		self.0.data_mut()
+		self.0._data_mut()
 	}
 
 	/// A helper function that simply returns [`Builder::allocate`].
@@ -712,6 +712,10 @@ impl Text {
 	pub unsafe fn push_str_unchecked(&mut self, string: &str) {
 		std::ptr::copy(string.as_ptr(), self.mut_end_ptr(), string.len());
 		self.set_len(self.len() + string.len());
+	}
+
+	pub fn push_str2(&self, string: &str) {
+		let inner = 
 	}
 }
 

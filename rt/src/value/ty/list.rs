@@ -63,7 +63,7 @@ impl List {
 	}
 
 	fn inner_mut(&mut self) -> &mut Inner {
-		self.0.data_mut()
+		self.0._data_mut()
 	}
 
 	#[must_use]

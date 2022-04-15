@@ -39,7 +39,7 @@ impl Builder {
 	}
 }
 
-impl crate::value::gc::Mut<Scope> {
+impl crate::value::gc::Mut<'_, Scope> {
 	#[doc(hidden)]
 	pub unsafe fn _set_parent_to(&mut self, parent: AnyValue) {
 		use crate::value::gc::Allocated;

@@ -257,9 +257,10 @@ impl<T: Allocated> Gc<T> {
 	/// assert_eq!(*textmut, "what a wonderful day!");
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
-	pub fn as_mut(self) -> Result<Mut<T>> {
+	// #[deprecated]
+	pub fn as_mut(&self) -> Result<Mut<'_, T>> {
 		if self.is_frozen() {
-			return Err(Error::ValueFrozen(Value::from(self).any()));
+			return Err(Error::ValueFrozen(Value::from(*self).any()));
 		}
 
 		if self
@@ -267,15 +268,15 @@ impl<T: Allocated> Gc<T> {
 			.compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed)
 			.is_err()
 		{
-			return Err(Error::AlreadyLocked(Value::from(self).any()))
+			return Err(Error::AlreadyLocked(Value::from(*self).any()))
 		}
 
-		let mutref = Mut(self);
+		let mutref = Mut(*self, std::marker::PhantomData);
 
 		// We have to check again to see if it's frozen just in case.
 		if self.is_frozen() {
 			// this will drop `mutref` and thus release the mutable ownership.
-			Err(Error::ValueFrozen(Value::from(self).any()))
+			Err(Error::ValueFrozen(Value::from(*self).any()))
 		} else {
 			Ok(mutref)
 		}
@@ -356,7 +357,24 @@ impl<T: Allocated> Gc<T> {
 			self.parents()?.call_attr(attr, args.with_self(Value::from(self).any()))
 		}
 	}
+
+	// remove me later, as it's just for debugging
+	pub fn r(&self) -> &Base<T::Inner> {
+		unsafe {
+			&*self.0.as_ptr().cast::<Base<T::Inner>>()
+		}
+	}
 }
+
+// impl<T: Allocated> Deref for Gc<T> {
+// 	type Target = Base<T::Inner>;
+
+// 	fn deref(&self) -> &Self::Target {
+// 		unsafe {
+// 			&*self.0.as_ptr().cast::<Base<T::Inner>>()
+// 		}
+// 	}
+// }
 
 impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 	#[inline]
@@ -475,15 +493,15 @@ impl<T: Allocated> Drop for Ref<T> {
 ///
 /// This is created via the [`as_mut`](Gc::as_mut) method on [`Gc`].
 #[repr(transparent)]
-pub struct Mut<T: Allocated>(Gc<T>);
+pub struct Mut<'a, T: Allocated>(Gc<T>, std::marker::PhantomData<&'a ()>);
 
-impl<T: Debug + Allocated> Debug for Mut<T> {
+impl<T: Debug + Allocated> Debug for Mut<'_, T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		Debug::fmt(&**self, f)
 	}
 }
 
-impl<T: Allocated> Mut<T> {
+impl<T: Allocated> Mut<'_, T> {
 	pub fn parents_list(&mut self) -> Gc<List> {
 		self.header().parents().expect("we really shouldnt be using mut for parents").as_list()
 	}
@@ -501,7 +519,7 @@ impl<T: Allocated> Mut<T> {
 	}
 }
 
-impl<T: Allocated> Mut<T> {
+impl<T: Allocated> Mut<'_, T> {
 	/// Converts a [`Mut`] to a [`Ref`].
 	///
 	/// Just as you're able to downgrade mutable references to immutable ones in Rust (eg you can do
@@ -531,7 +549,7 @@ impl<T: Allocated> Mut<T> {
 	}
 }
 
-impl<T: Allocated> Deref for Mut<T> {
+impl<T: Allocated> Deref for Mut<'_, T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {
@@ -539,7 +557,7 @@ impl<T: Allocated> Deref for Mut<T> {
 	}
 }
 
-impl<T: Allocated> DerefMut for Mut<T> {
+impl<T: Allocated> DerefMut for Mut<'_, T> {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`,
 		// which means that its `data` must also have been initialized. Additionally, we have unique
@@ -548,7 +566,7 @@ impl<T: Allocated> DerefMut for Mut<T> {
 	}
 }
 
-impl<T: Allocated> Drop for Mut<T> {
+impl<T: Allocated> Drop for Mut<'_, T> {
 	fn drop(&mut self) {
 		if cfg!(debug_assertions) {
 			// Sanity check to ensure that the value was previously `MUT_BORROW`

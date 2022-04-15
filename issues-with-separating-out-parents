@@ -1,0 +1,88 @@
+so, brain dump-type-thing here:
+currently, my text object is roughly this ```rs
+#[repr(C)]
+struct Text {
+  header: struct Header {
+    attributes: Attributes,
+    parents: Parents,
+    typeid: TypeId,
+    flags: Flags,
+    borrows: AtomicU32,
+  }
+  inner: union Inner {
+    alloc: struct {
+      len: usize,
+      cap: usize,
+      ptr: *mut u8,
+    },
+    embed: struct {
+      buf: [u8; MAX_EMBEDDED_LEN],
+    },
+  }
+}
+
+```
+
+currently, if you want to access anything on the object other than its `typeid` or flags (which are atomicu32), you have to either mutably or immutably borrow it (via `borrows`).
+This has worked quite well so far, but the issue is that now you cannot access things concurrently—for example, you cant access `attributes` and `inner` at the same time from two different places
+normally that'd be stupid-why would you want to? But for me, that's how a stackframe works, the `inner` is the instruction pointer and other jazz, whereas `attributes` are where local variables are stored. And other people should be able to edit those local variables and modify what the stackframe's doing. So having a separation between them seems like a good idea
+however... this makes other thigns less than ideal. like, let's take a gander at `Text.push_str`
+```rs
+impl Text {
+    pub fn push_str(&mut self, string: &str) {
+        if self.capacity() <= self.len() + string.len() {
+            self.allocate_more(string.len());
+        }
+
+        unsafe {
+            self.push_str_unchecked(string);
+        }
+    }
+
+    pub unsafe fn push_str_unchecked(&mut self, string: &str) {
+        std::ptr::copy(string.as_ptr(), self.mut_end_ptr(), string.len());
+        self.set_len(self.len() + string.len());
+    }
+
+    pub fn capacity(&self) -> usize {
+        if self.is_embedded() { MAX_EMBEDDED_LEN }
+        else { self.inner.alloc.cap }
+    }
+
+    pub fn len(&self) -> usize {
+        if self.is_embedded() { self.embedded_len() }
+        else { self.inner.alloc.len }
+    }
+}```
+now the problem is if we made `inner` decoupled from the `header`'s mutability, that means we either have to:
+(1) acquire and reacquire the `self.inner` when we call `capacity` and `len` within `push_Str`, and then `set_len` and `len` within `push_str_unchecked`
+(2) make inner helper functions that take references to locked components
+option (1) does not look like a good idea, wowza.
+with (2) you end up with this garbage: ```rs
+impl Text {
+    pub fn push_str(&self, string: &str) {
+        self._push_str(self.lock_inner(), string)
+    }
+
+    fn _push_str(&self, inner: Locked<Inner>, string: &str) {
+        if self._capacity(inner) <= self._len(inner) + string.len() {
+            self._allocate_more(inner, string.len());
+        }
+
+        unsafe {
+            self._push_str_unchecked(inner, string);
+        }
+    }
+
+    pub fn capacity(&self) -> usize {
+        self._capacity(self.lock_inner())
+    }
+
+    fn _capacity(&self, inner: Locked<Inner>) -> usize {
+        if self.is_embedded() { MAX_EMBEDDED_LEN }
+        else { inner.alloc.cap }
+    }
+}```
+while it could work, good god that looks fugly and is not pretty
+and, you lose the mutability on `push_str`, which isn't ideal
+so i _think_ im going to end up not implementing this anyways because of the issues

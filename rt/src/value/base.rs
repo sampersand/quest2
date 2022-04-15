@@ -10,12 +10,14 @@ mod builder;
 mod flags;
 mod parents;
 mod data;
+mod global_base_guard;
 
 pub use builder::Builder;
 pub use flags::Flags;
 pub use attributes::{AttributesGuard, Attribute};
 pub use parents::{ParentsGuard, IntoParent, NoParents};
 pub use data::{DataRefGuard, DataMutGuard};
+pub use global_base_guard::GlobalBaseGuard;
 
 #[repr(C)]
 pub struct Header {
@@ -119,6 +121,22 @@ impl<T> Base<T> {
 		Builder::allocate()
 	}
 
+	pub fn reflock(&self) -> Result<global_base_guard::GlobalBaseGuard<'_, DataRefGuard<'_, T>>> {
+		Ok(global_base_guard::GlobalBaseGuard {
+			attributes: self.header().attributes()?,
+			parents: self.header().parents()?,
+			data: unsafe { Self::data_ref_raw(self as *const Self) }?,
+		})
+	}
+
+	pub fn mutlock(&self) -> Result<global_base_guard::GlobalBaseGuard<'_, DataMutGuard<'_, T>>> {
+		Ok(global_base_guard::GlobalBaseGuard {
+			attributes: self.header().attributes()?,
+			parents: self.header().parents()?,
+			data: unsafe { Self::data_mut_raw(self as *const Self) }?,
+		})
+	}
+
 	pub fn new(data: T, parent: AnyValue) -> Gc<Self> {
 		Self::new_with_capacity(data, parent, 0)
 	}
@@ -148,8 +166,12 @@ impl<T> Base<T> {
 		unsafe { &*self.data.get() }
 	}
 
-	pub fn data_mut(&mut self) -> &mut T {
+	pub fn _data_mut(&mut self) -> &mut T {
 		unsafe { &mut *self.data.get() }
+	}
+
+	pub fn data_mut(&self) -> Result<DataMutGuard<'_, T>> {
+		unsafe { Self::data_mut_raw(self as *const Self) }
 	}
 
 	pub unsafe fn data_mut_raw<'a>(ptr: *const Self) -> Result<DataMutGuard<'a, T>> {
@@ -163,8 +185,14 @@ impl<T> Base<T> {
 			// return Err(Error::ValueFrozen(Gc::new(ptr).any()));
 		}
 
-		DataMutGuard::new(data_ptr, flags, borrows)
-			.ok_or_else(|| "data is already locked".to_string().into())		
+		let ret = DataMutGuard::new(data_ptr, flags, borrows)
+			.ok_or_else(|| "data is already locked".to_string())?;
+
+		if flags.contains(Flags::FROZEN) {
+			panic!("Return an error here too");
+		} else {
+			Ok(ret)
+		}
 	}
 
 	pub unsafe fn data_ref_raw<'a>(ptr: *const Self) -> Result<DataRefGuard<'a, T>> {
@@ -177,13 +205,14 @@ impl<T> Base<T> {
 	}
 }
 
-
 impl Drop for Header {
 	fn drop(&mut self) {
 		if let Ok(mut attrs) = self.attributes() {
 			unsafe {
 				attrs.drop_internal();
 			}
+		} else {
+			unreachable!("attributes shouldn't be locked when dropping data.");
 		}
 	}
 }

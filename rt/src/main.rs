@@ -51,7 +51,43 @@ macro_rules! value {
 	};
 }
 
+#[allow(deprecated)]
 fn main() -> Result<()> {
+	let s = Text::from_str("Hello");
+	s.as_mut().unwrap().push_str(", world");
+	s.r().push_str(", world");
+
+	dbg!(s);
+	Ok(())
+	// let list = List::from_slice(&[
+	// 	Value::from("hello").any(),
+	// 	Value::from(12).any(),
+	// 	Value::TRUE.any(),
+	// ]);
+	// let listvalue = Value::from(list).any();
+
+	// listvalue
+	// 	.downcast::<Gc<List>>()
+	// 	.unwrap()
+	// 	.as_mut()
+	// 	.unwrap()
+	// 	.push(Value::from(12.5).any());
+
+	// list
+	// 	.as_mut()
+	// 	.unwrap()
+	// 	.set_attr(Value::from(0).any(), Value::from("yo").any());
+
+	// dbg!(list
+	// 	.as_ref()
+	// 	.unwrap()
+	// 	.get_unbound_attr(Value::from(0).any()));
+
+	// dbg!(list);
+	// Ok(())
+}
+
+fn main6() -> Result<()> {
 	let frame = Frame::_new(
 		vec![
 			Opcode::ConstLoad as u8,
