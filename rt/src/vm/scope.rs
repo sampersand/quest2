@@ -13,14 +13,9 @@ use std::cell::UnsafeCell;
 */
 quest_type! {
 	#[derive(Debug, NamedType)]
-	pub struct Scope(UnsafeCell<Inner>);
+	pub struct Scope(Inner);
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct NotCurrentlyReferenced(Gc<Scope>);
-
-/*
-*/
 #[derive(Debug)]
 pub struct Inner {
 	frame: Arc<FrameInner>,
@@ -32,20 +27,20 @@ pub struct Inner {
 const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
 
 impl Scope {
-	pub fn new(frame: Gc<Frame>, args: Args) -> Result<NotCurrentlyReferenced> {
+	pub fn new(frame: Gc<Frame>, args: Args) -> Result<Gc<Scope>> {
 		let frame = frame.as_ref()?.inner();
 		let _ = args; // todo: use args
 
-		let inner = UnsafeCell::new(Inner {
+		let inner = Inner {
 			unnamed_locals: vec![None; frame.num_of_unnamed_locals],
 			named_locals: vec![None; frame.named_locals.len()],
 			frame,
 			pos: 0,
-		});
+		};
 
 		let scope = Gc::from_inner(crate::value::base::Base::new(inner, AnyValue::default()));
 
-		Ok(NotCurrentlyReferenced(scope))
+		Ok(scope)
 	}
 }
 
@@ -61,12 +56,6 @@ impl Gc<Scope> {
 		todo!()
 
 		// let did_return = self.as_ref().expect("unable to mark stackframe as not running?")
-	}
-}
-
-impl NotCurrentlyReferenced {
-	pub fn run(self) -> Result<AnyValue> {
-		todo!()
 	}
 }
 

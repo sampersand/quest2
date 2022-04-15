@@ -19,6 +19,7 @@ pub use data::{DataRefGuard, DataMutGuard};
 
 #[repr(C)]
 pub struct Header {
+	// Note that the guards on these allow them to be modified even when you have a nonmutable view. (i think.)
 	attributes: UnsafeCell<attributes::Attributes>,
 	parents: UnsafeCell<parents::Parents>,
 	typeid: TypeId,
@@ -320,7 +321,7 @@ impl Header {
 		let flags = &*std::ptr::addr_of!((*ptr).flags);
 
 		ParentsGuard::new(parents_ptr, flags)
-			.ok_or_else(|| "attributes are already locked".to_string().into())
+			.ok_or_else(|| "parents are already locked".to_string().into())
 	}
 
 	pub unsafe fn attributes_raw<'a>(ptr: *const Self) -> Result<AttributesGuard<'a>> {
