@@ -12,6 +12,10 @@ impl From<Float> for Value<Float> {
 	}
 }
 
+impl crate::value::NamedType for Float {
+	const TYPENAME: &'static str = "Float";
+}
+
 unsafe impl Convertible for Float {
 	#[inline]
 	fn is_a(value: AnyValue) -> bool {

@@ -813,7 +813,7 @@ impl AsAny for String {
 impl Eq for Text {}
 impl PartialEq for Text {
 	fn eq(&self, rhs: &Self) -> bool {
-		self == rhs.as_str()
+		std::ptr::eq(self, rhs) || self == rhs.as_str()
 	}
 }
 

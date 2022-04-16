@@ -341,54 +341,54 @@ impl Gc<Frame> {
 	}
 
 	fn op_add(&self) -> Result<()> {
-		self.run_binary_op(Intern::op_add)
-		// let mut this = self.as_mut()?;
-		// let lhs = this.next_local()?;
-		// let rhs = this.next_local()?;
+		// self.run_binary_op(Intern::op_add)
+		let mut this = self.as_mut()?;
+		let lhs = this.next_local()?;
+		let rhs = this.next_local()?;
 
-		// if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
-		// 	this.store_next_local((lhs + rhs).as_any());
-		// } else {
-		// 	drop(this);
-		// 	let result = lhs.call_attr(Intern::op_add, Args::new(&[rhs], &[]))?;
-		// 	self.as_mut()?.store_next_local(result);
-		// }
+		if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
+			this.store_next_local((lhs + rhs).as_any());
+		} else {
+			drop(this);
+			let result = lhs.call_attr(Intern::op_add, Args::new(&[rhs], &[]))?;
+			self.as_mut()?.store_next_local(result);
+		}
 
-		// Ok(())
+		Ok(())
 	}
 
 	fn op_subtract(&self) -> Result<()> {
-		self.run_binary_op(Intern::op_sub)
-		// let mut this = self.as_mut()?;
-		// let lhs = this.next_local()?;
-		// let rhs = this.next_local()?;
+		// self.run_binary_op(Intern::op_sub)
+		let mut this = self.as_mut()?;
+		let lhs = this.next_local()?;
+		let rhs = this.next_local()?;
 
-		// if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
-		// 	this.store_next_local((lhs - rhs).as_any());
-		// } else {
-		// 	drop(this);
-		// 	let result = lhs.call_attr(Intern::op_sub, Args::new(&[rhs], &[]))?;
-		// 	self.as_mut()?.store_next_local(result);
-		// }
+		if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
+			this.store_next_local((lhs - rhs).as_any());
+		} else {
+			drop(this);
+			let result = lhs.call_attr(Intern::op_sub, Args::new(&[rhs], &[]))?;
+			self.as_mut()?.store_next_local(result);
+		}
 
-		// Ok(())
+		Ok(())
 	}
 
 	fn op_lessequal(&self) -> Result<()> {
-		self.run_binary_op(Intern::op_leq)
-		// let mut this = self.as_mut()?;
-		// let lhs = this.next_local()?;
-		// let rhs = this.next_local()?;
+		// self.run_binary_op(Intern::op_leq)
+		let mut this = self.as_mut()?;
+		let lhs = this.next_local()?;
+		let rhs = this.next_local()?;
 
-		// if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
-		// 	this.store_next_local((lhs <= rhs).as_any());
-		// } else {
-		// 	drop(this);
-		// 	let result = lhs.call_attr(Intern::op_leq, Args::new(&[rhs], &[]))?;
-		// 	self.as_mut()?.store_next_local(result);
-		// }
+		if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
+			this.store_next_local((lhs <= rhs).as_any());
+		} else {
+			drop(this);
+			let result = lhs.call_attr(Intern::op_leq, Args::new(&[rhs], &[]))?;
+			self.as_mut()?.store_next_local(result);
+		}
 
-		// Ok(())
+		Ok(())
 	}
 
 	pub fn run(self) -> Result<AnyValue> {

@@ -91,6 +91,7 @@ pub mod funcs {
 	pub fn r#return(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
 
+		dbg!(obj, args);
 		let _ = obj;
 		todo!("return")
 	}

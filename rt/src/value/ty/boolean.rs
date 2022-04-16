@@ -9,6 +9,10 @@ impl super::AttrConversionDefined for Boolean {
 	const ATTR_NAME: crate::value::Intern = crate::value::Intern::at_bool;
 }
 
+impl crate::value::NamedType for Boolean {
+	const TYPENAME: &'static str = "Boolean";
+}
+
 impl Value<Boolean> {
 	pub const FALSE: Self = unsafe { Self::from_bits_unchecked(0b0000_0100) };
 	pub const TRUE: Self = unsafe { Self::from_bits_unchecked(0b0010_0100) };
@@ -58,6 +62,69 @@ impl ConvertTo<Float> for Boolean {
 	}
 }
 
+pub mod funcs {
+	use crate::value::AsAny;
+	use super::*;
+
+	pub fn then(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+		if !boolean {
+			return Ok(boolean.as_any());
+		}
+
+		let (func, args) = args.split_first()?;
+		func.call_no_obj(args)
+	}
+
+	pub fn and_then(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+		if !boolean {
+			return Ok(boolean.as_any());
+		}
+
+		let (func, args) = args.split_first()?;
+		func.call(args.with_self(boolean.as_any()))
+	}
+
+	pub fn r#else(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+		if boolean {
+			return Ok(boolean.as_any());
+		}
+
+		let (func, args) = args.split_first()?;
+		func.call(args)
+	}
+
+	pub fn or_else(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+		if boolean {
+			return Ok(boolean.as_any());
+		}
+
+		let (func, args) = args.split_first()?;
+		func.call(args.with_self(boolean.as_any()))
+	}
+
+	pub fn or(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		if boolean {
+			return Ok(boolean.as_any());
+		}
+
+		Ok(args[0])
+	}
+
+	pub fn and(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		if !boolean {
+			return Ok(boolean.as_any());
+		}
+
+		Ok(args[0])
+	}
+}
+
 impl HasDefaultParent for Boolean {
 	fn parent() -> AnyValue {
 		use once_cell::sync::OnceCell;
@@ -67,7 +134,12 @@ impl HasDefaultParent for Boolean {
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Boolean", parent Object::instance();
 				// "+" => method funcs::add,
-				Intern::then => function super::object::funcs::then,
+				Intern::then => method funcs::then,
+				Intern::and_then => method funcs::and_then,
+				Intern::r#else => method funcs::r#else,
+				Intern::or_else => method funcs::or_else,
+				Intern::and => method funcs::and,
+				Intern::or => method funcs::or,
 				// "@text" => method funcs::at_text
 			}
 		})

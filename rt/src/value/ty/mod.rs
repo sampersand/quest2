@@ -5,7 +5,7 @@ mod macros;
 pub mod rustfn;
 
 mod block;
-mod boolean;
+pub mod boolean;
 mod boundfn;
 mod callable;
 pub mod class;

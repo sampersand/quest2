@@ -74,28 +74,57 @@ fn main() -> Result<()> {
 
 	let fib = qvm_rt::vm::Block::_new(
 		vec![
+			op!(Mov), named!(0), local!(5),
+			op!(Mov), named!(1), local!(6),
+			op!(Mov), named!(2), local!(7),
 			// (n < 1).then(return_zero, __current_stackframe__);
 			op!(ConstLoad), 0, local!(0), // 1
-			op!(LessEqual), named!(1), local!(0), local!(2),
+			op!(LessEqual), local!(6), local!(0), local!(2),
 			op!(ConstLoad), 1, local!(1), // "then"
 			op!(CurrentFrame), local!(3),
-			op!(CallAttrSimple), local!(2), local!(1), 3, named!(2), named!(1), local!(3), local!(1),
+			op!(CallAttrSimple), local!(2), local!(1), 3, local!(7), local!(6), local!(3), local!(1),
 
-			op!(Subtract), named!(1), local!(0), local!(1),
-			op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(2),
+			op!(Subtract), local!(6), local!(0), local!(1),
+			op!(CallSimple), local!(5), 3, local!(5), local!(1), local!(7), local!(2),
 			// op!(Debug),
 
 			op!(Subtract), local!(1), local!(0), local!(1),
-			op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(0),
+			op!(CallSimple), local!(5), 3, local!(5), local!(1), local!(7), local!(0),
 
 			op!(Add), local!(0), local!(2), local!(1),
 			op!(Return), local!(1), local!(3),
 		],
 		SourceLocation{},
 		vec![1.as_any(), "then".as_any()],
-		4,
+		8,
 		vec!["fib".into(), "x".into(), "return_zero".into()]
 	);
+
+
+	// let fib = qvm_rt::vm::Block::_new(
+	// 	vec![
+	// 		// (n < 1).then(return_zero, __current_stackframe__);
+	// 		op!(ConstLoad), 0, local!(0), // 1
+	// 		op!(LessEqual), named!(1), local!(0), local!(2),
+	// 		op!(ConstLoad), 1, local!(1), // "then"
+	// 		op!(CurrentFrame), local!(3),
+	// 		op!(CallAttrSimple), local!(2), local!(1), 3, named!(2), named!(1), local!(3), local!(1),
+
+	// 		op!(Subtract), named!(1), local!(0), local!(1),
+	// 		op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(2),
+	// 		// op!(Debug),
+
+	// 		op!(Subtract), local!(1), local!(0), local!(1),
+	// 		op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(0),
+
+	// 		op!(Add), local!(0), local!(2), local!(1),
+	// 		op!(Return), local!(1), local!(3),
+	// 	],
+	// 	SourceLocation{},
+	// 	vec![1.as_any(), "then".as_any()],
+	// 	4,
+	// 	vec!["fib".into(), "x".into(), "return_zero".into()]
+	// );
 
 	let result = fib.run(Args::new(&vec![
 		fib.as_any(),

@@ -1,9 +1,9 @@
 use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{
-	AttrConversionDefined, Block, BoundFn, Float, Integer, List, RustFn, Text, Wrap,
+	AttrConversionDefined, BoundFn, Float, Integer, List, RustFn, Text, Wrap,
 };
 use crate::value::{AsAny, Convertible, Gc, Intern};
-use crate::vm::Args;
+use crate::vm::{Args, Block};
 use crate::{Error, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
@@ -252,6 +252,12 @@ impl AnyValue {
 			return unsafe { self.get_gc_any_unchecked() }.call_attr(attr, args);
 		}
 
+		// if let Some(b) = self.downcast::<bool>() {
+		// 	if attr.try_eq_intern(Intern::then)? {
+		// 		return crate::value::ty::boolean::funcs::then(b, args);
+		// 	}
+		// }
+
 		// OPTIMIZE ME: This is circumventing potential optimizations from `parents_for`?
 		self
 			.parents_for()
@@ -268,7 +274,7 @@ impl AnyValue {
 		if let Some(rustfn) = self.downcast::<RustFn>() {
 			rustfn.call(args)
 		} else if let Some(block) = self.downcast::<Gc<Block>>() {
-			block.as_ref()?.call(args)
+			block.run(args)
 		} else {
 			// gotta add `self` to the front
 			self.call_attr(Intern::op_call, args)
@@ -377,14 +383,18 @@ impl AnyValue {
 	}
 
 	pub fn try_eq(self, rhs: AnyValue) -> Result<bool> {
+		if self.bits() == rhs.bits() {
+			return Ok(true);
+		}
+
 		if self.is_allocated() {
 			if let (Some(lhs), Some(rhs)) = (self.downcast::<Gc<Text>>(), rhs.downcast::<Gc<Text>>()) {
 				Ok(*lhs.as_ref()? == *rhs.as_ref()?)
 			} else {
-				todo!()
+				self.call_attr(Intern::op_eql, Args::new(&[rhs], &[]))?.convert()
 			}
 		} else {
-			Ok(self.bits() == rhs.bits()) // this can also be modified, but that's a future thing
+			Ok(false)
 		}
 	}
 }
