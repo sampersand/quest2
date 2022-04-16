@@ -52,28 +52,67 @@ macro_rules! value {
 }
 
 fn main() -> Result<()> {
-	let frame = Frame::_new(
+	/*
+	let return_zero = qvm_rt::vm::Block::_new(
 		vec![
-			Opcode::ConstLoad as u8,
-			0,
-			0,
-			Opcode::ConstLoad as u8,
-			1,
-			1,
-			Opcode::Return as u8,
-			0,
-			1,
+			Opcode::ConstLoad as u8, 0, 0,
+			Opcode::Return as u8, 0, -1i8 as u8
 		],
 		SourceLocation{},
+		vec![0.as_any()],
+		1,
+		vec!["src".as_any()],
+	);
+	let fibonacci = qvm_rt::vm::Block::_new(
 		vec![
-			1.as_any(),
-			2.as_any(),
+		]
+	);*/
+	/*
+	fib = (fib, n) -> {
+		if (n)
+	}
+	*/
+	let block = qvm_rt::vm::Block::_new(
+		vec![
+			Opcode::ConstLoad as u8, 0, 0,
+			Opcode::ConstLoad as u8, 1, 1,
+			Opcode::CallAttrSimple as u8, -1i8 as u8, 0, 1, 1, 2,
+			Opcode::CurrentFrame as u8, 3,
+			Opcode::Return as u8, 2, 3,
 		],
-		2,
-		vec![]
+		SourceLocation{},
+		vec!["-".as_any(), 2.as_any()],
+		10,
+		vec!["x".into()]
 	);
 
-	dbg!(frame.run(Default::default()));
+	dbg!(block.run(Args::new(&vec![4.as_any()], &[])));
+	Ok(())
+}
+
+fn main6() -> Result<()> {
+	let mut x = "hello".as_any();
+	x.set_attr("what".as_any(), "yup".as_any())?;
+
+	let block = qvm_rt::vm::Block::_new(
+		// (negative local values indicate named values, eg within source code.)
+		vec![
+			Opcode::ConstLoad as u8, 0, 0, // local[0] = "what"
+			Opcode::GetAttr as u8, -1i8 as u8, 0, 1, // local[1] = `x`.get_attr(local[0])
+
+			Opcode::ConstLoad as u8, 1, -2i8 as u8, // `a` = 1
+			Opcode::SetAttr as u8, -2i8 as u8, 0, 1, // `a`.set_attr(local[0], local[1])
+			Opcode::GetAttr as u8, -2i8 as u8, 0, 2, // local[2] = `a`.get_attr(local[0])
+			Opcode::CurrentFrame as u8, 3, // local[3] = __current_stackframe__
+			Opcode::Return as u8, -2i8 as u8, 3, // return `a`, from `local[3]`
+		],
+		SourceLocation{},
+		vec!["what".as_any(), 1.as_any()],
+		10,
+		vec!["x".into(), "a".into()]
+	);
+
+	dbg!(block.run(Args::new(&vec![x], &[])));
 
 	Ok(())
 // #[derive(Debug)]

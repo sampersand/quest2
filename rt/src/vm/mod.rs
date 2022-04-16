@@ -2,13 +2,13 @@
 
 mod args;
 mod bytecode;
+mod block;
 mod frame;
-mod scope;
 
-pub use scope::Scope;
+pub use frame::Frame;
 pub use args::Args;
 pub use bytecode::{Bytecode, Opcode};
-pub use frame::Frame;
+pub use block::Block;
 
 #[derive(Debug, Default)]
 pub struct SourceLocation {}

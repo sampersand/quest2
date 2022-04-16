@@ -80,6 +80,13 @@ pub mod funcs {
 		Ok((int + args[0].to_integer()?).as_any())
 	}
 
+	pub fn sub(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((int - args[0].to_integer()?).as_any())
+	}
+
 	pub fn at_text(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		ConvertTo::<Gc<Text>>::convert(&int, args).map(AsAny::as_any)
 	}
@@ -101,6 +108,7 @@ impl Singleton for IntegerClass {
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Integer", parent Object::instance();
 				Intern::op_add => method funcs::add,
+				Intern::op_sub => method funcs::sub,
 				Intern::at_text => method funcs::at_text
 			}
 		})

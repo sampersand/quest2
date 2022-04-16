@@ -60,6 +60,12 @@ impl Map {
 		}
 	}
 
+	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut AnyValue> {
+		let _ = attr;
+		todo!("get unbound attr mut for maps");
+		// debug_assert!(!attr.is_special());
+	}
+
 	fn get_unbound_any_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());

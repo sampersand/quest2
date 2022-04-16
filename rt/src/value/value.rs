@@ -84,6 +84,11 @@ impl<T> Value<T> {
 	pub const fn is_allocated(self) -> bool {
 		self.bits() & 0b1111 == 0
 	}
+
+	#[inline]
+	pub const fn is_identical<U>(self, rhs: Value<U>) -> bool {
+		self.bits() == rhs.bits()
+	}
 }
 
 impl<T: Convertible> Value<T> {

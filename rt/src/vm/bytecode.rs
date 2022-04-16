@@ -25,11 +25,13 @@ pub enum Opcode {
 	Return,
 
 	ConstLoad,
+	CurrentFrame,
 	GetAttr,
 	HasAttr,
 	SetAttr,
 	DelAttr,
 	CallAttr,
+	CallAttrSimple,
 
 	Add,
 	Subtract,

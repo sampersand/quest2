@@ -1,5 +1,5 @@
 use crate::value::gc::Gc;
-use crate::vm::{Args, Frame};
+use crate::vm::{Args, Block as BlockB};
 use crate::{AnyValue, Result};
 
 quest_type! {
@@ -10,19 +10,19 @@ quest_type! {
 #[derive(Debug)]
 #[doc(hidden)]
 pub struct Inner {
-	frame: Gc<Frame>,
+	block: Gc<BlockB>,
 }
 
 impl Block {
 	#[must_use]
-	pub fn new(frame: Gc<Frame>) -> Gc<Self> {
+	pub fn new(block: Gc<BlockB>) -> Gc<Self> {
 		use crate::value::base::{Base, HasDefaultParent};
 
-		Gc::from_inner(Base::new(Inner { frame }, Gc::<Self>::parent()))
+		Gc::from_inner(Base::new(Inner { block }, Gc::<Self>::parent()))
 	}
 
 	pub fn call(&self, args: Args<'_>) -> Result<AnyValue> {
-		self.0.data().frame.run(args)
+		self.0.data().block.run(args)
 	}
 }
 

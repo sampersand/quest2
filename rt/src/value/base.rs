@@ -120,11 +120,11 @@ impl<T> Base<T> {
 		Builder::allocate()
 	}
 
-	pub fn new(data: T, parent: AnyValue) -> Gc<Self> {
+	pub fn new<P: IntoParent>(data: T, parent: P) -> Gc<Self> {
 		Self::new_with_capacity(data, parent, 0)
 	}
 
-	pub fn new_with_capacity(data: T, parent: AnyValue, attr_capacity: usize) -> Gc<Self> {
+	pub fn new_with_capacity<P: IntoParent>(data: T, parent: P, attr_capacity: usize) -> Gc<Self> {
 		let mut builder = Self::builder();
 
 		builder.set_parents(parent);
@@ -242,6 +242,11 @@ impl Header {
 	pub fn get_unbound_attr_from_parents<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		self.parents()?.get_unbound_attr(attr)
 	}
+
+	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut AnyValue> {
+		self.attributes()?.get_unbound_attr_mut(attr)
+	}
+
 
 	/// Gets the flags associated with the current object.
 	// TODO: we need to somehow not expose the internal flags.

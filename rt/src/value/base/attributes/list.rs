@@ -87,6 +87,20 @@ impl ListMap {
 		Ok(None)
 	}
 
+	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut AnyValue> {
+		for thing in self.data.iter_mut() {
+			if let Some((key, value)) = thing {
+				if key.is_eql(attr)? {
+					return Ok(value);
+				}
+			} else {
+				break;
+			}
+		}
+
+		panic!("get_unbound_attr_mut called with an unknown attribute");
+	}
+
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, new_value: AnyValue) -> Result<()> {
 		for (idx, entry) in self.data.iter_mut().enumerate() {
 			if let Some((key, value)) = entry {

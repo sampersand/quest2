@@ -106,6 +106,20 @@ impl<'a> AttributesGuard<'a> {
 		}
 	}
 
+	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&'a mut AnyValue> {
+		debug_assert!(!attr.is_special());
+
+		if self.get_unbound_attr(attr)?.is_none() {
+			self.set_attr(attr, Default::default())?;
+		}
+
+		match self.classify() {
+			AttributesKind::None => unreachable!("we just set it"),
+			AttributesKind::List(list) => unsafe { &mut *list }.get_unbound_attr_mut(attr),
+			AttributesKind::Map(map) => unsafe { &mut *map }.get_unbound_attr_mut(attr),
+		}
+	}
+
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
 		debug_assert!(!attr.is_special());
 

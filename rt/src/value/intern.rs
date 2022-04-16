@@ -63,6 +63,7 @@ define_interned! {
 	op_not "!"
 	op_call "()"
 	op_add "+"
+	op_sub "-"
 
 	at_text "@text"
 	at_num "@num"
