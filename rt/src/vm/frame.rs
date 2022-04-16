@@ -134,6 +134,7 @@ impl Frame {
 
 			op if op == Opcode::Mov as u8 => Opcode::Mov,
 			op if op == Opcode::Call as u8 => Opcode::Call,
+			op if op == Opcode::CallSimple as u8 => Opcode::CallSimple,
 			op if op == Opcode::Return as u8 => Opcode::Return,
 
 			op if op == Opcode::ConstLoad as u8 => Opcode::ConstLoad,
@@ -187,13 +188,32 @@ impl Gc<Frame> {
 	fn op_noop(&self) {}
 
 	fn op_debug(&self) {
-		dbg!(self.as_ref().unwrap());
+		dbg!(&self.as_ref().unwrap().unnamed_locals);
+		// dbg!(&self.as_ref().unwrap().0.header().attributes());
+		// dbg!(self.as_ref().unwrap().get_local(-2));
+		// panic!();
 	}
 
 	fn op_mov(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let src = this.next_local()?;
 		this.store_next_local(src);
+		Ok(())
+	}
+
+	fn op_call_simple(&self) -> Result<()> {
+		let mut this = self.as_mut()?;
+		let object = this.next_local()?;
+		let amnt = this.next_count();
+		let mut positional = Vec::with_capacity(amnt);
+
+		for _ in 0..amnt {
+			positional.push(this.next_local()?);
+		}
+		drop(this);
+		let result = object.call(Args::new(&positional, &[]))?;
+		self.as_mut()?.store_next_local(result);
+
 		Ok(())
 	}
 
@@ -308,6 +328,69 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
+	fn run_binary_op(&self, op: Intern) -> Result<()> {
+		let mut this = self.as_mut()?;
+		let lhs = this.next_local()?;
+		let rhs = this.next_local()?;
+		drop(this);
+
+		let result = lhs.call_attr(op, Args::new(&[rhs], &[]))?;
+		self.as_mut()?.store_next_local(result);
+
+		Ok(())
+	}
+
+	fn op_add(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_add)
+		// let mut this = self.as_mut()?;
+		// let lhs = this.next_local()?;
+		// let rhs = this.next_local()?;
+
+		// if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
+		// 	this.store_next_local((lhs + rhs).as_any());
+		// } else {
+		// 	drop(this);
+		// 	let result = lhs.call_attr(Intern::op_add, Args::new(&[rhs], &[]))?;
+		// 	self.as_mut()?.store_next_local(result);
+		// }
+
+		// Ok(())
+	}
+
+	fn op_subtract(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_sub)
+		// let mut this = self.as_mut()?;
+		// let lhs = this.next_local()?;
+		// let rhs = this.next_local()?;
+
+		// if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
+		// 	this.store_next_local((lhs - rhs).as_any());
+		// } else {
+		// 	drop(this);
+		// 	let result = lhs.call_attr(Intern::op_sub, Args::new(&[rhs], &[]))?;
+		// 	self.as_mut()?.store_next_local(result);
+		// }
+
+		// Ok(())
+	}
+
+	fn op_lessequal(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_leq)
+		// let mut this = self.as_mut()?;
+		// let lhs = this.next_local()?;
+		// let rhs = this.next_local()?;
+
+		// if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
+		// 	this.store_next_local((lhs <= rhs).as_any());
+		// } else {
+		// 	drop(this);
+		// 	let result = lhs.call_attr(Intern::op_leq, Args::new(&[rhs], &[]))?;
+		// 	self.as_mut()?.store_next_local(result);
+		// }
+
+		// Ok(())
+	}
+
 	pub fn run(self) -> Result<AnyValue> {
 		if !self.as_ref()?.flags().try_acquire_all_user(FLAG_CURRENTLY_RUNNING) {
 			return Err("stackframe is currently running".to_string().into());
@@ -335,6 +418,7 @@ impl Gc<Frame> {
 				Opcode::Debug => self.op_debug(),
 				Opcode::Mov => self.op_mov()?,
 				Opcode::Call => todo!("call"),
+				Opcode::CallSimple => self.op_call_simple()?,
 				Opcode::Return => return self.op_return(),
 				Opcode::ConstLoad => self.op_constload()?,
 				Opcode::CurrentFrame => self.op_currentframe()?,
@@ -344,6 +428,10 @@ impl Gc<Frame> {
 				Opcode::DelAttr => self.op_delattr()?,
 				Opcode::CallAttr => self.op_callattr()?,
 				Opcode::CallAttrSimple => self.op_callattr_simple()?,
+
+				Opcode::Add => self.op_add()?,
+				Opcode::Subtract => self.op_subtract()?,
+				Opcode::LessEqual => self.op_lessequal()?,
 				_ => todo!()
 			}
 		}

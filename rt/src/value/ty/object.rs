@@ -23,6 +23,7 @@ impl Object {
 				Intern::at_bool => function funcs::at_bool,
 				Intern::at_text => function funcs::at_text,
 				Intern::hash => function funcs::hash,
+				Intern::r#return => function funcs::r#return,
 				Intern::tap => function funcs::tap,
 				Intern::then => function funcs::then,
 				Intern::r#else => function funcs::r#else,

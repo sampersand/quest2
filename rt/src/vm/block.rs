@@ -51,11 +51,11 @@ impl Gc<Block> {
 				if from_frame.is_identical(frame.into()) => Ok(value),
 			other => other
 		}
-
 	}
 }
 
 quest_type_attrs! { for Gc<Block>;
+	op_call => meth Gc::<Block>::run,
 	// "+" => meth qs_add,
 	// "@text" => meth qs_at_text,
 }

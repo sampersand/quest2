@@ -67,6 +67,7 @@ impl HasDefaultParent for Boolean {
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Boolean", parent Object::instance();
 				// "+" => method funcs::add,
+				Intern::then => function super::object::funcs::then,
 				// "@text" => method funcs::at_text
 			}
 		})

@@ -22,6 +22,7 @@ pub enum Opcode {
 	// JmpFalse,
 	// JmpTrue,
 	Call,
+	CallSimple,
 	Return,
 
 	ConstLoad,

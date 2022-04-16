@@ -64,6 +64,8 @@ define_interned! {
 	op_call "()"
 	op_add "+"
 	op_sub "-"
+	op_lth "<"
+	op_leq "<="
 
 	at_text "@text"
 	at_num "@num"
@@ -76,6 +78,7 @@ define_interned! {
 	r#if "if"
 	r#while "while"
 	r#else "else"
+	r#return "return"
 
 	inspect
 	at_int "@int"

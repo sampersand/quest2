@@ -52,41 +52,58 @@ macro_rules! value {
 }
 
 fn main() -> Result<()> {
-	/*
+	macro_rules! op { ($op:ident) => (Opcode::$op as u8) }
+	macro_rules! named { ($named:literal) => (!($named as i8) as u8) }
+	macro_rules! local { ($local:literal) => ($local) }
+
 	let return_zero = qvm_rt::vm::Block::_new(
 		vec![
-			Opcode::ConstLoad as u8, 0, 0,
-			Opcode::Return as u8, 0, -1i8 as u8
+			op!(Return), named!(0), named!(1),
 		],
 		SourceLocation{},
-		vec![0.as_any()],
-		1,
-		vec!["src".as_any()],
+		vec![],
+		0,
+		vec!["val".into(), "src".into()],
 	);
-	let fibonacci = qvm_rt::vm::Block::_new(
-		vec![
-		]
-	);*/
 	/*
-	fib = (fib, n) -> {
-		if (n)
-	}
+	return_zero = x-> { return(0, x) };
+	fib = (fib, n, return_zero) -> {
+	};
+	fib(fib, 40, return_zxero)
 	*/
-	let block = qvm_rt::vm::Block::_new(
+
+	let fib = qvm_rt::vm::Block::_new(
 		vec![
-			Opcode::ConstLoad as u8, 0, 0,
-			Opcode::ConstLoad as u8, 1, 1,
-			Opcode::CallAttrSimple as u8, -1i8 as u8, 0, 1, 1, 2,
-			Opcode::CurrentFrame as u8, 3,
-			Opcode::Return as u8, 2, 3,
+			// (n < 1).then(return_zero, __current_stackframe__);
+			op!(ConstLoad), 0, local!(0), // 1
+			op!(LessEqual), named!(1), local!(0), local!(2),
+			op!(ConstLoad), 1, local!(1), // "then"
+			op!(CurrentFrame), local!(3),
+			op!(CallAttrSimple), local!(2), local!(1), 3, named!(2), named!(1), local!(3), local!(1),
+
+			op!(Subtract), named!(1), local!(0), local!(1),
+			op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(2),
+			// op!(Debug),
+
+			op!(Subtract), local!(1), local!(0), local!(1),
+			op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(0),
+
+			op!(Add), local!(0), local!(2), local!(1),
+			op!(Return), local!(1), local!(3),
 		],
 		SourceLocation{},
-		vec!["-".as_any(), 2.as_any()],
-		10,
-		vec!["x".into()]
+		vec![1.as_any(), "then".as_any()],
+		4,
+		vec!["fib".into(), "x".into(), "return_zero".into()]
 	);
 
-	dbg!(block.run(Args::new(&vec![4.as_any()], &[])));
+	let result = fib.run(Args::new(&vec![
+		fib.as_any(),
+		30.as_any(),
+		return_zero.as_any()
+		], &[]));
+
+	dbg!(result);
 	Ok(())
 }
 
