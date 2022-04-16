@@ -252,11 +252,11 @@ impl AnyValue {
 			return unsafe { self.get_gc_any_unchecked() }.call_attr(attr, args);
 		}
 
-		// if let Some(b) = self.downcast::<bool>() {
-		// 	if attr.try_eq_intern(Intern::then)? {
-		// 		return crate::value::ty::boolean::funcs::then(b, args);
-		// 	}
-		// }
+		if let Some(b) = self.downcast::<bool>() {
+			if attr.try_eq_intern(Intern::then)? {
+				return crate::value::ty::boolean::funcs::then(b, args);
+			}
+		}
 
 		// OPTIMIZE ME: This is circumventing potential optimizations from `parents_for`?
 		self

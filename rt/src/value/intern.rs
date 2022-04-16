@@ -58,18 +58,13 @@ define_interned! {
 
 	concat
 	len
-	op_eql "=="
-	op_neq "!="
-	op_not "!"
-	op_call "()"
-	op_add "+"
-	op_sub "-"
-	op_lth "<"
-	op_leq "<="
 
-	at_text "@text"
-	at_num "@num"
-	at_bool "@bool"
+	op_add "+" op_sub "-" op_mul "*" op_div "/" op_mod "%" op_pow "**"
+	op_eql "==" op_neq "!=" op_lth "<" op_leq "<=" op_gth ">" op_geq ">=" op_cmp "<=>"
+	op_not "!" op_neg "-@" op_index "[]" op_index_assign "[]=" op_call "()"
+
+	at_text "@text" at_num "@num" at_bool "@bool" at_list "@list"
+	at_int "@int" at_float "@float"
 
 	hash
 	clone
@@ -81,9 +76,6 @@ define_interned! {
 	r#return "return"
 
 	inspect
-	at_int "@int"
-	at_float "@float"
-	at_list "@list"
 }
 
 impl Hash for Intern {

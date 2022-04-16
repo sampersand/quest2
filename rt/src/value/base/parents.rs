@@ -145,7 +145,14 @@ impl ParentsGuard<'_> {
 	/// distinct function so we can optimize function calls in the future without having to fetch
 	/// the attribute first.
 	// TODO: we should take by-reference, but this solves an issue with gc until we make gc only for body.
-	pub fn call_attr<A: Attribute>(self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
+	pub fn call_attr<A: Attribute>(self, obj: AnyValue, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
+		let attr = self.get_unbound_attr(attr)?
+			.ok_or_else(|| Error::UnknownAttribute(obj, attr.to_value()))?;
+		drop(self);
+		obj.call_attr(attr, args)
+	}
+
+	pub fn call<A: Attribute>(self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
 		let attr = self.get_unbound_attr(attr)?
 			.ok_or_else(|| {
 				Error::UnknownAttribute(
