@@ -303,14 +303,20 @@ impl Gc<Frame> {
 
 	fn op_delattr(&self) -> Result<()>{
 		let mut this = self.as_mut()?;
+		let object = this.next_local()?;
+		let attr = this.next_local()?;
+
+		drop(this); // as `has_attr` may modify us.
+		let value = object.del_attr(attr)?;
+		self.as_mut()?.store_next_local(value.unwrap_or_default());
 
 		Ok(())
 	}
+
 	fn op_callattr(&self) -> Result<()>{
-		let mut this = self.as_mut()?;
-
-		Ok(())
+		todo!("semantics for complicated callattr");
 	}
+
 	fn op_callattr_simple(&self) -> Result<()>{
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
@@ -339,54 +345,94 @@ impl Gc<Frame> {
 
 		Ok(())
 	}
-
+	
 	fn op_add(&self) -> Result<()> {
-		// self.run_binary_op(Intern::op_add)
-		let mut this = self.as_mut()?;
-		let lhs = this.next_local()?;
-		let rhs = this.next_local()?;
-
-		if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
-			this.store_next_local((lhs + rhs).as_any());
-		} else {
-			drop(this);
-			let result = lhs.call_attr(Intern::op_add, Args::new(&[rhs], &[]))?;
-			self.as_mut()?.store_next_local(result);
-		}
-
-		Ok(())
+		self.run_binary_op(Intern::op_add)
 	}
 
 	fn op_subtract(&self) -> Result<()> {
-		// self.run_binary_op(Intern::op_sub)
-		let mut this = self.as_mut()?;
-		let lhs = this.next_local()?;
-		let rhs = this.next_local()?;
+		self.run_binary_op(Intern::op_sub)
+	}
 
-		if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
-			this.store_next_local((lhs - rhs).as_any());
-		} else {
-			drop(this);
-			let result = lhs.call_attr(Intern::op_sub, Args::new(&[rhs], &[]))?;
-			self.as_mut()?.store_next_local(result);
-		}
+	fn op_multuply(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_mul)
+	}
+
+	fn op_divide(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_div)
+	}
+
+	fn op_modulo(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_mod)
+	}
+
+	fn op_power(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_pow)
+	}
+
+	fn op_equal(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_eql)
+	}
+
+	fn op_notequal(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_neq)
+	}
+
+	fn op_lessthan(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_lth)
+	}
+
+	fn op_greaterthan(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_gth)
+	}
+
+	fn op_lessequal(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_leq)
+	}
+
+	fn op_greaterequal(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_geq)
+	}
+
+	fn op_compare(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_cmp)
+	}
+
+	fn op_index(&self) -> Result<()> {
+		self.run_binary_op(Intern::op_index)
+	}
+
+
+	fn op_not(&self) -> Result<()> {
+		let mut this = self.as_mut()?;
+		let value = this.next_local()?;
+		drop(this);
+
+		let result = value.call_attr(Intern::op_not, Args::default())?;
+		self.as_mut()?.store_next_local(result);
 
 		Ok(())
 	}
 
-	fn op_lessequal(&self) -> Result<()> {
-		// self.run_binary_op(Intern::op_leq)
+	fn op_negate(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
-		let lhs = this.next_local()?;
-		let rhs = this.next_local()?;
+		let value = this.next_local()?;
+		drop(this);
 
-		if let (Some(lhs), Some(rhs)) = (lhs.downcast::<i64>(), rhs.downcast::<i64>()) {
-			this.store_next_local((lhs <= rhs).as_any());
-		} else {
-			drop(this);
-			let result = lhs.call_attr(Intern::op_leq, Args::new(&[rhs], &[]))?;
-			self.as_mut()?.store_next_local(result);
-		}
+		let result = value.call_attr(Intern::op_neg, Args::default())?;
+		self.as_mut()?.store_next_local(result);
+
+		Ok(())
+	}
+
+	fn op_indexassign(&self) -> Result<()> {
+		let mut this = self.as_mut()?;
+		let ary = this.next_local()?;
+		let index = this.next_local()?;
+		let value = this.next_local()?;
+		drop(this);
+
+		ary.call_attr(Intern::op_index_assign, Args::new(&[ary, value], &[]))?;
 
 		Ok(())
 	}
@@ -416,10 +462,12 @@ impl Gc<Frame> {
 			match op {
 				Opcode::NoOp => self.op_noop(),
 				Opcode::Debug => self.op_debug(),
+
 				Opcode::Mov => self.op_mov()?,
 				Opcode::Call => todo!("call"),
 				Opcode::CallSimple => self.op_call_simple()?,
 				Opcode::Return => return self.op_return(),
+
 				Opcode::ConstLoad => self.op_constload()?,
 				Opcode::CurrentFrame => self.op_currentframe()?,
 				Opcode::GetAttr => self.op_getattr()?,
@@ -431,8 +479,23 @@ impl Gc<Frame> {
 
 				Opcode::Add => self.op_add()?,
 				Opcode::Subtract => self.op_subtract()?,
+				Opcode::Multuply => self.op_multuply()?,
+				Opcode::Divide => self.op_divide()?,
+				Opcode::Modulo => self.op_modulo()?,
+				Opcode::Power => self.op_power()?,
+
+				Opcode::Not => self.op_not()?,
+				Opcode::Negate => self.op_negate()?,
+				Opcode::Equal => self.op_equal()?,
+				Opcode::NotEqual => self.op_notequal()?,
+				Opcode::LessThan => self.op_lessthan()?,
+				Opcode::GreaterThan => self.op_greaterthan()?,
 				Opcode::LessEqual => self.op_lessequal()?,
-				_ => todo!()
+				Opcode::GreaterEqual => self.op_greaterequal()?,
+				Opcode::Compare => self.op_compare()?,
+
+				Opcode::Index => self.op_index()?,
+				Opcode::IndexAssign => self.op_indexassign()?,
 			}
 		}
 

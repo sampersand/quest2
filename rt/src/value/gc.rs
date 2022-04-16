@@ -347,13 +347,15 @@ impl<T: Allocated> Gc<T> {
 	pub fn call_attr<A: Attribute>(self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
 		// try to get a function directly defined on `self`, which most likely wont exist.
 		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
+		let obj = self.as_any();
 		let selfref = self.as_ref()?;
 		if let Some(func) = selfref.header().get_unbound_attr(attr, false)? {
 			drop(selfref);
-			func.call(args.with_self(self.as_any()))
+			func.call(args.with_self(obj))
 		} else {
 			drop(selfref);
-			self.parents()?.call_attr(attr, args.with_self(Value::from(self).any()))
+			// self.parents()?.call_attr(obj, attr, args)
+			self.parents()?.call(attr, args.with_self(obj))
 		}
 	}
 }
