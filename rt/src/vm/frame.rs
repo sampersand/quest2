@@ -18,7 +18,7 @@ quest_type! {
 pub struct Inner {
 	block: Arc<BlockInner>,
 	pos: usize,
-	unnamed_locals: Vec<Option<AnyValue>>,
+	unnamed_locals: Vec<AnyValue>,
 }
 
 const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
@@ -29,7 +29,7 @@ impl Frame {
 		let block = gc_block.as_ref()?.inner();
 
 		let inner = Inner {
-			unnamed_locals: vec![None; block.num_of_unnamed_locals],
+			unnamed_locals: vec![Default::default(); block.num_of_unnamed_locals],
 			block,
 			pos: 0,
 		};
@@ -48,7 +48,7 @@ impl Frame {
 
 	fn get_local(&self, index: isize) -> Result<AnyValue> {
 		if let Ok(amnt) = usize::try_from(index) {
-			return Ok(self.unnamed_locals[amnt].expect("unnamed locals should already be set"));
+			return Ok(self.unnamed_locals[amnt]);
 		}
 
 		let attr_name = self.block.named_locals[!index as usize];
@@ -58,7 +58,7 @@ impl Frame {
 
 	fn set_local(&mut self, index: isize, value: AnyValue) -> Result<()> {
 		if let Ok(index) = usize::try_from(index) {
-			self.unnamed_locals[index] = Some(value);
+			self.unnamed_locals[index] = value;
 			return Ok(());
 		}
 
@@ -284,7 +284,7 @@ impl Gc<Frame> {
 		the `object` if it's not already a box.
 		*/
 		if let Ok(index) = usize::try_from(object_index) {
-			let mut object = this.unnamed_locals[index].unwrap();
+			let mut object = this.unnamed_locals[index];
 			drop(this);
 			object.set_attr(attr, value)?;
 		} else {
