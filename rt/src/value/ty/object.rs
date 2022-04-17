@@ -89,11 +89,10 @@ pub mod funcs {
 	}
 
 	pub fn r#return(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-		args.assert_no_arguments()?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?; // in the future, you can also give 0, but we need to be able to access the stackframe.
 
-		dbg!(obj, args);
-		let _ = obj;
-		todo!("return")
+		Err(crate::Error::Return { value: obj, from_frame: args[0] })
 	}
 
 	pub fn assert(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {

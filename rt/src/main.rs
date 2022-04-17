@@ -56,80 +56,67 @@ fn main() -> Result<()> {
 	macro_rules! named { ($named:literal) => (!($named as i8) as u8) }
 	macro_rules! local { ($local:literal) => ($local) }
 
-	let return_zero = qvm_rt::vm::Block::_new(
+
+	let fib = qvm_rt::vm::Block::_new(
 		vec![
-			op!(Return), named!(0), named!(1),
+			op!(ConstLoad), 0, local!(0), // 1
+			op!(LessEqual), named!(1), local!(0), local!(2),
+			op!(ConstLoad), 1, local!(1), // "then"
+			op!(ConstLoad), 2, local!(4), // "return"
+			op!(GetAttr), named!(1), local!(4), local!(4),
+			op!(CurrentFrame), local!(3),
+			op!(CallAttrSimple), local!(2), local!(1), 2, local!(4), local!(3), local!(1),
+
+			op!(Subtract), named!(1), local!(0), local!(1),
+			op!(CallSimple), named!(0), 2, named!(0), local!(1), local!(2),
+
+			op!(Subtract), local!(1), local!(0), local!(1),
+			op!(CallSimple), named!(0), 2, named!(0), local!(1), local!(0),
+
+			op!(Add), local!(0), local!(2), local!(1),
+			op!(Return), local!(1), local!(3),
 		],
 		SourceLocation{},
-		vec![],
-		0,
-		vec!["val".into(), "src".into()],
+		vec![1.as_any(), "then".as_any(), "return".as_any()],
+		5,
+		vec!["fib".into(), "n".into()]
 	);
-	/*
-	return_zero = x-> { return(0, x) };
-	fib = (fib, n, return_zero) -> {
-	};
-	fib(fib, 40, return_zxero)
-	*/
+
+	// let return_zero = qvm_rt::vm::Block::_new(
+	// 	vec![op!(Return), named!(0), named!(1)],
+	// 	SourceLocation{},
+	// 	vec![],
+	// 	0,
+	// 	vec!["a".into(), "b".into()],
+	// );
 
 	// let fib = qvm_rt::vm::Block::_new(
 	// 	vec![
-	// 		op!(Mov), named!(0), local!(5),
-	// 		op!(Mov), named!(1), local!(6),
-	// 		op!(Mov), named!(2), local!(7),
-	// 		// (n < 1).then(return_zero, __current_stackframe__);
 	// 		op!(ConstLoad), 0, local!(0), // 1
-	// 		op!(LessEqual), local!(6), local!(0), local!(2),
+	// 		op!(LessEqual), named!(1), local!(0), local!(2),
 	// 		op!(ConstLoad), 1, local!(1), // "then"
 	// 		op!(CurrentFrame), local!(3),
-	// 		op!(CallAttrSimple), local!(2), local!(1), 3, local!(7), local!(6), local!(3), local!(1),
+	// 		op!(CallAttrSimple), local!(2), local!(1), 3, named!(2), named!(1), local!(3), local!(1),
 
-	// 		op!(Subtract), local!(6), local!(0), local!(1),
-	// 		op!(CallSimple), local!(5), 3, local!(5), local!(1), local!(7), local!(2),
-	// 		// op!(Debug),
+	// 		op!(Subtract), named!(1), local!(0), local!(1),
+	// 		op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(2),
 
 	// 		op!(Subtract), local!(1), local!(0), local!(1),
-	// 		op!(CallSimple), local!(5), 3, local!(5), local!(1), local!(7), local!(0),
+	// 		op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(0),
 
 	// 		op!(Add), local!(0), local!(2), local!(1),
 	// 		op!(Return), local!(1), local!(3),
 	// 	],
 	// 	SourceLocation{},
 	// 	vec![1.as_any(), "then".as_any()],
-	// 	8,
-	// 	vec!["fib".into(), "x".into(), "return_zero".into()]
+	// 	4,
+	// 	vec![Intern::concat, Intern::len, Intern::hash]
 	// );
-
-
-	let fib = qvm_rt::vm::Block::_new(
-		vec![
-			// (n < 1).then(return_zero, __current_stackframe__);
-			op!(ConstLoad), 0, local!(0), // 1
-			op!(LessEqual), named!(1), local!(0), local!(2),
-			op!(ConstLoad), 1, local!(1), // "then"
-			op!(CurrentFrame), local!(3),
-			op!(CallAttrSimple), local!(2), local!(1), 3, named!(2), named!(1), local!(3), local!(1),
-
-			op!(Subtract), named!(1), local!(0), local!(1),
-			op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(2),
-
-			op!(Subtract), local!(1), local!(0), local!(1),
-			op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(0),
-
-			op!(Add), local!(0), local!(2), local!(1),
-			op!(Return), local!(1), local!(3),
-		],
-		SourceLocation{},
-		vec![1.as_any(), "then".as_any()],
-		4,
-		vec!["fib".into(), "x".into(), "return_zero".into()]
-	);
 
 	let result = fib.run(Args::new(&vec![
 		fib.as_any(),
 		30.as_any(),
-		return_zero.as_any()
-		], &[]));
+	], &[]));
 
 	dbg!(result);
 	Ok(())
@@ -154,7 +141,7 @@ fn main6() -> Result<()> {
 		SourceLocation{},
 		vec!["what".as_any(), 1.as_any()],
 		10,
-		vec!["x".into(), "a".into()]
+		vec!["a".into(), "b".into()]
 	);
 
 	dbg!(block.run(Args::new(&vec![x], &[])));
