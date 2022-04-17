@@ -19,17 +19,26 @@ pub struct Inner {
 	block: Arc<BlockInner>,
 	pos: usize,
 	unnamed_locals: Vec<AnyValue>,
+	named_locals: Vec<Option<AnyValue>>,
 }
 
 const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
+const FLAG_IS_OBJECT: u32 = Flags::USER1;
 const COUNT_IS_NOT_ONE_BYTE_BUT_USIZE: u8 = i8::MAX as u8;
 
 impl Frame {
 	pub fn new(gc_block: Gc<Block>, args: Args) -> Result<Gc<Frame>> {
 		let block = gc_block.as_ref()?.inner();
 
+		let mut named_locals = vec![None; block.named_locals.len()];
+		args.assert_no_keyword()?; // todo: assign keyword arguments
+		for (i, arg) in args.positional().iter().enumerate() {
+			named_locals[i] = Some(*arg);
+		}
+
 		let inner = Inner {
 			unnamed_locals: vec![Default::default(); block.num_of_unnamed_locals],
+			named_locals,
 			block,
 			pos: 0,
 		};
@@ -37,13 +46,30 @@ impl Frame {
 		let parents = List::from_slice(&[Gc::<Frame>::parent(), gc_block.as_any()]);
 		let frame = Gc::from_inner(Base::new(inner, parents));
 
-		args.assert_no_keyword()?; // todo: assign keyword arguments
-		for (idx, arg) in args.positional().iter().enumerate() {
-			let mut f: &mut Frame = &mut *frame.as_mut()?;
-			f.set_local(!(idx as isize), *arg)?;
+		Ok(frame)
+	}
+
+	fn is_object(&self) -> bool {
+		self.0.header().flags().contains(FLAG_IS_OBJECT)
+	}
+
+	fn convert_to_object(&mut self) -> Result<()> {
+		// If we're already an object, nothing else needed to be done.
+		if !self.0.header().flags().try_acquire_all_user(FLAG_IS_OBJECT) {
+			return Ok(())
 		}
 
-		Ok(frame)
+		let (header, data) = self.0.header_data_mut();
+		// OPTIMIZE: we could use `with_capacity`, but we'd need to move it out of the builder.
+
+		for (value, name) in data.named_locals.drain(..).zip(data.block.named_locals.iter()) {
+			// Only insert named and assigned values.
+			if let Some(value) = value {
+				header.set_attr(name.as_any(), value)?;
+			}
+		}
+
+		Ok(())
 	}
 
 	fn get_local(&self, index: isize) -> Result<AnyValue> {
@@ -51,7 +77,17 @@ impl Frame {
 			return Ok(self.unnamed_locals[amnt]);
 		}
 
-		let attr_name = self.block.named_locals[!index as usize];
+		let index = !index as usize;
+
+		if !self.is_object() {
+			// Since we could be trying to access a parent scope's variable, we won't return an error
+			// in the false case.
+			if let Some(value) = self.named_locals[index] {
+				return Ok(value);
+			}
+		}
+
+		let attr_name = self.block.named_locals[index];
 		self.0.header().get_unbound_attr(attr_name.as_any(), true)?
 			.ok_or_else(|| format!("unknown attribute {:?}", attr_name).into())
 	}
@@ -62,8 +98,14 @@ impl Frame {
 			return Ok(());
 		}
 
-		let attr = self.block.named_locals[!index as usize];
+		let index = !index as usize;
 
+		if !self.is_object() {
+			self.named_locals[index] = Some(value);
+			return Ok(())
+		}
+
+		let attr = self.block.named_locals[index];
 		self.0.header_mut().set_attr(attr.as_any(), value)
 	}
 }
@@ -237,8 +279,9 @@ impl Gc<Frame> {
 	}
 
 	fn op_currentframe(&self) -> Result<()> {
-		let frame = self.clone();
-		self.as_mut()?.store_next_local(frame.as_any());
+		let mut this = self.as_mut()?;
+		this.convert_to_object()?;
+		this.store_next_local(self.clone().as_any());
 		Ok(())
 	}
 
