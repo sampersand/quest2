@@ -8,6 +8,7 @@ use crate::{AnyValue, Error, Result};
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
+use std::alloc::Layout;
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -18,30 +19,54 @@ quest_type! {
 pub struct Inner {
 	block: Arc<BlockInner>,
 	pos: usize,
-	unnamed_locals: Vec<AnyValue>,
-	named_locals: Vec<Option<AnyValue>>,
+	// note that both of these are actually from the same allocation;
+	// `unnamed_locals` points to the base and `named_locals` is simply an offset.
+	unnamed_locals: *mut AnyValue,
+	named_locals: *mut Option<AnyValue>,
 }
 
 const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
 const FLAG_IS_OBJECT: u32 = Flags::USER1;
 const COUNT_IS_NOT_ONE_BYTE_BUT_USIZE: u8 = i8::MAX as u8;
 
+
+fn locals_layout_for(num_of_unnamed_locals: usize, num_named_locals: usize) -> Layout {
+	Layout::array::<Option<AnyValue>>(num_of_unnamed_locals + num_named_locals).unwrap()
+}
+
+impl Drop for Inner {
+	fn drop(&mut self) {
+		let layout = locals_layout_for(self.block.num_of_unnamed_locals, self.block.named_locals.len());
+
+		unsafe {
+			std::alloc::dealloc(self.unnamed_locals.cast::<u8>(), layout);
+		}
+	}
+}
 impl Frame {
 	pub fn new(gc_block: Gc<Block>, args: Args) -> Result<Gc<Frame>> {
+		args.assert_no_keyword()?; // todo: assign keyword arguments
+
 		let block = gc_block.as_ref()?.inner();
 
-		let mut named_locals = vec![None; block.named_locals.len()];
-		args.assert_no_keyword()?; // todo: assign keyword arguments
+		let unnamed_locals = unsafe {
+			crate::alloc_zeroed(locals_layout_for(block.num_of_unnamed_locals, block.named_locals.len()))
+				.as_ptr()
+				.cast::<AnyValue>()
+		};
+
+		let named_locals = unsafe {
+			unnamed_locals.add(block.num_of_unnamed_locals).cast::<Option<AnyValue>>()
+		};
+
+
 		for (i, arg) in args.positional().iter().enumerate() {
-			named_locals[i] = Some(*arg);
+			unsafe {
+				named_locals.add(i).write(Some(*arg));
+			}
 		}
 
-		let inner = Inner {
-			unnamed_locals: vec![Default::default(); block.num_of_unnamed_locals],
-			named_locals,
-			block,
-			pos: 0,
-		};
+		let inner = Inner { unnamed_locals, named_locals, block, pos: 0 };
 
 		let parents = List::from_slice(&[Gc::<Frame>::parent(), gc_block.as_any()]);
 		let frame = Gc::from_inner(Base::new(inner, parents));
@@ -62,36 +87,48 @@ impl Frame {
 		let (header, data) = self.0.header_data_mut();
 		// OPTIMIZE: we could use `with_capacity`, but we'd need to move it out of the builder.
 
-		for (value, name) in data
-			.named_locals
-			.drain(..)
-			.zip(data.block.named_locals.iter())
-		{
-			// Only insert named and assigned values.
-			if let Some(value) = value {
-				header.set_attr(name.as_any(), value)?;
+		for i in 0..data.block.named_locals.len() {
+			if let Some(value) = unsafe { *data.named_locals.add(i) } {
+				header.set_attr(data.block.named_locals[i].as_any(), value)?;
 			}
 		}
 
 		Ok(())
 	}
 
+	unsafe fn get_unnamed_local(&self, index: usize) -> AnyValue {
+		debug_assert!(index <= self.block.num_of_unnamed_locals);
+
+		unsafe {
+			debug_assert!(
+				self.unnamed_locals.add(index).cast::<Option<AnyValue>>().read().is_some(),
+				"reading from an unassigned unnamed local!"
+			);
+
+			*self.unnamed_locals.add(index)
+		}
+	}
+
+	// this should also be unsafe
 	fn get_local(&self, index: isize) -> Result<AnyValue> {
-		if index >= 0 {
-			return Ok(self.unnamed_locals[index as usize]);
+		if 0 <= index {
+			return Ok(unsafe { self.get_unnamed_local(index as usize) });
 		}
 
 		let index = !index as usize;
 
 		if !self.is_object() {
+			debug_assert!(index <= self.block.named_locals.len());
+
 			// Since we could be trying to access a parent scope's variable, we won't return an error
 			// in the false case.
-			if let Some(value) = self.named_locals[index] {
+			if let Some(value) = unsafe { *self.named_locals.add(index) } {
 				return Ok(value);
 			}
 		}
 
-		let attr_name = self.block.named_locals[index];
+		debug_assert!(index <= self.block.named_locals.len());
+		let attr_name = unsafe { *self.block.named_locals.get_unchecked(index) };
 		self
 			.0
 			.header()
@@ -100,20 +137,32 @@ impl Frame {
 	}
 
 	fn set_local(&mut self, index: isize, value: AnyValue) -> Result<()> {
-		if let Ok(index) = usize::try_from(index) {
-			self.unnamed_locals[index] = value;
+		if 0 <= index {
+			let index = index as usize;
+			debug_assert!(index <= self.block.num_of_unnamed_locals);
+
+			unsafe {
+				self.unnamed_locals.add(index).write(value);
+			}
+
 			return Ok(());
 		}
 
 		let index = !index as usize;
 
 		if !self.is_object() {
-			self.named_locals[index] = Some(value);
+			debug_assert!(index <= self.block.named_locals.len());
+
+			unsafe {
+				self.named_locals.add(index).write(Some(value));
+			}
+
 			return Ok(());
 		}
 
-		let attr = self.block.named_locals[index];
-		self.0.header_mut().set_attr(attr.as_any(), value)
+		debug_assert!(index <= self.block.named_locals.len());
+		let attr_name = unsafe { *self.block.named_locals.get_unchecked(index) };
+		self.0.header_mut().set_attr(attr_name.as_any(), value)
 	}
 }
 
@@ -338,8 +387,8 @@ impl Gc<Frame> {
 		but we don't actually assign the `object` to anything. On the other hand, we have to box
 		the `object` if it's not already a box.
 		*/
-		if let Ok(index) = usize::try_from(object_index) {
-			let mut object = this.unnamed_locals[index];
+		if 0 <= object_index {
+			let mut object = unsafe { this.get_unnamed_local(object_index as usize) };
 			drop(this);
 			object.set_attr(attr, value)?;
 		} else {
@@ -510,16 +559,17 @@ impl Gc<Frame> {
 		result
 	}
 
-	fn run_(self) -> Result<AnyValue> {
-		loop {
-			let op = {
-				let mut m = self.as_mut()?;
-				if m.is_done() {
-					break;
-				}
-				m.next_opcode()
-			};
+	fn next_op(&mut self) -> Result<Option<Opcode>> {
+		let mut m = self.as_mut()?;
+		if m.is_done() {
+			Ok(None)
+		} else {
+			Ok(Some(m.next_opcode()))
+		}
+	}
 
+	fn run_(mut self) -> Result<AnyValue> {
+		while let Some(op) = self.next_op()? {
 			match op {
 				Opcode::NoOp => self.op_noop(),
 				Opcode::Debug => self.op_debug(),

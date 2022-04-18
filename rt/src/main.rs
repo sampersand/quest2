@@ -55,8 +55,10 @@ fn main() -> Result<()> {
 	let fib = {
 		let mut builder = qvm_rt::vm::Block::builder(SourceLocation {});
 
-		let fib = builder.named_local("fib");
-		let n = builder.named_local("n");
+		let fib_ = builder.named_local("fib");
+		let n_ = builder.named_local("n");
+		let fib = builder.unnamed_local();
+		let n = builder.unnamed_local();
 		let one = builder.unnamed_local();
 		let tmp = builder.unnamed_local();
 		let tmp2 = builder.unnamed_local();
@@ -64,6 +66,8 @@ fn main() -> Result<()> {
 		let r#return = builder.unnamed_local();
 
 		builder
+			.mov(fib_, fib)
+			.mov(n_, n)
 			.constant(1.as_any(), one)
 			.less_equal(n, one, tmp)
 			.constant("then".as_any(), then)
@@ -82,7 +86,7 @@ fn main() -> Result<()> {
 	};
 
 
-	let result = fib.run(Args::new(&vec![fib.as_any(), 33.as_any()], &[]));
+	let result = fib.run(Args::new(&vec![fib.as_any(), 30.as_any()], &[]));
 
 	dbg!(result);
 	Ok(())
