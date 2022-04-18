@@ -137,18 +137,23 @@ impl Frame {
 	}
 
 	fn next_byte(&mut self) -> u8 {
-		let byte = self.block.code[self.pos];
+		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
+		// out of bounds.
+		let byte = unsafe {
+			*self.block.code.get_unchecked(self.pos)
+		};
 		self.pos += 1;
 		byte
 	}
 
 	fn next_usize(&mut self) -> usize {
-		const SIZEOF_USIZE: usize = std::mem::size_of::<usize>();
+		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
+		// out of bounds.
+		let us = unsafe {
+			self.block.code.as_ptr().add(self.pos).cast::<usize>().read_unaligned()
+		};
 
-		let slice = &self.block.code[self.pos..self.pos + SIZEOF_USIZE];
-		let us = usize::from_ne_bytes(slice.try_into().unwrap());
-
-		self.pos += SIZEOF_USIZE;
+		self.pos += std::mem::size_of::<usize>();
 
 		us
 	}

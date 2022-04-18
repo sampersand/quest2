@@ -52,22 +52,6 @@ macro_rules! value {
 }
 
 fn main() -> Result<()> {
-	macro_rules! op {
-		($op:ident) => {
-			Opcode::$op as u8
-		};
-	}
-	macro_rules! named {
-		($named:literal) => {
-			!($named as i8) as u8
-		};
-	}
-	macro_rules! local {
-		($local:literal) => {
-			$local
-		};
-	}
-
 	let fib = {
 		let mut builder = qvm_rt::vm::Block::builder(SourceLocation {});
 
@@ -98,7 +82,7 @@ fn main() -> Result<()> {
 	};
 
 
-	let result = fib.run(Args::new(&vec![fib.as_any(), 10.as_any()], &[]));
+	let result = fib.run(Args::new(&vec![fib.as_any(), 33.as_any()], &[]));
 
 	dbg!(result);
 	Ok(())
