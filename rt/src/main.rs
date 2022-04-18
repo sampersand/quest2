@@ -55,32 +55,27 @@ fn main() -> Result<()> {
 	let fib = {
 		let mut builder = qvm_rt::vm::Block::builder(SourceLocation {});
 
-		let fib_ = builder.named_local("fib");
-		let n_ = builder.named_local("n");
-		let fib = builder.unnamed_local();
-		let n = builder.unnamed_local();
+		let fib = builder.named_local("fib");
+		let n = builder.named_local("n");
 		let one = builder.unnamed_local();
 		let tmp = builder.unnamed_local();
 		let tmp2 = builder.unnamed_local();
-		let then = builder.unnamed_local();
-		let r#return = builder.unnamed_local();
+		let tmp3 = builder.unnamed_local();
 
 		builder
-			.mov(fib_, fib)
-			.mov(n_, n)
 			.constant(1.as_any(), one)
 			.less_equal(n, one, tmp)
-			.constant("then".as_any(), then)
-			.constant("return".as_any(), r#return)
-			.get_attr(n, r#return, tmp2)
-			.current_frame(r#return)
-			.call_attr_simple(tmp, then, &[tmp2, r#return], tmp2)
+			.constant("then".as_any(), tmp2)
+			.constant("return".as_any(), tmp3)
+			.get_attr(n, tmp3, tmp3)
+			.call_attr_simple(tmp, tmp2, &[tmp3], tmp)
 			.subtract(n, one, tmp)
-			.call_simple(fib, &[fib, tmp], then)
-			.subtract(tmp, one, one)
-			.call_simple(fib, &[fib, one], tmp)
-			.add(then, tmp, tmp)
-			.r#return(tmp, r#return);
+			.call_simple(fib, &[fib, tmp], tmp2)
+			.subtract(tmp, one, tmp)
+			.call_simple(fib, &[fib, tmp], tmp)
+			.add(tmp, tmp2, tmp)
+			.current_frame(tmp2)
+			.r#return(tmp, tmp2);
 
 		builder.build()
 	};

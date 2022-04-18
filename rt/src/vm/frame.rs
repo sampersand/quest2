@@ -44,6 +44,15 @@ impl Drop for Inner {
 	}
 }
 impl Frame {
+	pub fn with_stackframe<F: FnOnce(&mut Vec<Gc<Frame>>) -> T, T>(func: F) -> T {
+		use std::cell::RefCell;
+		thread_local! {
+			static STACKFRAMES: RefCell<Vec<Gc<Frame>>> = RefCell::new(Vec::new());
+		}
+
+		STACKFRAMES.with(|sf| func(&mut sf.borrow_mut()))
+	}
+
 	pub fn new(gc_block: Gc<Block>, args: Args) -> Result<Gc<Frame>> {
 		args.assert_no_keyword()?; // todo: assign keyword arguments
 
@@ -545,6 +554,8 @@ impl Gc<Frame> {
 			return Err("stackframe is currently running".to_string().into());
 		}
 
+		Frame::with_stackframe(|sfs| sfs.push(self));
+
 		let result = self.run_();
 
 		if !self
@@ -555,6 +566,15 @@ impl Gc<Frame> {
 		{
 			panic!("unable to set it as not currently running??");
 		}
+
+
+		Frame::with_stackframe(|sfs| {
+			if cfg!(debug_assertions) {
+				debug_assert!(sfs.pop().unwrap().ptr_eq(self));
+			} else {
+				sfs.pop();
+			}
+		});
 
 		result
 	}
@@ -570,47 +590,55 @@ impl Gc<Frame> {
 
 	fn run_(mut self) -> Result<AnyValue> {
 		while let Some(op) = self.next_op()? {
-			match op {
-				Opcode::NoOp => self.op_noop(),
-				Opcode::Debug => self.op_debug(),
-
-				Opcode::Mov => self.op_mov()?,
-				Opcode::Call => todo!("call"),
-				Opcode::CallSimple => self.op_call_simple()?,
-				Opcode::Return => return self.op_return(),
-
-				Opcode::ConstLoad => self.op_constload()?,
-				Opcode::CurrentFrame => self.op_currentframe()?,
-				Opcode::GetAttr => self.op_getattr()?,
-				Opcode::HasAttr => self.op_hasattr()?,
-				Opcode::SetAttr => self.op_setattr()?,
-				Opcode::DelAttr => self.op_delattr()?,
-				Opcode::CallAttr => self.op_callattr()?,
-				Opcode::CallAttrSimple => self.op_callattr_simple()?,
-
-				Opcode::Add => self.op_add()?,
-				Opcode::Subtract => self.op_subtract()?,
-				Opcode::Multuply => self.op_multuply()?,
-				Opcode::Divide => self.op_divide()?,
-				Opcode::Modulo => self.op_modulo()?,
-				Opcode::Power => self.op_power()?,
-
-				Opcode::Not => self.op_not()?,
-				Opcode::Negate => self.op_negate()?,
-				Opcode::Equal => self.op_equal()?,
-				Opcode::NotEqual => self.op_notequal()?,
-				Opcode::LessThan => self.op_lessthan()?,
-				Opcode::GreaterThan => self.op_greaterthan()?,
-				Opcode::LessEqual => self.op_lessequal()?,
-				Opcode::GreaterEqual => self.op_greaterequal()?,
-				Opcode::Compare => self.op_compare()?,
-
-				Opcode::Index => self.op_index()?,
-				Opcode::IndexAssign => self.op_indexassign()?,
+			if let Some(ret_val) = self.run_opcode(op)? {
+				return Ok(ret_val)
 			}
 		}
 
 		Ok(AnyValue::default())
+	}
+
+	fn run_opcode(&mut self, op: Opcode) -> Result<Option<AnyValue>> {
+		match op {
+			Opcode::NoOp => self.op_noop(),
+			Opcode::Debug => self.op_debug(),
+
+			Opcode::Mov => self.op_mov()?,
+			Opcode::Call => todo!("call"),
+			Opcode::CallSimple => self.op_call_simple()?,
+			Opcode::Return => return self.op_return().map(Some),
+
+			Opcode::ConstLoad => self.op_constload()?,
+			Opcode::CurrentFrame => self.op_currentframe()?,
+			Opcode::GetAttr => self.op_getattr()?,
+			Opcode::HasAttr => self.op_hasattr()?,
+			Opcode::SetAttr => self.op_setattr()?,
+			Opcode::DelAttr => self.op_delattr()?,
+			Opcode::CallAttr => self.op_callattr()?,
+			Opcode::CallAttrSimple => self.op_callattr_simple()?,
+
+			Opcode::Add => self.op_add()?,
+			Opcode::Subtract => self.op_subtract()?,
+			Opcode::Multuply => self.op_multuply()?,
+			Opcode::Divide => self.op_divide()?,
+			Opcode::Modulo => self.op_modulo()?,
+			Opcode::Power => self.op_power()?,
+
+			Opcode::Not => self.op_not()?,
+			Opcode::Negate => self.op_negate()?,
+			Opcode::Equal => self.op_equal()?,
+			Opcode::NotEqual => self.op_notequal()?,
+			Opcode::LessThan => self.op_lessthan()?,
+			Opcode::GreaterThan => self.op_greaterthan()?,
+			Opcode::LessEqual => self.op_lessequal()?,
+			Opcode::GreaterEqual => self.op_greaterequal()?,
+			Opcode::Compare => self.op_compare()?,
+
+			Opcode::Index => self.op_index()?,
+			Opcode::IndexAssign => self.op_indexassign()?,
+		}
+
+		Ok(None)
 	}
 }
 
