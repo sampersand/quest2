@@ -63,8 +63,8 @@ impl ConvertTo<Float> for Boolean {
 }
 
 pub mod funcs {
-	use crate::value::AsAny;
 	use super::*;
+	use crate::value::AsAny;
 
 	pub fn then(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
 		if !boolean {

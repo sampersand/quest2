@@ -26,7 +26,6 @@ impl Block {
 	}
 }
 
-
 quest_type_attrs! { for Gc<Block>, parents [Callable, Kernel];
 	// "+" => meth qs_add,
 	// "@text" => meth qs_at_text,

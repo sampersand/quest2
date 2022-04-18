@@ -7,15 +7,15 @@ use std::sync::atomic::AtomicU32; // pub is deprecated here, just to fix other t
 
 mod attributes;
 mod builder;
+mod data;
 mod flags;
 mod parents;
-mod data;
 
+pub use attributes::{Attribute, AttributesGuard};
 pub use builder::Builder;
+pub use data::{DataMutGuard, DataRefGuard};
 pub use flags::Flags;
-pub use attributes::{AttributesGuard, Attribute};
-pub use parents::{ParentsGuard, IntoParent, NoParents};
-pub use data::{DataRefGuard, DataMutGuard};
+pub use parents::{IntoParent, NoParents, ParentsGuard};
 
 #[repr(C)]
 pub struct Header {
@@ -173,7 +173,7 @@ impl<T> Base<T> {
 		}
 
 		DataMutGuard::new(data_ptr, flags, borrows)
-			.ok_or_else(|| "data is already locked".to_string().into())		
+			.ok_or_else(|| "data is already locked".to_string().into())
 	}
 
 	pub unsafe fn data_ref_raw<'a>(ptr: *const Self) -> Result<DataRefGuard<'a, T>> {
@@ -182,10 +182,9 @@ impl<T> Base<T> {
 		let borrows = &*std::ptr::addr_of!((*ptr).header.borrows);
 
 		DataRefGuard::new(data_ptr, flags, borrows)
-			.ok_or_else(|| "data is already locked".to_string().into())		
+			.ok_or_else(|| "data is already locked".to_string().into())
 	}
 }
-
 
 impl Drop for Header {
 	fn drop(&mut self) {
@@ -247,7 +246,6 @@ impl Header {
 		self.attributes()?.get_unbound_attr_mut(attr)
 	}
 
-
 	/// Gets the flags associated with the current object.
 	// TODO: we need to somehow not expose the internal flags.
 	pub fn flags(&self) -> &Flags {
@@ -270,7 +268,6 @@ impl Header {
 	pub fn freeze(&self) {
 		self.flags().insert_internal(Flags::FROZEN);
 	}
-
 
 	/// Sets the the attribute, but on a possibly-uninitialized `ptr`.
 	///

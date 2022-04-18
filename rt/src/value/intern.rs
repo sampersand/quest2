@@ -1,6 +1,6 @@
-use crate::value::{Gc, AsAny};
 use crate::value::ty::Text;
-use crate::{Value, AnyValue};
+use crate::value::{AsAny, Gc};
+use crate::{AnyValue, Value};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
@@ -140,4 +140,3 @@ impl Deref for Intern {
 		self.as_str()
 	}
 }
-

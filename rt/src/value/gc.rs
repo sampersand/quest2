@@ -267,7 +267,7 @@ impl<T: Allocated> Gc<T> {
 			.compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed)
 			.is_err()
 		{
-			return Err(Error::AlreadyLocked(Value::from(self).any()))
+			return Err(Error::AlreadyLocked(Value::from(self).any()));
 		}
 
 		let mutref = Mut(self);
@@ -363,7 +363,7 @@ impl<T: Allocated> Gc<T> {
 impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 	#[inline]
 	fn from(text: Gc<T>) -> Self {
-		sa::assert_eq_align!(Base<Any>, i128);
+		sa::const_assert_eq!(std::mem::align_of::<Base<Any>>(), 16);
 
 		let bits = text.as_ptr() as usize as u64;
 		debug_assert_eq!(bits & 0b1111, 0, "somehow the `Base<T>` pointer was misaligned??");
@@ -487,11 +487,19 @@ impl<T: Debug + Allocated> Debug for Mut<T> {
 
 impl<T: Allocated> Mut<T> {
 	pub fn parents_list(&mut self) -> Gc<List> {
-		self.header().parents().expect("we really shouldnt be using mut for parents").as_list()
+		self
+			.header()
+			.parents()
+			.expect("we really shouldnt be using mut for parents")
+			.as_list()
 	}
 
 	pub fn set_parents(&mut self, parents_list: Gc<List>) {
-		self.header().parents().expect("we really shouldnt be using mut for parents").set(parents_list);
+		self
+			.header()
+			.parents()
+			.expect("we really shouldnt be using mut for parents")
+			.set(parents_list);
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {

@@ -1,4 +1,4 @@
-use super::{Span, SourceLocation};
+use super::{SourceLocation, Span};
 
 #[derive(Debug)]
 pub struct Stream<'a> {
@@ -20,9 +20,9 @@ impl<'a> SpanStart<'a> {
 
 		Span {
 			filename: stream.filename,
-			lines: "",// todo,
+			lines: "", // todo,
 			lines_start: self.lineno,
-			lines_end: stream.lineno
+			lines_end: stream.lineno,
 		}
 	}
 }
@@ -30,7 +30,8 @@ impl<'a> SpanStart<'a> {
 impl<'a> Stream<'a> {
 	pub fn new(src: &'a str, filename: Option<&'a str>) -> Self {
 		Self {
-			filename, src,
+			filename,
+			src,
 			lineno: 1,
 		}
 	}
@@ -52,19 +53,25 @@ impl<'a> Stream<'a> {
 	}
 
 	pub fn span_start(&self) -> SpanStart<'a> {
-		SpanStart { line_start: "<todo>", lineno: self.lineno }
+		SpanStart {
+			line_start: "<todo>",
+			lineno: self.lineno,
+		}
 	}
 
 	pub fn source_location(&self) -> SourceLocation<'a> {
 		SourceLocation {
 			file: self.filename,
 			line: "<todo>",
-			lineno: self.lineno
+			lineno: self.lineno,
 		}
 	}
 
 	pub fn error(&self, kind: super::ErrorKind) -> super::Error<'a> {
-		super::Error { kind, src: self.source_location() }
+		super::Error {
+			kind,
+			src: self.source_location(),
+		}
 	}
 
 	pub fn peek(&self) -> Option<char> {

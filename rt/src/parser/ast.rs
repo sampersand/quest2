@@ -1,5 +1,5 @@
 #![allow(unused)]
-use super::{Token, token::ParenType};
+use super::{token::ParenType, Token};
 
 #[derive(Debug, Clone)]
 pub struct Ast<'a> {
@@ -36,7 +36,7 @@ pub enum AstSrc<'a> {
 		name: &'a str,
 		min: usize,
 		max: Option<usize>,
-		what: Box<Self>
+		what: Box<Self>,
 	},
 	Optional(&'a str, Box<Self>),
 	ZeroOrMore(&'a str, Box<Self>),
@@ -61,41 +61,42 @@ impl Ast<'_> {
 		Self {
 			src: vec![
 				Identifier("if"),
-
 				Named("cond", Box::new(AstSrc::expression())),
-				Named("ifbody", Box::new(Block)), 
-
-				ZeroOrMore("s0", Box::new(Sequential(vec![
-					Identifier("else"),
-					Identifier("if"),
-					Named("elseif_cond", Box::new(AstSrc::expression())),
-					Named("elseif_body", Box::new(Block)),
-				]))),
-				Optional("s1", Box::new(Sequential(vec![
-					Identifier("else"),
-					Named("else_body", Box::new(Block)),
-				])))
+				Named("ifbody", Box::new(Block)),
+				ZeroOrMore(
+					"s0",
+					Box::new(Sequential(vec![
+						Identifier("else"),
+						Identifier("if"),
+						Named("elseif_cond", Box::new(AstSrc::expression())),
+						Named("elseif_body", Box::new(Block)),
+					])),
+				),
+				Optional(
+					"s1",
+					Box::new(Sequential(vec![Identifier("else"), Named("else_body", Box::new(Block))])),
+				),
 			],
 			repl: vec![
 				Tkn(Token::Identifier("Kernel")),
 				Tkn(Token::Symbol("::")),
 				Tkn(Token::Identifier("if")),
 				Tkn(Token::LeftParen(ParenType::Round)),
-
 				NamedVariable("cond"),
 				Tkn(Token::Symbol(",")),
 				NamedVariable("ifbody"),
-
-				NamedSequence("s0", Box::new(Seq(vec![
-					Tkn(Token::Symbol(",")),
-					NamedVariable("elseif_cond"),
-					Tkn(Token::Symbol(",")),
-					NamedVariable("elseif_body"),
-				]))),
-
+				NamedSequence(
+					"s0",
+					Box::new(Seq(vec![
+						Tkn(Token::Symbol(",")),
+						NamedVariable("elseif_cond"),
+						Tkn(Token::Symbol(",")),
+						NamedVariable("elseif_body"),
+					])),
+				),
 				NamedSequence("s1", Box::new(NamedVariable("else_body"))),
 				Tkn(Token::RightParen(ParenType::Round)),
-			]
+			],
 		}
 	}
 }

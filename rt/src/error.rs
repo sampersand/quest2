@@ -15,7 +15,10 @@ pub enum Error {
 	},
 	ConversionFailed(AnyValue, Intern),
 	Message(String),
-	Return { value: AnyValue, from_frame: AnyValue }
+	Return {
+		value: AnyValue,
+		from_frame: AnyValue,
+	},
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -37,7 +40,9 @@ impl Display for Error {
 				write!(f, "invalid type {given:?}, expected {expected:?}")
 			},
 			Self::Message(msg) => f.write_str(msg),
-			Self::Return { value, from_frame } => write!(f, "returning value {value:?} from frame {from_frame:?}"),
+			Self::Return { value, from_frame } => {
+				write!(f, "returning value {value:?} from frame {from_frame:?}")
+			},
 		}
 	}
 }

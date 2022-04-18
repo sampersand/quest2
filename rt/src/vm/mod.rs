@@ -1,14 +1,16 @@
 #![allow(unused)]
 
 mod args;
-mod bytecode;
 mod block;
+mod bytecode;
 mod frame;
+mod stackframe;
 
-pub use frame::Frame;
 pub use args::Args;
-pub use bytecode::{Bytecode, Opcode};
 pub use block::Block;
+pub use bytecode::Opcode;
+pub use frame::Frame;
+pub use stackframe::Stackframe;
 
 #[derive(Debug, Default)]
 pub struct SourceLocation {}

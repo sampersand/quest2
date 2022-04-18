@@ -52,123 +52,109 @@ macro_rules! value {
 }
 
 fn main() -> Result<()> {
-	macro_rules! op { ($op:ident) => (Opcode::$op as u8) }
-	macro_rules! named { ($named:literal) => (!($named as i8) as u8) }
-	macro_rules! local { ($local:literal) => ($local) }
+	macro_rules! op {
+		($op:ident) => {
+			Opcode::$op as u8
+		};
+	}
+	macro_rules! named {
+		($named:literal) => {
+			!($named as i8) as u8
+		};
+	}
+	macro_rules! local {
+		($local:literal) => {
+			$local
+		};
+	}
+
+	let fib = {
+		let mut builder = qvm_rt::vm::Block::builder(SourceLocation {});
+
+		let fib = builder.named_local("fib");
+		let n = builder.named_local("n");
+		let one = builder.unnamed_local();
+		let tmp = builder.unnamed_local();
+		let tmp2 = builder.unnamed_local();
+		let then = builder.unnamed_local();
+		let r#return = builder.unnamed_local();
+
+		builder
+			.constant(1.as_any(), one)
+			.less_equal(n, one, tmp)
+			.constant("then".as_any(), then)
+			.constant("return".as_any(), r#return)
+			.get_attr(n, r#return, tmp2)
+			.current_frame(r#return)
+			.call_attr_simple(tmp, then, &[tmp2, r#return], tmp2)
+			.subtract(n, one, tmp)
+			.call_simple(fib, &[fib, tmp], then)
+			.subtract(tmp, one, one)
+			.call_simple(fib, &[fib, one], tmp)
+			.add(then, tmp, tmp)
+			.r#return(tmp, r#return);
+
+		builder.build()
+	};
 
 
-	let fib = qvm_rt::vm::Block::_new(
-		vec![
-			op!(ConstLoad), 0, local!(0), // 1
-			op!(LessEqual), named!(1), local!(0), local!(2),
-			op!(ConstLoad), 1, local!(1), // "then"
-			op!(ConstLoad), 2, local!(4), // "return"
-			op!(GetAttr), named!(1), local!(4), local!(4),
-			op!(CurrentFrame), local!(3),
-			op!(CallAttrSimple), local!(2), local!(1), 2, local!(4), local!(3), local!(1),
-
-			op!(Subtract), named!(1), local!(0), local!(1),
-			op!(CallSimple), named!(0), 2, named!(0), local!(1), local!(2),
-
-			op!(Subtract), local!(1), local!(0), local!(1),
-			op!(CallSimple), named!(0), 2, named!(0), local!(1), local!(0),
-
-			op!(Add), local!(0), local!(2), local!(1),
-			op!(Return), local!(1), local!(3),
-		],
-		SourceLocation{},
-		vec![1.as_any(), "then".as_any(), "return".as_any()],
-		5,
-		vec!["fib".into(), "n".into()]
-	);
-
-	// let return_zero = qvm_rt::vm::Block::_new(
-	// 	vec![op!(Return), named!(0), named!(1)],
-	// 	SourceLocation{},
-	// 	vec![],
-	// 	0,
-	// 	vec!["a".into(), "b".into()],
-	// );
-
-	// let fib = qvm_rt::vm::Block::_new(
-	// 	vec![
-	// 		op!(ConstLoad), 0, local!(0), // 1
-	// 		op!(LessEqual), named!(1), local!(0), local!(2),
-	// 		op!(ConstLoad), 1, local!(1), // "then"
-	// 		op!(CurrentFrame), local!(3),
-	// 		op!(CallAttrSimple), local!(2), local!(1), 3, named!(2), named!(1), local!(3), local!(1),
-
-	// 		op!(Subtract), named!(1), local!(0), local!(1),
-	// 		op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(2),
-
-	// 		op!(Subtract), local!(1), local!(0), local!(1),
-	// 		op!(CallSimple), named!(0), 3, named!(0), local!(1), named!(2), local!(0),
-
-	// 		op!(Add), local!(0), local!(2), local!(1),
-	// 		op!(Return), local!(1), local!(3),
-	// 	],
-	// 	SourceLocation{},
-	// 	vec![1.as_any(), "then".as_any()],
-	// 	4,
-	// 	vec![Intern::concat, Intern::len, Intern::hash]
-	// );
-
-	let result = fib.run(Args::new(&vec![
-		fib.as_any(),
-		30.as_any(),
-	], &[]));
+	let result = fib.run(Args::new(&vec![fib.as_any(), 10.as_any()], &[]));
 
 	dbg!(result);
 	Ok(())
 }
 
 fn main6() -> Result<()> {
-	let mut x = "hello".as_any();
-	x.set_attr("what".as_any(), "yup".as_any())?;
+// 	let mut x = "hello".as_any();
+// 	x.set_attr("what".as_any(), "yup".as_any())?;
 
-	let block = qvm_rt::vm::Block::_new(
-		// (negative local values indicate named values, eg within source code.)
-		vec![
-			Opcode::ConstLoad as u8, 0, 0, // local[0] = "what"
-			Opcode::GetAttr as u8, -1i8 as u8, 0, 1, // local[1] = `x`.get_attr(local[0])
+// 	let block = qvm_rt::vm::Block::_new(
+// 		// (negative local values indicate named values, eg within source code.)
+// 		vec![
+// 			Opcode::ConstLoad as u8,
+// 			0,
+// 			0, // local[0] = "what"
+// 			Opcode::GetAttr as u8,
+// 			-1i8 as u8,
+// 			0,
+// 			1, // local[1] = `x`.get_attr(local[0])
+// 			Opcode::ConstLoad as u8,
+// 			1,
+// 			-2i8 as u8, // `a` = 1
+// 			Opcode::SetAttr as u8,
+// 			-2i8 as u8,
+// 			0,
+// 			1, // `a`.set_attr(local[0], local[1])
+// 			Opcode::GetAttr as u8,
+// 			-2i8 as u8,
+// 			0,
+// 			2, // local[2] = `a`.get_attr(local[0])
+// 			Opcode::CurrentFrame as u8,
+// 			3, // local[3] = __current_stackframe__
+// 			Opcode::Return as u8,
+// 			-2i8 as u8,
+// 			3, // return `a`, from `local[3]`
+// 		],
+// 		SourceLocation {},
+// 		vec!["what".as_any(), 1.as_any()],
+// 		10,
+// 		vec!["a".into(), "b".into()],
+// 	);
 
-			Opcode::ConstLoad as u8, 1, -2i8 as u8, // `a` = 1
-			Opcode::SetAttr as u8, -2i8 as u8, 0, 1, // `a`.set_attr(local[0], local[1])
-			Opcode::GetAttr as u8, -2i8 as u8, 0, 2, // local[2] = `a`.get_attr(local[0])
-			Opcode::CurrentFrame as u8, 3, // local[3] = __current_stackframe__
-			Opcode::Return as u8, -2i8 as u8, 3, // return `a`, from `local[3]`
-		],
-		SourceLocation{},
-		vec!["what".as_any(), 1.as_any()],
-		10,
-		vec!["a".into(), "b".into()]
-	);
-
-	dbg!(block.run(Args::new(&vec![x], &[])));
+// 	dbg!(block.run(Args::new(&vec![x], &[])));
 
 	Ok(())
-// #[derive(Debug)]
-// pub struct Frame {
-// 	code: Vec<u8>,
-// 	loc: SourceLocation,
-// 	constants: Vec<AnyValue>,
-// 	locals: Vec<String> // we need their names
-// }
-
-// impl Frame {
-// 	pub fn _new(code: Vec<u8>, loc: SourceLocation, constants: Vec<AnyValue>, locals: Vec<String>) -> Self {
-// 		Self { code, loc, constants, locals }
-// 	}
-// }
-
 }
 
 fn main5() -> Result<()> {
-	let mut stream = qvm_rt::parser::Stream::new(r###"
+	let mut stream = qvm_rt::parser::Stream::new(
+		r###"
 add = fn (bar, baz) {
 	return bar ++ baz
 }
-"###, None);
+"###,
+		None,
+	);
 
 	while let Some(tkn) = qvm_rt::parser::SpannedToken::parse(&mut stream).unwrap() {
 		dbg!(tkn.token);

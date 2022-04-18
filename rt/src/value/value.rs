@@ -1,7 +1,5 @@
 use crate::value::base::{Attribute, HasDefaultParent};
-use crate::value::ty::{
-	AttrConversionDefined, BoundFn, Float, Integer, List, RustFn, Text, Wrap,
-};
+use crate::value::ty::{AttrConversionDefined, BoundFn, Float, Integer, List, RustFn, Text, Wrap};
 use crate::value::{AsAny, Convertible, Gc, Intern};
 use crate::vm::{Args, Block};
 use crate::{Error, Result};
@@ -391,7 +389,9 @@ impl AnyValue {
 			if let (Some(lhs), Some(rhs)) = (self.downcast::<Gc<Text>>(), rhs.downcast::<Gc<Text>>()) {
 				Ok(*lhs.as_ref()? == *rhs.as_ref()?)
 			} else {
-				self.call_attr(Intern::op_eql, Args::new(&[rhs], &[]))?.convert()
+				self
+					.call_attr(Intern::op_eql, Args::new(&[rhs], &[]))?
+					.convert()
 			}
 		} else {
 			Ok(false)

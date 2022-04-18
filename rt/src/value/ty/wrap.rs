@@ -19,8 +19,6 @@ impl<T: HasDefaultParent + 'static> Wrap<T> {
 
 impl<T: Debug> Debug for Wrap<T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		f.debug_tuple("Wrap")
-			.field(&self.0.data())
-			.finish()
+		f.debug_tuple("Wrap").field(&self.0.data()).finish()
 	}
 }

@@ -1,4 +1,4 @@
-use super::{Stream, Token, Result, ErrorKind};
+use super::{ErrorKind, Result, Stream, Token};
 use crate::value::ty::Text;
 
 fn next_hex<'a>(stream: &mut Stream<'a>) -> Result<'a, u32> {
@@ -22,21 +22,21 @@ fn double_quote_escape<'a>(escape: char, stream: &mut Stream<'a>) -> Result<'a, 
 			(next_hex(stream)? << 12)
 				| (next_hex(stream)? << 8)
 				| (next_hex(stream)? << 4)
-				| next_hex(stream)?
-			).ok_or_else(|| stream.error(ErrorKind::InvalidEscape))?,
-		_ => return Err(stream.error(ErrorKind::InvalidEscape))
+				| next_hex(stream)?,
+		)
+		.ok_or_else(|| stream.error(ErrorKind::InvalidEscape))?,
+		_ => return Err(stream.error(ErrorKind::InvalidEscape)),
 	})
 }
 
 pub fn parse_text<'a>(stream: &mut Stream<'a>) -> Result<'a, Option<Token<'a>>> {
-	let quote =
-		if let Some(quote) = stream.take_if(|c| c == '\'' || c == '\"') {
-			quote
-		} else {
-			return Ok(None);
-		};
+	let quote = if let Some(quote) = stream.take_if(|c| c == '\'' || c == '\"') {
+		quote
+	} else {
+		return Ok(None);
+	};
 
-	// Nearly all string literals are going to be fairly small. So if we 
+	// Nearly all string literals are going to be fairly small. So if we
 	// preallocate an embedded `Text`, that'll cover nearly every case.
 	let mut builder = Text::simple_builder();
 

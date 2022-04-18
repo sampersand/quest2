@@ -1,13 +1,13 @@
-use crate::{AnyValue, Result, Error};
-use crate::vm::{Args, Block};
-use crate::value::{Gc, AsAny, Intern, HasDefaultParent};
-use crate::value::ty::{Text, List};
-use crate::value::base::{Flags, Base};
-use std::sync::Arc;
-use super::bytecode::Opcode;
 use super::block::BlockInner;
+use super::bytecode::Opcode;
+use crate::value::base::{Base, Flags};
+use crate::value::ty::{List, Text};
+use crate::value::{AsAny, Gc, HasDefaultParent, Intern};
+use crate::vm::{Args, Block};
+use crate::{AnyValue, Error, Result};
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -56,13 +56,17 @@ impl Frame {
 	fn convert_to_object(&mut self) -> Result<()> {
 		// If we're already an object, nothing else needed to be done.
 		if !self.0.header().flags().try_acquire_all_user(FLAG_IS_OBJECT) {
-			return Ok(())
+			return Ok(());
 		}
 
 		let (header, data) = self.0.header_data_mut();
 		// OPTIMIZE: we could use `with_capacity`, but we'd need to move it out of the builder.
 
-		for (value, name) in data.named_locals.drain(..).zip(data.block.named_locals.iter()) {
+		for (value, name) in data
+			.named_locals
+			.drain(..)
+			.zip(data.block.named_locals.iter())
+		{
 			// Only insert named and assigned values.
 			if let Some(value) = value {
 				header.set_attr(name.as_any(), value)?;
@@ -73,8 +77,8 @@ impl Frame {
 	}
 
 	fn get_local(&self, index: isize) -> Result<AnyValue> {
-		if let Ok(amnt) = usize::try_from(index) {
-			return Ok(self.unnamed_locals[amnt]);
+		if index >= 0 {
+			return Ok(self.unnamed_locals[index as usize]);
 		}
 
 		let index = !index as usize;
@@ -88,7 +92,10 @@ impl Frame {
 		}
 
 		let attr_name = self.block.named_locals[index];
-		self.0.header().get_unbound_attr(attr_name.as_any(), true)?
+		self
+			.0
+			.header()
+			.get_unbound_attr(attr_name.as_any(), true)?
 			.ok_or_else(|| format!("unknown attribute {:?}", attr_name).into())
 	}
 
@@ -102,7 +109,7 @@ impl Frame {
 
 		if !self.is_object() {
 			self.named_locals[index] = Some(value);
-			return Ok(())
+			return Ok(());
 		}
 
 		let attr = self.block.named_locals[index];
@@ -125,21 +132,25 @@ impl DerefMut for Frame {
 }
 
 impl Frame {
-	fn next_byte(&mut self) -> Option<u8> {
-		let byte = *self.block.code.get(self.pos)?;
-		self.pos += 1;
-		Some(byte)
+	fn is_done(&self) -> bool {
+		self.pos >= self.block.code.len()
 	}
 
-	fn next_usize(&mut self) -> Option<usize> {
+	fn next_byte(&mut self) -> u8 {
+		let byte = self.block.code[self.pos];
+		self.pos += 1;
+		byte
+	}
+
+	fn next_usize(&mut self) -> usize {
 		const SIZEOF_USIZE: usize = std::mem::size_of::<usize>();
 
-		let slice = self.block.code.get(self.pos..self.pos + SIZEOF_USIZE)?;
+		let slice = &self.block.code[self.pos..self.pos + SIZEOF_USIZE];
 		let us = usize::from_ne_bytes(slice.try_into().unwrap());
 
 		self.pos += SIZEOF_USIZE;
 
-		Some(us)
+		us
 	}
 
 	fn next_local(&mut self) -> Result<AnyValue> {
@@ -153,20 +164,15 @@ impl Frame {
 	}
 
 	fn next_count(&mut self) -> usize {
-		let byte = self.next_byte().expect("missing byte for local");
-		if byte == COUNT_IS_NOT_ONE_BYTE_BUT_USIZE {
-			return self.next_usize().expect("missing usize for local");
-		}
-
-		if (byte as i8) < 0 {
-			byte as i8 as isize as usize
-		} else {
-			byte as usize
+		match self.next_byte() {
+			COUNT_IS_NOT_ONE_BYTE_BUT_USIZE => self.next_usize(),
+			byte if (byte as i8) < 0 => byte as i8 as isize as usize,
+			byte => byte as usize,
 		}
 	}
 
-	fn next_opcode(&mut self) -> Option<Opcode> {
-		Some(match self.next_byte()? {
+	fn next_opcode(&mut self) -> Opcode {
+		match self.next_byte() {
 			op if op == Opcode::NoOp as u8 => Opcode::NoOp,
 			op if op == Opcode::Debug as u8 => Opcode::Debug,
 
@@ -201,16 +207,15 @@ impl Frame {
 			op if op == Opcode::Power as u8 => Opcode::Power,
 			op if op == Opcode::Index as u8 => Opcode::Index,
 			op if op == Opcode::IndexAssign as u8 => Opcode::IndexAssign,
-			other => panic!("unknown opcode {:02x}", other)
-		})
+			other => unreachable!("unknown opcode {:02x}", other),
+		}
 	}
 }
 
-
 // impl Gc<Frame> {
 // 	// We define `run` on `Gc<Frame>` directly, because we need people to be able to mutably access
-// 	// fields on us whilst we're running. 
-// 	pub fn run(self) -> Result<AnyValue> {
+// 	// fields on us whilst we're running.
+// // 	pub f n run(self) -> Result<AnyValue> {
 // 		// If we're either currently mutably borrowed, or currently running, we cant actually run.
 // 		// if !self.as_ref().and_then(|r| r.flags().try_acquire_all_user(FLAG_CURRENTLY_RUNNING)).unwrap_or(false) {
 // 		// 	return Err("stackframe is currently running".to_string());
@@ -259,7 +264,7 @@ impl Gc<Frame> {
 		let mut this = self.as_mut()?;
 		Err(Error::Return {
 			value: this.next_local()?,
-			from_frame: this.next_local()?
+			from_frame: this.next_local()?,
 		})
 	}
 
@@ -285,19 +290,21 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_getattr(&self) -> Result<()>{
+	fn op_getattr(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
 
 		drop(this); // as `get_attr` may modify us.
-		let value = object.get_attr(attr)?.expect("todo: we should actually make this return a straight Result");
+		let value = object
+			.get_attr(attr)?
+			.expect("todo: we should actually make this return a straight Result");
 		self.as_mut()?.store_next_local(value);
 
 		Ok(())
 	}
 
-	fn op_hasattr(&self) -> Result<()>{
+	fn op_hasattr(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
@@ -308,8 +315,8 @@ impl Gc<Frame> {
 
 		Ok(())
 	}
-	
-	fn op_setattr(&self) -> Result<()>{
+
+	fn op_setattr(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object_index = this.next_count() as isize;
 		let attr = this.next_local()?;
@@ -340,7 +347,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_delattr(&self) -> Result<()>{
+	fn op_delattr(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
@@ -352,11 +359,11 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_callattr(&self) -> Result<()>{
+	fn op_callattr(&self) -> Result<()> {
 		todo!("semantics for complicated callattr");
 	}
 
-	fn op_callattr_simple(&self) -> Result<()>{
+	fn op_callattr_simple(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
@@ -384,7 +391,7 @@ impl Gc<Frame> {
 
 		Ok(())
 	}
-	
+
 	fn op_add(&self) -> Result<()> {
 		self.run_binary_op(Intern::op_add)
 	}
@@ -441,7 +448,6 @@ impl Gc<Frame> {
 		self.run_binary_op(Intern::op_index)
 	}
 
-
 	fn op_not(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let value = this.next_local()?;
@@ -477,13 +483,22 @@ impl Gc<Frame> {
 	}
 
 	pub fn run(self) -> Result<AnyValue> {
-		if !self.as_ref()?.flags().try_acquire_all_user(FLAG_CURRENTLY_RUNNING) {
+		if !self
+			.as_ref()?
+			.flags()
+			.try_acquire_all_user(FLAG_CURRENTLY_RUNNING)
+		{
 			return Err("stackframe is currently running".to_string().into());
 		}
 
 		let result = self.run_();
 
-		if !self.as_ref().expect("unable to remove running flag").flags().remove_user(FLAG_CURRENTLY_RUNNING) {
+		if !self
+			.as_ref()
+			.expect("unable to remove running flag")
+			.flags()
+			.remove_user(FLAG_CURRENTLY_RUNNING)
+		{
 			panic!("unable to set it as not currently running??");
 		}
 
@@ -492,10 +507,12 @@ impl Gc<Frame> {
 
 	fn run_(self) -> Result<AnyValue> {
 		loop {
-			let op = if let Some(opcode) = self.as_mut()?.next_opcode() {
-				opcode
-			} else {
-				break;
+			let op = {
+				let mut m = self.as_mut()?;
+				if m.is_done() {
+					break;
+				}
+				m.next_opcode()
 			};
 
 			match op {
@@ -542,9 +559,7 @@ impl Gc<Frame> {
 	}
 }
 
-
 quest_type_attrs! { for Gc<Frame>, parents [Kernel, Callable];
 	// "+" => meth qs_add,
 	// "@text" => meth qs_at_text,
 }
-

@@ -1,4 +1,4 @@
-use super::{Text, Builder};
+use super::{Builder, Text};
 use crate::value::gc::Gc;
 
 #[must_use]
@@ -7,7 +7,7 @@ pub struct SimpleBuilder(Builder);
 impl SimpleBuilder {
 	pub fn new() -> Self {
 		let mut builder = Text::builder();
-		unsafe { 
+		unsafe {
 			builder.allocate_buffer(0);
 		}
 		Self(builder)

@@ -15,7 +15,7 @@ impl Object {
 
 		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
 
-		*INSTANCE.get_or_init(||
+		*INSTANCE.get_or_init(|| {
 			create_class! { "Object", parent Pristine::instance();
 				Intern::op_eql => function funcs::eql,
 				Intern::op_neq => function funcs::neq,
@@ -31,7 +31,7 @@ impl Object {
 				Intern::and => function funcs::and,
 				Intern::itself => function funcs::itself,
 			}
-		)
+		})
 	}
 }
 
@@ -92,7 +92,10 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?; // in the future, you can also give 0, but we need to be able to access the stackframe.
 
-		Err(crate::Error::Return { value: obj, from_frame: args[0] })
+		Err(crate::Error::Return {
+			value: obj,
+			from_frame: args[0],
+		})
 	}
 
 	pub fn assert(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {

@@ -1,11 +1,13 @@
+use super::{Frame, SourceLocation};
+use crate::value::{ty::Text, Gc, HasDefaultParent};
+use crate::vm::Args;
+use crate::{AnyValue, Result};
 use std::cell::UnsafeCell;
 use std::mem::MaybeUninit;
-use crate::{AnyValue, Result};
-use crate::value::{Gc, ty::Text, HasDefaultParent};
-use crate::vm::Args;
 use std::sync::Arc;
-use super::{Frame, SourceLocation};
 
+mod builder;
+pub use builder::Builder;
 
 quest_type! {
 	#[derive(NamedType, Debug)]
@@ -23,12 +25,24 @@ pub struct BlockInner {
 }
 
 impl Block {
-	pub fn _new(code: Vec<u8>, loc: SourceLocation, constants: Vec<AnyValue>,
-		num_of_unnamed_locals: usize, named_locals: Vec<Gc<Text>>
+	pub fn builder(loc: SourceLocation) -> Builder {
+		Builder::new(loc)
+	}
+
+	fn _new(
+		code: Vec<u8>,
+		loc: SourceLocation,
+		constants: Vec<AnyValue>,
+		num_of_unnamed_locals: usize,
+		named_locals: Vec<Gc<Text>>,
 	) -> Gc<Self> {
 		let inner = Arc::new(BlockInner {
 			block: UnsafeCell::new(MaybeUninit::uninit()),
-			code, loc, constants, num_of_unnamed_locals, named_locals
+			code,
+			loc,
+			constants,
+			num_of_unnamed_locals,
+			named_locals,
 		});
 		let gc = Gc::from_inner(crate::value::base::Base::new(inner.clone(), Gc::<Block>::parent()));
 		unsafe {
@@ -48,8 +62,11 @@ impl Gc<Block> {
 
 		match frame.run() {
 			Err(crate::Error::Return { value, from_frame })
-				if from_frame.is_identical(frame.into()) => Ok(value),
-			other => other
+				if from_frame.is_identical(frame.into()) =>
+			{
+				Ok(value)
+			},
+			other => other,
 		}
 	}
 }

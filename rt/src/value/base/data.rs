@@ -1,6 +1,6 @@
 use super::Flags;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::ops::{Deref, DerefMut};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 pub struct DataRefGuard<'a, T> {
 	ptr: *const T,
@@ -15,7 +15,6 @@ pub struct DataMutGuard<'a, T> {
 	flags: &'a Flags,
 	borrows: &'a AtomicU32,
 }
-
 
 const MUT_BORROW: u32 = u32::MAX;
 pub const MAX_BORROWS: usize = (MUT_BORROW - 1) as usize;
@@ -32,7 +31,11 @@ impl<'a, T> DataRefGuard<'a, T> {
 
 		match borrows.fetch_update(Ordering::Acquire, Ordering::Relaxed, updatefn) {
 			Ok(x) if x == MAX_BORROWS as u32 => panic!("too many immutable borrows"),
-			Ok(_) => Some(Self { ptr, flags, borrows }),
+			Ok(_) => Some(Self {
+				ptr,
+				flags,
+				borrows,
+			}),
 			Err(_) => None,
 		}
 	}
@@ -59,13 +62,19 @@ impl<T> Deref for DataRefGuard<'_, T> {
 	}
 }
 
-
 impl<'a, T> DataMutGuard<'a, T> {
 	pub(super) fn new(ptr: *mut T, flags: &'a Flags, borrows: &'a AtomicU32) -> Option<Self> {
-		if borrows.compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed).is_err(){
+		if borrows
+			.compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed)
+			.is_err()
+		{
 			None
 		} else {
-			Some(Self { ptr, flags, borrows })
+			Some(Self {
+				ptr,
+				flags,
+				borrows,
+			})
 		}
 	}
 }
@@ -94,4 +103,3 @@ impl<T> DerefMut for DataMutGuard<'_, T> {
 		unsafe { &mut *self.ptr }
 	}
 }
-

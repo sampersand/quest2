@@ -1,14 +1,13 @@
-mod token;
-mod stream;
-mod error;
 mod ast;
+mod error;
+mod stream;
+mod token;
 
-pub use ast::{Ast, };
+pub use ast::Ast;
 
 pub use error::{Error, ErrorKind, Result};
-pub use token::{Token, SpannedToken};
 pub use stream::Stream;
-
+pub use token::{SpannedToken, Token};
 
 #[derive(Debug, Default)]
 pub struct SourceLocation<'a> {
@@ -26,5 +25,5 @@ pub struct Span<'a> {
 }
 
 pub struct Parser<'a> {
-	_stream: Stream<'a>
+	_stream: Stream<'a>,
 }

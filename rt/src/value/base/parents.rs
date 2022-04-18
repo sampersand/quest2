@@ -17,7 +17,7 @@ sa::assert_eq_align!(Parents, u64);
 
 pub struct ParentsGuard<'a> {
 	ptr: *mut Parents,
-	flags: &'a Flags
+	flags: &'a Flags,
 }
 
 impl Drop for ParentsGuard<'_> {
@@ -38,7 +38,9 @@ unsafe impl IntoParent for NoParents {
 	#[inline]
 	fn into_parent(self, guard: &mut ParentsGuard<'_>) {
 		guard.flags.remove_internal(Flags::MULTI_PARENT);
-		unsafe { guard.ptr.write(Parents { none: 0 }); }
+		unsafe {
+			guard.ptr.write(Parents { none: 0 });
+		}
 	}
 }
 
@@ -46,7 +48,9 @@ unsafe impl IntoParent for AnyValue {
 	#[inline]
 	fn into_parent(self, guard: &mut ParentsGuard<'_>) {
 		guard.flags.remove_internal(Flags::MULTI_PARENT);
-		unsafe { guard.ptr.write(Parents { single: self }); }
+		unsafe {
+			guard.ptr.write(Parents { single: self });
+		}
 	}
 }
 
@@ -54,14 +58,16 @@ unsafe impl IntoParent for Gc<List> {
 	#[inline]
 	fn into_parent(self, guard: &mut ParentsGuard<'_>) {
 		guard.flags.insert_internal(Flags::MULTI_PARENT);
-		unsafe { guard.ptr.write(Parents { list: self }); }
+		unsafe {
+			guard.ptr.write(Parents { list: self });
+		}
 	}
 }
 
 enum ParentsKind {
 	None,
 	Single(*mut AnyValue),
-	List(*mut Gc<List>)
+	List(*mut Gc<List>),
 }
 
 impl<'a> ParentsGuard<'a> {
@@ -96,9 +102,16 @@ impl Debug for ParentsGuard<'_> {
 		let mut l = f.debug_list();
 		match self.classify() {
 			ParentsKind::None => {},
-			ParentsKind::Single(s) => { l.entry(unsafe { &*s }); },
+			ParentsKind::Single(s) => {
+				l.entry(unsafe { &*s });
+			},
 			ParentsKind::List(s) => {
-				l.entries(unsafe { *s }.as_ref().expect("asref failed for entries").as_slice());
+				l.entries(
+					unsafe { *s }
+						.as_ref()
+						.expect("asref failed for entries")
+						.as_slice(),
+				);
 			},
 		};
 		l.finish()
@@ -119,7 +132,7 @@ impl ParentsGuard<'_> {
 				list = List::from_slice(&[unsafe { *singular }]);
 				self.set(list);
 			},
-			ParentsKind::List(list_) => list = unsafe { *list_ }
+			ParentsKind::List(list_) => list = unsafe { *list_ },
 		}
 		list
 	}
@@ -137,7 +150,7 @@ impl ParentsGuard<'_> {
 				}
 
 				Ok(None)
-			}
+			},
 		}
 	}
 
@@ -145,21 +158,26 @@ impl ParentsGuard<'_> {
 	/// distinct function so we can optimize function calls in the future without having to fetch
 	/// the attribute first.
 	// TODO: we should take by-reference, but this solves an issue with gc until we make gc only for body.
-	pub fn call_attr<A: Attribute>(self, obj: AnyValue, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
-		let attr = self.get_unbound_attr(attr)?
+	pub fn call_attr<A: Attribute>(
+		self,
+		obj: AnyValue,
+		attr: A,
+		args: crate::vm::Args<'_>,
+	) -> Result<AnyValue> {
+		let attr = self
+			.get_unbound_attr(attr)?
 			.ok_or_else(|| Error::UnknownAttribute(obj, attr.to_value()))?;
 		drop(self);
 		obj.call_attr(attr, args)
 	}
 
 	pub fn call<A: Attribute>(self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
-		let attr = self.get_unbound_attr(attr)?
-			.ok_or_else(|| {
-				Error::UnknownAttribute(
-					args.get_self().expect("no self given to `call_attr`?"),
-					attr.to_value(),
-				)
-			})?;
+		let attr = self.get_unbound_attr(attr)?.ok_or_else(|| {
+			Error::UnknownAttribute(
+				args.get_self().expect("no self given to `call_attr`?"),
+				attr.to_value(),
+			)
+		})?;
 		drop(self);
 		attr.call(args)
 	}

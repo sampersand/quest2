@@ -21,7 +21,9 @@ macro_rules! if_intern {
 	($key:expr, |$intern:ident| $ifi:expr, |$value:ident| $ifv:expr) => {{
 		let key = $key;
 
-		if let Some($intern) = InternKey::try_from_repr(unsafe { key.raw_data }).map(InternKey::as_intern) {
+		if let Some($intern) =
+			InternKey::try_from_repr(unsafe { key.raw_data }).map(InternKey::as_intern)
+		{
 			$ifi
 		} else {
 			let $value = unsafe { key.value };
@@ -35,9 +37,7 @@ impl Debug for ListMap {
 		let mut m = f.debug_map();
 
 		for (key, value) in self.data.iter().map_while(|o| *o) {
-			if_intern!(key,
-				|intern| m.entry(&intern, &value),
-				|value| m.entry(&value, &value));
+			if_intern!(key, |intern| m.entry(&intern, &value), |value| m.entry(&value, &value));
 		}
 
 		m.finish()
@@ -46,9 +46,7 @@ impl Debug for ListMap {
 
 impl Key {
 	fn is_eql<A: Attribute>(self, attr: A) -> Result<bool> {
-		if_intern!(self,
-			|intern| attr.try_eq_intern(intern),
-			|value| attr.try_eq_value(value))
+		if_intern!(self, |intern| attr.try_eq_intern(intern), |value| attr.try_eq_value(value))
 	}
 }
 
@@ -110,13 +108,20 @@ impl ListMap {
 
 				if let Some(intern) = InternKey::try_from_repr(unsafe { key.raw_data }) {
 					if intern.is_frozen() {
-						return Err(crate::Error::Message("attribute is frozen, cannot set it".to_string()))
+						return Err(crate::Error::Message(
+							"attribute is frozen, cannot set it".to_string(),
+						));
 					}
 				}
 
 				*value = new_value;
 			} else {
-				self.data[idx] = Some((Key { raw_data: attr.to_repr() }, new_value));
+				self.data[idx] = Some((
+					Key {
+						raw_data: attr.to_repr(),
+					},
+					new_value,
+				));
 			}
 
 			return Ok(());
@@ -135,14 +140,14 @@ impl ListMap {
 
 			if let Some(intern) = InternKey::try_from_repr(unsafe { key.raw_data }) {
 				if intern.is_frozen() {
-					return Err(crate::Error::Message("attribute is frozen, cannot set it".to_string()))
+					return Err(crate::Error::Message("attribute is frozen, cannot set it".to_string()));
 				}
 			}
 
 			self.data[idx] = None;
 
 			// Find the last `None` element and swap it with the current one.
-			for j in (idx + 1..=MAX_LISTMAP_LEN-1).rev() {
+			for j in (idx + 1..=MAX_LISTMAP_LEN - 1).rev() {
 				if self.data[j].is_none() {
 					self.data.swap(idx, j - 1);
 					break;

@@ -4,12 +4,12 @@ use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::mem::ManuallyDrop;
 
+mod internkey;
 mod list;
 mod map;
-mod internkey;
+use internkey::InternKey;
 use list::ListMap;
 use map::Map;
-use internkey::InternKey;
 
 #[repr(C)]
 pub union Attributes {
@@ -23,7 +23,7 @@ sa::assert_eq_align!(Attributes, u64);
 
 pub struct AttributesGuard<'a> {
 	ptr: *mut Attributes,
-	flags: &'a Flags
+	flags: &'a Flags,
 }
 
 impl Drop for AttributesGuard<'_> {
@@ -46,7 +46,7 @@ impl Debug for AttributesGuard<'_> {
 enum AttributesKind {
 	None,
 	List(*mut ListMap),
-	Map(*mut Map)
+	Map(*mut Map),
 }
 
 impl<'a> AttributesGuard<'a> {
@@ -69,16 +69,20 @@ impl<'a> AttributesGuard<'a> {
 			1..=list::MAX_LISTMAP_LEN => {
 				self.flags.remove_internal(Flags::ATTR_MAP);
 				unsafe {
-					self.ptr.write(Attributes { list: ManuallyDrop::new(ListMap::default().into()) });
+					self.ptr.write(Attributes {
+						list: ManuallyDrop::new(ListMap::default().into()),
+					});
 				}
 			},
 			other if other < isize::MAX as usize => {
 				self.flags.insert_internal(Flags::ATTR_MAP);
 				unsafe {
-					self.ptr.write(Attributes { map: ManuallyDrop::new(Map::with_capacity(capacity).into()) })
+					self.ptr.write(Attributes {
+						map: ManuallyDrop::new(Map::with_capacity(capacity).into()),
+					})
 				}
 			},
-			other => panic!("can only allocate up to isize::MAX ({} is too big)", other)
+			other => panic!("can only allocate up to isize::MAX ({} is too big)", other),
 		}
 	}
 
@@ -130,11 +134,13 @@ impl<'a> AttributesGuard<'a> {
 			},
 			AttributesKind::List(list) => unsafe {
 				if (*list).is_full() {
-					list.cast::<Map>().write(Map::from_iter(ManuallyDrop::take(&mut *list.cast::<ManuallyDrop<ListMap>>()).iter())?);
+					list.cast::<Map>().write(Map::from_iter(
+						ManuallyDrop::take(&mut *list.cast::<ManuallyDrop<ListMap>>()).iter(),
+					)?);
 					self.flags.insert_internal(Flags::ATTR_MAP);
-					// we're now a map
+				// we're now a map
 				} else {
-					return (*list).set_attr(attr, value)
+					return (*list).set_attr(attr, value);
 				}
 			},
 			AttributesKind::Map(_) => {},

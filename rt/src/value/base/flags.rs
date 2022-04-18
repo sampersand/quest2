@@ -48,7 +48,9 @@ impl Flags {
 	pub fn insert_user(&self, flag: u32) {
 		debug_assert_eq!(flag & !Self::USER_FLAGS_MASK, 0, "attempted to set non-user flags.");
 
-		self.0.fetch_or(flag & Self::USER_FLAGS_MASK, Ordering::SeqCst);
+		self
+			.0
+			.fetch_or(flag & Self::USER_FLAGS_MASK, Ordering::SeqCst);
 	}
 
 	// Attempts to acquire a "lock" on a flag mask, such that all the flags are valid
@@ -56,21 +58,25 @@ impl Flags {
 	pub fn try_acquire_all_user(&self, flag: u32) -> bool {
 		debug_assert_eq!(flag & !Self::USER_FLAGS_MASK, 0, "attempted to set non-user flags.");
 
-		self.0.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-			if (value & (flag & Self::USER_FLAGS_MASK)) == 0 {
-				Some(value | (flag & & Self::USER_FLAGS_MASK))
-			} else {
-				None
-			}
-		}).is_ok()
+		self
+			.0
+			.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
+				if (value & (flag & Self::USER_FLAGS_MASK)) == 0 {
+					Some(value | (flag & &Self::USER_FLAGS_MASK))
+				} else {
+					None
+				}
+			})
+			.is_ok()
 	}
-
 
 	#[inline]
 	pub(crate) fn insert_internal(&self, flag: u32) {
 		debug_assert_eq!(flag & Self::USER_FLAGS_MASK, 0, "attempted to set user flags.");
 
-		self.0.fetch_or(flag & !Self::USER_FLAGS_MASK, Ordering::SeqCst);
+		self
+			.0
+			.fetch_or(flag & !Self::USER_FLAGS_MASK, Ordering::SeqCst);
 	}
 
 	// Attempts to acquire a "lock" on a flag mask, such that all the flags are valid
@@ -78,13 +84,16 @@ impl Flags {
 	pub(crate) fn try_acquire_all_internal(&self, flag: u32) -> bool {
 		debug_assert_eq!(flag & Self::USER_FLAGS_MASK, 0, "attempted to set user flags.");
 
-		self.0.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-			if (value & (flag & !Self::USER_FLAGS_MASK)) == 0 {
-				Some(value | (flag & !Self::USER_FLAGS_MASK))
-			} else {
-				None
-			}
-		}).is_ok()
+		self
+			.0
+			.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
+				if (value & (flag & !Self::USER_FLAGS_MASK)) == 0 {
+					Some(value | (flag & !Self::USER_FLAGS_MASK))
+				} else {
+					None
+				}
+			})
+			.is_ok()
 	}
 
 	pub fn get(&self) -> u32 {
@@ -108,14 +117,20 @@ impl Flags {
 		debug_assert_eq!(flag & !Self::USER_FLAGS_MASK, 0, "attempted to set non-user flags.");
 
 		// TODO: is this the right way to remove
-		self.0.fetch_and(!(flag & Self::USER_FLAGS_MASK), Ordering::SeqCst) & flag != 0
+		self
+			.0
+			.fetch_and(!(flag & Self::USER_FLAGS_MASK), Ordering::SeqCst)
+			& flag != 0
 	}
 
 	pub(crate) fn remove_internal(&self, flag: u32) -> bool {
 		debug_assert_eq!(flag & Self::USER_FLAGS_MASK, 0, "attempted to set user flags.");
 
 		// FIXME: bitwise flag with user flags mask, but is it right?
-		self.0.fetch_and(!(flag & !Self::USER_FLAGS_MASK), Ordering::SeqCst) & flag != 0
+		self
+			.0
+			.fetch_and(!(flag & !Self::USER_FLAGS_MASK), Ordering::SeqCst)
+			& flag != 0
 	}
 }
 

@@ -31,15 +31,13 @@ impl InternKey {
 	}
 
 	pub const fn as_intern(self) -> Intern {
-		unsafe {
-			std::mem::transmute::<u64, Intern>(self.0 & !FROZEN_BIT)
-		}
+		unsafe { std::mem::transmute::<u64, Intern>(self.0 & !FROZEN_BIT) }
 	}
 }
 
 impl PartialEq for InternKey {
 	fn eq(&self, rhs: &Self) -> bool {
-		self.as_intern() == rhs.as_intern() 
+		self.as_intern() == rhs.as_intern()
 	}
 }
 
