@@ -55,33 +55,32 @@ fn main() -> Result<()> {
 	let fib = {
 		let mut builder = qvm_rt::vm::Block::builder(SourceLocation {});
 
-		let fib = builder.named_local("fib");
 		let n = builder.named_local("n");
+		let fib = builder.named_local("fib");
 		let one = builder.unnamed_local();
 		let tmp = builder.unnamed_local();
 		let tmp2 = builder.unnamed_local();
 		let tmp3 = builder.unnamed_local();
+		let ret = builder.unnamed_local();
 
 		builder
 			.constant(1.as_any(), one)
 			.less_equal(n, one, tmp)
 			.constant("then".as_any(), tmp2)
-			.constant("return".as_any(), tmp3)
-			.get_attr(n, tmp3, tmp3)
+			.constant("return".as_any(), ret)
+			.get_attr(n, ret, tmp3)
 			.call_attr_simple(tmp, tmp2, &[tmp3], tmp)
-			.subtract(n, one, tmp)
-			.call_simple(fib, &[fib, tmp], tmp2)
-			.subtract(tmp, one, tmp)
-			.call_simple(fib, &[fib, tmp], tmp)
-			.add(tmp, tmp2, tmp)
-			.current_frame(tmp2)
-			.r#return(tmp, tmp2);
+			.subtract(n, one, n).call_simple(fib, &[n], tmp)
+			.subtract(n, one, n).call_simple(fib, &[n], tmp2)
+			.add(tmp, tmp2, tmp).call_attr_simple(tmp, ret, &[], tmp);
 
 		builder.build()
 	};
 
+	fib.as_mut().unwrap().set_attr("fib".as_any(), fib.as_any())?;
 
-	let result = fib.run(Args::new(&vec![fib.as_any(), 30.as_any()], &[]));
+
+	let result = fib.run(Args::new(&[33.as_any()], &[]));
 
 	dbg!(result);
 	Ok(())

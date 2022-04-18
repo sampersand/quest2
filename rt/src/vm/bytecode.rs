@@ -16,7 +16,7 @@ pub enum Opcode {
 	// JmpTrue,
 	Call,
 	CallSimple,
-	Return,
+	// Return,
 
 	ConstLoad,
 	CurrentFrame,

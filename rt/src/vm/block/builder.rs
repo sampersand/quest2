@@ -137,13 +137,6 @@ impl Builder {
 		self
 	}
 
-	pub fn r#return(&mut self, what: Local, from_frame: Local) -> &mut Self {
-		unsafe {
-			self.simple_opcode(Opcode::Return, &[what, from_frame]);
-		}
-		self
-	}
-
 	pub fn constant(&mut self, value: AnyValue, dst: Local) -> &mut Self {
 		let mut index = None;
 

@@ -77,7 +77,11 @@ impl Frame {
 
 		let inner = Inner { unnamed_locals, named_locals, block, pos: 0 };
 
-		let parents = List::from_slice(&[Gc::<Frame>::parent(), gc_block.as_any()]);
+		// XXX: If we swap these around, we get a significant speed slowdown. But what semantics
+		// do we want? Do we want the outside stackframe to be first or last? and in any case,
+		// this is setting the _block_ itself as the parent, which isn't what we want. how do we
+		// want to register the outer block as the parent?
+		let parents = List::from_slice(&[gc_block.as_any(), Gc::<Frame>::parent()]);
 		let frame = Gc::from_inner(Base::new(inner, parents));
 
 		Ok(frame)
@@ -242,7 +246,6 @@ impl Frame {
 			op if op == Opcode::Mov as u8 => Opcode::Mov,
 			op if op == Opcode::Call as u8 => Opcode::Call,
 			op if op == Opcode::CallSimple as u8 => Opcode::CallSimple,
-			op if op == Opcode::Return as u8 => Opcode::Return,
 
 			op if op == Opcode::ConstLoad as u8 => Opcode::ConstLoad,
 			op if op == Opcode::CurrentFrame as u8 => Opcode::CurrentFrame,
@@ -291,10 +294,11 @@ impl Frame {
 // }
 
 impl Gc<Frame> {
-	fn op_noop(&self) {}
+	fn op_noop(&self) -> Result<()> { Ok(()) }
 
-	fn op_debug(&self) {
+	fn op_debug(&self) -> Result<()> {
 		dbg!(&self.as_ref().unwrap().unnamed_locals);
+		Ok(())
 		// dbg!(&self.as_ref().unwrap().0.header().attributes());
 		// dbg!(self.as_ref().unwrap().get_local(-2));
 		// panic!();
@@ -305,6 +309,10 @@ impl Gc<Frame> {
 		let src = this.next_local()?;
 		this.store_next_local(src);
 		Ok(())
+	}
+
+	fn op_call(&self) -> Result<()> {
+		todo!()
 	}
 
 	fn op_call_simple(&self) -> Result<()> {
@@ -590,55 +598,50 @@ impl Gc<Frame> {
 
 	fn run_(mut self) -> Result<AnyValue> {
 		while let Some(op) = self.next_op()? {
-			if let Some(ret_val) = self.run_opcode(op)? {
-				return Ok(ret_val)
-			}
+			self.run_opcode(op)?;
 		}
 
 		Ok(AnyValue::default())
 	}
 
-	fn run_opcode(&mut self, op: Opcode) -> Result<Option<AnyValue>> {
+	fn run_opcode(&mut self, op: Opcode) -> Result<()> {
 		match op {
 			Opcode::NoOp => self.op_noop(),
 			Opcode::Debug => self.op_debug(),
 
-			Opcode::Mov => self.op_mov()?,
-			Opcode::Call => todo!("call"),
-			Opcode::CallSimple => self.op_call_simple()?,
-			Opcode::Return => return self.op_return().map(Some),
+			Opcode::Mov => self.op_mov(),
+			Opcode::Call => self.op_call(),
+			Opcode::CallSimple => self.op_call_simple(),
 
-			Opcode::ConstLoad => self.op_constload()?,
-			Opcode::CurrentFrame => self.op_currentframe()?,
-			Opcode::GetAttr => self.op_getattr()?,
-			Opcode::HasAttr => self.op_hasattr()?,
-			Opcode::SetAttr => self.op_setattr()?,
-			Opcode::DelAttr => self.op_delattr()?,
-			Opcode::CallAttr => self.op_callattr()?,
-			Opcode::CallAttrSimple => self.op_callattr_simple()?,
+			Opcode::ConstLoad => self.op_constload(),
+			Opcode::CurrentFrame => self.op_currentframe(),
+			Opcode::GetAttr => self.op_getattr(),
+			Opcode::HasAttr => self.op_hasattr(),
+			Opcode::SetAttr => self.op_setattr(),
+			Opcode::DelAttr => self.op_delattr(),
+			Opcode::CallAttr => self.op_callattr(),
+			Opcode::CallAttrSimple => self.op_callattr_simple(),
 
-			Opcode::Add => self.op_add()?,
-			Opcode::Subtract => self.op_subtract()?,
-			Opcode::Multuply => self.op_multuply()?,
-			Opcode::Divide => self.op_divide()?,
-			Opcode::Modulo => self.op_modulo()?,
-			Opcode::Power => self.op_power()?,
+			Opcode::Add => self.op_add(),
+			Opcode::Subtract => self.op_subtract(),
+			Opcode::Multuply => self.op_multuply(),
+			Opcode::Divide => self.op_divide(),
+			Opcode::Modulo => self.op_modulo(),
+			Opcode::Power => self.op_power(),
 
-			Opcode::Not => self.op_not()?,
-			Opcode::Negate => self.op_negate()?,
-			Opcode::Equal => self.op_equal()?,
-			Opcode::NotEqual => self.op_notequal()?,
-			Opcode::LessThan => self.op_lessthan()?,
-			Opcode::GreaterThan => self.op_greaterthan()?,
-			Opcode::LessEqual => self.op_lessequal()?,
-			Opcode::GreaterEqual => self.op_greaterequal()?,
-			Opcode::Compare => self.op_compare()?,
+			Opcode::Not => self.op_not(),
+			Opcode::Negate => self.op_negate(),
+			Opcode::Equal => self.op_equal(),
+			Opcode::NotEqual => self.op_notequal(),
+			Opcode::LessThan => self.op_lessthan(),
+			Opcode::GreaterThan => self.op_greaterthan(),
+			Opcode::LessEqual => self.op_lessequal(),
+			Opcode::GreaterEqual => self.op_greaterequal(),
+			Opcode::Compare => self.op_compare(),
 
-			Opcode::Index => self.op_index()?,
-			Opcode::IndexAssign => self.op_indexassign()?,
+			Opcode::Index => self.op_index(),
+			Opcode::IndexAssign => self.op_indexassign(),
 		}
-
-		Ok(None)
 	}
 }
 
