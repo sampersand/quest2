@@ -269,14 +269,16 @@ impl AnyValue {
 	}
 
 	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
-		if let Some(rustfn) = self.downcast::<RustFn>() {
-			rustfn.call(args)
-		} else if let Some(block) = self.downcast::<Gc<Block>>() {
-			block.run(args)
-		} else {
-			// gotta add `self` to the front
-			self.call_attr(Intern::op_call, args)
+		if let Some(block) = self.downcast::<Gc<Block>>() {
+			return block.run(args);
 		}
+
+		if let Some(rustfn) = self.downcast::<RustFn>() {
+			return rustfn.call(args);
+		}
+
+		// TODO: shoudl this be `call_no_obj`?
+		self.call_attr(Intern::op_call, args)
 	}
 
 	pub fn to_boolean(self) -> Result<bool> {
@@ -381,7 +383,7 @@ impl AnyValue {
 	}
 
 	pub fn try_eq(self, rhs: AnyValue) -> Result<bool> {
-		if self.bits() == rhs.bits() {
+		if self.is_identical(rhs) {
 			return Ok(true);
 		}
 

@@ -1,5 +1,5 @@
-use crate::value::{ty::Text, AnyValue, Gc};
 use super::Block;
+use crate::value::{ty::Text, AnyValue, Gc};
 use crate::vm::{Opcode, SourceLocation};
 
 pub struct Builder {
@@ -26,14 +26,14 @@ impl Builder {
 			code: Vec::default(),
 			constants: Vec::default(),
 			num_of_unnamed_locals: 0,
-			named_locals: Vec::default()
+			named_locals: Vec::default(),
 		}
 	}
 
 	pub fn unnamed_local(&mut self) -> Local {
 		self.num_of_unnamed_locals += 1;
 		Local::Unnamed(self.num_of_unnamed_locals - 1)
-	} 
+	}
 
 	pub fn named_local(&mut self, name: &str) -> Local {
 		for (i, named_local) in self.named_locals.iter().enumerate() {
@@ -45,11 +45,17 @@ impl Builder {
 
 		self.named_locals.push(Text::from_str(name));
 		Local::Named(self.named_locals.len() - 1)
-	} 
+	}
 
 	#[must_use]
 	pub fn build(self) -> Gc<Block> {
-		Block::_new(self.code, self.loc, self.constants, self.num_of_unnamed_locals, self.named_locals)
+		Block::_new(
+			self.code,
+			self.loc,
+			self.constants,
+			self.num_of_unnamed_locals,
+			self.named_locals,
+		)
 	}
 
 	// SAFETY: you gotta make sure the remainder of the code after this is valid.
@@ -202,7 +208,13 @@ impl Builder {
 		todo!();
 	}
 
-	pub fn call_attr_simple(&mut self, obj: Local, attr: Local, args: &[Local], dst: Local) -> &mut Self {
+	pub fn call_attr_simple(
+		&mut self,
+		obj: Local,
+		attr: Local,
+		args: &[Local],
+		dst: Local,
+	) -> &mut Self {
 		unsafe {
 			self.opcode(Opcode::CallAttrSimple);
 			self.local(obj);

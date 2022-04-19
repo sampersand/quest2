@@ -17,7 +17,6 @@ pub enum Opcode {
 	Call,
 	CallSimple,
 	// Return,
-
 	ConstLoad,
 	CurrentFrame,
 	GetAttr,

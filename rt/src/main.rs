@@ -70,60 +70,64 @@ fn main() -> Result<()> {
 			.constant("return".as_any(), ret)
 			.get_attr(n, ret, tmp3)
 			.call_attr_simple(tmp, tmp2, &[tmp3], tmp)
-			.subtract(n, one, n).call_simple(fib, &[n], tmp)
-			.subtract(n, one, n).call_simple(fib, &[n], tmp2)
-			.add(tmp, tmp2, tmp).call_attr_simple(tmp, ret, &[], tmp);
+			.subtract(n, one, n)
+			.call_simple(fib, &[n], tmp)
+			.subtract(n, one, n)
+			.call_simple(fib, &[n], tmp2)
+			.add(tmp, tmp2, tmp)
+			.call_attr_simple(tmp, ret, &[], tmp);
 
 		builder.build()
 	};
 
-	fib.as_mut().unwrap().set_attr("fib".as_any(), fib.as_any())?;
+	fib.as_mut()
+		.unwrap()
+		.set_attr("fib".as_any(), fib.as_any())?;
 
-
-	let result = fib.run(Args::new(&[33.as_any()], &[]));
+	let result = fib.run(Args::new(&[30.as_any()], &[]));
 
 	dbg!(result);
 	Ok(())
 }
 
 fn main6() -> Result<()> {
-// 	let mut x = "hello".as_any();
-// 	x.set_attr("what".as_any(), "yup".as_any())?;
+	// 	let mut x = "hello".as_any();
+	// 	x.set_attr("what".as_any(), "yup".as_any())?;
 
-// 	let block = qvm_rt::vm::Block::_new(
-// 		// (negative local values indicate named values, eg within source code.)
-// 		vec![
-// 			Opcode::ConstLoad as u8,
-// 			0,
-// 			0, // local[0] = "what"
-// 			Opcode::GetAttr as u8,
-// 			-1i8 as u8,
-// 			0,
-// 			1, // local[1] = `x`.get_attr(local[0])
-// 			Opcode::ConstLoad as u8,
-// 			1,
-// 			-2i8 as u8, // `a` = 1
-// 			Opcode::SetAttr as u8,
-// 			-2i8 as u8,
-// 			0,
-// 			1, // `a`.set_attr(local[0], local[1])
-// 			Opcode::GetAttr as u8,
-// 			-2i8 as u8,
-// 			0,
-// 			2, // local[2] = `a`.get_attr(local[0])
-// 			Opcode::CurrentFrame as u8,
-// 			3, // local[3] = __current_stackframe__
-// 			Opcode::Return as u8,
-// 			-2i8 as u8,
-// 			3, // return `a`, from `local[3]`
-// 		],
-// 		SourceLocation {},
-// 		vec!["what".as_any(), 1.as_any()],
-// 		10,
-// 		vec!["a".into(), "b".into()],
-// 	);
+	// 	let block = qvm_rt::vm::Block::_new(
+	// 		// (negative local values indicate named values, eg within source code.)
+	// 		vec![
+	// 			Opcode::ConstLoad as u8,
+	// 			0,
+	// 			0, // local[0] = "what"
+	// 			Opcode::GetAttr as u8,
+	// 			-1i8 as u8,
+	// 			0,
+	// 			1, // local[1] = `x`.get_attr(local[0])
+	// 			Opcode::ConstLoad as u8,
+	// 			1,
+	// 			-2i8 as u8, // `a` = 1
+	// 			Opcode::SetAttr as u8,
+	// 			-2i8 as u8,
+	// 			0,
+	// 			1, // `a`.set_attr(local[0], local[1])
+	// 			Opcode::GetAttr as u8,
+	// 			-2i8 as u8,
+	// 			0,
+	// 			2, // local[2] = `a`.get_attr(local[0])
+	// 			Opcode::CurrentFrame as u8,
+	// 			3, // local[3] = __current_stackframe__
+	// 			Opcode::Return as u8,
+	// 			-2i8 as u8,
+	// 			3, // return `a`, from `local[3]`
+	// 		],
+	// 		SourceLocation {},
+	// 		vec!["what".as_any(), 1.as_any()],
+	// 		10,
+	// 		vec!["a".into(), "b".into()],
+	// 	);
 
-// 	dbg!(block.run(Args::new(&vec![x], &[])));
+	// 	dbg!(block.run(Args::new(&vec![x], &[])));
 
 	Ok(())
 }

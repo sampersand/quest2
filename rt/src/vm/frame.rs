@@ -5,10 +5,10 @@ use crate::value::ty::{List, Text};
 use crate::value::{AsAny, Gc, HasDefaultParent, Intern};
 use crate::vm::{Args, Block};
 use crate::{AnyValue, Error, Result};
+use std::alloc::Layout;
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use std::alloc::Layout;
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -29,14 +29,14 @@ const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
 const FLAG_IS_OBJECT: u32 = Flags::USER1;
 const COUNT_IS_NOT_ONE_BYTE_BUT_USIZE: u8 = i8::MAX as u8;
 
-
 fn locals_layout_for(num_of_unnamed_locals: usize, num_named_locals: usize) -> Layout {
 	Layout::array::<Option<AnyValue>>(num_of_unnamed_locals + num_named_locals).unwrap()
 }
 
 impl Drop for Inner {
 	fn drop(&mut self) {
-		let layout = locals_layout_for(self.block.num_of_unnamed_locals, self.block.named_locals.len());
+		let layout =
+			locals_layout_for(self.block.num_of_unnamed_locals, self.block.named_locals.len());
 
 		unsafe {
 			std::alloc::dealloc(self.unnamed_locals.cast::<u8>(), layout);
@@ -44,6 +44,54 @@ impl Drop for Inner {
 	}
 }
 impl Frame {
+	pub fn new(gc_block: Gc<Block>, args: Args) -> Result<Gc<Frame>> {
+		args.assert_no_keyword()?; // todo: assign keyword arguments
+		let block = gc_block.as_ref()?.inner();
+
+		if block.named_locals.len() < args.positional().len() {
+			#[cold]
+			return Err(format!("argc mismatch, expected at most {}, got {}",
+				block.named_locals.len(),
+				args.positional().len()).into())
+		}
+
+
+		let mut builder = Base::<Inner>::builder();
+
+		// XXX: If we swap these around, we get a significant speed slowdown. But what semantics
+		// do we want? Do we want the outside stackframe to be first or last? and in any case,
+		// this is setting the _block_ itself as the parent, which isn't what we want. how do we
+		// want to register the outer block as the parent?
+		builder.set_parents(List::from_slice(&[gc_block.as_any(), Gc::<Frame>::parent()]));
+
+		unsafe {
+			let unnamed_locals = crate::alloc_zeroed(locals_layout_for(
+				block.num_of_unnamed_locals,
+				block.named_locals.len(),
+			))
+			.as_ptr()
+			.cast::<AnyValue>();
+
+			let named_locals = unnamed_locals
+				.add(block.num_of_unnamed_locals)
+				.cast::<Option<AnyValue>>();
+
+		// copy positional arguments over into the first few named local arguments.
+			named_locals.copy_from_nonoverlapping(
+				args.positional().as_ptr().cast::<Option<AnyValue>>(),
+				args.positional().len(),
+			);
+
+			let mut data_ptr = builder.data_mut();
+			std::ptr::addr_of_mut!((*data_ptr).unnamed_locals).write(unnamed_locals);
+			std::ptr::addr_of_mut!((*data_ptr).named_locals).write(named_locals);
+			std::ptr::addr_of_mut!((*data_ptr).block).write(block);
+			// no need to initialize `pos` as it starts off as zero.
+
+			Ok(Gc::from_inner(builder.finish()))
+		}
+	}
+
 	pub fn with_stackframe<F: FnOnce(&mut Vec<Gc<Frame>>) -> T, T>(func: F) -> T {
 		use std::cell::RefCell;
 		thread_local! {
@@ -51,40 +99,6 @@ impl Frame {
 		}
 
 		STACKFRAMES.with(|sf| func(&mut sf.borrow_mut()))
-	}
-
-	pub fn new(gc_block: Gc<Block>, args: Args) -> Result<Gc<Frame>> {
-		args.assert_no_keyword()?; // todo: assign keyword arguments
-
-		let block = gc_block.as_ref()?.inner();
-
-		let unnamed_locals = unsafe {
-			crate::alloc_zeroed(locals_layout_for(block.num_of_unnamed_locals, block.named_locals.len()))
-				.as_ptr()
-				.cast::<AnyValue>()
-		};
-
-		let named_locals = unsafe {
-			unnamed_locals.add(block.num_of_unnamed_locals).cast::<Option<AnyValue>>()
-		};
-
-
-		for (i, arg) in args.positional().iter().enumerate() {
-			unsafe {
-				named_locals.add(i).write(Some(*arg));
-			}
-		}
-
-		let inner = Inner { unnamed_locals, named_locals, block, pos: 0 };
-
-		// XXX: If we swap these around, we get a significant speed slowdown. But what semantics
-		// do we want? Do we want the outside stackframe to be first or last? and in any case,
-		// this is setting the _block_ itself as the parent, which isn't what we want. how do we
-		// want to register the outer block as the parent?
-		let parents = List::from_slice(&[gc_block.as_any(), Gc::<Frame>::parent()]);
-		let frame = Gc::from_inner(Base::new(inner, parents));
-
-		Ok(frame)
 	}
 
 	fn is_object(&self) -> bool {
@@ -114,7 +128,12 @@ impl Frame {
 
 		unsafe {
 			debug_assert!(
-				self.unnamed_locals.add(index).cast::<Option<AnyValue>>().read().is_some(),
+				self
+					.unnamed_locals
+					.add(index)
+					.cast::<Option<AnyValue>>()
+					.read()
+					.is_some(),
 				"reading from an unassigned unnamed local!"
 			);
 
@@ -201,9 +220,7 @@ impl Frame {
 	fn next_byte(&mut self) -> u8 {
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
 		// out of bounds.
-		let byte = unsafe {
-			*self.block.code.get_unchecked(self.pos)
-		};
+		let byte = unsafe { *self.block.code.get_unchecked(self.pos) };
 		self.pos += 1;
 		byte
 	}
@@ -212,7 +229,13 @@ impl Frame {
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
 		// out of bounds.
 		let us = unsafe {
-			self.block.code.as_ptr().add(self.pos).cast::<usize>().read_unaligned()
+			self
+				.block
+				.code
+				.as_ptr()
+				.add(self.pos)
+				.cast::<usize>()
+				.read_unaligned()
 		};
 
 		self.pos += std::mem::size_of::<usize>();
@@ -294,7 +317,9 @@ impl Frame {
 // }
 
 impl Gc<Frame> {
-	fn op_noop(&self) -> Result<()> { Ok(()) }
+	fn op_noop(&self) -> Result<()> {
+		Ok(())
+	}
 
 	fn op_debug(&self) -> Result<()> {
 		dbg!(&self.as_ref().unwrap().unnamed_locals);
@@ -574,7 +599,6 @@ impl Gc<Frame> {
 		{
 			panic!("unable to set it as not currently running??");
 		}
-
 
 		Frame::with_stackframe(|sfs| {
 			if cfg!(debug_assertions) {
