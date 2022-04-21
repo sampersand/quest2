@@ -592,7 +592,7 @@ impl Gc<Frame> {
 
 		Frame::with_stackframe(|sfs| sfs.push(self));
 
-		let result = self.run_();
+		let result = self.run_inner();
 
 		if !self
 			.as_ref()
@@ -600,7 +600,7 @@ impl Gc<Frame> {
 			.flags()
 			.remove_user(FLAG_CURRENTLY_RUNNING)
 		{
-			panic!("unable to set it as not currently running??");
+			unreachable!("unable to set it as not currently running??");
 		}
 
 		Frame::with_stackframe(|sfs| {
@@ -623,7 +623,7 @@ impl Gc<Frame> {
 		}
 	}
 
-	fn run_(mut self) -> Result<AnyValue> {
+	fn run_inner(mut self) -> Result<AnyValue> {
 		while let Some(op) = self.next_op()? {
 			self.run_opcode(op)?;
 		}

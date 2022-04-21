@@ -1,7 +1,7 @@
 use super::{Frame, SourceLocation};
 use crate::value::{ty::Text, Gc, HasDefaultParent};
 use crate::vm::Args;
-use crate::{AnyValue, Result};
+use crate::{AnyValue, Error, Result};
 use std::cell::UnsafeCell;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
@@ -57,14 +57,11 @@ impl Block {
 }
 
 impl Gc<Block> {
-	#[inline(never)]
 	pub fn run(self, args: Args) -> Result<AnyValue> {
 		let frame = Frame::new(self, args)?;
 
 		match frame.run() {
-			Err(crate::Error::Return { value, from_frame })
-				if from_frame.is_identical(frame.into()) =>
-			{
+			Err(Error::Return { value, from_frame }) if from_frame.is_identical(frame.into()) => {
 				Ok(value)
 			},
 			other => other,
