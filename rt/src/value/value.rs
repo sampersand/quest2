@@ -250,12 +250,6 @@ impl AnyValue {
 			return unsafe { self.get_gc_any_unchecked() }.call_attr(attr, args);
 		}
 
-		if let Some(b) = self.downcast::<bool>() {
-			if attr.try_eq_intern(Intern::then)? {
-				return crate::value::ty::boolean::funcs::then(b, args);
-			}
-		}
-
 		// OPTIMIZE ME: This is circumventing potential optimizations from `parents_for`?
 		self
 			.parents_for()
@@ -269,12 +263,12 @@ impl AnyValue {
 	}
 
 	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
-		if let Some(block) = self.downcast::<Gc<Block>>() {
-			return block.run(args);
-		}
-
 		if let Some(rustfn) = self.downcast::<RustFn>() {
 			return rustfn.call(args);
+		}
+
+		if let Some(block) = self.downcast::<Gc<Block>>() {
+			return block.run(args);
 		}
 
 		// TODO: shoudl this be `call_no_obj`?

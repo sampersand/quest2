@@ -57,6 +57,7 @@ impl Block {
 }
 
 impl Gc<Block> {
+	#[inline(never)]
 	pub fn run(self, args: Args) -> Result<AnyValue> {
 		let frame = Frame::new(self, args)?;
 

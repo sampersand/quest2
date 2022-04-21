@@ -4,7 +4,7 @@ use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 #[allow(unused)]
 use crate::value::ty::List;
-use crate::value::AsAny;
+use crate::value::{AsAny, Intern};
 use crate::vm::Args;
 use crate::{AnyValue, Result, Value};
 use std::alloc;
@@ -61,7 +61,7 @@ quest_type! {
 }
 
 impl super::AttrConversionDefined for Gc<Text> {
-	const ATTR_NAME: crate::value::Intern = crate::value::Intern::at_text;
+	const ATTR_NAME: Intern = Intern::at_text;
 }
 
 // #[macro_export]
@@ -100,6 +100,7 @@ unsafe impl Sync for Inner {}
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct AllocatedText {
+	hash: u64,
 	len: usize,
 	cap: usize,
 	ptr: *mut u8,
@@ -108,10 +109,11 @@ struct AllocatedText {
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct EmbeddedText {
+	hash: u64,
 	buf: [u8; MAX_EMBEDDED_LEN],
 }
 
-const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedText>();
+const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedText>() - std::mem::size_of::<u64>();
 const FLAG_EMBEDDED: u32 = Flags::USER0;
 const FLAG_SHARED: u32 = Flags::USER1;
 const FLAG_NOFREE: u32 = Flags::USER2;
@@ -132,6 +134,24 @@ const fn mask_len(len: usize) -> u32 {
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 	alloc::Layout::array::<u8>(cap).unwrap()
+}
+
+pub(crate) const fn fast_hash_acc(mut hash: u64, input: &str) -> u64 {
+	let mut idx = 0;
+
+	while idx < input.len() {
+		// `for` in const fns is not stable
+		hash ^= input.as_bytes()[idx] as u64;
+		hash = hash.wrapping_mul(0x5bd1e9955bd1e995);
+		hash ^= hash >> 47;
+		idx += 1;
+	}
+
+	hash
+}
+
+pub(crate) const fn fast_hash(input: &str) -> u64 {
+	fast_hash_acc(525201411107845655, input)
 }
 
 impl Text {
@@ -364,6 +384,7 @@ impl Text {
 	/// # Safety
 	/// - `new_len` must be less than or equal to [`capacity()`](Self::capacity)
 	/// - The bytes from `old_len..new_len` must be initialized.
+	/// - You must `recalculate_hash` once you're finished updating the string.
 	///
 	/// # Examples
 	/// ```
@@ -376,11 +397,12 @@ impl Text {
 	/// // allocated in the mutable buffer (b/c `with_capacity(15)`),
 	/// // so we're  allowed to write to it. Additionally, since we
 	/// // wrote to those 12 bytes, they're initialized, so we can
-	/// // call `.set_len(12)`.
+	/// // call `.set_len(12)`. Lastly, we call `recalculate_hash` after.
 	/// unsafe {
 	///    textmut.as_mut_ptr().copy_from(b"Hello, world".as_ptr(), 12);
 	///    textmut.set_len(12);
 	/// }
+	/// textmut.recalculate_hash();
 	///
 	/// // Now the data's initialized
 	/// assert_eq!(*textmut, "Hello, world");
@@ -394,6 +416,12 @@ impl Text {
 		} else {
 			self.inner_mut().alloc.len = new_len;
 		}
+
+		self.recalculate_hash();
+	}
+
+	pub fn recalculate_hash(&mut self) {
+		self.inner_mut().alloc.hash = fast_hash(self.as_str());
 	}
 
 	fn set_embedded_len(&mut self, new_len: usize) {
@@ -439,6 +467,11 @@ impl Text {
 		}
 	}
 
+	pub fn fast_hash(&self) -> u64 {
+		// the hash starts at the same offset for both types
+		unsafe { self.inner().alloc.hash }
+	}
+
 	/// Returns a pointer to the beginning of the `Text` buffer.
 	///
 	/// You must not write to the pointer; if you need a `*mut u8`, use
@@ -474,6 +507,10 @@ impl Text {
 	///
 	/// If you don't need mutable access, use [`as_ptr()`](Self::as_ptr) instead.
 	///
+	/// # Safety
+	/// - You must ensure that the pointer points to a valid `str`.
+	/// - After you finish updating things, you must call `recalculate_hash`.
+	///
 	/// # Examples
 	/// ```
 	/// # use qvm_rt::value::ty::Text;
@@ -485,11 +522,12 @@ impl Text {
 	/// // allocated in the mutable buffer (b/c `with_capacity(15)`),
 	/// // so we're  allowed to write to it. Additionally, since we
 	/// // wrote to those 12 bytes, they're initialized, so we can
-	/// // call `.set_len(12)`.
+	/// // call `.set_len(12)`. Lastly, we call `recalculate_hash` after.
 	/// unsafe {
 	///    textmut.as_mut_ptr().copy_from(b"Hello, world".as_ptr(), 12);
 	///    textmut.set_len(12);
 	/// }
+	/// textmut.recalculate_hash();
 	///
 	/// // Now the data's initialized
 	/// assert_eq!(*textmut, "Hello, world");
@@ -598,6 +636,7 @@ impl Text {
 			let mut builder = Self::builder();
 			builder.insert_flags(FLAG_SHARED);
 			builder.inner_mut().alloc = AllocatedText {
+				hash: fast_hash(slice),
 				ptr: slice.as_ptr() as *mut u8,
 				len: slice.len(),
 				cap: slice.len(), // capacity = length
@@ -626,10 +665,12 @@ impl Text {
 		self.flags().remove_user(FLAG_NOFREE | FLAG_SHARED);
 	}
 
+	/// SAFETY: you must call `recalculate_hash` afterwards
 	pub unsafe fn as_mut_bytes(&mut self) -> &mut [u8] {
 		std::slice::from_raw_parts_mut(self.as_mut_ptr(), self.len())
 	}
 
+	/// SAFETY: you must call `recalculate_hash` afterwards
 	pub fn as_mut_str(&mut self) -> &mut str {
 		unsafe { std::str::from_utf8_unchecked_mut(self.as_mut_bytes()) }
 	}
@@ -643,11 +684,13 @@ impl Text {
 		let layout = alloc_ptr_layout(new_cap);
 
 		unsafe {
+			let hash = self.inner().embed.hash;
 			let len = self.embedded_len();
 			let ptr = crate::alloc(layout).as_ptr();
 			std::ptr::copy(self.inner().embed.buf.as_ptr(), ptr, len);
 
 			self.inner_mut().alloc = AllocatedText {
+				hash,
 				len,
 				cap: new_cap,
 				ptr,
@@ -704,11 +747,21 @@ impl Text {
 			self.allocate_more(string.len());
 		}
 
+		let h = self.fast_hash();
+		self.recalculate_hash();
+		assert_eq!(h, self.fast_hash());
+
 		unsafe {
 			self.push_str_unchecked(string);
 		}
+
+		// Note that we don't call `recalculate_hash` but instead do `acc`, as that
+		// is equivalent and faster.
+		self.inner_mut().alloc.hash = fast_hash_acc(self.fast_hash(), string);
+		self.recalculate_hash();
 	}
 
+	// SAFETY: you must recalculate hash afterwards, in addition to other things.
 	pub unsafe fn push_str_unchecked(&mut self, string: &str) {
 		std::ptr::copy(string.as_ptr(), self.mut_end_ptr(), string.len());
 		self.set_len(self.len() + string.len());
@@ -723,7 +776,7 @@ impl Default for Gc<Text> {
 
 impl Hash for Text {
 	fn hash<H: Hasher>(&self, h: &mut H) {
-		self.as_str().hash(h)
+		h.write_u64(self.fast_hash());
 	}
 }
 
@@ -813,7 +866,13 @@ impl AsAny for String {
 impl Eq for Text {}
 impl PartialEq for Text {
 	fn eq(&self, rhs: &Self) -> bool {
-		std::ptr::eq(self, rhs) || self == rhs.as_str()
+		std::ptr::eq(self, rhs) || self.fast_hash() == rhs.fast_hash() && self == rhs.as_str()
+	}
+}
+
+impl PartialEq<Intern> for Text {
+	fn eq(&self, rhs: &Intern) -> bool {
+		self.fast_hash() == rhs.fast_hash() && self.as_str() == rhs.as_str()
 	}
 }
 
@@ -936,5 +995,13 @@ mod tests {
 	#[test]
 	fn default_is_empty_string() {
 		assert_eq!(*Gc::<Text>::default().as_ref().unwrap(), *"");
+	}
+
+	#[test]
+	fn push_str_updates_hash_correctly() {
+		let hash1 = Text::from_str("hello, world").as_ref().unwrap().fast_hash();
+		let text = Text::from_str("hello, ");
+		text.as_mut().unwrap().push_str("world");
+		assert_eq!(text.as_ref().unwrap().fast_hash(), hash1);
 	}
 }

@@ -46,7 +46,8 @@ impl Builder {
 	}
 
 	#[must_use]
-	pub unsafe fn finish(self) -> Gc<Text> {
+	pub unsafe fn finish(mut self) -> Gc<Text> {
+		self.text_mut().recalculate_hash(); // assign the hash.
 		Gc::from_inner(self.0.finish())
 	}
 }

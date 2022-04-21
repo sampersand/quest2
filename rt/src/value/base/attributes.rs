@@ -225,49 +225,17 @@ impl Attribute for crate::value::Intern {
 	}
 }
 
-/*
-impl Attribute for &'static str {
-	fn try_eq_value(self, rhs: AnyValue) -> Result<bool> {
-		if let Some(text) = rhs.downcast::<Gc<Text>>() {
-			Ok(self == text.as_ref()?.as_str())
-		} else {
-			Ok(false)
-		}
-	}
-
-	fn try_eq_intern(self, rhs: Intern) -> Result<bool> {
-		Ok(self == rhs.as_str())
-	}
-
-	fn try_hash(self) -> Result<u64> {
-		use std::hash::{Hash, Hasher};
-		use std::collections::hash_map::DefaultHasher;
-
-		let mut s = DefaultHasher::new();
-		self.hash(&mut s);
-		Ok(s.finish())
-	}
-
-	fn to_value(self) -> AnyValue {
-		Value::from(Text::from_static_str(self)).any()
-	}
-
-	fn to_repr(self) -> (u64, bool) {
-		(self.to_value().bits(), false)
-	}
-
-	fn is_parents(self) -> bool {
-		self == "__parents__"
-	}
-}*/
-
 impl Attribute for AnyValue {
 	fn try_eq_value(self, rhs: AnyValue) -> Result<bool> {
 		AnyValue::try_eq(self, rhs)
 	}
 
 	fn try_eq_intern(self, rhs: Intern) -> Result<bool> {
-		self.try_eq_value(rhs.as_text().as_any())
+		if let Some(text) = self.downcast::<Gc<Text>>() {
+			Ok(*text.as_ref()? == rhs)
+		} else {
+			self.try_eq(rhs.as_text().as_any())
+		}
 	}
 
 	fn try_hash(self) -> Result<u64> {

@@ -49,12 +49,15 @@ impl Frame {
 		let block = gc_block.as_ref()?.inner();
 
 		if block.named_locals.len() < args.positional().len() {
-			#[cold]
-			return Err(format!("argc mismatch, expected at most {}, got {}",
-				block.named_locals.len(),
-				args.positional().len()).into())
+			return Err(
+				format!(
+					"argc mismatch, expected at most {}, got {}",
+					block.named_locals.len(),
+					args.positional().len()
+				)
+				.into(),
+			);
 		}
-
 
 		let mut builder = Base::<Inner>::builder();
 
@@ -76,7 +79,7 @@ impl Frame {
 				.add(block.num_of_unnamed_locals)
 				.cast::<Option<AnyValue>>();
 
-		// copy positional arguments over into the first few named local arguments.
+			// copy positional arguments over into the first few named local arguments.
 			named_locals.copy_from_nonoverlapping(
 				args.positional().as_ptr().cast::<Option<AnyValue>>(),
 				args.positional().len(),
