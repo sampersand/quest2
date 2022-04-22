@@ -33,12 +33,12 @@ macro_rules! define_interned {
 
 		impl Intern {
 			pub const fn as_str(self) -> &'static str {
-				match self {
-					$(Self::$name => &define_interned!(@ $name $($value)?),)*
-					Self::__LAST => panic!("don't use `__LAST`"),
-				}
-			}
+				const STRINGS: [&'static str; Intern::__LAST.as_index()] = [
+					$(define_interned!(@ $name $($value)?)),*
+				];
 
+				STRINGS[self.as_index()]
+			}
 
 			pub fn from_str(s: &str) -> Option<Self> {
 				match s {
