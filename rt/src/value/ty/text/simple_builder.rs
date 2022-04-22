@@ -6,25 +6,27 @@ pub struct SimpleBuilder(Builder);
 
 impl SimpleBuilder {
 	pub fn new() -> Self {
+		Self::with_capacity(0)
+	}
+
+	pub fn with_capacity(capacity: usize) -> Self {
 		let mut builder = Text::builder();
-		unsafe {
-			builder.allocate_buffer(0);
-		}
+		builder.allocate_buffer(capacity);		
 		Self(builder)
 	}
 
 	pub fn push_str(&mut self, s: &str) -> &mut Self {
-		unsafe { self.0.text_mut() }.push_str(s);
+		self.0.text_mut().push_str(s);
 		self
 	}
 
 	pub fn push(&mut self, c: char) -> &mut Self {
-		unsafe { self.0.text_mut() }.push(c);
+		self.0.text_mut().push(c);
 		self
 	}
 
 	#[must_use]
 	pub fn finish(self) -> Gc<Text> {
-		unsafe { self.0.finish() }
+		self.0.finish()
 	}
 }

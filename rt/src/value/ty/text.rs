@@ -27,6 +27,9 @@ quest_type! {
 	/// [a `&'static str`](Text::from_static_str), [a `String`](Text::from_string), or, for the
 	/// finest control, you can use [`Builder`] ([`Text::builder`] is a provided shorthand).
 	///
+	/// Because attribute keys are commonly `Text`s, `Text`s store their [`hash`](Text::fast_hash)
+	/// internally for faster lookup and comparisons.
+	///
 	/// # `Gc<Text>`
 	/// Note that you can never construct a `Text` by-value; it must always be wrapped in a [`Gc`].
 	/// This is to make it compatible with other [`Allocated`](crate::value::Base::Allocated). As
@@ -136,29 +139,82 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 	alloc::Layout::array::<u8>(cap).unwrap()
 }
 
-pub(crate) const fn fast_hash_acc(mut hash: u64, input: &str) -> u64 {
+
+/// A hash function that prioritizes speed over uniqueness.
+///
+/// Because [`Text`]s are frequently used as attribute keys, repeated hashes and comparisons on them
+/// is common. As such, the [hash of a `Text`](Text::fast_hash) is cached for faster lookup.
+///
+/// Currently murmur hash is used, but do not rely on this.
+///
+/// # See Also
+/// - [`fast_hash_continue`] for continuing the hash of an earlier `str`.
+///
+/// # Examples
+/// ```
+/// use qvm_rt::value::ty::{Text, text::fast_hash};
+///
+/// let greeting = "hello, world";
+/// let hash = fast_hash(greeting);
+/// let text = Text::from_str(greeting);
+///
+/// assert_eq!(hash, text.as_ref().unwrap().fast_hash());
+/// ```
+pub const fn fast_hash(input: &str) -> u64 {
+	fast_hash_continue(FAST_HASH_START, input)
+}
+
+/// The initial value that should be passed to [`fast_hash_continue`].
+///
+/// This magic number comes from the murmur hash design itself.
+pub const FAST_HASH_START: u64 = 525201411107845655;
+
+/// Continue hashing where you left off.
+///
+/// Sometimes you need to hash an input that isn't necessarily contiguous (for example,
+/// checking the hash that two concatenated [`Text`]s _would_ have). This function let's you 
+/// hash in a piecewise fashion. 
+///
+/// Note that the initial `hash` must begin with [`FAST_HASH_START`].
+///
+/// If you don't need to hash in parts, use [`fast_hash`] instead.
+///
+/// # Examples
+/// ```
+/// use qvm_rt::value::ty::text::{
+///    fast_hash, fast_hash_continue, FAST_HASH_START
+/// };
+///
+/// let mut hash = FAST_HASH_START;
+/// hash = fast_hash_continue(hash, "hello");
+/// hash = fast_hash_continue(hash, ", ");
+/// hash = fast_hash_continue(hash, "world");
+///
+/// assert_eq!(hash, fast_hash("hello, world"));
+/// ```
+pub const fn fast_hash_continue(mut hash: u64, input: &str) -> u64 {
+	let bytes = input.as_bytes();
 	let mut idx = 0;
 
-	while idx < input.len() {
-		// `for` in const fns is not stable
-		hash ^= input.as_bytes()[idx] as u64;
+	// `for` in const fns is not stable, so we use `while`.
+	while idx < bytes.len() {
+		hash ^= bytes[idx] as u64;
 		hash = hash.wrapping_mul(0x5bd1e9955bd1e995);
 		hash ^= hash >> 47;
+
 		idx += 1;
 	}
 
 	hash
 }
 
-pub(crate) const fn fast_hash(input: &str) -> u64 {
-	fast_hash_acc(525201411107845655, input)
-}
-
 impl Text {
+	// Helper function for fetching `Inner`.
 	fn inner(&self) -> &Inner {
 		self.0.data()
 	}
 
+	// Helper function for fetching `Inner` mutably.
 	fn inner_mut(&mut self) -> &mut Inner {
 		self.0.data_mut()
 	}
@@ -173,19 +229,35 @@ impl Text {
 	/// // ... use the builder
 	/// # let _ = builder;
 	/// ```
-	#[must_use]
 	pub fn builder() -> Builder {
 		Builder::allocate()
 	}
 
+	/// A helper function that simply returns [`SimpleBuilder::new`].
+	///
+	/// # See Also
+	/// - [`Builder`] for more fine-grained control over building a [`Text`].
+	///
+	/// # Examples
+	/// ```
+	/// # use qvm_rt::value::ty::Text;
+	/// let mut builder = Text::simple_builder();
+	///
+	/// builder.push_str("Hello");
+	/// builder.push_str(", world");
+	/// builder.push('!');
+	/// let text = builder.finish();
+	/// 
+	/// assert_eq!(*text.as_ref().unwrap(), "Hello, world!");
+	/// ```
 	pub fn simple_builder() -> SimpleBuilder {
 		SimpleBuilder::new()
 	}
 
 	/// Creates a new, empty [`Text`].
 	///
-	/// If you have an idea of the required capacity, consider calling [`Text::with_capacity`]
-	/// instead. For finer-tuned construction, see [`Builder`].
+	/// If you have an idea of the required capacity, consider calling [`Text::with_capacity`] or
+	/// [`Text::SimpleBuilder`] instead.. For finer-tuned construction, see [`Text::builder`].
 	///
 	/// Note that this will still allocate memory for the underlying [`Text`] object, but it won't
 	/// allocate a separate buffer.
@@ -205,7 +277,7 @@ impl Text {
 	/// Creates a new, empty [`Text`] with at least the given capacity.
 	///
 	/// To use this you have to call [`Gc::as_mut`]; to skip this step and just initialize directly,
-	/// you can use the somewhat-clumsier [`Builder`].
+	/// you can use [`Text::simple_builder`].
 	///
 	/// Note that this will still allocate memory for the underlying [`Text`] object regardless of
 	/// the capacity.
@@ -226,12 +298,8 @@ impl Text {
 	#[must_use]
 	pub fn with_capacity(capacity: usize) -> Gc<Self> {
 		let mut builder = Self::builder();
-
-		// SAFETY: TODO
-		unsafe {
-			builder.allocate_buffer(capacity);
-			builder.finish() // Nothing else to do, as the default state is valid.
-		}
+		builder.allocate_buffer(capacity);
+		builder.finish() // Nothing else to do, as the default state is valid.
 	}
 
 	/// Creates a new [`Text`] from the given `&str`.
@@ -256,13 +324,15 @@ impl Text {
 	#[must_use]
 	pub fn from_str(text: &str) -> Gc<Self> {
 		let mut builder = Self::builder();
+		builder.allocate_buffer(text.len());
 
-		// SAFETY: TODO
+		// SAFETY: We just allocated enough storage, so we know this can fit
+		// additionally, `builder.finish()` will set the hash.
 		unsafe {
-			builder.allocate_buffer(text.len());
 			builder.text_mut().push_str_unchecked(text);
-			builder.finish()
 		}
+
+		builder.finish()
 	}
 
 	/// Creates a new [`Text`] from the given `&'static str`.
@@ -284,18 +354,15 @@ impl Text {
 		let mut builder = Self::builder();
 		builder.insert_flags(FLAG_NOFREE | FLAG_SHARED);
 
-		// SAFETY: TODO
-		unsafe {
-			let mut alloc = &mut builder.inner_mut().alloc;
+		// SAFETY: Both embed and alloc are valid when zero initialized.
+		let mut alloc = unsafe { &mut builder.inner_mut().alloc };
 
-			// Even though we cast it to a `*mut u8`, the `FLAG_SHARED` ensures we won't be
-			// modifying it.
-			alloc.ptr = text.as_ptr() as *mut u8;
-			alloc.len = text.len();
-			alloc.cap = alloc.len; // The capacity is the same as the length.
+		// Even though we cast it to a `*mut u8`, the `FLAG_SHARED` ensures we won't be modifying it.
+		alloc.ptr = text.as_ptr() as *mut u8;
+		alloc.len = text.len();
+		alloc.cap = alloc.len; // The capacity is the same as the length.
 
-			builder.finish()
-		}
+		builder.finish()
 	}
 
 	/// Creates a new [`Text`] from the given [`String`].
@@ -305,7 +372,7 @@ impl Text {
 	/// or [`Text::from_static_str`].
 	///
 	/// As [`Text`]s can be embedded, it's more efficient to use a [`Builder`] if you're going to
-	/// be created a [`Text`] on-the-fly.
+	/// be created a [`Text`] on the fly.
 	///
 	/// # Examples
 	/// ```
@@ -316,21 +383,19 @@ impl Text {
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	#[must_use]
-	pub fn from_string(text: String) -> Gc<Self> {
+	pub fn from_string(string: String) -> Gc<Self> {
 		let mut builder = Self::builder();
 		builder.insert_flags(FLAG_FROM_STRING);
 
 		// SAFETY: TODO
-		unsafe {
-			let mut alloc = &mut builder.inner_mut().alloc;
+		let mut alloc = unsafe { &mut builder.inner_mut().alloc };
 
-			alloc.ptr = text.as_ptr() as *mut u8;
-			alloc.len = text.len();
-			alloc.cap = text.capacity();
-			std::mem::forget(text); // so it doesn't become freed
+		alloc.ptr = string.as_ptr() as *mut u8;
+		alloc.len = string.len();
+		alloc.cap = string.capacity();
 
-			builder.finish()
-		}
+		std::mem::forget(string); // so it doesn't become freed
+		builder.finish()
 	}
 
 	fn is_embedded(&self) -> bool {
@@ -384,7 +449,7 @@ impl Text {
 	/// # Safety
 	/// - `new_len` must be less than or equal to [`capacity()`](Self::capacity)
 	/// - The bytes from `old_len..new_len` must be initialized.
-	/// - You must `recalculate_hash` once you're finished updating the string.
+	/// - You must [`recalculate_hash` once you're finished updating the string.
 	///
 	/// # Examples
 	/// ```
@@ -416,12 +481,18 @@ impl Text {
 		} else {
 			self.inner_mut().alloc.len = new_len;
 		}
+	}
 
-		self.recalculate_hash();
+	pub unsafe fn set_hash(&mut self, hash: u64) {
+		self.inner_mut().alloc.hash = hash;
 	}
 
 	pub fn recalculate_hash(&mut self) {
-		self.inner_mut().alloc.hash = fast_hash(self.as_str());
+		let hash = fast_hash(self.as_str());
+
+		unsafe {
+			self.set_hash(hash);
+		}
 	}
 
 	fn set_embedded_len(&mut self, new_len: usize) {
@@ -534,6 +605,7 @@ impl Text {
 	/// # qvm_rt::Result::<()>::Ok(())
 	/// ```
 	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
+		// If we're embedded, just use a reference to the buffer itself.
 		if self.is_embedded() {
 			return self.inner_mut().embed.buf.as_mut_ptr();
 		}
@@ -612,14 +684,16 @@ impl Text {
 		// have `FLAG_SHARED` marked.
 		self.flags().insert_user(FLAG_SHARED);
 
+		let mut builder = Self::builder();
+		let builder_ptr = builder.inner_mut() as *mut Inner;
+		builder.insert_flags(self.flags().get());
+
 		// SAFETY: TODO
 		unsafe {
-			let mut builder = Self::builder();
-			let builder_ptr = builder.inner_mut() as *mut Inner;
-			builder_ptr.copy_from_nonoverlapping(self.inner() as *const Inner, 1);
-			builder.insert_flags(self.flags().get());
-			builder.finish()
+			builder_ptr.copy_from_nonoverlapping(self.inner(), 1);
 		}
+
+		builder.finish()
 	}
 
 	/// Returns a substring of `self` at the given index.
@@ -629,21 +703,19 @@ impl Text {
 	#[must_use]
 	pub fn substr<I: std::slice::SliceIndex<str, Output = str>>(&self, idx: I) -> Gc<Self> {
 		let slice = &self.as_str()[idx];
+		self.flags().insert_user(FLAG_SHARED);
 
-		unsafe {
-			self.flags().insert_user(FLAG_SHARED);
+		let mut builder = Self::builder();
+		builder.insert_flags(FLAG_SHARED);
 
-			let mut builder = Self::builder();
-			builder.insert_flags(FLAG_SHARED);
-			builder.inner_mut().alloc = AllocatedText {
-				hash: fast_hash(slice),
-				ptr: slice.as_ptr() as *mut u8,
-				len: slice.len(),
-				cap: slice.len(), // capacity = length
-			};
+		builder.inner_mut().alloc = AllocatedText {
+			hash: fast_hash(slice),
+			ptr: slice.as_ptr() as *mut u8,
+			len: slice.len(),
+			cap: slice.len(), // capacity = length
+		};
 
-			builder.finish()
-		}
+		builder.finish()
 	}
 
 	unsafe fn duplicate_alloc_ptr(&mut self, capacity: usize) {
@@ -747,17 +819,13 @@ impl Text {
 			self.allocate_more(string.len());
 		}
 
-		let h = self.fast_hash();
-		self.recalculate_hash();
-		assert_eq!(h, self.fast_hash());
-
 		unsafe {
 			self.push_str_unchecked(string);
 		}
 
 		// Note that we don't call `recalculate_hash` but instead do `acc`, as that
 		// is equivalent and faster.
-		self.inner_mut().alloc.hash = fast_hash_acc(self.fast_hash(), string);
+		self.inner_mut().alloc.hash = fast_hash_continue(self.fast_hash(), string);
 		self.recalculate_hash();
 	}
 

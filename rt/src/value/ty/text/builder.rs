@@ -2,14 +2,22 @@ use super::{Inner, Text, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
 use crate::value::base::Builder as BaseBuilder;
 use crate::value::base::HasDefaultParent;
 use crate::value::gc::Gc;
+use std::ptr::NonNull;
 
 #[must_use]
 pub struct Builder(BaseBuilder<Inner>);
 
 impl Builder {
-	pub unsafe fn new(ptr: std::ptr::NonNull<std::mem::MaybeUninit<Text>>) -> Self {
-		let mut builder = BaseBuilder::new_uninit(std::mem::transmute(ptr));
+	/// Creates a new [`Builder`] from the given `ptr`.
+	///
+	/// # Safety
+	/// - `ptr` must be properly aligned and writable.
+	/// - `ptr` must be zero initialized.
+	pub unsafe fn new(ptr: NonNull<Text>) -> Self {
+		let mut builder = BaseBuilder::new_uninit(ptr.cast());
+
 		builder.set_parents(Gc::<Text>::parent());
+
 		Self(builder)
 	}
 
@@ -23,31 +31,44 @@ impl Builder {
 		self.0.insert_user_flags(flag);
 	}
 
-	pub unsafe fn inner_mut(&mut self) -> &mut Inner {
-		&mut *self.0.data_mut()
+	// SAFETY: not actually unsafe, because `new` is the worrisome
+	pub fn inner_mut(&mut self) -> &mut Inner {
+		unsafe {
+			&mut *self.0.data_mut()
+		}
 	}
 
-	pub unsafe fn text_mut(&mut self) -> &mut Text {
-		&mut *self.0.base_mut().cast::<Text>()
+	pub fn text_mut(&mut self) -> &mut Text {
+		unsafe {
+			&mut *self.0.base_mut().cast::<Text>()
+		}
 	}
 
-	// unsafe because you should call this before you edit anything.
-	pub unsafe fn allocate_buffer(&mut self, capacity: usize) {
+	pub fn allocate_buffer(&mut self, capacity: usize) {
 		if capacity <= MAX_EMBEDDED_LEN {
 			self.insert_flags(FLAG_EMBEDDED);
 			return;
 		}
 
-		let mut alloc = &mut self.inner_mut().alloc;
 
-		// alloc.len is `0` because `Base::<T>::allocate` always zero allocates.
-		alloc.cap = capacity;
-		alloc.ptr = crate::alloc(super::alloc_ptr_layout(capacity)).as_ptr();
+		unsafe {
+			let ptr = crate::alloc(super::alloc_ptr_layout(capacity)).as_ptr();
+
+			let mut alloc = &mut self.inner_mut().alloc;
+
+			// since we're zero initialized, `alloc.len` is zero.
+			alloc.cap = capacity;
+			alloc.ptr = ptr;
+		}
 	}
 
+	// not unsafe, as the default `allocate()` is safe, and `new` is unsafe.
 	#[must_use]
-	pub unsafe fn finish(mut self) -> Gc<Text> {
+	pub fn finish(mut self) -> Gc<Text> {
 		self.text_mut().recalculate_hash(); // assign the hash.
-		Gc::from_inner(self.0.finish())
+
+		unsafe {
+			Gc::from_inner(self.0.finish())
+		}
 	}
 }

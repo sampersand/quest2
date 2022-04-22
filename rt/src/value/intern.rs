@@ -89,7 +89,7 @@ define_interned! {
 
 impl Hash for Intern {
 	fn hash<H: Hasher>(&self, h: &mut H) {
-		self.as_str().hash(h);
+		h.write_u64(self.fast_hash());
 	}
 }
 

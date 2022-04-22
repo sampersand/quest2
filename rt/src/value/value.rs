@@ -361,14 +361,9 @@ impl AnyValue {
 	pub fn try_hash(self) -> Result<u64> {
 		if self.is_allocated() {
 			if let Some(text) = self.downcast::<Gc<Text>>() {
-				// OPTIMIZE ME!
-				use std::collections::hash_map::DefaultHasher;
-				use std::hash::{Hash, Hasher};
-
-				let mut s = DefaultHasher::new();
-				text.as_ref()?.hash(&mut s);
-				Ok(s.finish())
+				Ok(text.as_ref()?.fast_hash())
 			} else {
+				// self.call_attr(Intern::hash, Args::default())?;
 				todo!()
 			}
 		} else {

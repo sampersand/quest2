@@ -200,12 +200,7 @@ impl Attribute for crate::value::Intern {
 	}
 
 	fn try_hash(self) -> Result<u64> {
-		use std::collections::hash_map::DefaultHasher;
-		use std::hash::{Hash, Hasher};
-
-		let mut s = DefaultHasher::new();
-		self.hash(&mut s);
-		Ok(s.finish())
+		Ok(self.fast_hash())
 	}
 
 	fn as_intern(self) -> Option<Intern> {
