@@ -676,3 +676,50 @@ quest_type_attrs! { for Gc<Frame>, parents [Kernel, Callable];
 	// "+" => meth qs_add,
 	// "@text" => meth qs_at_text,
 }
+
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+
+	#[test]
+	fn test_fibonacci() {
+		let fib = {
+			let mut builder = Block::builder(Default::default());
+
+			let n = builder.named_local("n");
+			let fib = builder.named_local("fib");
+			let one = builder.unnamed_local();
+			let tmp = builder.unnamed_local();
+			let tmp2 = builder.unnamed_local();
+			let tmp3 = builder.unnamed_local();
+			let ret = builder.unnamed_local();
+
+			builder
+				.constant(1.as_any(), one)
+				.less_equal(n, one, tmp)
+				.constant("then".as_any(), tmp2)
+				.constant("return".as_any(), ret)
+				.get_attr(n, ret, tmp3)
+				.call_attr_simple(tmp, tmp2, &[tmp3], tmp)
+				.subtract(n, one, n)
+				.call_simple(fib, &[n], tmp)
+				.subtract(n, one, n)
+				.call_simple(fib, &[n], tmp2)
+				.add(tmp, tmp2, tmp)
+				.call_attr_simple(tmp, ret, &[], tmp);
+
+			builder.build()
+		};
+
+		fib.as_mut()
+			.unwrap()
+			.set_attr("fib".as_any(), fib.as_any())
+			.unwrap();
+
+		let result = fib.run(Args::new(&[15.as_any()], &[])).unwrap();
+
+		assert_eq!(result.downcast::<crate::value::ty::Integer>(), Some(610));
+	}
+}
