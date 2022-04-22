@@ -258,10 +258,8 @@ impl AnyValue {
 			.call(args.with_self(self))
 	}
 
-	pub fn call_no_obj(self, args: Args<'_>) -> Result<AnyValue> {
-		self.call_attr(Intern::op_call, args)
-	}
-
+	// there's a potential logic flaw here, as this may actually pass `self`
+	// when calling `Intern::op_call`. todo, check that out.
 	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
 		if let Some(rustfn) = self.downcast::<RustFn>() {
 			return rustfn.call(args);
@@ -271,7 +269,10 @@ impl AnyValue {
 			return block.run(args);
 		}
 
-		// TODO: shoudl this be `call_no_obj`?
+		if let Some(boundfn) = self.downcast::<Gc<BoundFn>>() {
+			return boundfn.qs_call(args);
+		}
+
 		self.call_attr(Intern::op_call, args)
 	}
 
@@ -421,6 +422,8 @@ impl Debug for AnyValue {
 		} else if let Some(l) = self.downcast::<Gc<Class>>() {
 			Debug::fmt(&l, fmt)
 		} else if let Some(l) = self.downcast::<Gc<Scope>>() {
+			Debug::fmt(&l, fmt)
+		} else if let Some(l) = self.downcast::<Gc<BoundFn>>() {
 			Debug::fmt(&l, fmt)
 		} else if let Some(i) = self.downcast::<Gc<Wrap<Integer>>>() {
 			Debug::fmt(&i, fmt)

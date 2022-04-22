@@ -125,7 +125,7 @@ pub mod funcs {
 		let (func, args) = args.split_first()?;
 
 		if obj.is_truthy()? {
-			func.call_no_obj(args)
+			func.call(args)
 		} else {
 			Ok(obj)
 		}

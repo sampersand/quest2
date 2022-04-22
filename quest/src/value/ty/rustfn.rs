@@ -72,6 +72,7 @@ impl RustFn {
 		self.0.func
 	}
 
+	#[inline]
 	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
 		(self.0.func)(args)
 	}

@@ -13,9 +13,9 @@ impl Gc<Kernel> {
 		args.idx_err_unless(|a| a.positional().len() == 2 || a.positional().len() == 3)?;
 
 		if args[0].is_truthy()? {
-			args[1].call_no_obj(Args::default())
+			args[1].call(Args::default())
 		} else if let Ok(if_false) = args.get(2) {
-			if_false.call_no_obj(Args::default())
+			if_false.call(Args::default())
 		} else {
 			Ok(crate::Value::NULL.any())
 		}
@@ -28,7 +28,7 @@ impl Gc<Kernel> {
 		let mut last = crate::Value::NULL.any();
 
 		while args[0].is_truthy()? {
-			last = args[1].call_no_obj(Default::default())?;
+			last = args[1].call(Args::default())?;
 		}
 
 		Ok(last)

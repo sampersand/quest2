@@ -349,13 +349,13 @@ impl<T: Allocated> Gc<T> {
 		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
 		let obj = self.as_any();
 		let selfref = self.as_ref()?;
+
 		if let Some(func) = selfref.header().get_unbound_attr(attr, false)? {
 			drop(selfref);
 			func.call(args.with_self(obj))
 		} else {
 			drop(selfref);
-			// self.parents()?.call_attr(obj, attr, args)
-			self.parents()?.call(attr, args.with_self(obj))
+			self.parents()?.call_attr(obj, attr, args)
 		}
 	}
 }

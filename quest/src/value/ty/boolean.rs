@@ -72,7 +72,7 @@ pub mod funcs {
 		}
 
 		let (func, args) = args.split_first()?;
-		func.call_no_obj(args)
+		func.call(args)
 	}
 
 	pub fn and_then(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
