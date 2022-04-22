@@ -67,6 +67,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "quest"
+version = "0.1.0"
+dependencies = [
+ "assert_matches",
+ "hashbrown",
+ "once_cell",
+ "qvm-macros",
+ "radix_fmt",
+ "static_assertions",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -82,18 +94,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "qvm-rt"
-version = "0.1.0"
-dependencies = [
- "assert_matches",
- "hashbrown",
- "once_cell",
- "qvm-macros",
- "radix_fmt",
- "static_assertions",
 ]
 
 [[package]]

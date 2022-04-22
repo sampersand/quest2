@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// To safely implement this trait, you must guarantee that your type is a `#[repr(transparent)]`
 /// wrapper around a `Base<T::Inner>`. That is, your struct must look like this:
 /// ```no_run
-/// use qvm_rt::value::{gc::Allocated, base::Base};
+/// use quest::value::{gc::Allocated, base::Base};
 ///
 /// #[repr(transparent)]
 /// struct MyStruct(Base<Inner>);
@@ -53,7 +53,7 @@ pub unsafe trait Allocated: 'static {
 ///
 /// # Examples
 /// ```
-/// # use qvm_rt::value::{gc::{Gc, Ref, Mut}, ty::Text};
+/// # use quest::value::{gc::{Gc, Ref, Mut}, ty::Text};
 /// let text = Text::from_static_str("Quest is cool");
 ///
 /// let textref: Ref<Text> = text.as_ref()?;
@@ -64,7 +64,7 @@ pub unsafe trait Allocated: 'static {
 /// textmut.push('!');
 ///
 /// assert_eq!(*textmut, "Quest is cool!");
-/// # qvm_rt::Result::<()>::Ok(())
+/// # quest::Result::<()>::Ok(())
 /// ```
 #[repr(transparent)]
 pub struct Gc<T: Allocated>(NonNull<T>);
@@ -130,8 +130,8 @@ impl<T: Allocated> Gc<T> {
 	/// Creates a new `Gc<T>` from `ptr`.
 	///
 	/// # Safety
-	/// The `Base<T>` must have been allocated via [`qvm_rt::alloc`]/[`qvm_rt::alloc_zeroed`]/
-	/// [`qvm_rt::realloc`]. Additionally, the pointer point to a valid `Base<T>` instance, which
+	/// The `Base<T>` must have been allocated via [`quest::alloc`]/[`quest::alloc_zeroed`]/
+	/// [`quest::realloc`]. Additionally, the pointer point to a valid `Base<T>` instance, which
 	/// means it must have been properly initialized.
 	///
 	/// Note that a `Base<Any>` is allowed to be constructed from any valid `Base<T>` pointer, as
@@ -178,16 +178,16 @@ impl<T: Allocated> Gc<T> {
 	/// # Examples
 	/// Getting an immutable reference when no mutable ones exist.
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let text = Text::from_static_str("what a wonderful day");
 	///
 	/// assert_eq!(*text.as_ref()?, "what a wonderful day");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	/// You cannot get an immutable reference when a mutable one exists.
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use qvm_rt::{Error, value::ty::Text};
+	/// # use quest::{Error, value::ty::Text};
 	/// let text = Text::from_static_str("what a wonderful day");
 	/// let textmut = text.as_mut()?;
 	///
@@ -197,7 +197,7 @@ impl<T: Allocated> Gc<T> {
 	///
 	/// // now it isn't, so we can get a reference.
 	/// assert_eq!(*text.as_ref()?, "what a wonderful day");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn as_ref(self) -> Result<Ref<T>> {
 		fn updatefn(x: u32) -> Option<u32> {
@@ -232,18 +232,18 @@ impl<T: Allocated> Gc<T> {
 	/// # Examples
 	/// Getting a mutable reference when no immutable ones exist.
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let text = Text::from_static_str("what a wonderful day");
 	/// let mut textmut = text.as_mut()?;
 	///
 	/// textmut.push('!');
 	/// assert_eq!(*textmut, "what a wonderful day!");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	/// You cannot get a mutable reference when any immutable ones exist.
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use qvm_rt::{Error, value::ty::Text};
+	/// # use quest::{Error, value::ty::Text};
 	/// let text = Text::from_static_str("what a wonderful day");
 	/// let textref = text.as_ref()?;
 	///
@@ -255,7 +255,7 @@ impl<T: Allocated> Gc<T> {
 	/// let mut textmut = text.as_mut()?;
 	/// textmut.push('!');
 	/// assert_eq!(*textmut, "what a wonderful day!");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn as_mut(self) -> Result<Mut<T>> {
 		if self.is_frozen() {
@@ -285,7 +285,7 @@ impl<T: Allocated> Gc<T> {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let text1 = Text::from_static_str("Hello");
 	/// let text2 = Text::from_static_str("Hello");
 	/// let text3 = text1;
@@ -305,13 +305,13 @@ impl<T: Allocated> Gc<T> {
 	/// # Examples
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use qvm_rt::{Error, value::ty::Text};
+	/// # use quest::{Error, value::ty::Text};
 	/// let text = Text::from_static_str("Quest is cool");
 	///
 	/// text.as_ref()?.freeze();
 	/// assert!(text.is_frozen());
 	/// assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn is_frozen(&self) -> bool {
 		self.flags().contains(Flags::FROZEN)
@@ -523,7 +523,7 @@ impl<T: Allocated> Mut<T> {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::{Error, value::ty::Text};
+	/// # use quest::{Error, value::ty::Text};
 	/// let text = Text::from_static_str("Quest is cool");
 	/// let mut textmut = text.as_mut()?;
 	/// textmut.push('!');
@@ -531,7 +531,7 @@ impl<T: Allocated> Mut<T> {
 	/// // Text only defines `len` on `Ref<Text>`. Thus, we
 	/// // need to convert reference before we can call `len`.
 	/// assert_eq!(textmut.r().len(), 14);
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	#[inline(always)]
 	pub fn r(&self) -> &Ref<T> {

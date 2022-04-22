@@ -38,7 +38,7 @@ quest_type! {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let text = Text::from_static_str("Hello");
 	///
 	/// // Immutably borrow it. Since we just created it,
@@ -152,7 +152,7 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 ///
 /// # Examples
 /// ```
-/// use qvm_rt::value::ty::{Text, text::fast_hash};
+/// use quest::value::ty::{Text, text::fast_hash};
 ///
 /// let greeting = "hello, world";
 /// let hash = fast_hash(greeting);
@@ -181,7 +181,7 @@ pub const FAST_HASH_START: u64 = 525201411107845655;
 ///
 /// # Examples
 /// ```
-/// use qvm_rt::value::ty::text::{
+/// use quest::value::ty::text::{
 ///    fast_hash, fast_hash_continue, FAST_HASH_START
 /// };
 ///
@@ -223,7 +223,7 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// use qvm_rt::value::ty::Text;
+	/// use quest::value::ty::Text;
 	///
 	/// let mut builder = Text::builder();
 	/// // ... use the builder
@@ -240,7 +240,7 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let mut builder = Text::simple_builder();
 	///
 	/// builder.push_str("Hello");
@@ -264,10 +264,10 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let text = Text::new();
 	/// assert!(text.as_ref()?.is_empty());
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	#[must_use]
 	pub fn new() -> Gc<Self> {
@@ -284,7 +284,7 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let text = Text::with_capacity(13);
 	///
 	/// let mut textmut = text.as_mut()?;
@@ -293,7 +293,7 @@ impl Text {
 	/// textmut.push('!');
 	///
 	/// assert_eq!(*textmut, "Hello, world!");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	#[must_use]
 	pub fn with_capacity(capacity: usize) -> Gc<Self> {
@@ -310,7 +310,7 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let fruit = "Banana";
 	///
 	/// // You really should use `from_static_str` as `fruit`
@@ -318,7 +318,7 @@ impl Text {
 	/// let text = Text::from_str(fruit);
 	///
 	/// assert_eq!(*text.as_ref()?, "Banana");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	#[allow(clippy::should_implement_trait)]
 	#[must_use]
@@ -343,11 +343,11 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let fruit = "Orange";
 	/// let text = Text::from_static_str(fruit);
 	/// assert_eq!(*text.as_ref()?, "Orange");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	#[must_use]
 	pub fn from_static_str(text: &'static str) -> Gc<Self> {
@@ -376,11 +376,11 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let fruit = "Apple".to_string();
 	/// let text = Text::from_string(fruit);
 	/// assert_eq!(*text.as_ref()?, "Apple");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	#[must_use]
 	pub fn from_string(string: String) -> Gc<Self> {
@@ -418,7 +418,7 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let greeting = Text::from_static_str("Hello, world");
 	/// assert_eq!(greeting.as_ref()?.len(), 12);
 	///
@@ -427,7 +427,7 @@ impl Text {
 	///
 	/// # // ensure allocated things have valid length too
 	/// # assert_eq!(Text::from_str(&"hi".repeat(123)).as_ref()?.len(), 246);
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn len(&self) -> usize {
 		if self.is_embedded() {
@@ -453,7 +453,7 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// // Allocate enough memory to hold our string.
 	/// let text = Text::with_capacity(15);
 	/// let mut textmut = text.as_mut()?;
@@ -471,7 +471,7 @@ impl Text {
 	///
 	/// // Now the data's initialized
 	/// assert_eq!(*textmut, "Hello, world");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub unsafe fn set_len(&mut self, new_len: usize) {
 		debug_assert!(new_len <= self.capacity(), "new len is larger than capacity");
@@ -506,13 +506,13 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let empty = Text::from_static_str("");
 	/// assert!(empty.as_ref()?.is_empty());
 	///
 	/// let nonempty = Text::from_static_str("nonempty");
 	/// assert!(!nonempty.as_ref()?.is_empty());
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn is_empty(&self) -> bool {
 		self.len() == 0
@@ -522,10 +522,10 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let text = Text::with_capacity(12);
 	/// assert!(text.as_ref()?.capacity() >= 12);
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn capacity(&self) -> usize {
 		if self.is_embedded() {
@@ -550,13 +550,13 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let text = Text::from_static_str("Hello");
 	/// let ptr = text.as_ref()?.as_ptr();
 	///
 	/// assert_eq!(unsafe { *ptr }, b'H');
 	/// assert_eq!(unsafe { *ptr.offset(4) }, b'o');
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn as_ptr(&self) -> *const u8 {
 		let inner = self.inner();
@@ -584,7 +584,7 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// // Allocate enough memory to hold our string.
 	/// let text = Text::with_capacity(15);
 	/// let mut textmut = text.as_mut()?;
@@ -602,7 +602,7 @@ impl Text {
 	///
 	/// // Now the data's initialized
 	/// assert_eq!(*textmut, "Hello, world");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
 		// If we're embedded, just use a reference to the buffer itself.
@@ -624,10 +624,10 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let text = Text::from_static_str("Hello, 🌎");
 	/// assert_eq!(b"Hello, \xF0\x9F\x8C\x8E", text.as_ref()?.as_bytes());
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	#[inline]
 	pub fn as_bytes(&self) -> &[u8] {
@@ -639,10 +639,10 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let text = Text::from_static_str("Hello, 🌎");
 	/// assert_eq!(text.as_ref()?.as_str(), "Hello, 🌎");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	#[inline]
 	pub fn as_str(&self) -> &str {
@@ -658,7 +658,7 @@ impl Text {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::ty::Text;
+	/// # use quest::value::ty::Text;
 	/// let text = Text::from_str("Hello, 🌎");
 	/// let dup = text.as_ref()?.dup();
 	///
@@ -668,7 +668,7 @@ impl Text {
 	/// text.as_mut()?.push('!');
 	/// assert_eq!(*text.as_ref()?, "Hello, 🌎!");
 	/// assert_eq!(*dup.as_ref()?, "Hello, 🌎");
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	// NOTE: currently, if you `dup` then mutably borrow, it'll make a new buffer and ignore the old
 	// one. As such, if both the original and `dup`'d ones mutably borrow, then the original buffer

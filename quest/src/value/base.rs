@@ -258,12 +258,12 @@ impl Header {
 	/// # Examples
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use qvm_rt::{Error, value::ty::Text};
+	/// # use quest::{Error, value::ty::Text};
 	/// let text = Text::from_static_str("Quest is cool");
 	///
 	/// text.as_ref()?.freeze();
 	/// assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
-	/// # qvm_rt::Result::<()>::Ok(())
+	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn freeze(&self) {
 		self.flags().insert_internal(Flags::FROZEN);

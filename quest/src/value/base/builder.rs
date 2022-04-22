@@ -11,9 +11,9 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 ///
 /// # Example
 /// ```
-/// use qvm_rt::value::{AsAny, Gc};
-/// use qvm_rt::value::ty::{Pristine, Text};
-/// use qvm_rt::value::base::{Base, Flags};
+/// use quest::value::{AsAny, Gc};
+/// use quest::value::ty::{Pristine, Text};
+/// use quest::value::base::{Base, Flags};
 ///
 /// let mut builder = Base::<i64>::builder();
 /// builder.set_data(0x1234);
@@ -48,7 +48,7 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 ///        .as_ref()?
 ///        .as_str()
 /// );
-/// # qvm_rt::Result::Ok(())
+/// # quest::Result::Ok(())
 /// ```
 #[must_use]
 pub struct Builder<T: 'static>(NonNull<Base<T>>);
@@ -72,22 +72,22 @@ impl<T> Builder<T> {
 	///
 	/// # Safety
 	/// For this function to be safe to use, you must ensure the following invariants hold:
-	/// - `ptr` was allocated via [`qvm_rt::alloc_zeroed`].
+	/// - `ptr` was allocated via [`quest::alloc_zeroed`].
 	/// - `ptr` is a properly aligned for `Base<T>`.
 	/// - `ptr` can be written to.
 	///
-	/// *Technically*, `ptr` can be allocated via [`qvm_rt::alloc`]/[`qvm_rt::realloc`], however
+	/// *Technically*, `ptr` can be allocated via [`quest::alloc`]/[`quest::realloc`], however
 	/// you would need to zero out the contents first. (At which point, just use
-	/// [`qvm_rt::alloc_zeroed`].)
+	/// [`quest::alloc_zeroed`].)
 	///
 	/// # Example
 	/// ```
-	/// # use qvm_rt::value::base::{Builder, Base};
+	/// # use quest::value::base::{Builder, Base};
 	/// let layout = std::alloc::Layout::new::<Base<u8>>();
 	///
 	/// // SAFETY: we're guaranteed `layout` is not zero-sized,
 	/// // as `Base<T>` is nonzero sized.
-	/// let ptr = unsafe { qvm_rt::alloc_zeroed(layout) }.cast::<Base<u8>>();
+	/// let ptr = unsafe { quest::alloc_zeroed(layout) }.cast::<Base<u8>>();
 	///
 	/// // SAFETY: It was just zero allocated with the proper layout, which
 	/// // also means we can write to it.
@@ -108,23 +108,23 @@ impl<T> Builder<T> {
 
 	/// Creates a new [`Builder`] from a pointer to an uninitialized [`Base<T>`].
 	///
-	/// Note that if `ptr` was allocated via [`qvm_rt::alloc_zeroed`], you should use [`new_zeroed`]
+	/// Note that if `ptr` was allocated via [`quest::alloc_zeroed`], you should use [`new_zeroed`]
 	/// instead, as it won't do unnecessary writes.
 	///
 	/// # Safety
 	/// For this function to be safe to use, you must ensure the following invariants hold:
-	/// - `ptr` was allocated via [`qvm_rt::alloc`]/[`qvm_rt::realloc`]/[`qvm_rt::alloc_zeroed`].
+	/// - `ptr` was allocated via [`quest::alloc`]/[`quest::realloc`]/[`quest::alloc_zeroed`].
 	/// - `ptr` is a properly aligned for `Base<T>`.
 	/// - `ptr` can be written to.
 	///
 	/// # Example
 	/// ```
-	/// # use qvm_rt::value::base::{Builder, Base};
+	/// # use quest::value::base::{Builder, Base};
 	/// let layout = std::alloc::Layout::new::<Base<u8>>();
 	///
 	/// // SAFETY: we're guaranteed `layout` is not zero-sized,
 	/// // as `Base<T>` is nonzero sized.
-	/// let ptr = unsafe { qvm_rt::alloc(layout) }.cast::<Base<u8>>();
+	/// let ptr = unsafe { quest::alloc(layout) }.cast::<Base<u8>>();
 	///
 	/// // SAFETY: It was just allocated with the proper layout, which
 	/// // also means we can write to it.
@@ -133,7 +133,7 @@ impl<T> Builder<T> {
 	/// // As we didn't zero-initialize it, we need to call these three methods.
 	/// builder.set_data(12u8);
 	/// builder.allocate_attributes(0); // No attrs needed.
-	/// builder.set_parents(qvm_rt::value::base::NoParents);
+	/// builder.set_parents(quest::value::base::NoParents);
 	///
 	/// // SAFETY: We just initialized the data, attributes, and parents fields.
 	/// let base = unsafe { builder.finish() };
@@ -162,7 +162,7 @@ impl<T> Builder<T> {
 	///
 	/// # Example
 	/// ```
-	/// # use qvm_rt::value::base::Builder;
+	/// # use quest::value::base::Builder;
 	/// let mut builder = Builder::<u8>::allocate();
 	/// builder.set_data(34u8);
 	///
@@ -187,7 +187,7 @@ impl<T> Builder<T> {
 	///
 	/// # Basic usage
 	/// ```
-	/// # use qvm_rt::value::base::Base;
+	/// # use quest::value::base::Base;
 	/// let builder = Base::builder();
 	/// let ptr = builder.as_ptr();
 	/// // ... do stuff with `ptr`.
@@ -203,9 +203,9 @@ impl<T> Builder<T> {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::base::Base;
-	/// use qvm_rt::value::{AsAny, Gc};
-	/// use qvm_rt::value::ty::Text;
+	/// # use quest::value::base::Base;
+	/// use quest::value::{AsAny, Gc};
+	/// use quest::value::ty::Text;
 	///
 	/// let mut builder = Base::<()>::builder();
 	/// builder.allocate_attributes(3);
@@ -231,7 +231,7 @@ impl<T> Builder<T> {
 	///         .as_ref()?
 	///         .as_str()
 	/// );
-	/// # qvm_rt::Result::Ok(())
+	/// # quest::Result::Ok(())
 	/// ```
 	pub fn allocate_attributes(&mut self, attr_capacity: usize) {
 		if let Ok(mut attrs) = unsafe { Header::attributes_raw(self.header()) } {
@@ -245,8 +245,8 @@ impl<T> Builder<T> {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::base::Base;
-	/// use qvm_rt::value::ty::{Kernel, Object, List};
+	/// # use quest::value::base::Base;
+	/// use quest::value::ty::{Kernel, Object, List};
 	///
 	/// let parents = List::from_slice(&[
 	///     Kernel::instance(),
@@ -282,7 +282,7 @@ impl<T> Builder<T> {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::base::{Base, Flags};
+	/// # use quest::value::base::{Base, Flags};
 	/// let mut builder = Base::<()>::builder();
 	///
 	/// const FLAG_IS_SUPER_DUPER_COOL: u32 = Flags::USER0;
@@ -309,7 +309,7 @@ impl<T> Builder<T> {
 	///
 	/// # Examples
 	/// ```
-	/// # use qvm_rt::value::base::{Base, Flags};
+	/// # use quest::value::base::{Base, Flags};
 	/// let mut builder = Base::<()>::builder();
 	///
 	/// // Set custom flags, if you attribute meanings to them.
@@ -338,7 +338,7 @@ impl<T> Builder<T> {
 	///
 	/// # Example
 	/// ```
-	/// # use qvm_rt::value::base::{Base, Flags};
+	/// # use quest::value::base::{Base, Flags};
 	/// use std::num::NonZeroU64;
 	/// let mut builder = Base::<NonZeroU64>::builder();
 	///
@@ -393,7 +393,7 @@ impl<T> Builder<T> {
 	///
 	/// # Basic usage
 	/// ```
-	/// # use qvm_rt::value::base::Base;
+	/// # use quest::value::base::Base;
 	/// let builder = Base::<i32>::builder();
 	/// let base_ptr: *const Base<i32> = builder.base();
 	/// // ... do stuff with the `base_ptr`.
@@ -410,7 +410,7 @@ impl<T> Builder<T> {
 	///
 	/// # Basic usage
 	/// ```
-	/// # use qvm_rt::value::base::Base;
+	/// # use quest::value::base::Base;
 	/// let mut builder = Base::<i32>::builder();
 	/// let ptr: *mut Base<i32> = builder.base_mut();
 	/// // ... do stuff with `ptr`.
@@ -427,7 +427,7 @@ impl<T> Builder<T> {
 	///
 	/// # Basic usage
 	/// ```
-	/// # use qvm_rt::value::base::{Base, Header};
+	/// # use quest::value::base::{Base, Header};
 	/// let builder = Base::<i32>::builder();
 	/// let ptr: *const Header = builder.header();
 	/// // ... do stuff with `ptr`.
@@ -444,7 +444,7 @@ impl<T> Builder<T> {
 	///
 	/// # Basic usage
 	/// ```
-	/// # use qvm_rt::value::base::{Base, Header};
+	/// # use quest::value::base::{Base, Header};
 	/// let mut builder = Base::<i32>::builder();
 	/// let ptr: *mut Header = builder.header_mut();
 	/// // ... do stuff with `ptr`.
@@ -461,7 +461,7 @@ impl<T> Builder<T> {
 	///
 	/// # Basic usage
 	/// ```
-	/// # use qvm_rt::value::base::Base;
+	/// # use quest::value::base::Base;
 	/// let builder = Base::<i32>::builder();
 	/// let ptr: *const i32 = builder.data();
 	/// // ... do stuff with `ptr`.
@@ -478,7 +478,7 @@ impl<T> Builder<T> {
 	///
 	/// # Basic usage
 	/// ```
-	/// # use qvm_rt::value::base::Base;
+	/// # use quest::value::base::Base;
 	/// let mut builder = Base::<i32>::builder();
 	/// let ptr: *mut i32 = builder.data_mut();
 	/// // ... do stuff with `ptr`.

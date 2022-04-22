@@ -2,11 +2,11 @@
 #![allow(clippy::all, clippy::nursery, clippy::pedantic)]
 
 #[macro_use]
-use qvm_rt;
-use qvm_rt::value::ty::*;
-use qvm_rt::value::*;
-use qvm_rt::vm::*;
-use qvm_rt::Result;
+use quest;
+use quest::value::ty::*;
+use quest::value::*;
+use quest::vm::*;
+use quest::Result;
 // fn dup(mut obj: AnyValue, _: Args<'_>) -> Result<AnyValue> {
 // 	let mut new = obj.downcast::<Gc<Text>>().unwrap().as_ref()?.dup();
 // 	new.as_mut()?.parents().as_mut()?.push(obj.parents()?.as_ref()?.as_slice()[0]);
@@ -30,7 +30,7 @@ fn concat(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 }
 macro_rules! rustfn {
 	($name:ident) => {
-		Value::from(qvm_rt::RustFn_new!(stringify!($name), $name)).any()
+		Value::from(quest::RustFn_new!(stringify!($name), $name)).any()
 	};
 }
 
@@ -53,7 +53,7 @@ macro_rules! value {
 
 fn main() -> Result<()> {
 	let fib = {
-		let mut builder = qvm_rt::vm::Block::builder(SourceLocation {});
+		let mut builder = quest::vm::Block::builder(SourceLocation {});
 
 		let n = builder.named_local("n");
 		let fib = builder.named_local("fib");
@@ -94,7 +94,7 @@ fn main6() -> Result<()> {
 	// 	let mut x = "hello".as_any();
 	// 	x.set_attr("what".as_any(), "yup".as_any())?;
 
-	// 	let block = qvm_rt::vm::Block::_new(
+	// 	let block = quest::vm::Block::_new(
 	// 		// (negative local values indicate named values, eg within source code.)
 	// 		vec![
 	// 			Opcode::ConstLoad as u8,
@@ -133,7 +133,7 @@ fn main6() -> Result<()> {
 }
 
 fn main5() -> Result<()> {
-	let mut stream = qvm_rt::parser::Stream::new(
+	let mut stream = quest::parser::Stream::new(
 		r###"
 add = fn (bar, baz) {
 	return bar ++ baz
@@ -142,7 +142,7 @@ add = fn (bar, baz) {
 		None,
 	);
 
-	while let Some(tkn) = qvm_rt::parser::SpannedToken::parse(&mut stream).unwrap() {
+	while let Some(tkn) = quest::parser::SpannedToken::parse(&mut stream).unwrap() {
 		dbg!(tkn.token);
 	}
 
@@ -178,7 +178,7 @@ fn main3() -> Result<()> {
 }
 
 fn main2() -> Result<()> {
-	let func1 = qvm_rt::RustFn_new!(
+	let func1 = quest::RustFn_new!(
 		"func1",
 		justargs | args | {
 			println!("func1: {:?}", args);
@@ -187,7 +187,7 @@ fn main2() -> Result<()> {
 		}
 	);
 
-	let func2 = qvm_rt::RustFn_new!(
+	let func2 = quest::RustFn_new!(
 		"func2",
 		justargs | args | {
 			println!("func2: {:?}", args);
@@ -308,7 +308,7 @@ fn lists_work() {
 }
 
 fn to_any_works() {
-	// let rfn = Value::from(qvm_rt::RustFnnew!("foo", foo)).any();
+	// let rfn = Value::from(quest::RustFnnew!("foo", foo)).any();
 	// dbg!(rfn);
 
 	let mut text1 = Text::from_static_str("Hello, world");
