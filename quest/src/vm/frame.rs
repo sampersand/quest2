@@ -79,6 +79,9 @@ impl Frame {
 				.add(block.num_of_unnamed_locals)
 				.cast::<Option<AnyValue>>();
 
+			// The scratch register defaults to null.
+			unnamed_locals.write(AnyValue::default());
+
 			// copy positional arguments over into the first few named local arguments.
 			named_locals.copy_from_nonoverlapping(
 				args.positional().as_ptr().cast::<Option<AnyValue>>(),
@@ -611,7 +614,10 @@ impl Gc<Frame> {
 			}
 		});
 
-		result
+		result?;
+
+		// read the implicit return value
+		self.as_mut().map(|this| unsafe { *this.unnamed_locals })
 	}
 
 	fn next_op(&mut self) -> Result<Option<Opcode>> {
@@ -623,52 +629,48 @@ impl Gc<Frame> {
 		}
 	}
 
-	fn run_inner(mut self) -> Result<AnyValue> {
+	fn run_inner(mut self) -> Result<()> {
 		while let Some(op) = self.next_op()? {
-			self.run_opcode(op)?;
+			match op {
+				Opcode::NoOp => self.op_noop(),
+				Opcode::Debug => self.op_debug(),
+
+				Opcode::Mov => self.op_mov(),
+				Opcode::Call => self.op_call(),
+				Opcode::CallSimple => self.op_call_simple(),
+
+				Opcode::ConstLoad => self.op_constload(),
+				Opcode::CurrentFrame => self.op_currentframe(),
+				Opcode::GetAttr => self.op_getattr(),
+				Opcode::HasAttr => self.op_hasattr(),
+				Opcode::SetAttr => self.op_setattr(),
+				Opcode::DelAttr => self.op_delattr(),
+				Opcode::CallAttr => self.op_callattr(),
+				Opcode::CallAttrSimple => self.op_callattr_simple(),
+
+				Opcode::Add => self.op_add(),
+				Opcode::Subtract => self.op_subtract(),
+				Opcode::Multuply => self.op_multuply(),
+				Opcode::Divide => self.op_divide(),
+				Opcode::Modulo => self.op_modulo(),
+				Opcode::Power => self.op_power(),
+
+				Opcode::Not => self.op_not(),
+				Opcode::Negate => self.op_negate(),
+				Opcode::Equal => self.op_equal(),
+				Opcode::NotEqual => self.op_notequal(),
+				Opcode::LessThan => self.op_lessthan(),
+				Opcode::GreaterThan => self.op_greaterthan(),
+				Opcode::LessEqual => self.op_lessequal(),
+				Opcode::GreaterEqual => self.op_greaterequal(),
+				Opcode::Compare => self.op_compare(),
+
+				Opcode::Index => self.op_index(),
+				Opcode::IndexAssign => self.op_indexassign(),
+			}?;
 		}
 
-		Ok(AnyValue::default())
-	}
-
-	fn run_opcode(&mut self, op: Opcode) -> Result<()> {
-		match op {
-			Opcode::NoOp => self.op_noop(),
-			Opcode::Debug => self.op_debug(),
-
-			Opcode::Mov => self.op_mov(),
-			Opcode::Call => self.op_call(),
-			Opcode::CallSimple => self.op_call_simple(),
-
-			Opcode::ConstLoad => self.op_constload(),
-			Opcode::CurrentFrame => self.op_currentframe(),
-			Opcode::GetAttr => self.op_getattr(),
-			Opcode::HasAttr => self.op_hasattr(),
-			Opcode::SetAttr => self.op_setattr(),
-			Opcode::DelAttr => self.op_delattr(),
-			Opcode::CallAttr => self.op_callattr(),
-			Opcode::CallAttrSimple => self.op_callattr_simple(),
-
-			Opcode::Add => self.op_add(),
-			Opcode::Subtract => self.op_subtract(),
-			Opcode::Multuply => self.op_multuply(),
-			Opcode::Divide => self.op_divide(),
-			Opcode::Modulo => self.op_modulo(),
-			Opcode::Power => self.op_power(),
-
-			Opcode::Not => self.op_not(),
-			Opcode::Negate => self.op_negate(),
-			Opcode::Equal => self.op_equal(),
-			Opcode::NotEqual => self.op_notequal(),
-			Opcode::LessThan => self.op_lessthan(),
-			Opcode::GreaterThan => self.op_greaterthan(),
-			Opcode::LessEqual => self.op_lessequal(),
-			Opcode::GreaterEqual => self.op_greaterequal(),
-			Opcode::Compare => self.op_compare(),
-
-			Opcode::Index => self.op_index(),
-			Opcode::IndexAssign => self.op_indexassign(),
-		}
+		Ok(())
 	}
 }
 

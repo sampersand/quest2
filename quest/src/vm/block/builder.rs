@@ -12,6 +12,7 @@ pub struct Builder {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Local {
+	Scratch,
 	Unnamed(usize),
 	Named(usize),
 }
@@ -25,9 +26,13 @@ impl Builder {
 			loc,
 			code: Vec::default(),
 			constants: Vec::default(),
-			num_of_unnamed_locals: 0,
+			num_of_unnamed_locals: 1, // The first register is scratch
 			named_locals: Vec::default(),
 		}
+	}
+
+	pub fn scratch(&self) -> Local {
+		Local::Scratch
 	}
 
 	pub fn unnamed_local(&mut self) -> Local {
@@ -65,6 +70,7 @@ impl Builder {
 
 	unsafe fn local(&mut self, local: Local) {
 		match local {
+			Local::Scratch => self.code.push(0),
 			Local::Unnamed(n) if n < COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize => {
 				self.code.push(n as u8)
 			},
