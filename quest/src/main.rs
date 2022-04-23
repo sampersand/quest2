@@ -70,7 +70,6 @@ fn main() -> Result<()> {
 			.get_attr(n, scratch, scratch)
 			.less_equal(n, one, tmp)
 			.call_attr_simple(tmp, tmp2, &[scratch], scratch)
-
 			.subtract(n, one, n)
 			.call_simple(fib, &[n], tmp)
 			.subtract(n, one, n)
@@ -395,4 +394,3 @@ fn to_any_works() {
 	// dbg!(n.any().is_a::<bool>());
 	*/
 }
-	

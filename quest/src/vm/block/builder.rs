@@ -1,6 +1,6 @@
 use super::Block;
 use crate::value::{ty::Text, AnyValue, Gc};
-use crate::vm::{Opcode, SourceLocation};
+use crate::vm::{bytecode::MAX_ARGUMENTS_FOR_SIMPLE_CALL, Opcode, SourceLocation};
 
 pub struct Builder {
 	loc: SourceLocation,
@@ -137,6 +137,13 @@ impl Builder {
 	}
 
 	pub fn call_simple(&mut self, what: Local, args: &[Local], dst: Local) -> &mut Self {
+		assert!(
+			args.len() <= MAX_ARGUMENTS_FOR_SIMPLE_CALL,
+			"too many arguments given for call_simple: {}, max {}",
+			args.len(),
+			MAX_ARGUMENTS_FOR_SIMPLE_CALL
+		);
+
 		unsafe {
 			self.opcode(Opcode::CallSimple);
 			self.local(what);
@@ -221,6 +228,13 @@ impl Builder {
 		args: &[Local],
 		dst: Local,
 	) -> &mut Self {
+		assert!(
+			args.len() <= MAX_ARGUMENTS_FOR_SIMPLE_CALL,
+			"too many arguments given for call_attr_simple: {}, max {}",
+			args.len(),
+			MAX_ARGUMENTS_FOR_SIMPLE_CALL
+		);
+
 		unsafe {
 			self.opcode(Opcode::CallAttrSimple);
 			self.local(obj);

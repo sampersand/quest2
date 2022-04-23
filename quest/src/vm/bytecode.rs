@@ -1,8 +1,7 @@
 use crate::vm::SourceLocation;
 use crate::AnyValue;
 
-type Local = usize;
-type Offset = isize;
+pub const MAX_ARGUMENTS_FOR_SIMPLE_CALL: usize = 16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]

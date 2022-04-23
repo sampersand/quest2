@@ -11,7 +11,7 @@ impl SimpleBuilder {
 
 	pub fn with_capacity(capacity: usize) -> Self {
 		let mut builder = Text::builder();
-		builder.allocate_buffer(capacity);		
+		builder.allocate_buffer(capacity);
 		Self(builder)
 	}
 

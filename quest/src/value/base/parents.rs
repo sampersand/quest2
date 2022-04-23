@@ -166,7 +166,7 @@ impl ParentsGuard<'_> {
 	) -> Result<AnyValue> {
 		if obj.is_a::<bool>() {
 			if attr.try_eq_intern(crate::value::Intern::r#return)? {
-				return crate::value::ty::object::funcs::r#return(obj, args)
+				return crate::value::ty::object::funcs::r#return(obj, args);
 			}
 		}
 

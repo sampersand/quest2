@@ -139,7 +139,6 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 	alloc::Layout::array::<u8>(cap).unwrap()
 }
 
-
 /// A hash function that prioritizes speed over uniqueness.
 ///
 /// Because [`Text`]s are frequently used as attribute keys, repeated hashes and comparisons on them
@@ -172,8 +171,8 @@ pub const FAST_HASH_START: u64 = 525201411107845655;
 /// Continue hashing where you left off.
 ///
 /// Sometimes you need to hash an input that isn't necessarily contiguous (for example,
-/// checking the hash that two concatenated [`Text`]s _would_ have). This function let's you 
-/// hash in a piecewise fashion. 
+/// checking the hash that two concatenated [`Text`]s _would_ have). This function let's you
+/// hash in a piecewise fashion.
 ///
 /// Note that the initial `hash` must begin with [`FAST_HASH_START`].
 ///
@@ -247,7 +246,7 @@ impl Text {
 	/// builder.push_str(", world");
 	/// builder.push('!');
 	/// let text = builder.finish();
-	/// 
+	///
 	/// assert_eq!(*text.as_ref().unwrap(), "Hello, world!");
 	/// ```
 	pub fn simple_builder() -> SimpleBuilder {

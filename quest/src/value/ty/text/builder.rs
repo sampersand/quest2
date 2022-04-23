@@ -33,15 +33,11 @@ impl Builder {
 
 	// SAFETY: not actually unsafe, because `new` is the worrisome
 	pub fn inner_mut(&mut self) -> &mut Inner {
-		unsafe {
-			&mut *self.0.data_mut()
-		}
+		unsafe { &mut *self.0.data_mut() }
 	}
 
 	pub fn text_mut(&mut self) -> &mut Text {
-		unsafe {
-			&mut *self.0.base_mut().cast::<Text>()
-		}
+		unsafe { &mut *self.0.base_mut().cast::<Text>() }
 	}
 
 	pub fn allocate_buffer(&mut self, capacity: usize) {
@@ -49,7 +45,6 @@ impl Builder {
 			self.insert_flags(FLAG_EMBEDDED);
 			return;
 		}
-
 
 		unsafe {
 			let ptr = crate::alloc(super::alloc_ptr_layout(capacity)).as_ptr();
@@ -67,8 +62,6 @@ impl Builder {
 	pub fn finish(mut self) -> Gc<Text> {
 		self.text_mut().recalculate_hash(); // assign the hash.
 
-		unsafe {
-			Gc::from_inner(self.0.finish())
-		}
+		unsafe { Gc::from_inner(self.0.finish()) }
 	}
 }

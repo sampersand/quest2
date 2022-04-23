@@ -3,12 +3,13 @@ use super::bytecode::Opcode;
 use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
 use crate::value::{AsAny, Gc, HasDefaultParent, Intern};
-use crate::vm::{Args, Block};
+use crate::vm::{bytecode::MAX_ARGUMENTS_FOR_SIMPLE_CALL, Args, Block};
 use crate::{AnyValue, Error, Result};
 use std::alloc::Layout;
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
+use std::mem::MaybeUninit;
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -350,13 +351,20 @@ impl Gc<Frame> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let amnt = this.next_count();
-		let mut positional = Vec::with_capacity(amnt);
 
-		for _ in 0..amnt {
-			positional.push(this.next_local()?);
+		debug_assert!(amnt <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
+		let mut positional = [MaybeUninit::<AnyValue>::uninit(); MAX_ARGUMENTS_FOR_SIMPLE_CALL];
+		let ptr = positional.as_mut_ptr().cast::<AnyValue>();
+
+		for i in 0..amnt {
+			unsafe {
+				ptr.add(i).write(this.next_local()?);
+			}
 		}
+		let slice = unsafe { std::slice::from_raw_parts(ptr, amnt) };
+
 		drop(this);
-		let result = object.call(Args::new(&positional, &[]))?;
+		let result = object.call(Args::new(slice, &[]))?;
 		self.as_mut()?.store_next_local(result);
 
 		Ok(())
@@ -470,13 +478,20 @@ impl Gc<Frame> {
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
 		let amnt = this.next_count();
-		let mut positional = Vec::with_capacity(amnt);
 
-		for _ in 0..amnt {
-			positional.push(this.next_local()?);
+		debug_assert!(amnt <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
+		let mut positional = [MaybeUninit::<AnyValue>::uninit(); MAX_ARGUMENTS_FOR_SIMPLE_CALL];
+		let ptr = positional.as_mut_ptr().cast::<AnyValue>();
+
+		for i in 0..amnt {
+			unsafe {
+				ptr.add(i).write(this.next_local()?);
+			}
 		}
+		let slice = unsafe { std::slice::from_raw_parts(ptr, amnt) };
+
 		drop(this);
-		let result = object.call_attr(attr, Args::new(&positional, &[]))?;
+		let result = object.call_attr(attr, Args::new(slice, &[]))?;
 		self.as_mut()?.store_next_local(result);
 
 		Ok(())
@@ -679,11 +694,9 @@ quest_type_attrs! { for Gc<Frame>, parents [Kernel, Callable];
 	// "@text" => meth qs_at_text,
 }
 
-
 #[cfg(test)]
 mod tests {
 	use super::*;
-
 
 	#[test]
 	fn test_fibonacci() {
