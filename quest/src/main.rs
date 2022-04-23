@@ -84,9 +84,11 @@ fn main() -> Result<()> {
 		.unwrap()
 		.set_attr("fib".as_any(), fib.as_any())?;
 
-	let result = fib.run(Args::new(&[30.as_any()], &[]));
+	let fib_of = 30;
+	let result = fib.run(Args::new(&[fib_of.as_any()], &[]))?;
 
-	dbg!(result);
+	println!("fib({:?}) = {:?}", fib_of, result);
+
 	Ok(())
 }
 
