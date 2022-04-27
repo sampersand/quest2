@@ -100,6 +100,10 @@ impl Flags {
 		self.0.load(Ordering::SeqCst)
 	}
 
+	pub fn get_user(&self) -> u32 {
+		self.0.load(Ordering::SeqCst) & Self::USER_FLAGS_MASK
+	}
+
 	pub fn mask(&self, mask: u32) -> u32 {
 		self.get() & mask
 	}

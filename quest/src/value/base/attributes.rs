@@ -351,6 +351,11 @@ mod tests {
 		assert_matches!(text.as_ref().unwrap().get_unbound_attr(ONE), Ok(None));
 	}
 
+	// XXX: This test may spuriously fail with the message `Message("parents are already locked")`.
+	// This is because parent attributes are locked independently of `Base<T>` locking, and all
+	// builtin class parent objects (eg `Integer`, etc.) are shared across all tests. So one test
+	// may be modifying a parent object whilst the other is trying to read from it, which causes
+	// an issue.
 	#[test]
 	fn parents_work() {
 		const ATTR: AnyValue = Value::TRUE.any();

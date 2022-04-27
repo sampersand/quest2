@@ -685,7 +685,7 @@ impl Text {
 
 		let mut builder = Self::builder();
 		let builder_ptr = builder.inner_mut() as *mut Inner;
-		builder.insert_flags(self.flags().get());
+		builder.insert_flags(self.flags().get_user());
 
 		// SAFETY: TODO
 		unsafe {
