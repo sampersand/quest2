@@ -7,9 +7,9 @@ use crate::vm::{bytecode::MAX_ARGUMENTS_FOR_SIMPLE_CALL, Args, Block};
 use crate::{AnyValue, Error, Result};
 use std::alloc::Layout;
 use std::cell::UnsafeCell;
+use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use std::mem::MaybeUninit;
 
 quest_type! {
 	#[derive(Debug, NamedType)]

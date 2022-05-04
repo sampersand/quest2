@@ -2,7 +2,7 @@ use super::{ErrorKind, Result, Stream, Token};
 use crate::value::ty::Integer;
 
 fn determine_base<'a>(stream: &mut Stream<'a>) -> Result<'a, u32> {
-	if stream.take_if_chr('0').is_none() {
+	if !stream.take_if_chr('0') {
 		return Ok(10);
 	}
 

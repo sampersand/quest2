@@ -11,8 +11,7 @@ pub enum ParenType {
 	Curly,
 	Square,
 }
-/*
-*/
+
 #[derive(Debug, Clone, Copy)]
 pub enum Token<'a> {
 	Text(Gc<Text>),
@@ -22,6 +21,9 @@ pub enum Token<'a> {
 	Identifier(&'a str),
 	LeftParen(ParenType),
 	RightParen(ParenType),
+
+	MacroIdentifier(&'a str),
+	MacroLeftParen(ParenType),
 }
 
 #[derive(Debug)]
@@ -34,7 +36,12 @@ fn strip_whitespace_and_comments(stream: &mut Stream<'_>) {
 	loop {
 		stream.take_while(char::is_whitespace);
 
-		if stream.take_if_chr('#').is_none() {
+		if stream.take_str("__EOF__") {
+			stream.take_while(|_| true);
+			break;
+		}
+
+		if !stream.take_if_chr('#') {
 			return;
 		}
 
@@ -59,7 +66,7 @@ impl<'a> Token<'a> {
 			},
 			')' => {
 				stream.advance();
-				Ok(Self::LeftParen(ParenType::Round))
+				Ok(Self::RightParen(ParenType::Round))
 			},
 			'[' => {
 				stream.advance();
@@ -71,7 +78,7 @@ impl<'a> Token<'a> {
 			},
 			'{' => {
 				stream.advance();
-				Ok(Self::RightParen(ParenType::Curly))
+				Ok(Self::LeftParen(ParenType::Curly))
 			},
 			'}' => {
 				stream.advance();
@@ -79,7 +86,22 @@ impl<'a> Token<'a> {
 			},
 			'\'' | '\"' => text::parse_text(stream).map(Option::unwrap),
 			'0'..='9' => integer::parse_integer(stream).map(Option::unwrap), // technically should parse floats too...
-			a if a.is_alphabetic() => Ok(Self::Identifier(stream.take_while(char::is_alphanumeric))),
+			'$' => {
+				stream.advance();
+				if stream.take_if_chr('[') {
+					return Ok(Self::MacroLeftParen(ParenType::Square));
+				}
+
+				let ident = stream.take_while(|c| c.is_alphanumeric() || c == '_');
+				if ident.is_empty() {
+					Ok(Self::Symbol("$"))
+				} else {
+					Ok(Self::MacroIdentifier(ident))
+				}
+			}
+			a if a.is_alphabetic() || a == '_' => {
+				Ok(Self::Identifier(stream.take_while(|c| c.is_alphanumeric() || c == '_')))
+			},
 			a if is_able_to_compose_an_operator(a) => {
 				Ok(Self::Symbol(stream.take_while(is_able_to_compose_an_operator)))
 			},

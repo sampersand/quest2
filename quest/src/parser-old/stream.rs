@@ -4,7 +4,6 @@ use super::{SourceLocation, Span};
 pub struct Stream<'a> {
 	filename: Option<&'a str>,
 	src: &'a str,
-	// iter: RefCell<Peekable<Chars<'a>>>,
 	lineno: usize,
 }
 
@@ -90,8 +89,8 @@ impl<'a> Stream<'a> {
 		c
 	}
 
-	pub fn take_if_chr(&mut self, chr: char) -> Option<char> {
-		self.take_if(|c| c == chr)
+	pub fn take_if_chr(&mut self, chr: char) -> bool {
+		self.take_if(|c| c == chr).is_some()
 	}
 
 	pub fn take_str(&mut self, s: &str) -> bool {
