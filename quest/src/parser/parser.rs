@@ -4,7 +4,7 @@ use std::path::Path;
 
 pub struct Parser<'a> {
 	// plugins: Vec<Box<u8>>,
-	patterns: HashMap<String, Pattern<'a>>,
+	patterns: HashMap<String, Box<dyn Pattern<'a>>>,
 	stream: Stream<'a>,
 	peeked_tokens: Vec<Token<'a>>,
 }
@@ -24,12 +24,12 @@ impl<'a> Parser<'a> {
 	}
 
 	// TODO: this doens't take into account optional order of operations _or_ when it was declared.
-	pub fn add_pattern(&mut self, name: String, pattern: Pattern<'a>) {
+	pub fn add_pattern(&mut self, name: String, pattern: Box<dyn Pattern<'a>>) {
 		self.patterns.insert(name, pattern);
 	}
 
-	pub fn get_pattern(&self, name: &str) -> Option<&Pattern<'a>> {
-		self.patterns.get(name)
+	pub fn get_pattern(&self, name: &str) -> Option<&dyn Pattern<'a>> {
+		self.patterns.get(name).map(|x| &**x)
 	}
 
 	// pub fn plugins(&self) -> &[Box<u8>] {
