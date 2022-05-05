@@ -24,8 +24,8 @@ add = fn (bar, baz) {
 		None,
 	);
 
-	while let Some(tkn) = quest::parser::SpannedToken::parse(&mut stream).unwrap() {
-		println!("{:?}", tkn.token);
+	while let Some(tkn) = quest::parser::Token::parse(&mut stream).unwrap() {
+		println!("{:?}", tkn);
 	}
 
 	Ok(())
