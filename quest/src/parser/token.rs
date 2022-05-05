@@ -35,20 +35,42 @@ pub enum TokenContents<'a> {
 	Text(Gc<Text>),
 	Integer(Integer),
 	Float(Float),
-
-	LeftParen(ParenType),
-	RightParen(ParenType),
+	Identifier(&'a str),
+	Symbol(&'a str), // eg `+`, `**`, and user-definable ones too like `<$$>`.
 
 	Period,
 	Semicolon,
 	Comma,
 	ColonColon,
-
-	Identifier(&'a str),
-	Symbol(&'a str), // eg `+`, `**`, and user-definable ones too like `<$$>`.
+	LeftParen(ParenType),
+	RightParen(ParenType),
 
 	MacroIdentifier(&'a str),
 	MacroLeftParen(ParenType),
+}
+
+impl Eq for TokenContents<'_> {}
+impl PartialEq for TokenContents<'_> {
+	fn eq(&self, rhs: &Self) -> bool {
+		match (self, rhs) {
+			(Self::Text(l), Self::Text(r)) => *l.as_ref().unwrap() == *r.as_ref().unwrap(),
+			(Self::Integer(l), Self::Integer(r)) => l == r,
+			(Self::Float(l), Self::Float(r)) => l == r,
+			(Self::Identifier(l), Self::Identifier(r)) => l == r,
+			(Self::Symbol(l), Self::Symbol(r)) => l == r,
+
+			(Self::Period, Self::Period) => true,
+			(Self::Semicolon, Self::Semicolon) => true,
+			(Self::Comma, Self::Comma) => true,
+			(Self::ColonColon, Self::ColonColon) => true,
+			(Self::LeftParen(l), Self::LeftParen(r)) => l == r,
+			(Self::RightParen(l), Self::RightParen(r)) => l == r,
+
+			(Self::MacroIdentifier(l), Self::MacroIdentifier(r)) => l == r,
+			(Self::MacroLeftParen(l), Self::MacroLeftParen(r)) => l == r,
+			_ => false,
+		}
+	}
 }
 
 fn strip_whitespace_and_comments(stream: &mut Stream<'_>) {
@@ -106,12 +128,30 @@ fn take_identifier<'a>(stream: &mut Stream<'a>) -> &'a str {
 impl<'a> TokenContents<'a> {
 	pub fn parse(stream: &mut Stream<'a>) -> Result<'a, Self> {
 		match stream.peek().expect(".parse called with empty stream") {
-			'(' => { stream.advance(); Ok(Self::LeftParen(ParenType::Round)) },
-			'[' => { stream.advance(); Ok(Self::LeftParen(ParenType::Square)) },
-			'{' => { stream.advance(); Ok(Self::LeftParen(ParenType::Curly)) },
-			')' => { stream.advance(); Ok(Self::RightParen(ParenType::Round)) },
-			']' => { stream.advance(); Ok(Self::RightParen(ParenType::Square)) },
-			'}' => { stream.advance(); Ok(Self::RightParen(ParenType::Curly)) },
+			'(' => {
+				stream.advance();
+				Ok(Self::LeftParen(ParenType::Round))
+			},
+			'[' => {
+				stream.advance();
+				Ok(Self::LeftParen(ParenType::Square))
+			},
+			'{' => {
+				stream.advance();
+				Ok(Self::LeftParen(ParenType::Curly))
+			},
+			')' => {
+				stream.advance();
+				Ok(Self::RightParen(ParenType::Round))
+			},
+			']' => {
+				stream.advance();
+				Ok(Self::RightParen(ParenType::Square))
+			},
+			'}' => {
+				stream.advance();
+				Ok(Self::RightParen(ParenType::Curly))
+			},
 			'.' if !stream.peek2().map_or(false, is_symbol_char) => {
 				stream.advance();
 				Ok(Self::Period)
@@ -149,7 +189,7 @@ fn parse_macro<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
 		Some('[') => Ok(TokenContents::MacroLeftParen(ParenType::Square)),
 		Some('{') => Ok(TokenContents::MacroLeftParen(ParenType::Curly)),
 		Some(c) if c.is_alphanumeric() => Ok(TokenContents::MacroIdentifier(take_identifier(stream))),
-		_ => Ok(TokenContents::Symbol("$"))
+		_ => Ok(TokenContents::Symbol("$")),
 	}
 }
 
@@ -209,7 +249,7 @@ fn parse_float<'a>(lhs: Integer, stream: &mut Stream<'a>) -> Result<'a, Float> {
 	}
 
 	let exponent = if stream.take_if(|c| c == 'e' || c == 'E').is_some() {
-		let is_exp_neg = Some('-') == stream.take_if(|c| c == '-' || c=='+');
+		let is_exp_neg = Some('-') == stream.take_if(|c| c == '-' || c == '+');
 		parse_integer_base(stream, 10, is_exp_neg)
 	} else {
 		1

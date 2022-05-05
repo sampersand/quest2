@@ -15,4 +15,5 @@ pub enum ErrorKind {
 	UnterminatedQuote,
 	InvalidEscape,
 	BadCharacterAfterIntegerLiteral(char),
+	UnknownMacroPattern(String),
 }

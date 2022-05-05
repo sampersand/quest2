@@ -1,0 +1,89 @@
+program := {<ast-definition> | <expr>} ;
+ast-definition := '$syntax' {<ast-pattern>} ':=' {<ast-replacement>} ';' ;
+(*ast-pattern
+ := '[' <ast-pattern> ']'
+  | '{' <ast-pattern> '}'
+  | '(' <ast-pattern> ')' [<single-quote-literal>] ['+' | '*'] (* `+` indicates 1+ *)
+  | '<' [<ast-binding> ':'] <ident> '>'
+  | <single-quote-literal>
+  ;
+ast-binding := '$' <ident> ;
+ast-replacement :=
+   ;*)
+
+program := {expr} ;
+expr := primary | assignment | expr BINARY_OP expr ;
+
+assignment
+ := ident '=' expr
+  | primary ('.' | '::') atom '=' expr
+  | primary '[' fn-args ']' '=' expr
+  ;
+
+fn-args := {['*'] expr ','} [['*'] expr] ;
+
+primary
+ := atom
+  | block
+  | '[' fn-args ']' (* array *)
+  | UNARY_OP primary
+  | primary '(' fn-args ')'
+  | primary '[' fn-args ']'
+  | primary ('.' | '::') atom
+  ;
+
+block := [block-args '->'] '{' {expr ';'} [expr] '}' ;
+block-args := ident | '(' {ident ','} ident ')' ;
+atom := integer | float | string | ident | stackframe-literal | '(' expr ')' ;
+
+(*
+
+
+primary
+ := <literal>
+  | '(' <expression> ')'
+  | ('-' | '!') <primary>
+  | <primary> '(' [<expression> {',' <expression>}] ')' (* function call *)
+  | <primary> '[' <expression> ']' (* array indexing *)
+  ;
+
+
+
+i = n = 0;
+while n < 100 {
+   n += 1;
+   i += n;
+}
+print(n);
+
+'i'.'='( 'n'.'='(0) );
+while( n.'<'(100), {
+   'n'.'='(n.'+'(1));
+   'i'.'='(i.'+'(n));
+});
+
+print(n);
+
+{
+   a;
+   a.b;
+   a.b.c;
+   a();
+   a.b();
+   a.b.c(d)(e).f(g, h(i)).j();
+}
+
+
+atom := <block> | <ident> | <string> | <integer> | <float> | <paren-expr> ;
+paren-expr := '(' <expr> ')';
+attr-access := <primary> ('.' | '::') <atom> ;
+fncall := <primary> '(' {<expr> ','} [<expr>] ')' ;
+
+
+block := '{' {[<expr>] ';'} [<expr>] '}' ;
+fncall := <primary> '(' {['*'] <expr> ','} [['*'] <expr>] ')' ;
+
+atom := <literal> | <ident> ;
+
+literal := <string-literal> | <integer-literal> | <float-literal> ;
+*)

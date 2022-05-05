@@ -57,7 +57,7 @@ impl<'a> Stream<'a> {
 		chars.next();
 		chars.next()
 	}
-	
+
 	pub fn peek3(&self) -> Option<char> {
 		let mut chars = self.src.chars();
 		chars.next();

@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 mod args;
-mod block;
+pub mod block;
 mod bytecode;
 mod frame;
 mod stackframe;
