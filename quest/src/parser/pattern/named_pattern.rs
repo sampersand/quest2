@@ -1,0 +1,18 @@
+use crate::parser::pattern::{Expandable, Pattern};
+use crate::parser::{Parser, Result, ErrorKind};
+
+#[derive(Debug)]
+pub struct NamedPattern<'a>(pub &'a str);
+
+impl<'a> Pattern<'a> for NamedPattern<'a> {
+	fn try_match(
+		&self,
+		parser: &mut Parser<'a>,
+	) -> Result<'a, Option<Box<dyn Expandable<'a> + 'a>>> {
+		if let Some(pattern) = parser.get_pattern(self.0) {
+			pattern.try_match(parser)
+		} else {
+			Err(parser.error(ErrorKind::UnknownMacroPattern(self.0.to_string())))
+		}
+	}
+}

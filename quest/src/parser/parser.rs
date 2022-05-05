@@ -1,10 +1,12 @@
-use super::{Result, ErrorKind, Error, Stream, /*Plugin,*/ Token, Pattern};
+use super::{Error, ErrorKind, Pattern, Result, Stream, /*Plugin,*/ Token};
 use std::collections::HashMap;
 use std::path::Path;
+use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct Parser<'a> {
 	// plugins: Vec<Box<u8>>,
-	patterns: HashMap<String, Box<dyn Pattern<'a>>>,
+	patterns: HashMap<String, Rc<dyn Pattern<'a>>>,
 	stream: Stream<'a>,
 	peeked_tokens: Vec<Token<'a>>,
 }
@@ -24,12 +26,12 @@ impl<'a> Parser<'a> {
 	}
 
 	// TODO: this doens't take into account optional order of operations _or_ when it was declared.
-	pub fn add_pattern(&mut self, name: String, pattern: Box<dyn Pattern<'a>>) {
+	pub fn add_pattern(&mut self, name: String, pattern: Rc<dyn Pattern<'a>>) {
 		self.patterns.insert(name, pattern);
 	}
 
-	pub fn get_pattern(&self, name: &str) -> Option<&dyn Pattern<'a>> {
-		self.patterns.get(name).map(|x| &**x)
+	pub fn get_pattern(&self, name: &str) -> Option<Rc<dyn Pattern<'a>>> {
+		self.patterns.get(name).cloned()
 	}
 
 	// pub fn plugins(&self) -> &[Box<u8>] {

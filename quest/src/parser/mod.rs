@@ -1,6 +1,6 @@
 mod error;
 mod parser;
-mod pattern;
+pub mod pattern;
 mod source_location;
 mod stream;
 pub mod token;
