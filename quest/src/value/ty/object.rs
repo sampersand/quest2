@@ -31,6 +31,7 @@ impl Object {
 				Intern::and => function funcs::and,
 				Intern::itself => function funcs::itself,
 				Intern::print => function funcs::print,
+				Intern::freeze => function funcs::freeze,
 			}
 		})
 	}
@@ -189,6 +190,14 @@ pub mod funcs {
 		args.assert_no_arguments()?;
 
 		crate::value::Gc::<Kernel>::qs_print(Args::new(&[obj], &[]))
+	}
+
+	pub fn freeze(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_arguments()?;
+
+		obj.freeze()?;
+
+		Ok(obj)
 	}
 }
 /*

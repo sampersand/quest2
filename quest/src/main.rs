@@ -52,6 +52,11 @@ use quest::Result;
 fn main() {
 	let mut parser = Parser::new(
 		r###"
+x = 'a';
+x.freeze();
+x.concat('b');
+print(x);
+__EOF__
 fib = n -> {
 	(n <= 1).then(n.return);
 

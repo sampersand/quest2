@@ -84,8 +84,7 @@ define_interned! {
 	r#else "else"
 	r#return "return"
 
-	inspect
-	print
+	inspect print freeze
 }
 
 impl Hash for Intern {

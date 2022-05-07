@@ -162,6 +162,14 @@ impl AnyValue {
 		Gc::new_unchecked(self.bits() as usize as *mut _)
 	}
 
+	pub fn freeze(self) -> Result<()> {
+		if self.is_allocated() {
+			unsafe { self.get_gc_any_unchecked() }.as_ref()?.freeze();
+		}
+
+		Ok(())
+	}
+
 	pub fn has_attr<A: Attribute>(self, attr: A) -> Result<bool> {
 		self.get_unbound_attr(attr).map(|opt| opt.is_some())
 	}
