@@ -85,6 +85,7 @@ define_interned! {
 	r#return "return"
 
 	inspect
+	print
 }
 
 impl Hash for Intern {

@@ -87,6 +87,13 @@ pub mod funcs {
 		Ok((int - args[0].to_integer()?).as_any())
 	}
 
+	pub fn mul(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((int * args[0].to_integer()?).as_any())
+	}
+
 	pub fn lth(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
@@ -129,6 +136,7 @@ impl Singleton for IntegerClass {
 			create_class! { "Integer", parent Object::instance();
 				Intern::op_add => method funcs::add,
 				Intern::op_sub => method funcs::sub,
+				Intern::op_mul => method funcs::mul,
 				Intern::op_lth => method funcs::lth,
 				Intern::op_leq => method funcs::leq,
 				Intern::op_neg => method funcs::neg,

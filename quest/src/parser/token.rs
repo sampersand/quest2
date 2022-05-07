@@ -217,7 +217,7 @@ fn determine_base<'a>(stream: &mut Stream<'a>) -> Result<'a, u32> {
 		Some('u' | 'U') => todo!("custom base"),
 		Some('d' | 'D') => Ok(10),
 		Some(_) => unreachable!(),
-		None => Err(stream.error(ErrorKind::UnexpectedEOF)),
+		None => Ok(10),
 	}
 }
 

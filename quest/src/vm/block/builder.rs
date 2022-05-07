@@ -177,14 +177,7 @@ impl Builder {
 		}
 	}
 
-	pub fn call(&mut self) {
-		unsafe {
-			self.opcode(Opcode::Call);
-			todo!();
-		}
-	}
-
-	pub fn create_array(&mut self, args: &[Local], dst: Local) {
+	pub fn create_list(&mut self, args: &[Local], dst: Local) {
 		unsafe {
 			self.opcode(Opcode::CreateList);
 			self.count(args.len());
@@ -192,6 +185,14 @@ impl Builder {
 				self.local(*arg);
 			}
 			self.local(dst);
+		}
+	}
+
+
+	pub fn call(&mut self) {
+		unsafe {
+			self.opcode(Opcode::Call);
+			todo!();
 		}
 	}
 

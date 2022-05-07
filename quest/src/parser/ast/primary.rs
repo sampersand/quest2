@@ -7,7 +7,7 @@ use super::{Atom, Block, FnArgs, AttrAccessKind, Compile};
 pub enum Primary<'a> {
 	Atom(Atom<'a>),
 	Block(Block<'a>),
-	Array(FnArgs<'a>),
+	List(FnArgs<'a>),
 	UnaryOp(&'a str, Box<Primary<'a>>),
 	FnCall(Box<Primary<'a>>, FnArgs<'a>),
 	Index(Box<Primary<'a>>, FnArgs<'a>),
@@ -24,7 +24,7 @@ impl<'a> Primary<'a> {
 			.take_if_contents(TokenContents::LeftParen(ParenType::Square))?
 			.is_some()
 		{
-			Self::Array(FnArgs::parse(parser, ParenType::Square)?)
+			Self::List(FnArgs::parse(parser, ParenType::Square)?)
 		} else if let Some(token) =
 			parser.take_if(|token| matches!(token.contents, TokenContents::Symbol(_)))?
 		{
@@ -74,8 +74,17 @@ impl Compile for Primary<'_> {
 	fn compile(&self, builder: &mut Builder, dst: Local) {
 		match self {
 			Self::Atom(atom) => atom.compile(builder, dst),
-			Self::Block(block) => todo!("{:?}", block),
-			Self::Array(fnargs) => todo!("{:?}", fnargs),
+			Self::Block(block) => block.compile(builder, dst),
+			Self::List(elements) => {
+				// TODO: instead make a builder for `create_array` so we dont need to make a temp array.
+				let mut element_locals = Vec::with_capacity(elements.arguments.len());
+				for element in &elements.arguments {
+					let local = builder.unnamed_local();
+					element.compile(builder, local);
+					element_locals.push(local);
+				}
+				builder.create_list(&element_locals, dst);
+			},
 			Self::UnaryOp(op, primary) => {
 				if let Some(opcode) = crate::vm::Opcode::unary_from_symbol(op) {
 					primary.compile(builder, dst);
@@ -89,7 +98,21 @@ impl Compile for Primary<'_> {
 					builder.call_attr_simple(dst, op_local, &[], dst)
 				}
 			},
-			Self::FnCall(function, arguments) => todo!("{:?} {:?}", function, arguments),
+			Self::FnCall(function, arguments) => {
+				let function_local = builder.unnamed_local();
+				function.compile(builder, function_local);
+				let mut argument_locals = Vec::with_capacity(arguments.arguments.len());
+				for argument in &arguments.arguments {
+					let local = builder.unnamed_local();
+					argument.compile(builder, local);
+					argument_locals.push(local);
+				}
+				if argument_locals.len() <= crate::vm::bytecode::MAX_ARGUMENTS_FOR_SIMPLE_CALL {
+					builder.call_simple(function_local, &argument_locals, dst);
+				} else {
+					builder.call(/*function_local, &argument_locals, dst*/);
+				}
+			},
 			Self::Index(source, index) => todo!("{:?} {:?}", source, index),
 			Self::AttrAccess(source, kind, attribute) => todo!("{:?} {:?} {:?}", source, kind, attribute),
 		}

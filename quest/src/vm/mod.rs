@@ -2,7 +2,7 @@
 
 mod args;
 pub mod block;
-mod bytecode;
+pub mod bytecode;
 mod frame;
 mod stackframe;
 

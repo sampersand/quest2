@@ -78,6 +78,10 @@ impl<'a> Parser<'a> {
 		}
 	}
 
+	// pub fn take_if_symbol(&mut self, sym: &'a str) -> Result<'a, bool> {
+	// 	Ok(self.take_if_contents(TokenContents::Symbol(sym))?.is_some())
+	// }
+
 	pub fn take_if_contents(
 		&mut self,
 		contents: TokenContents<'a>,

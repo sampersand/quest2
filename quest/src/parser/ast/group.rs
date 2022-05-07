@@ -48,7 +48,7 @@ impl<'a> Group<'a> {
 
 		let mut statements = Vec::new();
 		let start = parser.location();
-		let mut end_in_semicolon = true;
+		let mut end_in_semicolon = false;
 
 		while parser
 			.take_if_contents(TokenContents::RightParen(paren))?
@@ -60,16 +60,31 @@ impl<'a> Group<'a> {
 				);
 			}
 
-			end_in_semicolon = false;
 			while parser.take_if_contents(TokenContents::Semicolon)?.is_some() {
-				end_in_semicolon = true; // strip leading semicolons
+				// remove leading semicolons
 			}
 
 			if let Some(statement) = Statement::parse(parser)? {
 				statements.push(statement);
 			} else {
-				return Err(parser.error(ErrorKind::Message("unexpected token".to_string())));
+				let token = parser.peek()?;
+				return Err(parser.error(ErrorKind::Message(
+					format!("expected expression in {:?} group, got {:?}", paren, token))));
 			}
+
+			if parser.take_if_contents(TokenContents::Semicolon)?.is_some() {
+				end_in_semicolon = true;
+				continue;
+			}
+
+			end_in_semicolon = false;
+			if parser
+				.take_if_contents(TokenContents::RightParen(paren))?
+				.is_none() {
+					let token = parser.peek()?;
+					return Err(parser.error(ErrorKind::Message(format!("unknown token after expr: {:?}", token))))
+				}
+			break;
 		}
 
 		Ok(Some(Self {
@@ -92,7 +107,7 @@ impl Compile for Statement<'_> {
 					expr.compile(builder, local);
 				}
 
-				builder.create_array(&locals, dst);
+				builder.create_list(&locals, dst);
 			}
 		}
 	}

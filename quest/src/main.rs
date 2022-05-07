@@ -12,15 +12,22 @@ use quest::parser::ast::Compile;
 
 fn main() {
 	let mut parser = Parser::new(r###"
-(- 1, 3, 4)
+# print ( 1 + 2 ) ; #, " ", 3 * 4 )
+# if (1 == 1, 2,3)
+# print([ 12 + 34 ] [ 0 ]);
+print(if(2 == 2, { 2 }, { 4 }))
+print({ a + 1 }(4))
+
 "###, None);
 
-	let expr = ast::Expression::parse(&mut parser).unwrap();
 	let mut builder = quest::vm::Block::builder(quest::vm::SourceLocation {});
 	let scratch = builder.scratch();
-	expr.expect("nothing compiled").compile(&mut builder, scratch);
-	let block = builder.build();
 
+	while let Some(expr) = ast::Expression::parse(&mut parser).expect("bad parse") {
+		expr.compile(&mut builder, scratch);
+	}
+
+	let block = builder.build();
 	let result = block.run(Default::default()).unwrap();
 
 	println!("result = {:?}", result);
