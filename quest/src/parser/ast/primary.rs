@@ -9,19 +9,18 @@ pub enum Primary<'a> {
 	Block(Block<'a>),
 	List(FnArgs<'a>),
 	UnaryOp(&'a str, Box<Primary<'a>>),
+	// TODO: attribute call.
 	FnCall(Box<Primary<'a>>, FnArgs<'a>),
 	Index(Box<Primary<'a>>, FnArgs<'a>),
 	AttrAccess(Box<Primary<'a>>, AttrAccessKind, Atom<'a>),
-	// AttrAccess(Box<Primary<'a>>, AttrAccessKind, Atom<'a>),
-	// TODO: attribute call.
 }
 
 impl<'a> Primary<'a> {
 	pub fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
-		let mut primary = if let Some(atom) = Atom::parse(parser)? {
-			Self::Atom(atom)
-		} else if let Some(block) = Block::parse(parser)? {
+		let mut primary = if let Some(block) = Block::parse(parser)? {
 			Self::Block(block)
+		} else if let Some(atom) = Atom::parse(parser)? {
+			Self::Atom(atom)
 		} else if parser
 			.take_if_contents(TokenContents::LeftParen(ParenType::Square))?
 			.is_some()

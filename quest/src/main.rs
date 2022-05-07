@@ -51,6 +51,17 @@ use quest::parser::ast::Compile;
 
 fn main() {
 	let mut parser = Parser::new(r###"
+fib = n -> {
+	(n <= 1).then(n.return);
+
+	fib(n - 1) + fib(n - 2)
+};
+
+fib.fib = fib;
+
+fib(10).print();
+
+__EOF__
 f = { "x".concat("b") };
 ary = [1,2,3];
 ary[1] = 5;
