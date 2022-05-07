@@ -427,7 +427,12 @@ impl Gc<Frame> {
 				panic!("todo: out of bounds error");
 			}
 
-			Result::<_>::Ok(frames.get(frames.len() - count as usize - 1).expect("todo: out of bounds error").clone())
+			Result::<_>::Ok(
+				frames
+					.get(frames.len() - count as usize - 1)
+					.expect("todo: out of bounds error")
+					.clone(),
+			)
 		})?;
 		frame.as_mut()?.convert_to_object()?;
 		self.as_mut()?.store_next_local(frame.as_any());
@@ -503,7 +508,6 @@ impl Gc<Frame> {
 			let object = this.0.header_mut().get_unbound_attr_mut(name)?;
 			object.set_attr(attr, value)?;
 		}
-
 
 		Ok(())
 	}
@@ -622,7 +626,9 @@ impl Gc<Frame> {
 		}
 		drop(this);
 
-		self.as_mut()?.store_next_local(ary.call_attr(Intern::op_index, Args::new(&args, &[]))?);
+		self
+			.as_mut()?
+			.store_next_local(ary.call_attr(Intern::op_index, Args::new(&args, &[]))?);
 
 		Ok(())
 	}

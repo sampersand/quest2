@@ -1,6 +1,6 @@
 use super::{Frame, SourceLocation};
-use crate::value::{Gc, HasDefaultParent, base::Base};
-use crate::value::ty::{Text, List};
+use crate::value::ty::{List, Text};
+use crate::value::{base::Base, Gc, HasDefaultParent};
 use crate::vm::Args;
 use crate::{AnyValue, Error, Result};
 use std::cell::UnsafeCell;
@@ -32,7 +32,7 @@ impl Block {
 		constants: Vec<AnyValue>,
 		num_of_unnamed_locals: usize,
 		named_locals: Vec<Gc<Text>>,
-		parent_scope: Option<AnyValue>
+		parent_scope: Option<AnyValue>,
 	) -> Gc<Self> {
 		let inner = Arc::new(BlockInner {
 			block: UnsafeCell::new(MaybeUninit::uninit()),
@@ -42,7 +42,6 @@ impl Block {
 			num_of_unnamed_locals,
 			named_locals,
 		});
-
 
 		let gc = Gc::from_inner(if let Some(parent_scope) = parent_scope {
 			Base::new(inner.clone(), List::from_slice(&vec![parent_scope, Gc::<Block>::parent()]))

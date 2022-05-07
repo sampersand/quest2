@@ -1,7 +1,7 @@
 use super::{Inner, List, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
-use crate::value::HasDefaultParent;
 use crate::value::base::Builder as BaseBuilder;
 use crate::value::gc::Gc;
+use crate::value::HasDefaultParent;
 
 #[must_use]
 pub struct Builder(BaseBuilder<Inner>);

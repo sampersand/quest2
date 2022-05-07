@@ -1,7 +1,7 @@
-use crate::parser::{Parser, Result, ErrorKind};
-use crate::parser::token::{TokenContents, ParenType};
-use crate::vm::block::{Local, Builder};
-use super::{Expression, Compile};
+use super::{Compile, Expression};
+use crate::parser::token::{ParenType, TokenContents};
+use crate::parser::{ErrorKind, Parser, Result};
+use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
 pub struct Group<'a> {
@@ -54,8 +54,9 @@ impl<'a> Group<'a> {
 				statements.push(statement);
 			} else {
 				let token = parser.peek()?;
-				return Err(parser.error(ErrorKind::Message(
-					format!("expected expression got {:?}", token))));
+				return Err(
+					parser.error(ErrorKind::Message(format!("expected expression got {:?}", token))),
+				);
 			}
 
 			if parser.take_if_contents(TokenContents::Semicolon)?.is_some() {
@@ -68,17 +69,22 @@ impl<'a> Group<'a> {
 
 		if !parser.is_eof()? {
 			let token = parser.peek()?;
-			return Err(parser.error(ErrorKind::Message(format!("unknown token after expr: {:?}", token))))
+			return Err(
+				parser.error(ErrorKind::Message(format!("unknown token after expr: {:?}", token))),
+			);
 		}
 
 		Ok(Self {
 			statements,
 			end_in_semicolon,
-		})		
+		})
 	}
 
 	pub fn parse(parser: &mut Parser<'a>, paren: ParenType) -> Result<'a, Option<Self>> {
-		if parser.take_if_contents(TokenContents::LeftParen(paren))?.is_none() {
+		if parser
+			.take_if_contents(TokenContents::LeftParen(paren))?
+			.is_none()
+		{
 			return Ok(None);
 		};
 
@@ -104,8 +110,10 @@ impl<'a> Group<'a> {
 				statements.push(statement);
 			} else {
 				let token = parser.peek()?;
-				return Err(parser.error(ErrorKind::Message(
-					format!("expected expression in {:?} group, got {:?}", paren, token))));
+				return Err(parser.error(ErrorKind::Message(format!(
+					"expected expression in {:?} group, got {:?}",
+					paren, token
+				))));
 			}
 
 			if parser.take_if_contents(TokenContents::Semicolon)?.is_some() {
@@ -116,10 +124,13 @@ impl<'a> Group<'a> {
 			end_in_semicolon = false;
 			if parser
 				.take_if_contents(TokenContents::RightParen(paren))?
-				.is_none() {
-					let token = parser.peek()?;
-					return Err(parser.error(ErrorKind::Message(format!("unknown token after expr: {:?}", token))))
-				}
+				.is_none()
+			{
+				let token = parser.peek()?;
+				return Err(
+					parser.error(ErrorKind::Message(format!("unknown token after expr: {:?}", token))),
+				);
+			}
 			break;
 		}
 
@@ -144,7 +155,7 @@ impl Compile for Statement<'_> {
 				}
 
 				builder.create_list(&locals, dst);
-			}
+			},
 		}
 	}
 }

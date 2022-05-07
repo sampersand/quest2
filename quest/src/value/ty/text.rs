@@ -1012,7 +1012,9 @@ pub mod funcs {
 		args.assert_positional_len(1)?;
 
 		let value = args[0];
-		let mut frame = crate::vm::Frame::with_stackframe(|sfs| *sfs.last().expect("returning from nothing?")).as_any();
+		let mut frame =
+			crate::vm::Frame::with_stackframe(|sfs| *sfs.last().expect("returning from nothing?"))
+				.as_any();
 
 		frame.set_attr(text.as_any(), value)?;
 

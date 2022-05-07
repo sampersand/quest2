@@ -1,5 +1,5 @@
-use crate::value::AsAny;
 use super::Block;
+use crate::value::AsAny;
 use crate::value::{ty::Text, AnyValue, Gc};
 use crate::vm::{bytecode::MAX_ARGUMENTS_FOR_SIMPLE_CALL, Opcode, SourceLocation};
 
@@ -30,7 +30,7 @@ impl Builder {
 			constants: Vec::default(),
 			num_of_unnamed_locals: 1, // The first register is scratch
 			named_locals: Vec::default(),
-			parent_scope
+			parent_scope,
 		}
 	}
 
@@ -63,7 +63,7 @@ impl Builder {
 			self.constants,
 			self.num_of_unnamed_locals,
 			self.named_locals,
-			self.parent_scope
+			self.parent_scope,
 		)
 	}
 
@@ -90,7 +90,7 @@ impl Builder {
 			self.local(dst);
 		}
 	}
-	
+
 	pub fn constant(&mut self, value: AnyValue, dst: Local) {
 		let mut index = None;
 
@@ -112,7 +112,6 @@ impl Builder {
 			self.local(dst);
 		}
 	}
-
 
 	// SAFETY: you gotta make sure the remainder of the code after this is valid.
 	unsafe fn opcode(&mut self, opcode: Opcode) {
@@ -191,7 +190,6 @@ impl Builder {
 		}
 	}
 
-
 	pub fn call(&mut self) {
 		unsafe {
 			self.opcode(Opcode::Call);
@@ -263,13 +261,7 @@ impl Builder {
 		todo!();
 	}
 
-	pub fn call_attr_simple(
-		&mut self,
-		obj: Local,
-		attr: Local,
-		args: &[Local],
-		dst: Local,
-	) {
+	pub fn call_attr_simple(&mut self, obj: Local, attr: Local, args: &[Local], dst: Local) {
 		assert!(
 			args.len() <= MAX_ARGUMENTS_FOR_SIMPLE_CALL,
 			"too many arguments given for call_attr_simple: {}, max {}",

@@ -1,22 +1,22 @@
-use crate::parser::token::{TokenContents};
+use crate::parser::token::TokenContents;
 use crate::parser::{Parser, Result};
 
-mod atom;
-mod group;
-mod block;
-mod primary;
-mod expression;
 mod assignment;
+mod atom;
+mod block;
+mod expression;
 mod fnargs;
-pub use atom::Atom;
-pub use group::Group;
-pub use block::Block;
-pub use primary::Primary;
-pub use expression::Expression;
+mod group;
+mod primary;
 pub use assignment::Assignment;
+pub use atom::Atom;
+pub use block::Block;
+pub use expression::Expression;
 pub use fnargs::FnArgs;
+pub use group::Group;
+pub use primary::Primary;
 
-pub trait Compile : std::fmt::Debug {
+pub trait Compile: std::fmt::Debug {
 	fn compile(&self, builder: &mut crate::vm::block::Builder, dst: crate::vm::block::Local);
 }
 
@@ -40,4 +40,3 @@ impl AttrAccessKind {
 		}
 	}
 }
-

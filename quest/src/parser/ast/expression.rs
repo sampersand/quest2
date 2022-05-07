@@ -1,7 +1,7 @@
-use crate::vm::block::{Local, Builder};
-use crate::parser::{Parser, Result};
+use super::{Assignment, Compile, Primary};
 use crate::parser::token::TokenContents;
-use super::{Primary, Assignment, Compile};
+use crate::parser::{Parser, Result};
+use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
 pub enum Expression<'a> {
@@ -20,17 +20,23 @@ impl<'a> Expression<'a> {
 
 		let primary = match Assignment::parse(primary, parser)? {
 			Ok(assignment) => return Ok(Some(Self::Assignment(Box::new(assignment)))),
-			Err(primary) => primary
+			Err(primary) => primary,
 		};
 
-		if let Some(token) = parser.take_if(|token| matches!(token.contents, TokenContents::Symbol(_)))? {
+		if let Some(token) =
+			parser.take_if(|token| matches!(token.contents, TokenContents::Symbol(_)))?
+		{
 			let sym = match token.contents {
 				TokenContents::Symbol(sym) => sym,
-				_ => unreachable!()
+				_ => unreachable!(),
 			};
 
 			if let Some(rhs) = Expression::parse(parser)? {
-				return Ok(Some(Self::BinaryOperator(Box::new(Self::Primary(primary)), sym, Box::new(rhs))))
+				return Ok(Some(Self::BinaryOperator(
+					Box::new(Self::Primary(primary)),
+					sym,
+					Box::new(rhs),
+				)));
 			}
 
 			// todo: should this be an error?
@@ -63,8 +69,7 @@ impl Compile for Expression<'_> {
 					rhs.compile(builder, dst);
 					builder.call_attr_simple(lhs_local, op_local, &[dst], dst)
 				}
-			}
+			},
 		}
 	}
 }
-

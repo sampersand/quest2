@@ -18,25 +18,50 @@ impl Pristine {
 				unsafe {
 					builder.allocate_attributes(7);
 
-					builder.set_attr(Intern::__get_attr__, RustFn_new!("__get_attr__", function funcs::__get_attr__).as_any())
+					builder
+						.set_attr(
+							Intern::__get_attr__,
+							RustFn_new!("__get_attr__", function funcs::__get_attr__).as_any(),
+						)
 						.unwrap();
 
-					builder.set_attr(Intern::__get_unbound_attr__, RustFn_new!("__get_unbound_attr__", function funcs::__get_unbound_attr__).as_any())
+					builder
+						.set_attr(
+							Intern::__get_unbound_attr__,
+							RustFn_new!("__get_unbound_attr__", function funcs::__get_unbound_attr__)
+								.as_any(),
+						)
 						.unwrap();
 
-					builder.set_attr(Intern::__set_attr__, RustFn_new!("__set_attr__", function funcs::__set_attr__).as_any())
+					builder
+						.set_attr(
+							Intern::__set_attr__,
+							RustFn_new!("__set_attr__", function funcs::__set_attr__).as_any(),
+						)
 						.unwrap();
 
-					builder.set_attr(Intern::__del_attr__, RustFn_new!("__del_attr__", function funcs::__del_attr__).as_any())
+					builder
+						.set_attr(
+							Intern::__del_attr__,
+							RustFn_new!("__del_attr__", function funcs::__del_attr__).as_any(),
+						)
 						.unwrap();
 
-					builder.set_attr(Intern::__has_attr__, RustFn_new!("__has_attr__", function funcs::__has_attr__).as_any())
+					builder
+						.set_attr(
+							Intern::__has_attr__,
+							RustFn_new!("__has_attr__", function funcs::__has_attr__).as_any(),
+						)
 						.unwrap();
 
-					builder.set_attr(Intern::__call_attr__, RustFn_new!("__call_attr__", function funcs::__call_attr__).as_any())
+					builder
+						.set_attr(
+							Intern::__call_attr__,
+							RustFn_new!("__call_attr__", function funcs::__call_attr__).as_any(),
+						)
 						.unwrap();
 
-				// we don't set parents, as empty parents is default.
+					// we don't set parents, as empty parents is default.
 					Gc::from_inner(builder.finish())
 				}
 			})

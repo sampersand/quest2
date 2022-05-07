@@ -50,7 +50,7 @@ impl Opcode {
 		match symbol {
 			"!" => Some(Self::Not),
 			"-" => Some(Self::Negate),
-			_ => None
+			_ => None,
 		}
 	}
 
@@ -75,7 +75,7 @@ impl Opcode {
 
 			"[]" => Some(Self::Index),
 			"[]=" => Some(Self::IndexAssign),
-			_ => None
+			_ => None,
 		}
 	}
 }

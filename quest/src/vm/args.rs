@@ -72,7 +72,11 @@ impl<'a> Args<'a> {
 		if self.positional.len() == len {
 			Ok(())
 		} else {
-			Err(Error::Message(format!("positional argument count mismatch (given {} expected {})", len, self.positional.len())))
+			Err(Error::Message(format!(
+				"positional argument count mismatch (given {} expected {})",
+				len,
+				self.positional.len()
+			)))
 		}
 	}
 	pub fn assert_no_keyword(self) -> Result<()> {

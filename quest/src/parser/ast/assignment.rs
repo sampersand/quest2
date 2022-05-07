@@ -1,7 +1,7 @@
-use crate::parser::{Parser, Result};
-use crate::vm::block::{Local, Builder};
+use super::{Atom, AttrAccessKind, Compile, Expression, FnArgs, Primary};
 use crate::parser::token::TokenContents;
-use super::{Expression, Atom, FnArgs, Primary, AttrAccessKind, Compile};
+use crate::parser::{Parser, Result};
+use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
 pub enum Assignment<'a> {
@@ -12,7 +12,10 @@ pub enum Assignment<'a> {
 }
 
 impl<'a> Assignment<'a> {
-	pub fn parse(primary: Primary<'a>, parser: &mut Parser<'a>) -> Result<'a, std::result::Result<Self, Primary<'a>>> {
+	pub fn parse(
+		primary: Primary<'a>,
+		parser: &mut Parser<'a>,
+	) -> Result<'a, std::result::Result<Self, Primary<'a>>> {
 		let token = if let Some(token) = parser.take_if_contents(TokenContents::Symbol("="))? {
 			token
 		} else {
@@ -29,8 +32,10 @@ impl<'a> Assignment<'a> {
 		match primary {
 			Primary::Atom(Atom::Identifier(ident)) => Ok(Ok(Self::Normal(ident, rhs))),
 			Primary::Index(source, arguments) => Ok(Ok(Self::Index(source, arguments, rhs))),
-			Primary::AttrAccess(source, kind, attr) => Ok(Ok(Self::AttrAccess(source, kind, attr, rhs))),
-			other => Ok(Ok(Self::FnCall(other, rhs)))
+			Primary::AttrAccess(source, kind, attr) => {
+				Ok(Ok(Self::AttrAccess(source, kind, attr, rhs)))
+			},
+			other => Ok(Ok(Self::FnCall(other, rhs))),
 		}
 	}
 }
@@ -66,7 +71,7 @@ impl Compile for Assignment<'_> {
 
 				match attr {
 					Atom::Identifier(field) => builder.str_constant(field, field_local),
-					other => other.compile(builder, field_local)
+					other => other.compile(builder, field_local),
 				}
 				value.compile(builder, dst);
 				builder.set_attr(source_local, field_local, dst, dst);
@@ -79,16 +84,16 @@ impl Compile for Assignment<'_> {
 				builder.str_constant("=", assign_local);
 				expr.compile(builder, dst);
 				builder.call_attr_simple(prim_local, assign_local, &[dst], dst);
-			}
+			},
 		}
-	// Normal(&'a str, Expression<'a>),
-	// Index(Box<Primary<'a>>, FnArgs<'a>, Expression<'a>),
-	// AttrAccess(Box<Primary<'a>>, AttrAccessKind, Atom<'a>, Expression<'a>),
+		// Normal(&'a str, Expression<'a>),
+		// Index(Box<Primary<'a>>, FnArgs<'a>, Expression<'a>),
+		// AttrAccess(Box<Primary<'a>>, AttrAccessKind, Atom<'a>, Expression<'a>),
 
-	// 	let _ = (builder, dst);
+		// 	let _ = (builder, dst);
 
-	// 	match self {
-	// 		_ => todo!()
-	// 	}
+		// 	match self {
+		// 		_ => todo!()
+		// 	}
 	}
 }

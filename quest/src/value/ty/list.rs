@@ -414,8 +414,8 @@ quest_type_attrs! { for Gc<List>, parent Object;
 
 pub mod funcs {
 	use super::*;
-	use crate::{Result, vm::Args};
 	use crate::value::ty::Integer;
+	use crate::{vm::Args, Result};
 
 	pub fn index(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
@@ -432,8 +432,10 @@ pub mod funcs {
 			}
 		}
 
-
-		Ok(*listref.as_slice().get(index as usize).expect("todo: error for out of bounds"))
+		Ok(*listref
+			.as_slice()
+			.get(index as usize)
+			.expect("todo: error for out of bounds"))
 	}
 
 	pub fn index_assign(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {

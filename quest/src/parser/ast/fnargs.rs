@@ -1,10 +1,10 @@
-use crate::parser::{Parser, Result, ErrorKind};
-use crate::parser::token::{ParenType, TokenContents};
 use super::Expression;
+use crate::parser::token::{ParenType, TokenContents};
+use crate::parser::{ErrorKind, Parser, Result};
 
 #[derive(Debug)]
 pub struct FnArgs<'a> {
-	pub arguments: Vec<Expression<'a>> // todo: have splat operator
+	pub arguments: Vec<Expression<'a>>, // todo: have splat operator
 }
 
 impl<'a> FnArgs<'a> {
@@ -18,7 +18,8 @@ impl<'a> FnArgs<'a> {
 		{
 			if parser.is_eof()? {
 				return Err(
-					start.error(ErrorKind::Message(format!("missing closing {:?} paren for fncall", end))),
+					start
+						.error(ErrorKind::Message(format!("missing closing {:?} paren for fncall", end))),
 				);
 			}
 
@@ -26,14 +27,22 @@ impl<'a> FnArgs<'a> {
 				arguments.push(expr);
 			} else {
 				let token = parser.peek()?;
-				return Err(parser.error(ErrorKind::Message(
-					format!("expected expression in {:?} fnargs, got {:?}", end, token))));
+				return Err(parser.error(ErrorKind::Message(format!(
+					"expected expression in {:?} fnargs, got {:?}",
+					end, token
+				))));
 			}
 
 			if parser.take_if_contents(TokenContents::Comma)?.is_none() {
-				if parser.take_if_contents(TokenContents::RightParen(end))?.is_none() {
+				if parser
+					.take_if_contents(TokenContents::RightParen(end))?
+					.is_none()
+				{
 					let token = parser.peek()?;
-					return Err(parser.error(ErrorKind::Message(format!("expected closing {:?} `,`, not {:?}", end, token))))
+					return Err(parser.error(ErrorKind::Message(format!(
+						"expected closing {:?} `,`, not {:?}",
+						end, token
+					))));
 				}
 
 				break;

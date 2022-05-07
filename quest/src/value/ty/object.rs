@@ -37,8 +37,8 @@ impl Object {
 }
 
 pub mod funcs {
-	use crate::value::ty::Kernel;
 	use super::*;
+	use crate::value::ty::Kernel;
 
 	pub fn eql(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;

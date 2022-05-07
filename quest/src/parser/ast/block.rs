@@ -1,8 +1,8 @@
-use crate::value::AsAny;
-use crate::parser::{Parser, Result};
+use super::{Compile, Group};
 use crate::parser::token::{ParenType, TokenContents};
-use crate::vm::block::{Local, Builder};
-use super::{Group, Compile};
+use crate::parser::{Parser, Result};
+use crate::value::AsAny;
+use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
 pub struct Block<'a> {
@@ -26,18 +26,23 @@ impl<'a> Block<'a> {
 
 #[derive(Debug)]
 struct BlockArgs<'a> {
-	args: Vec<&'a str>
+	args: Vec<&'a str>,
 }
 
 impl<'a> BlockArgs<'a> {
 	fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
-		if let Some(token) = parser.take_if(|token| matches!(token.contents, TokenContents::Identifier(_)))? {
+		if let Some(token) =
+			parser.take_if(|token| matches!(token.contents, TokenContents::Identifier(_)))?
+		{
 			let ident = match token.contents {
 				TokenContents::Identifier(ident) => ident,
-				_ => unreachable!()
+				_ => unreachable!(),
 			};
 
-			if parser.take_if_contents(TokenContents::Symbol("->"))?.is_some() {
+			if parser
+				.take_if_contents(TokenContents::Symbol("->"))?
+				.is_some()
+			{
 				return Ok(Some(Self { args: vec![ident] }));
 			} else {
 				parser.add_back(token);
@@ -45,7 +50,9 @@ impl<'a> BlockArgs<'a> {
 			}
 		}
 
-		let left_paren = if let Some(token) = parser.take_if_contents(TokenContents::LeftParen(ParenType::Round))? {
+		let left_paren = if let Some(token) =
+			parser.take_if_contents(TokenContents::LeftParen(ParenType::Round))?
+		{
 			token
 		} else {
 			return Ok(None);
@@ -53,7 +60,9 @@ impl<'a> BlockArgs<'a> {
 
 		let mut arg_tokens = Vec::new();
 
-		while let Some(arg) = parser.take_if(|token| matches!(token.contents, TokenContents::Identifier(_)))? {
+		while let Some(arg) =
+			parser.take_if(|token| matches!(token.contents, TokenContents::Identifier(_)))?
+		{
 			arg_tokens.push(arg);
 
 			if let Some(comma) = parser.take_if_contents(TokenContents::Comma)? {
@@ -64,7 +73,10 @@ impl<'a> BlockArgs<'a> {
 		}
 
 		if let Some(token) = parser.take_if_contents(TokenContents::RightParen(ParenType::Round))? {
-			if parser.take_if_contents(TokenContents::Symbol("->"))?.is_some() {
+			if parser
+				.take_if_contents(TokenContents::Symbol("->"))?
+				.is_some()
+			{
 				let mut args = Vec::with_capacity(arg_tokens.len());
 				for token in arg_tokens {
 					if let TokenContents::Identifier(name) = token.contents {
@@ -90,7 +102,8 @@ impl<'a> BlockArgs<'a> {
 impl Compile for Block<'_> {
 	fn compile(&self, builder: &mut Builder, dst: Local) {
 		// todo: somehow have `builder` have a partially-initialized reference to its stackframe.
-		let mut inner_builder = Builder::new(/*self.body.location*/crate::vm::SourceLocation{}, None);
+		let mut inner_builder =
+			Builder::new(/*self.body.location*/ crate::vm::SourceLocation {}, None);
 		let scratch = inner_builder.scratch();
 
 		if let Some(args) = &self.args {

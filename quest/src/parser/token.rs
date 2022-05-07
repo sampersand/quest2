@@ -277,7 +277,13 @@ fn parse_number<'a>(stream: &mut Stream<'a>, integer_only: bool) -> Result<'a, T
 	let integer = parse_integer_base(stream, base, is_negative);
 
 	let contents = match stream.peek() {
-		Some('e' | 'E' | '.') if base == 10 && !integer_only && !stream.peek2().map_or(false, |c| c.is_alphanumeric()) => TokenContents::Float(parse_float(integer, stream)?),
+		Some('e' | 'E' | '.')
+			if base == 10
+				&& !integer_only
+				&& !stream.peek2().map_or(false, |c| c.is_alphanumeric()) =>
+		{
+			TokenContents::Float(parse_float(integer, stream)?)
+		},
 		_ => TokenContents::Integer(integer),
 	};
 

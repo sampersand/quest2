@@ -1,7 +1,7 @@
-use crate::parser::{Parser, Result, ErrorKind};
-use crate::parser::token::{TokenContents, ParenType};
-use crate::vm::block::{Local, Builder};
-use super::{Atom, Block, FnArgs, AttrAccessKind, Compile};
+use super::{Atom, AttrAccessKind, Block, Compile, FnArgs};
+use crate::parser::token::{ParenType, TokenContents};
+use crate::parser::{ErrorKind, Parser, Result};
+use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
 pub enum Primary<'a> {
@@ -31,7 +31,7 @@ impl<'a> Primary<'a> {
 		{
 			let symbol = match token.contents {
 				TokenContents::Symbol(sym) => sym,
-				_ => unreachable!()
+				_ => unreachable!(),
 			};
 
 			if let Some(rhs) = Self::parse(parser)? {

@@ -3,12 +3,12 @@
 
 #[macro_use]
 use quest;
+use quest::parser::ast::Compile;
 use quest::parser::{pattern::*, token::*, *};
 use quest::value::ty::*;
 use quest::value::*;
 use quest::vm::*;
 use quest::Result;
-use quest::parser::ast::Compile;
 
 // fn main() -> Result<()> {
 // 	let fib = {
@@ -50,7 +50,8 @@ use quest::parser::ast::Compile;
 // }
 
 fn main() {
-	let mut parser = Parser::new(r###"
+	let mut parser = Parser::new(
+		r###"
 fib = n -> {
 	(n <= 1).then(n.return);
 
@@ -100,12 +101,16 @@ __EOF__
 	print("A");
 )
 
-"###, None);
+"###,
+		None,
+	);
 
 	let mut builder = quest::vm::block::Builder::new(quest::vm::SourceLocation {}, None);
 	let scratch = builder.scratch();
 
-	ast::Group::parse_all(&mut parser).expect("bad parse").compile(&mut builder, scratch);
+	ast::Group::parse_all(&mut parser)
+		.expect("bad parse")
+		.compile(&mut builder, scratch);
 
 	let block = builder.build();
 	let result = block.run(Default::default()).unwrap();

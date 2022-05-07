@@ -1,9 +1,9 @@
+use super::{Compile, Group};
+use crate::parser::token::{ParenType, TokenContents};
 use crate::parser::{Parser, Result};
-use crate::parser::token::{TokenContents, ParenType};
 use crate::value::ty::{Float, Integer, Text};
-use crate::value::{Gc, AsAny};
-use crate::vm::block::{Local, Builder};
-use super::{Group, Compile};
+use crate::value::{AsAny, Gc};
+use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
 pub enum Atom<'a> {
@@ -56,4 +56,3 @@ impl Compile for Atom<'_> {
 		}
 	}
 }
-
