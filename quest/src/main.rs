@@ -3,13 +3,30 @@
 
 #[macro_use]
 use quest;
+use quest::parser::{pattern::*, token::*, *};
 use quest::value::ty::*;
 use quest::value::*;
 use quest::vm::*;
 use quest::Result;
-use quest::parser::{token::*, *, pattern::*};
+use quest::parser::ast::Compile;
 
-fn main() -> Result<()> {
+fn main() {
+	let mut parser = Parser::new(r###"
+(- 1, 3, 4)
+"###, None);
+
+	let expr = ast::Expression::parse(&mut parser).unwrap();
+	let mut builder = quest::vm::Block::builder(quest::vm::SourceLocation {});
+	let scratch = builder.scratch();
+	expr.expect("nothing compiled").compile(&mut builder, scratch);
+	let block = builder.build();
+
+	let result = block.run(Default::default()).unwrap();
+
+	println!("result = {:?}", result);
+}
+
+fn main1() -> Result<()> {
 	let mut parser = Parser::new(
 		r###"
 if 1:2 { 1:2; 3:4; 5:6; } else { 1:2; }
@@ -29,24 +46,30 @@ add = fn (bar, baz) {
 	);
 
 	macro_rules! rc {
-		($x:expr) => (std::rc::Rc::new($x) as std::rc::Rc<dyn Pattern<'static>>)
+		($x:expr) => {
+			std::rc::Rc::new($x) as std::rc::Rc<dyn Pattern<'static>>
+		};
 	}
 
-	parser.add_pattern("block".to_string(), rc!(Sequence(vec![
-		rc!(Exact(TokenContents::LeftParen(ParenType::Curly))),
-		rc!(Repeat::new(0, None, rc!(Sequence(vec![
-			rc!(NamedPattern("expr")),
-			rc!(Exact(TokenContents::Semicolon)),
-		]))).unwrap()),
-		rc!(Exact(TokenContents::RightParen(ParenType::Curly))),
-	])));
+	parser.add_pattern(
+		"block".to_string(),
+		rc!(Sequence(vec![
+			rc!(Exact(TokenContents::LeftParen(ParenType::Curly))),
+			rc!(Repeat::new(
+				0,
+				None,
+				rc!(Sequence(vec![
+					rc!(NamedPattern("expr")),
+					rc!(Exact(TokenContents::Semicolon)),
+				]))
+			)
+			.unwrap()),
+			rc!(Exact(TokenContents::RightParen(ParenType::Curly))),
+		])),
+	);
 
 	/*  int : int */
-	let time = rc!(Sequence(vec![
-		rc!(Literal),
-		rc!(Symbol(Some(":"))),
-		rc!(Literal),
-	]));
+	let time = rc!(Sequence(vec![rc!(Literal), rc!(Symbol(Some(":"))), rc!(Literal),]));
 
 	parser.add_pattern("expr".to_string(), time);
 
@@ -57,7 +80,7 @@ add = fn (bar, baz) {
 		rc!(Optional(rc!(Sequence(vec![
 			rc!(Identifier(Some("else"))),
 			rc!(Capture("iff", rc!(NamedPattern("block")))),
-		]))))
+		])))),
 	]);
 
 	dbg!(ifelse.try_match(&mut parser));
@@ -65,8 +88,6 @@ add = fn (bar, baz) {
 	while let Some(tkn) = parser.advance().unwrap() {
 		println!("{:?}", tkn);
 	}
-
-
 
 	// while let Some(tkn) = Token::parse(&mut stream).unwrap() {
 	// 	println!("{:?}", tkn);

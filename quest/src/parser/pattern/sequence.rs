@@ -1,4 +1,4 @@
-use crate::parser::pattern::{Expandable, Pattern, Context};
+use crate::parser::pattern::{Context, Expandable, Pattern};
 use crate::parser::{Parser, Result};
 use std::rc::Rc;
 
@@ -40,7 +40,7 @@ impl<'a> Pattern<'a> for Sequence<'a> {
 }
 
 impl<'a> Expandable<'a> for SequenceMatches<'a> {
-		// TODO: should these two be swapped for which does rev?
+	// TODO: should these two be swapped for which does rev?
 	fn expand(&self, parser: &mut Parser<'a>, context: Context) {
 		for pattern_match in self.0.iter() {
 			pattern_match.expand(parser, context.clone());

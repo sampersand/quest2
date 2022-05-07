@@ -16,4 +16,6 @@ pub enum ErrorKind {
 	InvalidEscape,
 	BadCharacterAfterIntegerLiteral(char),
 	UnknownMacroPattern(String),
+	UnterminatedGroup,
+	Message(String),
 }

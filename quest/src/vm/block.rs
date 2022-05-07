@@ -7,7 +7,7 @@ use std::mem::MaybeUninit;
 use std::sync::Arc;
 
 mod builder;
-pub use builder::Builder;
+pub use builder::{Builder, Local};
 
 quest_type! {
 	#[derive(NamedType, Debug)]

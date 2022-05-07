@@ -101,6 +101,12 @@ pub mod funcs {
 		Ok((int <= args[0].to_integer()?).as_any())
 	}
 
+	pub fn neg(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_arguments()?;
+
+		Ok((-int).as_any())
+	}
+
 	pub fn at_text(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		ConvertTo::<Gc<Text>>::convert(&int, args).map(AsAny::as_any)
 	}
@@ -125,6 +131,7 @@ impl Singleton for IntegerClass {
 				Intern::op_sub => method funcs::sub,
 				Intern::op_lth => method funcs::lth,
 				Intern::op_leq => method funcs::leq,
+				Intern::op_neg => method funcs::neg,
 				Intern::at_text => method funcs::at_text,
 				Intern::r#return => function super::object::funcs::r#return, // todo: why doesnt inheritance work
 			}

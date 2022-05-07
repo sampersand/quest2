@@ -36,6 +36,7 @@ pub enum TokenContents<'a> {
 	Integer(Integer),
 	Float(Float),
 	Identifier(&'a str),
+	Stackframe(isize),
 	Symbol(&'a str), // eg `+`, `**`, and user-definable ones too like `<$$>`.
 
 	Period,
@@ -58,6 +59,7 @@ impl PartialEq for TokenContents<'_> {
 			(Self::Float(l), Self::Float(r)) => l == r,
 			(Self::Identifier(l), Self::Identifier(r)) => l == r,
 			(Self::Symbol(l), Self::Symbol(r)) => l == r,
+			(Self::Stackframe(l), Self::Stackframe(r)) => l == r,
 
 			(Self::Period, Self::Period) => true,
 			(Self::Semicolon, Self::Semicolon) => true,
@@ -158,11 +160,21 @@ impl<'a> TokenContents<'a> {
 			},
 			',' if !stream.peek2().map_or(false, is_symbol_char) => {
 				stream.advance();
-				Ok(Self::Period)
+				Ok(Self::Comma)
 			},
 			';' if !stream.peek2().map_or(false, is_symbol_char) => {
 				stream.advance();
 				Ok(Self::Semicolon)
+			},
+			':' if matches!(stream.peek2(), Some('-' | '+'))
+				&& stream.peek3().map_or(false, |c| c.is_ascii_digit())
+				|| stream.peek2().map_or(false, |c| c.is_ascii_digit()) =>
+			{
+				stream.advance();
+				match parse_number(stream)? {
+					Self::Integer(num) => Ok(Self::Stackframe(num as isize)),
+					other => panic!("todo: error for bad stackframe: {:?}", other),
+				}
 			},
 			':' if stream.peek2() == Some(':') && !stream.peek3().map_or(false, is_symbol_char) => {
 				stream.advance();

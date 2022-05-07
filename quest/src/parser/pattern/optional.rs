@@ -1,4 +1,4 @@
-use crate::parser::pattern::{Expandable, Pattern, Context};
+use crate::parser::pattern::{Context, Expandable, Pattern};
 use crate::parser::{Parser, Result};
 use std::rc::Rc;
 
@@ -18,7 +18,7 @@ impl<'a> Pattern<'a> for Optional<'a> {
 }
 
 impl<'a> Expandable<'a> for OptionalMatch<'a> {
-		// TODO: should these two be swapped for which does rev?
+	// TODO: should these two be swapped for which does rev?
 	fn expand(&self, parser: &mut Parser<'a>, context: Context) {
 		if let Some(opt_match) = &self.0 {
 			opt_match.expand(parser, context);

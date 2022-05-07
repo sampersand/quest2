@@ -8,16 +8,14 @@ pub const MAX_ARGUMENTS_FOR_SIMPLE_CALL: usize = 16;
 pub enum Opcode {
 	NoOp,
 	Debug,
+	CreateList,
 
 	Mov,
-	// Jmp,
-	// JmpFalse,
-	// JmpTrue,
 	Call,
 	CallSimple,
-	// Return,
 	ConstLoad,
-	CurrentFrame,
+	Stackframe,
+
 	GetAttr,
 	HasAttr,
 	SetAttr,
@@ -44,4 +42,39 @@ pub enum Opcode {
 
 	Index,
 	IndexAssign,
+}
+
+impl Opcode {
+	pub fn unary_from_symbol(symbol: &str) -> Option<Self> {
+		match symbol {
+			"!" => Some(Self::Not),
+			"-" => Some(Self::Negate),
+			_ => None
+		}
+	}
+
+	pub fn binary_from_symbol(symbol: &str) -> Option<Self> {
+		match symbol {
+			"()" => Some(Self::CallSimple),
+
+			"+" => Some(Self::Add),
+			"-" => Some(Self::Subtract),
+			"*" => Some(Self::Multuply),
+			"/" => Some(Self::Divide),
+			"%" => Some(Self::Modulo),
+			"^" => Some(Self::Power),
+
+			"==" => Some(Self::Equal),
+			"!=" => Some(Self::NotEqual),
+			"<" => Some(Self::LessThan),
+			">" => Some(Self::GreaterThan),
+			"<=" => Some(Self::LessEqual),
+			">=" => Some(Self::GreaterEqual),
+			"<=>" => Some(Self::Compare),
+
+			"[]" => Some(Self::Index),
+			"[]=" => Some(Self::IndexAssign),
+			_ => None
+		}
+	}
 }

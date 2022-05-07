@@ -1,4 +1,5 @@
 use super::{Error, ErrorKind, Pattern, Result, Stream, /*Plugin,*/ Token};
+use crate::parser::token::TokenContents;
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
@@ -42,8 +43,16 @@ impl<'a> Parser<'a> {
 		&self.stream
 	}
 
+	pub fn location(&self) -> super::SourceLocation<'a> {
+		self.stream.location()
+	}
+
 	pub fn add_back(&mut self, token: Token<'a>) {
 		self.peeked_tokens.push(token);
+	}
+
+	pub fn take(&mut self) -> Result<'a, Option<Token<'a>>> {
+		self.advance()
 	}
 
 	pub fn advance(&mut self) -> Result<'a, Option<Token<'a>>> {
@@ -52,6 +61,10 @@ impl<'a> Parser<'a> {
 		} else {
 			Token::parse(&mut self.stream)
 		}
+	}
+
+	pub fn is_eof(&mut self) -> Result<'a, bool> {
+		Ok(self.peek()?.is_none())
 	}
 
 	pub fn peek(&mut self) -> Result<'a, Option<Token<'a>>> {
@@ -63,6 +76,13 @@ impl<'a> Parser<'a> {
 		} else {
 			Ok(None)
 		}
+	}
+
+	pub fn take_if_contents(
+		&mut self,
+		contents: TokenContents<'a>,
+	) -> Result<'a, Option<Token<'a>>> {
+		self.take_if(|token| token.contents == contents)
 	}
 
 	pub fn take_if(

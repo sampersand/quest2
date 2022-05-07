@@ -1,5 +1,5 @@
 use crate::parser::pattern::{Expandable, Pattern};
-use crate::parser::{Parser, Result, ErrorKind};
+use crate::parser::{ErrorKind, Parser, Result};
 
 #[derive(Debug)]
 pub struct NamedPattern<'a>(pub &'a str);

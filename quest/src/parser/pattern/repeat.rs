@@ -1,4 +1,4 @@
-use crate::parser::pattern::{Expandable, Pattern, Context};
+use crate::parser::pattern::{Context, Expandable, Pattern};
 use crate::parser::{Parser, Result};
 use std::rc::Rc;
 
@@ -6,7 +6,7 @@ use std::rc::Rc;
 pub struct Repeat<'a> {
 	min: usize,
 	max: Option<usize>,
-	pattern: Rc<dyn Pattern<'a>>
+	pattern: Rc<dyn Pattern<'a>>,
 }
 
 impl<'a> Repeat<'a> {
@@ -14,7 +14,7 @@ impl<'a> Repeat<'a> {
 		match max {
 			Some(0) => None,
 			Some(x) if x < min => None,
-			_ => Some(Self { min, max, pattern })
+			_ => Some(Self { min, max, pattern }),
 		}
 	}
 }
@@ -61,7 +61,7 @@ impl<'a> Pattern<'a> for Repeat<'a> {
 }
 
 impl<'a> Expandable<'a> for RepeatMatches<'a> {
-		// TODO: should these two be swapped for which does rev?
+	// TODO: should these two be swapped for which does rev?
 	fn expand(&self, parser: &mut Parser<'a>, context: Context) {
 		for pattern_match in self.0.iter().rev() {
 			pattern_match.expand(parser, context.clone());

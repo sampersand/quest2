@@ -1,4 +1,4 @@
-use crate::parser::pattern::{Expandable, Pattern, Context};
+use crate::parser::pattern::{Context, Expandable, Pattern};
 use crate::parser::{Parser, Result};
 use std::rc::Rc;
 

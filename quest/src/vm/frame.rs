@@ -272,13 +272,14 @@ impl Frame {
 		match self.next_byte() {
 			op if op == Opcode::NoOp as u8 => Opcode::NoOp,
 			op if op == Opcode::Debug as u8 => Opcode::Debug,
+			op if op == Opcode::CreateList as u8 => Opcode::CreateList,
 
 			op if op == Opcode::Mov as u8 => Opcode::Mov,
 			op if op == Opcode::Call as u8 => Opcode::Call,
 			op if op == Opcode::CallSimple as u8 => Opcode::CallSimple,
 
 			op if op == Opcode::ConstLoad as u8 => Opcode::ConstLoad,
-			op if op == Opcode::CurrentFrame as u8 => Opcode::CurrentFrame,
+			op if op == Opcode::Stackframe as u8 => Opcode::Stackframe,
 			op if op == Opcode::GetAttr as u8 => Opcode::GetAttr,
 			op if op == Opcode::HasAttr as u8 => Opcode::HasAttr,
 			op if op == Opcode::SetAttr as u8 => Opcode::SetAttr,
@@ -343,6 +344,24 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
+	fn op_create_list(&self) -> Result<()> {
+		let mut this = self.as_mut()?;
+		let amnt = this.next_count();
+
+		// TODO: use simple list builder when we make it
+		let list = List::with_capacity(amnt);
+		let mut l = list.as_mut().unwrap();
+
+		for i in 0..amnt {
+			l.push(this.next_local()?);
+		}
+
+		drop(l);
+		this.store_next_local(list.as_any());
+
+		Ok(())
+	}
+
 	fn op_call(&self) -> Result<()> {
 		todo!()
 	}
@@ -393,10 +412,22 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_currentframe(&self) -> Result<()> {
+	fn op_stackframe(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
-		this.convert_to_object()?;
-		this.store_next_local(self.clone().as_any());
+		let mut count = this.next_count() as isize;
+		let frame = Frame::with_stackframe(|frames| {
+			if count < 0 {
+				count += frames.len() as isize;
+			}
+			if count < 0 {
+				panic!("todo: out of bounds error");
+			}
+
+			Result::<_>::Ok(frames.get(count as usize).expect("todo: out of bounds error").clone())
+		})?;
+		frame.as_mut()?.convert_to_object()?;
+		this.store_next_local(frame.as_any());
+
 		Ok(())
 	}
 
@@ -650,12 +681,13 @@ impl Gc<Frame> {
 				Opcode::NoOp => self.op_noop(),
 				Opcode::Debug => self.op_debug(),
 
+				Opcode::CreateList => self.op_create_list(),
 				Opcode::Mov => self.op_mov(),
 				Opcode::Call => self.op_call(),
 				Opcode::CallSimple => self.op_call_simple(),
 
 				Opcode::ConstLoad => self.op_constload(),
-				Opcode::CurrentFrame => self.op_currentframe(),
+				Opcode::Stackframe => self.op_stackframe(),
 				Opcode::GetAttr => self.op_getattr(),
 				Opcode::HasAttr => self.op_hasattr(),
 				Opcode::SetAttr => self.op_setattr(),
