@@ -52,10 +52,23 @@ use quest::Result;
 fn main() {
 	let mut parser = Parser::new(
 		r###"
-x = 'a';
-x.freeze();
-x.concat('b');
-print(x);
+set_foo = n -> {
+	:1.("foo" + n) = 34;
+};
+
+set_foo(1);
+("b\nar" + foo1) = 12;
+print(:0."b\nar34");
+
+__EOF__
+Integer = 1.__parents__[0]; # not globally defined yet
+
+Integer.flop = n -> { (:-1) }; # todo: what?
+
+3.flop();
+Integer.'^' = Integer::'**';
+Integer.'√' = n -> { n ^ 0.5 };
+print(√16); # => 4
 __EOF__
 fib = n -> {
 	(n <= 1).then(n.return);

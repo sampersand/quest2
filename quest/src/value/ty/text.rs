@@ -991,6 +991,18 @@ pub mod funcs {
 		Ok(text.as_any())
 	}
 
+	pub fn add(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let rhs = args[0].to_text()?;
+
+		let text = text.as_ref()?.dup();
+		text.as_mut().unwrap().push_str(rhs.as_ref()?.as_str());
+
+		Ok(text.as_any())
+	}
+
 	pub fn eql(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
@@ -1027,6 +1039,7 @@ quest_type_attrs! { for Gc<Text>,
 	concat => meth funcs::concat,
 	len => meth funcs::len,
 	op_eql => meth funcs::eql,
+	op_add => meth funcs::add,
 	op_assign => meth funcs::assign,
 }
 

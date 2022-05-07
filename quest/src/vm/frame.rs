@@ -84,7 +84,12 @@ impl Frame {
 			unnamed_locals.write(AnyValue::default());
 
 			// copy positional arguments over into the first few named local arguments.
-			named_locals.copy_from_nonoverlapping(
+			let mut start = named_locals;
+			if let Some(this) = args.get_self() {
+				named_locals.write(Some(this));
+				start = named_locals.add(1);
+			}
+			start.copy_from_nonoverlapping(
 				args.positional().as_ptr().cast::<Option<AnyValue>>(),
 				args.positional().len(),
 			);
@@ -445,7 +450,7 @@ impl Gc<Frame> {
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
 
-		drop(this); // as `get_attr` may modify us.
+		drop(this);
 		let value = object
 			.get_attr(attr)?
 			.expect("todo: we should actually make this return a straight Result");

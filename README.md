@@ -5,6 +5,8 @@ The reimagining of quest, much faster and more fun.
 [ ] Macros
 [x] Assignment
 [ ] `x = 3; x.y = 4; print(x.y)` `y` isnt defined on `x`.
+[ ] `:-1` is invalid somehow?
+[ ] resume stackframes
 [ ] I didn't think of it ahead of time, but since I don't have explicit arguments in this block, the way you access eg the first argument is just... the first local variable in the scope. Which is not great, i need a way to distinguish them, i think ill have to have a separate "variables" location or somethin.
 [ ] Stackframes don't have access to the outer one, so they cant access variables outside them. I'm going to need to somehow have a partially-initialized stackframe when im building things so they can reference it.
 [ ] In the following code, should setting `fib` on the block affect the body? (maybe yes, as it could be a way to do statics))

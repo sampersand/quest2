@@ -88,10 +88,11 @@ fn strip_whitespace_and_comments(stream: &mut Stream<'_>) {
 
 		// we only have single-line comments
 		if stream.take_if(|c| '#' == c).is_some() {
-			while let Some(chr) = stream.take() {
+			while let Some(chr) = stream.peek() {
 				if chr == '\n' {
 					break;
 				}
+				stream.take(); // so `#...\n__EOF__\n` is recognized
 			}
 		} else {
 			break;
@@ -120,7 +121,8 @@ impl<'a> Token<'a> {
 
 // TODO: maybe use unicode?
 fn is_symbol_char(chr: char) -> bool {
-	"~!@$%^&*-=+|\\;:,<.>/?".contains(chr)
+	// todo: allow for `#`?
+	"~!@$%^&*-=+|\\;:,<.>/?".contains(chr) || !chr.is_ascii() && !chr.is_alphanumeric()
 }
 
 fn take_identifier<'a>(stream: &mut Stream<'a>) -> &'a str {
@@ -264,7 +266,7 @@ fn parse_float<'a>(lhs: Integer, stream: &mut Stream<'a>) -> Result<'a, Float> {
 		let is_exp_neg = Some('-') == stream.take_if(|c| c == '-' || c == '+');
 		parse_integer_base(stream, 10, is_exp_neg)
 	} else {
-		1
+		0
 	};
 
 	Ok(float * (10.0 as Float).powi(exponent as i32))
@@ -280,7 +282,7 @@ fn parse_number<'a>(stream: &mut Stream<'a>, integer_only: bool) -> Result<'a, T
 		Some('e' | 'E' | '.')
 			if base == 10
 				&& !integer_only
-				&& !stream.peek2().map_or(false, |c| c.is_alphanumeric()) =>
+				&& !stream.peek2().map_or(false, |c| c.is_alphabetic() || c == '_') =>
 		{
 			TokenContents::Float(parse_float(integer, stream)?)
 		},

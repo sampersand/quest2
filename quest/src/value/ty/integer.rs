@@ -93,6 +93,16 @@ pub mod funcs {
 
 		Ok((int * args[0].to_integer()?).as_any())
 	}
+	pub fn pow(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		if let Some(float) = args[0].downcast::<Float>() {
+			Ok(((int as Float).powf(float)).as_any())
+		} else {
+			Ok((int.pow(args[0].to_integer()? as _)).as_any())
+		}
+	}
 
 	pub fn lth(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
@@ -140,6 +150,7 @@ impl Singleton for IntegerClass {
 				Intern::op_lth => method funcs::lth,
 				Intern::op_leq => method funcs::leq,
 				Intern::op_neg => method funcs::neg,
+				Intern::op_pow => method funcs::pow,
 				Intern::at_text => method funcs::at_text,
 				Intern::r#return => function super::object::funcs::r#return, // todo: why doesnt inheritance work
 			}

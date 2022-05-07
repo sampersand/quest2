@@ -191,7 +191,13 @@ impl AnyValue {
 
 	pub fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
 		if !self.is_allocated() {
-			return self.parents_for().get_unbound_attr(attr);
+			return if attr.is_parents() {
+				// TODO: if this is modified, it wont reflect on the integer.
+				// so make `get_unbound_attr` require a reference?
+				Ok(Some(List::from_slice(&[self.parents_for()]).as_any()))
+			} else {
+				self.parents_for().get_unbound_attr(attr)
+			};
 		}
 
 		let gc = unsafe { self.get_gc_any_unchecked() };
@@ -311,31 +317,9 @@ impl AnyValue {
 		}
 	}
 
+	// deprecated
 	pub fn to_text(self) -> Result<Gc<Text>> {
-		if let Some(text) = self.downcast::<Gc<Text>>() {
-			return Ok(text);
-		}
-
-		todo!()
-		// let bits = self.bits();
-
-		// if self.is_allocated() {
-		// 	return self.convert::<Integer>();
-		// }
-
-		// if let Some(integer) = self.downcast::<Integer>() {
-		// 	Ok(integer)
-		// } else if let Some(float) = self.downcast::<Float>() {
-		// 	Ok(float.get() as Integer)
-		// } else if bits <= Value::NULL.bits() {
-		// 	debug_assert!(bits == Value::NULL.bits() || bits == Value::FALSE.bits());
-		// 	Ok(0)
-		// } else if bits == Value::TRUE.bits() {
-		// 	Ok(1)
-		// } else {
-		// 	debug_assert!(self.is_a::<RustFn>());
-		// 	Err(Error::ConversionFailed(self, Integer::ATTR_NAME))
-		// }
+		self.convert::<Gc<Text>>()
 	}
 
 	pub fn convert<C: AttrConversionDefined + Convertible>(self) -> Result<C> {
