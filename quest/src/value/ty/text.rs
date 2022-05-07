@@ -1006,13 +1006,26 @@ pub mod funcs {
 		args.assert_no_arguments()?;
 		Ok((text.as_ref()?.len() as i64).as_any())
 	}
+
+	pub fn assign(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let value = args[0];
+		let mut frame = crate::vm::Frame::with_stackframe(|sfs| *sfs.last().expect("returning from nothing?")).as_any();
+
+		frame.set_attr(text.as_any(), value)?;
+
+		Ok(value)
+	}
 }
 
 quest_type_attrs! { for Gc<Text>,
 	parent Object;
 	concat => meth funcs::concat,
 	len => meth funcs::len,
-	op_eql => meth funcs::eql
+	op_eql => meth funcs::eql,
+	op_assign => meth funcs::assign,
 }
 
 // quest_type! {

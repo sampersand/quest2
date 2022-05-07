@@ -1,4 +1,5 @@
 use super::{Inner, List, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
+use crate::value::HasDefaultParent;
 use crate::value::base::Builder as BaseBuilder;
 use crate::value::gc::Gc;
 
@@ -6,7 +7,9 @@ use crate::value::gc::Gc;
 pub struct Builder(BaseBuilder<Inner>);
 
 impl Builder {
-	pub unsafe fn new(builder: BaseBuilder<Inner>) -> Self {
+	pub unsafe fn new(mut builder: BaseBuilder<Inner>) -> Self {
+		builder.set_parents(Gc::<List>::parent());
+
 		Self(builder)
 	}
 

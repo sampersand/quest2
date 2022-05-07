@@ -41,6 +41,42 @@ impl<'a> Statement<'a> {
 }
 
 impl<'a> Group<'a> {
+	pub fn parse_all(parser: &mut Parser<'a>) -> Result<'a, Self> {
+		let mut statements = Vec::new();
+		let mut end_in_semicolon = false;
+
+		while !parser.is_eof()? {
+			while parser.take_if_contents(TokenContents::Semicolon)?.is_some() {
+				// remove leading semicolons
+			}
+
+			if let Some(statement) = Statement::parse(parser)? {
+				statements.push(statement);
+			} else {
+				let token = parser.peek()?;
+				return Err(parser.error(ErrorKind::Message(
+					format!("expected expression got {:?}", token))));
+			}
+
+			if parser.take_if_contents(TokenContents::Semicolon)?.is_some() {
+				end_in_semicolon = true;
+			} else {
+				end_in_semicolon = false;
+				break;
+			}
+		}
+
+		if !parser.is_eof()? {
+			let token = parser.peek()?;
+			return Err(parser.error(ErrorKind::Message(format!("unknown token after expr: {:?}", token))))
+		}
+
+		Ok(Self {
+			statements,
+			end_in_semicolon,
+		})		
+	}
+
 	pub fn parse(parser: &mut Parser<'a>, paren: ParenType) -> Result<'a, Option<Self>> {
 		if parser.take_if_contents(TokenContents::LeftParen(paren))?.is_none() {
 			return Ok(None);

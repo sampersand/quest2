@@ -70,7 +70,7 @@ define_interned! {
 
 	op_add "+" op_sub "-" op_mul "*" op_div "/" op_mod "%" op_pow "**"
 	op_eql "==" op_neq "!=" op_lth "<" op_leq "<=" op_gth ">" op_geq ">=" op_cmp "<=>"
-	op_not "!" op_neg "-@" op_index "[]" op_index_assign "[]=" op_call "()"
+	op_not "!" op_neg "-@" op_index "[]" op_index_assign "[]=" op_call "()" op_assign "="
 
 	at_text "@text" at_num "@num" at_bool "@bool" at_list "@list"
 	at_int "@int" at_float "@float"

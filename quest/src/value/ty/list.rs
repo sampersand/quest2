@@ -407,83 +407,55 @@ impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
 	}
 }
 
-quest_type! {
-	#[derive(Debug, NamedType)]
-	pub struct ListClass(());
+quest_type_attrs! { for Gc<List>, parent Object;
+	op_index => meth funcs::index,
+	op_index_assign => meth funcs::index_assign,
 }
 
-singleton_object! { for ListClass, parentof List;
-	// "+" => method!(qs_add),
-	// "@text" => method!(qs_at_text)
+pub mod funcs {
+	use super::*;
+	use crate::{Result, vm::Args};
+	use crate::value::ty::Integer;
+
+	pub fn index(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?; // todo: more positional args for slicing
+
+		let listref = list.as_ref()?;
+		let mut index = args[0].convert::<Integer>()?;
+
+		if index < 0 {
+			index += listref.len() as Integer;
+
+			if index < 0 {
+				panic!("todo: error for out of bounds");
+			}
+		}
+
+
+		Ok(*listref.as_slice().get(index as usize).expect("todo: error for out of bounds"))
+	}
+
+	pub fn index_assign(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(2)?; // todo: more positional args for slicing
+
+		let mut listmut = list.as_mut()?;
+		let mut index = args[0].convert::<Integer>()?;
+		let value = args[1];
+
+		if index < 0 {
+			index += listmut.len() as Integer;
+
+			if index < 0 {
+				panic!("todo: error for out of bounds");
+			}
+		}
+
+		assert!(index <= listmut.len() as _, "todo: index out of bounds fills with null");
+
+		listmut.as_mut()[index as usize] = value;
+
+		Ok(value)
+	}
 }
-
-// impl Eq for List {}
-// impl PartialEq for List {
-// 	fn eq(&self, rhs: &Self) -> bool {
-// 		self == rhs.as_slice()
-// 	}
-// }
-
-// impl PartialEq<[AnyValue]> for List {
-// 	fn eq(&self, rhs: &[AnyValue]) -> bool {
-// 		self.as_slice() == rhs
-// 	}
-// }
-
-// impl PartialOrd for List {
-// 	fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
-// 		Some(self.cmp(rhs))
-// 	}
-// }
-
-// impl Ord for List {
-// 	fn cmp(&self, rhs: &Self) -> std::cmp::Ordering {
-// 		self.as_str().cmp(rhs.as_str())
-// 	}
-// }
-
-// impl PartialOrd<[AnyValue]> for List {
-// 	fn partial_cmp(&self, rhs: &[AnyValue]) -> Option<std::cmp::Ordering> {
-// 		self.as_str().partial_cmp(&rhs)
-// 	}
-// }
-
-// #[cfg(test)]
-// mod tests {
-// 	use super::*;
-// 	use crate::value::ty::*;
-// 	use crate::value::Convertible;
-// 	use crate::Value;
-
-// 	const JABBERWOCKY: &str = "twas brillig in the slithy tothe did gyre and gimble in the wabe";
-
-// 	#[test]
-// 	fn test_is_a() {
-// 		assert!(<Gc<List>>::is_a(Value::from("").any()));
-// 		assert!(<Gc<List>>::is_a(Value::from("x").any()));
-// 		assert!(<Gc<List>>::is_a(Value::from("yesseriie").any()));
-// 		assert!(<Gc<List>>::is_a(Value::from(JABBERWOCKY).any()));
-
-// 		assert!(!<Gc<List>>::is_a(Value::TRUE.any()));
-// 		assert!(!<Gc<List>>::is_a(Value::FALSE.any()));
-// 		assert!(!<Gc<List>>::is_a(Default::default()));
-// 		assert!(!<Gc<List>>::is_a(Value::ONE.any()));
-// 		assert!(!<Gc<List>>::is_a(Value::ZERO.any()));
-// 		assert!(!<Gc<List>>::is_a(Value::from(1.0).any()));
-// 		assert!(!<Gc<List>>::is_a(Value::from(RustFn::NOOP).any()));
-// 	}
-
-// 	#[test]
-// 	fn test_get() {
-// 		assert_eq!(<Gc<List>>::get(Value::from("")).as_ref().unwrap(), *"");
-// 		assert_eq!(<Gc<List>>::get(Value::from("x")).as_ref().unwrap(), *"x");
-// 		assert_eq!(
-// 			<Gc<List>>::get(Value::from("yesseriie")).as_ref().unwrap(),
-// 			*"yesseriie"
-// 		);
-// 		assert_eq!(
-// 			<Gc<List>>::get(Value::from(JABBERWOCKY)).as_ref().unwrap(),
-// 			*JABBERWOCKY
-// 		);
-// 	}
-// }

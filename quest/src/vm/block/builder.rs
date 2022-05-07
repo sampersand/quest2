@@ -244,9 +244,9 @@ impl Builder {
 		}
 	}
 
-	pub fn set_attr(&mut self, obj: Local, attr: Local, value: Local) {
+	pub fn set_attr(&mut self, obj: Local, attr: Local, value: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::SetAttr, &[obj, attr, value]);
+			self.simple_opcode(Opcode::SetAttr, &[obj, attr, value, dst]);
 		}
 	}
 
@@ -379,15 +379,28 @@ impl Builder {
 		}
 	}
 
-	pub fn index(&mut self, lhs: Local, rhs: Local, dst: Local) {
+	pub fn index(&mut self, source: Local, index: &[Local], dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Index, &[lhs, rhs, dst]);
+			self.opcode(Opcode::Index);
+			self.local(source);
+			self.count(index.len());
+			for arg in index {
+				self.local(*arg);
+			}
+			self.local(dst);
 		}
 	}
 
-	pub fn index_assign(&mut self, lhs: Local, rhs: Local, dst: Local) {
+	pub fn index_assign(&mut self, source: Local, index: &[Local], value: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::IndexAssign, &[lhs, rhs, dst]);
+			self.opcode(Opcode::IndexAssign);
+			self.local(source);
+			self.count(index.len());
+			for arg in index {
+				self.local(*arg);
+			}
+			self.local(value);
+			self.local(dst);
 		}
 	}
 }

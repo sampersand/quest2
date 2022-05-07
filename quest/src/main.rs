@@ -51,16 +51,25 @@ use quest::parser::ast::Compile;
 
 fn main() {
 	let mut parser = Parser::new(r###"
+f = { "x".concat("b") };
+ary = [1,2,3];
+ary[1] = 5;
+print(ary[0] + ary[1]);
+print(f());
+print(f());
+__EOF__
 (
-	:0.__set_attr__("fizzbuzz", {
-		(num <= 1).then(num.return);
+# I haven't currently written the assignment parser,
+# but you can call `__set_attr__` to do the same thing.
+:0.__set_attr__("fib", {
+	(_0 <= 1).then(_0.return);
 
-		fizzbuzz(num - 1) + fizzbuzz(num - 2)
-	});
+	fib(_0 - 1) + fib(_0 - 2)
+});
 
-	fizzbuzz.__set_attr__("fizzbuzz", fizzbuzz);
+fib.__set_attr__("fib", fib);
 
-	print(fizzbuzz(10));
+fib(10).print();
 )
 __EOF__
 # print ( 1 + 2 ) ; #, " ", 3 * 4 )
@@ -85,9 +94,7 @@ __EOF__
 	let mut builder = quest::vm::block::Builder::new(quest::vm::SourceLocation {}, None);
 	let scratch = builder.scratch();
 
-	while let Some(expr) = ast::Expression::parse(&mut parser).expect("bad parse") {
-		expr.compile(&mut builder, scratch);
-	}
+	ast::Group::parse_all(&mut parser).expect("bad parse").compile(&mut builder, scratch);
 
 	let block = builder.build();
 	let result = block.run(Default::default()).unwrap();

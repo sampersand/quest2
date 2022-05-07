@@ -115,7 +115,18 @@ impl Compile for Primary<'_> {
 					builder.call(/*function_local, &argument_locals, dst*/);
 				}
 			},
-			Self::Index(source, index) => todo!("{:?} {:?}", source, index),
+			Self::Index(source, index) => {
+				let source_local = builder.unnamed_local();
+				source.compile(builder, source_local);
+
+				let mut argument_locals = Vec::with_capacity(index.arguments.len());
+				for argument in &index.arguments {
+					let local = builder.unnamed_local();
+					argument.compile(builder, local);
+					argument_locals.push(local);
+				}
+				builder.index(source_local, &argument_locals, dst);
+			},
 			Self::AttrAccess(source, kind, attribute) => {
 				let local = builder.unnamed_local();
 				source.compile(builder, local);

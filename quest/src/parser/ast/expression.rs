@@ -18,6 +18,11 @@ impl<'a> Expression<'a> {
 			return Ok(None);
 		};
 
+		let primary = match Assignment::parse(primary, parser)? {
+			Ok(assignment) => return Ok(Some(Self::Assignment(Box::new(assignment)))),
+			Err(primary) => primary
+		};
+
 		if let Some(token) = parser.take_if(|token| matches!(token.contents, TokenContents::Symbol(_)))? {
 			let sym = match token.contents {
 				TokenContents::Symbol(sym) => sym,

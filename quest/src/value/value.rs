@@ -331,6 +331,10 @@ impl AnyValue {
 	}
 
 	pub fn convert<C: AttrConversionDefined + Convertible>(self) -> Result<C> {
+		if let Some(this) = self.downcast::<C>() {
+			return Ok(this);
+		}
+
 		let conv = self.call_attr(C::ATTR_NAME, Default::default())?;
 
 		if let Some(attr) = conv.downcast::<C>() {

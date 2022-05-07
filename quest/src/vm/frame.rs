@@ -480,6 +480,7 @@ impl Gc<Frame> {
 		let object_index = this.next_count() as isize;
 		let attr = this.next_local()?;
 		let value = this.next_local()?;
+		this.store_next_local(value);
 
 		/*
 		Because you can assign indices onto any object, we need to be able to dynamically convert
@@ -502,6 +503,7 @@ impl Gc<Frame> {
 			let object = this.0.header_mut().get_unbound_attr_mut(name)?;
 			object.set_attr(attr, value)?;
 		}
+
 
 		Ok(())
 	}
@@ -611,7 +613,18 @@ impl Gc<Frame> {
 	}
 
 	fn op_index(&self) -> Result<()> {
-		self.run_binary_op(Intern::op_index)
+		let mut this = self.as_mut()?;
+		let ary = this.next_local()?;
+		let argc = this.next_count();
+		let mut args = Vec::with_capacity(argc + 1);
+		for i in 0..argc {
+			args.push(this.next_local()?);
+		}
+		drop(this);
+
+		self.as_mut()?.store_next_local(ary.call_attr(Intern::op_index, Args::new(&args, &[]))?);
+
+		Ok(())
 	}
 
 	fn op_not(&self) -> Result<()> {
@@ -639,11 +652,17 @@ impl Gc<Frame> {
 	fn op_indexassign(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let ary = this.next_local()?;
-		let index = this.next_local()?;
+		let argc = this.next_count();
+		let mut args = Vec::with_capacity(argc + 1);
+		for i in 0..argc {
+			args.push(this.next_local()?);
+		}
 		let value = this.next_local()?;
+		args.push(value);
 		drop(this);
 
-		ary.call_attr(Intern::op_index_assign, Args::new(&[ary, value], &[]))?;
+		ary.call_attr(Intern::op_index_assign, Args::new(&args, &[]))?;
+		self.as_mut()?.store_next_local(value);
 
 		Ok(())
 	}
