@@ -171,7 +171,7 @@ impl<'a> TokenContents<'a> {
 				|| stream.peek2().map_or(false, |c| c.is_ascii_digit()) =>
 			{
 				stream.advance();
-				match parse_number(stream)? {
+				match parse_number(stream, true)? {
 					Self::Integer(num) => Ok(Self::Stackframe(num as isize)),
 					other => panic!("todo: error for bad stackframe: {:?}", other),
 				}
@@ -181,11 +181,11 @@ impl<'a> TokenContents<'a> {
 				stream.advance();
 				Ok(Self::ColonColon)
 			},
-			chr if chr.is_ascii_digit() => parse_number(stream),
-			'-' | '+' if stream.peek2().map_or(false, |c| c.is_ascii_digit()) => parse_number(stream),
+			chr if chr.is_ascii_digit() => parse_number(stream, false),
+			// '-' | '+' if stream.peek2().map_or(false, |c| c.is_ascii_digit()) => parse_number(stream),
 			'\'' | '"' => parse_text(stream),
 			'$' => parse_macro(stream),
-			chr if chr.is_alphabetic() => Ok(Self::Identifier(take_identifier(stream))),
+			chr if chr.is_alphabetic() || chr == '_' => Ok(Self::Identifier(take_identifier(stream))),
 			chr if is_symbol_char(chr) => Ok(Self::Symbol(stream.take_while(is_symbol_char))),
 			other => Err(stream.error(ErrorKind::UnknownTokenStart(other))),
 		}
@@ -271,13 +271,13 @@ fn parse_float<'a>(lhs: Integer, stream: &mut Stream<'a>) -> Result<'a, Float> {
 }
 
 // Note that unary minus/plus are coalesced during constant joining.
-fn parse_number<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
+fn parse_number<'a>(stream: &mut Stream<'a>, integer_only: bool) -> Result<'a, TokenContents<'a>> {
 	let is_negative = Some('-') == stream.take_if(|c| c == '-' || c == '+');
 	let base = determine_base(stream)?;
 	let integer = parse_integer_base(stream, base, is_negative);
 
 	let contents = match stream.peek() {
-		Some('e' | 'E' | '.') if base == 10 && !stream.peek2().map_or(false, |c| c.is_alphanumeric()) => TokenContents::Float(parse_float(integer, stream)?),
+		Some('e' | 'E' | '.') if base == 10 && !integer_only && !stream.peek2().map_or(false, |c| c.is_alphanumeric()) => TokenContents::Float(parse_float(integer, stream)?),
 		_ => TokenContents::Integer(integer),
 	};
 

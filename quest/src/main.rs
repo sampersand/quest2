@@ -16,6 +16,10 @@ fn main() {
 # if (1 == 1, 2,3)
 # print([ 12 + 34 ] [ 0 ]);
 (
+	:0.__set_attr__("a", 3);
+	print(a);
+)
+__EOF__
 	{
 		print(if(2 == 2, { 2 }, { 4 }));
 		print({ a + 1 }(4));

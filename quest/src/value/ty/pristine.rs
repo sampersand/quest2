@@ -1,4 +1,4 @@
-use crate::value::{base::Base, AsAny, Gc};
+use crate::value::{base::Base, AsAny, Gc, Intern};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
 
@@ -13,26 +13,49 @@ impl Pristine {
 
 		INSTANCE
 			.get_or_init(|| {
-				let builder = Base::<()>::builder();
+				let mut builder = Base::<()>::builder();
+
+				unsafe {
+					builder.allocate_attributes(7);
+
+					builder.set_attr(Intern::__get_attr__, RustFn_new!("__get_attr__", function funcs::__get_attr__).as_any())
+						.unwrap();
+
+					builder.set_attr(Intern::__get_unbound_attr__, RustFn_new!("__get_unbound_attr__", function funcs::__get_unbound_attr__).as_any())
+						.unwrap();
+
+					builder.set_attr(Intern::__set_attr__, RustFn_new!("__set_attr__", function funcs::__set_attr__).as_any())
+						.unwrap();
+
+					builder.set_attr(Intern::__del_attr__, RustFn_new!("__del_attr__", function funcs::__del_attr__).as_any())
+						.unwrap();
+
+					builder.set_attr(Intern::__has_attr__, RustFn_new!("__has_attr__", function funcs::__has_attr__).as_any())
+						.unwrap();
+
+					builder.set_attr(Intern::__call_attr__, RustFn_new!("__call_attr__", function funcs::__call_attr__).as_any())
+						.unwrap();
 
 				// we don't set parents, as empty parents is default.
-				Gc::from_inner(unsafe { builder.finish() })
+					Gc::from_inner(builder.finish())
+				}
 			})
 			.as_any()
 	}
 }
 
-impl Gc<Pristine> {
-	#[allow(non_snake_case)]
-	pub fn qs__has_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+#[allow(non_snake_case)]
+pub mod funcs {
+	use super::*;
+
+	pub fn __has_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok(obj.has_attr(args[0])?.as_any())
 	}
 
-	#[allow(non_snake_case)]
-	pub fn qs__get_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn __get_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -40,8 +63,7 @@ impl Gc<Pristine> {
 			.ok_or_else(|| crate::Error::UnknownAttribute(obj, args[0]))
 	}
 
-	#[allow(non_snake_case)]
-	pub fn qs__get_unbound_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn __get_unbound_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -49,14 +71,12 @@ impl Gc<Pristine> {
 			.ok_or_else(|| crate::Error::UnknownAttribute(obj, args[0]))
 	}
 
-	#[allow(non_snake_case)]
-	pub fn qs__call_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn __call_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		let (attr, args) = args.split_first()?;
 		obj.call_attr(attr, args)
 	}
 
-	#[allow(non_snake_case)]
-	pub fn qs__set_attr__(mut obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn __set_attr__(mut obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(2)?;
 
@@ -64,20 +84,10 @@ impl Gc<Pristine> {
 		Ok(obj)
 	}
 
-	#[allow(non_snake_case)]
-	pub fn qs__del_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn __del_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok(obj.del_attr(args[0])?.unwrap_or(crate::Value::NULL.any()))
 	}
-}
-
-quest_type_attrs! { for Gc<Pristine>;
-	__get_attr__ => func func!(Gc::<Pristine>::qs__get_attr__),
-	__get_unbound_attr__ => func func!(Gc::<Pristine>::qs__get_unbound_attr__),
-	__set_attr__ => func func!(Gc::<Pristine>::qs__set_attr__),
-	__del_attr__ => func func!(Gc::<Pristine>::qs__del_attr__),
-	__has_attr__ => func func!(Gc::<Pristine>::qs__has_attr__),
-	__call_attr__ => func func!(Gc::<Pristine>::qs__call_attr__),
 }
