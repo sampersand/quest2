@@ -51,9 +51,10 @@ macro_rules! value {
 	};
 }
 
+
 fn main() -> Result<()> {
 	let fib = {
-		let mut builder = quest::vm::Block::builder(SourceLocation {});
+		let mut builder = quest::vm::block::Builder::new(quest::vm::SourceLocation {}, None);
 
 		let n = builder.named_local("n");
 		let fib = builder.named_local("fib");
@@ -63,18 +64,17 @@ fn main() -> Result<()> {
 		let ret = builder.unnamed_local();
 		let scratch = builder.scratch();
 
-		builder
-			.constant(1.as_any(), one)
-			.constant("then".as_any(), tmp2)
-			.constant("return".as_any(), scratch)
-			.get_attr(n, scratch, scratch)
-			.less_equal(n, one, tmp)
-			.call_attr_simple(tmp, tmp2, &[scratch], scratch)
-			.subtract(n, one, n)
-			.call_simple(fib, &[n], tmp)
-			.subtract(n, one, n)
-			.call_simple(fib, &[n], scratch)
-			.add(tmp, scratch, scratch);
+		builder.constant(1.as_any(), one);
+		builder.constant("then".as_any(), tmp2);
+		builder.constant("return".as_any(), scratch);
+		builder.get_attr(n, scratch, scratch);
+		builder.less_equal(n, one, tmp);
+		builder.call_attr_simple(tmp, tmp2, &[scratch], scratch);
+		builder.subtract(n, one, n);
+		builder.call_simple(fib, &[n], tmp);
+		builder.subtract(n, one, n);
+		builder.call_simple(fib, &[n], scratch);
+		builder.add(tmp, scratch, scratch);;
 
 		builder.build()
 	};

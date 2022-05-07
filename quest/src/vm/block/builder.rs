@@ -9,6 +9,7 @@ pub struct Builder {
 	constants: Vec<AnyValue>,
 	num_of_unnamed_locals: usize,
 	named_locals: Vec<Gc<Text>>,
+	parent_scope: Option<AnyValue>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -22,13 +23,14 @@ const COUNT_IS_NOT_ONE_BYTE_BUT_USIZE: u8 = i8::MAX as u8;
 
 impl Builder {
 	#[must_use]
-	pub fn new(loc: SourceLocation) -> Self {
+	pub fn new(loc: SourceLocation, parent_scope: Option<AnyValue>) -> Self {
 		Self {
 			loc,
 			code: Vec::default(),
 			constants: Vec::default(),
 			num_of_unnamed_locals: 1, // The first register is scratch
 			named_locals: Vec::default(),
+			parent_scope
 		}
 	}
 
@@ -61,6 +63,7 @@ impl Builder {
 			self.constants,
 			self.num_of_unnamed_locals,
 			self.named_locals,
+			self.parent_scope
 		)
 	}
 

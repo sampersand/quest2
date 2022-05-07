@@ -1,5 +1,6 @@
 use super::{Frame, SourceLocation};
-use crate::value::{ty::Text, Gc, HasDefaultParent};
+use crate::value::{Gc, HasDefaultParent, base::Base};
+use crate::value::ty::{Text, List};
 use crate::vm::Args;
 use crate::{AnyValue, Error, Result};
 use std::cell::UnsafeCell;
@@ -25,16 +26,13 @@ pub struct BlockInner {
 }
 
 impl Block {
-	pub fn builder(loc: SourceLocation) -> Builder {
-		Builder::new(loc)
-	}
-
 	fn _new(
 		code: Vec<u8>,
 		loc: SourceLocation,
 		constants: Vec<AnyValue>,
 		num_of_unnamed_locals: usize,
 		named_locals: Vec<Gc<Text>>,
+		parent_scope: Option<AnyValue>
 	) -> Gc<Self> {
 		let inner = Arc::new(BlockInner {
 			block: UnsafeCell::new(MaybeUninit::uninit()),
@@ -44,7 +42,14 @@ impl Block {
 			num_of_unnamed_locals,
 			named_locals,
 		});
-		let gc = Gc::from_inner(crate::value::base::Base::new(inner.clone(), Gc::<Block>::parent()));
+
+
+		let gc = Gc::from_inner(if let Some(parent_scope) = parent_scope {
+			Base::new(inner.clone(), List::from_slice(&vec![parent_scope, Gc::<Block>::parent()]))
+		} else {
+			Base::new(inner.clone(), Gc::<Block>::parent())
+		});
+
 		unsafe {
 			inner.block.get().write(MaybeUninit::new(gc));
 		}
@@ -69,7 +74,7 @@ impl Gc<Block> {
 	}
 }
 
-quest_type_attrs! { for Gc<Block>;
+quest_type_attrs! { for Gc<Block>, parent Object;
 	op_call => meth Gc::<Block>::run,
 	// "+" => meth qs_add,
 	// "@text" => meth qs_at_text,

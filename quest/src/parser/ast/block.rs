@@ -36,7 +36,8 @@ impl<'a> BlockArgs<'a> {
 
 impl Compile for Block<'_> {
 	fn compile(&self, builder: &mut Builder, dst: Local) {
-		let mut inner_builder = Builder::new(/*self.body.location*/crate::vm::SourceLocation{});
+		// todo: somehow have `builder` have a partially-initialized reference to its stackframe.
+		let mut inner_builder = Builder::new(/*self.body.location*/crate::vm::SourceLocation{}, None);
 		let scratch = inner_builder.scratch();
 
 		self.body.compile(&mut inner_builder, scratch);

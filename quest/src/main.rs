@@ -10,8 +10,59 @@ use quest::vm::*;
 use quest::Result;
 use quest::parser::ast::Compile;
 
+// fn main() -> Result<()> {
+// 	let fib = {
+// 		let mut builder = quest::vm::block::Builder::new(quest::vm::SourceLocation {}, None);
+
+// 		let n = builder.named_local("n");
+// 		let fib = builder.named_local("fib");
+// 		let one = builder.unnamed_local();
+// 		let tmp = builder.unnamed_local();
+// 		let tmp2 = builder.unnamed_local();
+// 		let ret = builder.unnamed_local();
+// 		let scratch = builder.scratch();
+
+// 		builder.constant(1.as_any(), one);
+// 		builder.constant("then".as_any(), tmp2);
+// 		builder.constant("return".as_any(), scratch);
+// 		builder.get_attr(n, scratch, scratch);
+// 		builder.less_equal(n, one, tmp);
+// 		builder.call_attr_simple(tmp, tmp2, &[scratch], scratch);
+// 		builder.subtract(n, one, n);
+// 		builder.call_simple(fib, &[n], tmp);
+// 		builder.subtract(n, one, n);
+// 		builder.call_simple(fib, &[n], scratch);
+// 		builder.add(tmp, scratch, scratch);;
+
+// 		builder.build()
+// 	};
+
+// 	fib.as_mut()
+// 		.unwrap()
+// 		.set_attr("fib".as_any(), fib.as_any())?;
+
+// 	let fib_of = 30;
+// 	let result = fib.run(Args::new(&[fib_of.as_any()], &[]))?;
+
+// 	println!("fib({:?}) = {:?}", fib_of, result);
+
+// 	Ok(())
+// }
+
 fn main() {
 	let mut parser = Parser::new(r###"
+(
+	:0.__set_attr__("fizzbuzz", {
+		(num <= 1).then(num.return);
+
+		fizzbuzz(num - 1) + fizzbuzz(num - 2)
+	});
+
+	fizzbuzz.__set_attr__("fizzbuzz", fizzbuzz);
+
+	print(fizzbuzz(10));
+)
+__EOF__
 # print ( 1 + 2 ) ; #, " ", 3 * 4 )
 # if (1 == 1, 2,3)
 # print([ 12 + 34 ] [ 0 ]);
@@ -31,7 +82,7 @@ __EOF__
 
 "###, None);
 
-	let mut builder = quest::vm::Block::builder(quest::vm::SourceLocation {});
+	let mut builder = quest::vm::block::Builder::new(quest::vm::SourceLocation {}, None);
 	let scratch = builder.scratch();
 
 	while let Some(expr) = ast::Expression::parse(&mut parser).expect("bad parse") {
