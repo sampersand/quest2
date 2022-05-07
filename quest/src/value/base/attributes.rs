@@ -172,9 +172,7 @@ pub trait Attribute: Copy + Debug {
 	fn try_eq_value(self, rhs: AnyValue) -> Result<bool>;
 	fn try_eq_intern(self, rhs: Intern) -> Result<bool>;
 
-	fn as_intern(self) -> Option<Intern> {
-		None
-	}
+	fn as_intern(self) -> Result<Option<Intern>>;
 
 	fn try_hash(self) -> Result<u64>;
 	fn to_value(self) -> AnyValue;
@@ -203,8 +201,8 @@ impl Attribute for crate::value::Intern {
 		Ok(self.fast_hash())
 	}
 
-	fn as_intern(self) -> Option<Intern> {
-		Some(self)
+	fn as_intern(self) -> Result<Option<Intern>> {
+		Ok(Some(self))
 	}
 
 	fn to_value(self) -> AnyValue {
@@ -235,6 +233,14 @@ impl Attribute for AnyValue {
 
 	fn try_hash(self) -> Result<u64> {
 		AnyValue::try_hash(self)
+	}
+
+	fn as_intern(self) -> Result<Option<Intern>> {
+		if let Some(text) = self.downcast::<Gc<Text>>() {
+			Ok(Intern::from_str(text.as_ref()?.as_ref()))
+		} else {
+			Ok(None)
+		}
 	}
 
 	fn to_value(self) -> AnyValue {

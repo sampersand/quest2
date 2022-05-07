@@ -52,7 +52,7 @@ impl Map {
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		debug_assert!(!attr.is_special());
 
-		if let Some(intern) = attr.as_intern() {
+		if let Some(intern) = attr.as_intern()? {
 			Ok(self.interned.get(&intern).cloned())
 		} else {
 			self.get_unbound_any_attr(attr)
@@ -87,7 +87,7 @@ impl Map {
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
 		debug_assert!(!attr.is_special());
 
-		if let Some(intern) = attr.as_intern() {
+		if let Some(intern) = attr.as_intern()? {
 			self.interned.insert(intern, value);
 
 			Ok(())
@@ -130,7 +130,7 @@ impl Map {
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
 		debug_assert!(!attr.is_special());
 
-		if let Some(_intern) = attr.as_intern() {
+		if let Some(_intern) = attr.as_intern()? {
 			// You cannot remove interned values
 			// TODO: is this actually the semantics we want?
 			Ok(None)

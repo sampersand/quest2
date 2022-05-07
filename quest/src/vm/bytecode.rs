@@ -17,6 +17,7 @@ pub enum Opcode {
 	Stackframe,
 
 	GetAttr,
+	GetUnboundAttr,
 	HasAttr,
 	SetAttr,
 	DelAttr,

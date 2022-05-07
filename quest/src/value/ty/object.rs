@@ -30,12 +30,14 @@ impl Object {
 				Intern::or => function funcs::or,
 				Intern::and => function funcs::and,
 				Intern::itself => function funcs::itself,
+				Intern::print => function funcs::print,
 			}
 		})
 	}
 }
 
 pub mod funcs {
+	use crate::value::ty::Kernel;
 	use super::*;
 
 	pub fn eql(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
@@ -79,13 +81,6 @@ pub mod funcs {
 
 		let _ = obj;
 		todo!("clone")
-	}
-
-	pub fn print(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-		args.assert_no_arguments()?;
-
-		let _ = obj;
-		todo!("print")
 	}
 
 	pub fn r#return(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
@@ -188,6 +183,12 @@ pub mod funcs {
 
 		let _ = obj;
 		todo!("itself (probs implemented via bound function)")
+	}
+
+	pub fn print(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_arguments()?;
+
+		crate::value::Gc::<Kernel>::qs_print(Args::new(&[obj], &[]))
 	}
 }
 /*

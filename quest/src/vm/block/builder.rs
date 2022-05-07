@@ -223,6 +223,12 @@ impl Builder {
 		}
 	}
 
+	pub fn get_unbound_attr(&mut self, obj: Local, attr: Local, dst: Local) {
+		unsafe {
+			self.simple_opcode(Opcode::GetUnboundAttr, &[obj, attr, dst]);
+		}
+	}
+
 	pub fn get_attr(&mut self, obj: Local, attr: Local, dst: Local) {
 		unsafe {
 			self.simple_opcode(Opcode::GetAttr, &[obj, attr, dst]);

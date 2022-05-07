@@ -12,6 +12,8 @@ pub enum Primary<'a> {
 	FnCall(Box<Primary<'a>>, FnArgs<'a>),
 	Index(Box<Primary<'a>>, FnArgs<'a>),
 	AttrAccess(Box<Primary<'a>>, AttrAccessKind, Atom<'a>),
+	// AttrAccess(Box<Primary<'a>>, AttrAccessKind, Atom<'a>),
+	// TODO: attribute call.
 }
 
 impl<'a> Primary<'a> {
@@ -114,7 +116,22 @@ impl Compile for Primary<'_> {
 				}
 			},
 			Self::Index(source, index) => todo!("{:?} {:?}", source, index),
-			Self::AttrAccess(source, kind, attribute) => todo!("{:?} {:?} {:?}", source, kind, attribute),
+			Self::AttrAccess(source, kind, attribute) => {
+				let local = builder.unnamed_local();
+				source.compile(builder, local);
+
+				// don't parse identifiers straight up
+				if let Atom::Identifier(ident) = attribute {
+					builder.str_constant(ident, dst);
+				} else {
+					attribute.compile(builder, dst);
+				}
+
+				match kind {
+					AttrAccessKind::ColonColon => builder.get_unbound_attr(local, dst, dst),
+					AttrAccessKind::Period => builder.get_attr(local, dst, dst),
+				}
+			},
 		}
 	}
 }

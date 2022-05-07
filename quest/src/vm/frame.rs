@@ -277,10 +277,11 @@ impl Frame {
 			op if op == Opcode::Mov as u8 => Opcode::Mov,
 			op if op == Opcode::Call as u8 => Opcode::Call,
 			op if op == Opcode::CallSimple as u8 => Opcode::CallSimple,
-
 			op if op == Opcode::ConstLoad as u8 => Opcode::ConstLoad,
 			op if op == Opcode::Stackframe as u8 => Opcode::Stackframe,
+
 			op if op == Opcode::GetAttr as u8 => Opcode::GetAttr,
+			op if op == Opcode::GetUnboundAttr as u8 => Opcode::GetUnboundAttr,
 			op if op == Opcode::HasAttr as u8 => Opcode::HasAttr,
 			op if op == Opcode::SetAttr as u8 => Opcode::SetAttr,
 			op if op == Opcode::DelAttr as u8 => Opcode::DelAttr,
@@ -415,6 +416,9 @@ impl Gc<Frame> {
 	fn op_stackframe(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let mut count = this.next_count() as isize;
+
+		// todo: optimization for :0
+		drop(this);
 		let frame = Frame::with_stackframe(|frames| {
 			if count < 0 {
 				count += frames.len() as isize;
@@ -423,10 +427,10 @@ impl Gc<Frame> {
 				panic!("todo: out of bounds error");
 			}
 
-			Result::<_>::Ok(frames.get(count as usize).expect("todo: out of bounds error").clone())
+			Result::<_>::Ok(frames.get(frames.len() - count as usize - 1).expect("todo: out of bounds error").clone())
 		})?;
 		frame.as_mut()?.convert_to_object()?;
-		this.store_next_local(frame.as_any());
+		self.as_mut()?.store_next_local(frame.as_any());
 
 		Ok(())
 	}
@@ -439,6 +443,20 @@ impl Gc<Frame> {
 		drop(this); // as `get_attr` may modify us.
 		let value = object
 			.get_attr(attr)?
+			.expect("todo: we should actually make this return a straight Result");
+		self.as_mut()?.store_next_local(value);
+
+		Ok(())
+	}
+
+	fn op_get_unbound_attr(&self) -> Result<()> {
+		let mut this = self.as_mut()?;
+		let object = this.next_local()?;
+		let attr = this.next_local()?;
+
+		drop(this); // as `get_attr` may modify us.
+		let value = object
+			.get_unbound_attr(attr)?
 			.expect("todo: we should actually make this return a straight Result");
 		self.as_mut()?.store_next_local(value);
 
@@ -689,6 +707,7 @@ impl Gc<Frame> {
 				Opcode::ConstLoad => self.op_constload(),
 				Opcode::Stackframe => self.op_stackframe(),
 				Opcode::GetAttr => self.op_getattr(),
+				Opcode::GetUnboundAttr => self.op_get_unbound_attr(),
 				Opcode::HasAttr => self.op_hasattr(),
 				Opcode::SetAttr => self.op_setattr(),
 				Opcode::DelAttr => self.op_delattr(),
