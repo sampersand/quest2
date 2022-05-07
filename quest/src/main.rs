@@ -58,7 +58,7 @@ fib = n -> {
 };
 
 fib.fib = fib;
-
+#fib.__parents__ = [:0];
 fib(10).print();
 
 __EOF__

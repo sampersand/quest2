@@ -140,12 +140,12 @@ impl Builder {
 		}
 	}
 
-	unsafe fn count(&mut self, amnt: usize) {
-		if amnt <= (u8::MAX as usize) {
-			self.code.push(amnt as u8);
+	unsafe fn count(&mut self, count: usize) {
+		if count <= (u8::MAX as usize) {
+			self.code.push(count as u8);
 		} else {
 			self.code.push(u8::MAX);
-			self.code.extend(amnt.to_ne_bytes());
+			self.code.extend(count.to_ne_bytes());
 		}
 	}
 

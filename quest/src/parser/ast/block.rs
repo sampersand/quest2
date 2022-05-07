@@ -63,42 +63,26 @@ impl<'a> BlockArgs<'a> {
 			}
 		}
 
-		let mut right_paren = None;
-
-		'undo: loop {
-			if let Some(token) = parser.take_if_contents(TokenContents::RightParen(ParenType::Round))? {
-				right_paren = Some(token);
-			} else {
-				break 'undo;
-			}
-
-			if parser.take_if_contents(TokenContents::Symbol("->"))?.is_none() {
-				break 'undo;
-			}
-
-			let mut args = Vec::with_capacity(arg_tokens.len());
-			for token in arg_tokens {
-				if let TokenContents::Identifier(name) = token.contents {
-					args.push(name)
+		if let Some(token) = parser.take_if_contents(TokenContents::RightParen(ParenType::Round))? {
+			if parser.take_if_contents(TokenContents::Symbol("->"))?.is_some() {
+				let mut args = Vec::with_capacity(arg_tokens.len());
+				for token in arg_tokens {
+					if let TokenContents::Identifier(name) = token.contents {
+						args.push(name)
+					}
 				}
+
+				return Ok(Some(Self { args }));
 			}
 
-			return Ok(Some(Self { args }));
+			parser.add_back(token);
 		}
 
-		if let Some(rparen) = right_paren {
-			parser.add_back(rparen);
+		for token in arg_tokens.into_iter().rev() {
+			parser.add_back(token);
 		}
-		for token in arg_tokens.iter().rev() {
-			parser.add_back(*token);
-		}
+
 		parser.add_back(left_paren);
-		println!("{:?}", parser);
-		println!("{:?}", parser.peek()?);
-		// println!("{:?}", parser.advance()?);
-		// println!("{:?}", parser.advance()?);
-		// println!("{:?}", parser.advance()?);
-		// println!("{:?}", parser.advance()?);
 		Ok(None)
 	}
 }
