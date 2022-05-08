@@ -93,6 +93,32 @@ pub mod funcs {
 
 		Ok((int * args[0].to_integer()?).as_any())
 	}
+
+	pub fn div(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let denom = args[0].to_integer()?;
+		if denom == 0 {
+			panic!("todo: return a division by zero error");
+		}
+
+		Ok((int / denom).as_any())
+	}
+	
+	// TODO: verify it's actually modulus 
+	pub fn r#mod(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let denom = args[0].to_integer()?;
+		if denom == 0 {
+			panic!("todo: return a modulo by zero error");
+		}
+
+		Ok((int % denom).as_any())
+	}
+	
 	pub fn pow(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
@@ -147,10 +173,12 @@ impl Singleton for IntegerClass {
 				Intern::op_add => method funcs::add,
 				Intern::op_sub => method funcs::sub,
 				Intern::op_mul => method funcs::mul,
+				Intern::op_div => method funcs::div,
+				Intern::op_mod => method funcs::r#mod,
+				Intern::op_pow => method funcs::pow,
 				Intern::op_lth => method funcs::lth,
 				Intern::op_leq => method funcs::leq,
 				Intern::op_neg => method funcs::neg,
-				Intern::op_pow => method funcs::pow,
 				Intern::at_text => method funcs::at_text,
 				Intern::r#return => function super::object::funcs::r#return, // todo: why doesnt inheritance work
 			}

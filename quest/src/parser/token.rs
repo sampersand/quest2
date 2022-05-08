@@ -126,7 +126,17 @@ fn is_symbol_char(chr: char) -> bool {
 }
 
 fn take_identifier<'a>(stream: &mut Stream<'a>) -> &'a str {
-	stream.take_while(|c| c.is_alphanumeric() || c == '_')
+	let mut was_last_question_mark = false;
+	stream.take_while(|c| !was_last_question_mark && 
+		if c.is_alphanumeric() || c == '_' {
+			true
+		} else if c == '?' {
+			was_last_question_mark = true;
+			true
+		} else {
+			false
+		}
+	)
 }
 
 impl<'a> TokenContents<'a> {

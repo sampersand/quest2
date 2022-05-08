@@ -52,13 +52,16 @@ use quest::Result;
 fn main() {
 	let mut parser = Parser::new(
 		r###"
-set_foo = n -> {
-	:1.("foo" + n) = 34;
-};
+Integer = 1.__parents__[0]; # not globally defined yet
 
-set_foo(1);
-("b\nar" + foo1) = 12;
-print(:0."b\nar34");
+Integer.zero? = n -> { n == 0 };
+Integer.divides? = (n, l) -> {
+	n;l;
+	(l % n).tap(print).zero?()
+};
+print(12.divides?(13));
+print(12.divides?(24));
+
 
 __EOF__
 Integer = 1.__parents__[0]; # not globally defined yet
