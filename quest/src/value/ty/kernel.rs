@@ -7,8 +7,10 @@ quest_type! {
 	pub struct Kernel(());
 }
 
-impl Gc<Kernel> {
-	pub fn qs_print(args: Args<'_>) -> Result<AnyValue> {
+pub mod funcs {
+	use super::*;
+
+	pub fn print(args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 
 		for arg in args.positional() {
@@ -19,7 +21,7 @@ impl Gc<Kernel> {
 		Ok(Default::default())
 	}
 
-	pub fn qs_if(args: Args<'_>) -> Result<AnyValue> {
+	pub fn r#if(args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() == 2 || a.positional().len() == 3)?;
 
@@ -32,7 +34,7 @@ impl Gc<Kernel> {
 		}
 	}
 
-	pub fn qs_while(args: Args<'_>) -> Result<AnyValue> {
+	pub fn r#while(args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(2)?;
 
@@ -47,7 +49,7 @@ impl Gc<Kernel> {
 }
 
 singleton_object! { for Kernel, parent Pristine;
-	Intern::print => Gc::<Kernel>::qs_print,
-	Intern::r#if => Gc::<Kernel>::qs_if,
-	Intern::r#while => Gc::<Kernel>::qs_while,
+	Intern::print => funcs::print,
+	Intern::r#if => funcs::r#if,
+	Intern::r#while => funcs::r#while,
 }

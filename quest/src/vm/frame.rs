@@ -782,7 +782,7 @@ mod tests {
 	#[test]
 	fn test_fibonacci() {
 		let fib = {
-			let mut builder = Block::builder(Default::default());
+			let mut builder = crate::vm::block::Builder::new(Default::default(), None);
 
 			let n = builder.named_local("n");
 			let fib = builder.named_local("fib");
@@ -792,19 +792,18 @@ mod tests {
 			let tmp3 = builder.unnamed_local();
 			let ret = builder.unnamed_local();
 
-			builder
-				.constant(1.as_any(), one)
-				.less_equal(n, one, tmp)
-				.constant("then".as_any(), tmp2)
-				.constant("return".as_any(), ret)
-				.get_attr(n, ret, tmp3)
-				.call_attr_simple(tmp, tmp2, &[tmp3], tmp)
-				.subtract(n, one, n)
-				.call_simple(fib, &[n], tmp)
-				.subtract(n, one, n)
-				.call_simple(fib, &[n], tmp2)
-				.add(tmp, tmp2, tmp)
-				.call_attr_simple(tmp, ret, &[], tmp);
+			builder.constant(1.as_any(), one);
+			builder.less_equal(n, one, tmp);
+			builder.constant("then".as_any(), tmp2);
+			builder.constant("return".as_any(), ret);
+			builder.get_attr(n, ret, tmp3);
+			builder.call_attr_simple(tmp, tmp2, &[tmp3], tmp);
+			builder.subtract(n, one, n);
+			builder.call_simple(fib, &[n], tmp);
+			builder.subtract(n, one, n);
+			builder.call_simple(fib, &[n], tmp2);
+			builder.add(tmp, tmp2, tmp);
+			builder.call_attr_simple(tmp, ret, &[], tmp);;
 
 			builder.build()
 		};

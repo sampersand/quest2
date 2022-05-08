@@ -189,7 +189,7 @@ pub mod funcs {
 	pub fn print(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
 
-		crate::value::Gc::<Kernel>::qs_print(Args::new(&[obj], &[]))
+		crate::value::ty::kernel::funcs::print(Args::new(&[obj], &[])).and(Ok(obj))
 	}
 
 	pub fn freeze(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {

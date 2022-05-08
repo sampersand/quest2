@@ -10,6 +10,27 @@ use quest::value::*;
 use quest::vm::*;
 use quest::Result;
 
+
+fn run_code(code: &str) -> Result<AnyValue> {
+	let mut parser = Parser::new(code, None);
+	let mut builder = quest::vm::block::Builder::new(quest::vm::SourceLocation {}, None);
+	let scratch = builder.scratch();
+
+	ast::Group::parse_all(&mut parser)
+		.expect("bad parse")
+		.compile(&mut builder, scratch);
+
+	builder.build().run(Default::default())
+}
+
+fn main() {
+	match run_code(&std::env::args().skip(1).next().unwrap()) {
+		Err(err) => { eprintln!("error: {}", err); std::process::exit(0) },
+		Ok(num) => if let Some(exit_code) = num.downcast::<i64>() { std::process::exit(exit_code as i32) }
+	}
+}
+
+/*
 // fn main() -> Result<()> {
 // 	let fib = {
 // 		let mut builder = quest::vm::block::Builder::new(quest::vm::SourceLocation {}, None);
@@ -52,46 +73,7 @@ use quest::Result;
 fn main() {
 	let mut parser = Parser::new(
 		r###"
-Integer = 1.__parents__[0]; # not globally defined yet
 
-Integer.zero? = n -> { n == 0 };
-Integer.divides? = (n, l) -> {
-	n;l;
-	(l % n).tap(print).zero?()
-};
-print(12.divides?(13));
-print(12.divides?(24));
-:-1.a = 3;
-print(a);
-
-
-__EOF__
-Integer = 1.__parents__[0]; # not globally defined yet
-
-Integer.flop = n -> { (:-1) }; # todo: what?
-
-3.flop();
-Integer.'^' = Integer::'**';
-Integer.'√' = n -> { n ^ 0.5 };
-print(√16); # => 4
-__EOF__
-fib = n -> {
-	(n <= 1).then(n.return);
-
-	fib(n - 1) + fib(n - 2)
-};
-
-fib.fib = fib;
-#fib.__parents__ = [:0];
-fib(10).print();
-
-__EOF__
-f = { "x".concat("b") };
-ary = [1,2,3];
-ary[1] = 5;
-print(ary[0] + ary[1]);
-print(f());
-print(f());
 __EOF__
 (
 # I haven't currently written the assignment parser,
@@ -210,3 +192,4 @@ add = fn (bar, baz) {
 
 	Ok(())
 }
+*/
