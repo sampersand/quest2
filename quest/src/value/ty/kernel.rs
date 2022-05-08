@@ -62,6 +62,9 @@ impl Singleton for Kernel {
 				Intern::r#if => justargs funcs::r#if,
 				Intern::r#while => justargs funcs::r#while,
 				Intern::Integer => constant ty::Integer::parent(),
+				Intern::r#true => constant true.as_any(),
+				Intern::r#false => constant false.as_any(),
+				Intern::r#null => constant ty::Null.as_any(),
 				// TODO: Other types
 			}
 		})

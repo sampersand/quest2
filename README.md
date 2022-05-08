@@ -5,6 +5,7 @@ The reimagining of quest, much faster and more fun.
 [ ] Macros
 [x] Assignment
 [ ] `x = 3; x.y = 4; print(x.y)` `y` isnt defined on `x`.
+[ ] Add all typenames to `Kernel`
 [x] `:-1` is invalid somehow? (wasnt encoding negative numbers right)
 [ ] resume stackframes
 [ ] I didn't think of it ahead of time, but since I don't have explicit arguments in this block, the way you access eg the first argument is just... the first local variable in the scope. Which is not great, i need a way to distinguish them, i think ill have to have a separate "variables" location or somethin.

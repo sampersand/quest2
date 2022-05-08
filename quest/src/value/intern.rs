@@ -84,6 +84,8 @@ define_interned! {
 	r#else "else"
 	r#return "return"
 
+	r#true "true" r#false "false" null
+
 	inspect print freeze
 
 	Block Boolean BoundFn Callable Class Float Integer Kernel List Null Object Pristine RustFn Scope Text
