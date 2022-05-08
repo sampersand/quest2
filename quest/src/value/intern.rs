@@ -85,6 +85,8 @@ define_interned! {
 	r#return "return"
 
 	inspect print freeze
+
+	Block Boolean BoundFn Callable Class Float Integer Kernel List Null Object Pristine RustFn Scope Text
 }
 
 impl Hash for Intern {

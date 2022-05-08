@@ -21,8 +21,6 @@ fn run_code(code: &str) -> Result<AnyValue> {
 #[test]
 fn divides() {
 	let result = run_code(r#"
-		Integer = 1.__parents__[0]; # not globally defined yet
-
 		Integer.zero? = n -> { n == 0 };
 		Integer.divides? = (n, l) -> { (l % n).zero?() };
 		12.divides?(24).and(!12.divides?(13))
@@ -34,8 +32,6 @@ fn divides() {
 #[test]
 fn square_root() {
 	let result = run_code(r#"
-		Integer = 1.__parents__[0]; # not globally defined yet
-
 		Integer.'^' = Integer::'**';
 		Integer.'√' = n -> { n ^ 0.5 };
 		√16

@@ -25,6 +25,8 @@ macro_rules! _length_of {
 
 #[macro_export]
 macro_rules! create_class {
+	(@$_attr:expr, constant, $value:expr) => ($value);
+	(@$attr:expr, $kind:ident, $value:expr) => ($crate::RustFn_new!($attr, $kind $value).as_any());
 	($name:expr $(, parent $parent:expr)?; $($attr:expr => $kind:ident $value:expr),* $(,)?) => {(|| -> $crate::Result<$crate::AnyValue> {
 		#[allow(unused_imports)]
 		use $crate::value::{AsAny, Intern};
@@ -37,9 +39,7 @@ macro_rules! create_class {
 			builder.parent($parent);
 		})?
 
-		$(
-			builder.set_attr($attr, $crate::RustFn_new!($attr, $kind $value).as_any())?;
-		)*
+		$(builder.set_attr($attr, create_class!(@$attr, $kind, $value))?;)*
 
 		Ok(builder.finish().as_any())
 	})().expect(concat!("Class creation for '", $name, "' failed!"))}

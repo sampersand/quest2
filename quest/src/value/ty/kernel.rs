@@ -1,4 +1,5 @@
-use crate::value::Gc;
+use crate::value::ty::{self, Singleton};
+use crate::value::{Gc, HasDefaultParent};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
 
@@ -48,8 +49,21 @@ pub mod funcs {
 	}
 }
 
-singleton_object! { for Kernel, parent Pristine;
-	Intern::print => funcs::print,
-	Intern::r#if => funcs::r#if,
-	Intern::r#while => funcs::r#while,
+
+impl Singleton for Kernel {
+	fn instance() -> crate::AnyValue {
+		use once_cell::sync::OnceCell;
+
+		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+
+		*INSTANCE.get_or_init(|| {
+			create_class! { "Kernel", parent Pristine::instance();
+				Intern::print => justargs funcs::print,
+				Intern::r#if => justargs funcs::r#if,
+				Intern::r#while => justargs funcs::r#while,
+				Intern::Integer => constant ty::Integer::parent(),
+				// TODO: Other types
+			}
+		})
+	}
 }
