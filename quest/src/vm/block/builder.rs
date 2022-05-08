@@ -140,10 +140,13 @@ impl Builder {
 	}
 
 	unsafe fn count(&mut self, count: usize) {
-		if count <= (u8::MAX as usize) {
+		use crate::vm::bytecode::COUNT_IS_NOT_ONE_BYTE_BUT_USIZE;
+
+		// TODO: verify this is sound.
+		if count <= COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize {
 			self.code.push(count as u8);
 		} else {
-			self.code.push(u8::MAX);
+			self.code.push(COUNT_IS_NOT_ONE_BYTE_BUT_USIZE);
 			self.code.extend(count.to_ne_bytes());
 		}
 	}

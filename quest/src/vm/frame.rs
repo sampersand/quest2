@@ -3,7 +3,8 @@ use super::bytecode::Opcode;
 use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
 use crate::value::{AsAny, Gc, HasDefaultParent, Intern};
-use crate::vm::{bytecode::MAX_ARGUMENTS_FOR_SIMPLE_CALL, Args, Block};
+use crate::vm::{Args, Block};
+use crate::vm::bytecode::{MAX_ARGUMENTS_FOR_SIMPLE_CALL, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE};
 use crate::{AnyValue, Error, Result};
 use std::alloc::Layout;
 use std::cell::UnsafeCell;
@@ -28,7 +29,6 @@ pub struct Inner {
 
 const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
 const FLAG_IS_OBJECT: u32 = Flags::USER1;
-const COUNT_IS_NOT_ONE_BYTE_BUT_USIZE: u8 = i8::MAX as u8;
 
 fn locals_layout_for(num_of_unnamed_locals: usize, num_named_locals: usize) -> Layout {
 	Layout::array::<Option<AnyValue>>(num_of_unnamed_locals + num_named_locals).unwrap()

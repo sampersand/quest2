@@ -61,6 +61,8 @@ Integer.divides? = (n, l) -> {
 };
 print(12.divides?(13));
 print(12.divides?(24));
+:-1.a = 3;
+print(a);
 
 
 __EOF__

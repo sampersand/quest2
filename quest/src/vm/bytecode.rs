@@ -2,6 +2,7 @@ use crate::vm::SourceLocation;
 use crate::AnyValue;
 
 pub const MAX_ARGUMENTS_FOR_SIMPLE_CALL: usize = 16;
+pub(super) const COUNT_IS_NOT_ONE_BYTE_BUT_USIZE: u8 = i8::MAX as u8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
