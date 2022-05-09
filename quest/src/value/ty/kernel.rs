@@ -41,7 +41,7 @@ pub mod funcs {
 
 		let mut last = crate::Value::NULL.any();
 
-		while args[0].is_truthy()? {
+		while args[0].call(Args::default())?.is_truthy()? {
 			last = args[1].call(Args::default())?;
 		}
 
