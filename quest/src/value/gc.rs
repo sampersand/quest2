@@ -441,6 +441,20 @@ impl<T: Allocated> Ref<T> {
 	}
 }
 
+impl<T: Allocated> Ref<T>
+where T::Inner: Clone
+{
+	pub fn deep_clone(&self) -> Result<Gc<T>> {
+		// unsafe {
+			// todo: we dont need to use zeroed
+			// let mut builder = crate::value::base::Builder::allocate();
+			// TODO: deep clone
+			// let _ = builder;
+		// }
+		Ok(self.as_gc())
+	}
+}
+
 impl<T: Allocated> Clone for Ref<T> {
 	fn clone(&self) -> Self {
 		let gcref_result = self.as_gc().as_ref();

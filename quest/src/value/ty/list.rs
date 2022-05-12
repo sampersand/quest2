@@ -319,6 +319,18 @@ impl List {
 		unsafe { self.as_mut_ptr().add(self.len()) }
 	}
 
+	pub fn unshift(&mut self, ele: AnyValue) {
+		if self.capacity() <= self.len() + 1 {
+			self.allocate_more(1);
+		}
+
+		unsafe {
+			self.as_mut_ptr().copy_to(self.as_mut_ptr().add(1), self.len());
+			self.as_mut_ptr().write(ele);
+			self.set_len(self.len() + 1);
+		}
+	}
+
 	pub fn push(&mut self, ele: AnyValue) {
 		// OPTIMIZE: you can make this work better for single values.
 		self.push_slice(std::slice::from_ref(&ele));
@@ -410,10 +422,13 @@ impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
 quest_type_attrs! { for Gc<List>, parent Object;
 	op_index => meth funcs::index,
 	op_index_assign => meth funcs::index_assign,
+	push => meth funcs::push,
+	unshift => meth funcs::unshift,
 }
 
 pub mod funcs {
 	use super::*;
+	use crate::value::AsAny;
 	use crate::value::ty::Integer;
 	use crate::{vm::Args, Result};
 
@@ -459,5 +474,23 @@ pub mod funcs {
 		listmut.as_mut()[index as usize] = value;
 
 		Ok(value)
+	}
+
+	pub fn push(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?; // todo: more positional args for slicing
+
+		list.as_mut()?.push(args[0]);
+
+		Ok(list.as_any())
+	}
+
+	pub fn unshift(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?; // todo: more positional args for slicing
+
+		list.as_mut()?.unshift(args[0]);
+
+		Ok(list.as_any())
 	}
 }

@@ -414,6 +414,18 @@ impl Gc<Frame> {
 		let mut this = self.as_mut()?;
 		let idx = this.next_count();
 		let constant = this.block.constants[idx];
+
+		if let Some(block) = constant.downcast::<Gc<Block>>() {
+			let block = block.as_ref()?.deep_clone()?;
+			this.convert_to_object()?;
+
+			block.as_ref()?
+				.parents()?
+				.as_list()
+				.as_mut()?
+				.unshift(self.clone().as_any());
+		}
+
 		this.store_next_local(constant);
 		Ok(())
 	}

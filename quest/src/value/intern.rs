@@ -88,6 +88,8 @@ define_interned! {
 
 	inspect print freeze
 
+	push pop shift unshift
+
 	Block Boolean BoundFn Callable Class Float Integer Kernel List Null Object Pristine RustFn Scope Text
 }
 
