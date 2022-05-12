@@ -23,7 +23,34 @@ fn run_code(code: &str) -> Result<AnyValue> {
 	builder.build().run(Default::default())
 }
 
+fn setup_tracing() {
+	use tracing::level_filters::LevelFilter;
+	use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
+
+	let loglevel = std::env::var("QUEST_LOGGING");
+	let filter = 
+		match loglevel.as_ref().map(|x| x.as_ref()) {
+			Ok("T") | Ok("TRACE") => LevelFilter::TRACE,
+			Ok("D") | Ok("DEBUG") => LevelFilter::DEBUG,
+			Ok("I") | Ok("INFO") => LevelFilter::INFO,
+			Ok("W") | Ok("WARN") => LevelFilter::WARN,
+			Ok("E") | Ok("ERROR") => LevelFilter::ERROR,
+			Ok("O") | Ok("OFF") => LevelFilter::OFF,
+			_ => return
+		};
+
+	tracing_subscriber::fmt()
+		.with_max_level(filter)
+		.with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+		.init();
+}
+
+
+
 fn main() {
+	setup_tracing();
+	tracing::debug!("created str constant");
+
 	match run_code(&std::env::args().skip(1).next().unwrap()) {
 		Err(err) => { eprintln!("error: {}", err); std::process::exit(0) },
 		Ok(num) => if let Some(exit_code) = num.downcast::<i64>() { std::process::exit(exit_code as i32) }

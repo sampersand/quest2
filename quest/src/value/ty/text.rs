@@ -833,6 +833,37 @@ impl Text {
 		std::ptr::copy(string.as_ptr(), self.mut_end_ptr(), string.len());
 		self.set_len(self.len() + string.len());
 	}
+
+/*
+	pub fn unescape(&self) -> Gc<Self> {
+		fn needs_unescape(c: char) -> bool {
+			!c.is_ascii_graphic() && c != ' ' 
+		}
+
+	    let mut i = 0;
+
+	    'escape_found: loop {
+	      while i < self.len() {
+	        if self[i].needs_escaping() {
+	          break 'escape_found; // ie a goto
+	        }
+	        i += 1;
+	      }
+	      return self.dup();
+	    }
+
+	    let mut unescaped = Self::allocate(self.len() + 1); 
+	    self.copy_to(&mut unescaped, i);
+	    for chr in self.chars().skip(i) {
+	      if chr.needs_escaping() {
+	        unescape_char(&mut unescaped, chr);
+	      } else {
+	        unescaped.push(chr);
+	      }
+	    }
+	    unescaped
+	  }
+	}*/
 }
 
 impl Default for Gc<Text> {

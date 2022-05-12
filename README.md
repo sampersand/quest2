@@ -2,4 +2,4 @@
 The reimagining of quest, much faster and more fun.
 
 ## TODOS:
-(all todos are nwo on the github)
+(all todos are now on the github)

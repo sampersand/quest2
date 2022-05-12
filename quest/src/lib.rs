@@ -1,5 +1,8 @@
 extern crate static_assertions as sa;
 
+#[macro_use]
+extern crate tracing;
+
 #[cfg(test)]
 #[macro_use]
 extern crate assert_matches;

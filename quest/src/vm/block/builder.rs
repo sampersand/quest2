@@ -44,15 +44,19 @@ impl Builder {
 	}
 
 	pub fn named_local(&mut self, name: &str) -> Local {
-		for (i, named_local) in self.named_locals.iter().enumerate() {
+		for (idx, named_local) in self.named_locals.iter().enumerate() {
 			// We created the `Gc<Text>` so no one else should be able to mutate them rn.
 			if *named_local.as_ref().unwrap() == name {
-				return Local::Named(i);
+				trace!(target: "block_builder", ?idx, ?name, "found named local");
+				return Local::Named(idx);
 			}
 		}
 
+		let idx = self.named_locals.len();
+		trace!(target: "block_builder", ?idx, ?name, "created new local");
+
 		self.named_locals.push(Text::from_str(name));
-		Local::Named(self.named_locals.len() - 1)
+		Local::Named(idx)
 	}
 
 	#[must_use]
@@ -70,18 +74,22 @@ impl Builder {
 	pub fn str_constant(&mut self, string: &str, dst: Local) {
 		let mut index = None;
 
-		for (i, constant) in self.constants.iter().enumerate() {
+		for (idx, constant) in self.constants.iter().enumerate() {
 			if let Some(text) = constant.downcast::<Gc<Text>>() {
 				if *text.as_ref().unwrap() == string {
-					index = Some(i);
+					trace!(target: "block_builder", ?idx, ?string, "found str constant");
+					index = Some(idx);
 					break;
 				}
 			}
 		}
 
 		let index = index.unwrap_or_else(|| {
+			let idx = self.constants.len();
+			trace!(target: "block_builder", ?idx, ?string, "created str constant");
+
 			self.constants.push(Text::from_str(string).as_any());
-			self.constants.len() - 1
+			idx
 		});
 
 		unsafe {
@@ -94,16 +102,20 @@ impl Builder {
 	pub fn constant(&mut self, value: AnyValue, dst: Local) {
 		let mut index = None;
 
-		for (i, constant) in self.constants.iter().enumerate() {
+		for (idx, constant) in self.constants.iter().enumerate() {
 			if constant.is_identical(value) {
-				index = Some(i);
+				trace!(target: "block_builder", ?idx, ?value, "found constant");
+				index = Some(idx);
 				break;
 			}
 		}
 
 		let index = index.unwrap_or_else(|| {
+			let idx = self.constants.len();
+			trace!(target: "block_builder", ?idx, ?value, "created constant");
+
 			self.constants.push(value);
-			self.constants.len() - 1
+			idx
 		});
 
 		unsafe {
@@ -115,24 +127,34 @@ impl Builder {
 
 	// SAFETY: you gotta make sure the remainder of the code after this is valid.
 	unsafe fn opcode(&mut self, opcode: Opcode) {
+		debug!(target: "block_builder", idx=self.code.len(), ?opcode, "set byte");
 		self.code.push(opcode as u8);
 	}
 
 	unsafe fn local(&mut self, local: Local) {
+		// todo: local
+				// debug!(target: "block_builder", "self[{}].local = 0 (scratch)", self.code.len());
 		match local {
-			Local::Scratch => self.code.push(0),
+			Local::Scratch => {
+				debug!(target: "block_builder", idx=self.code.len(), local=%"0 (scratch)", "set byte");
+				self.code.push(0)
+			},
 			Local::Unnamed(n) if n < COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize => {
+				debug!(target: "block_builder", idx=self.code.len(), local=%n, "set byte");
 				self.code.push(n as u8)
 			},
 			Local::Unnamed(n) => {
+				debug!(target: "block_builder", idx=self.code.len(), local=?n, "set bytes");
 				self.code.push(COUNT_IS_NOT_ONE_BYTE_BUT_USIZE);
 				self.code.extend(n.to_ne_bytes());
 			},
 			// todo, im not sure if this is 100% correct, math-wise
 			Local::Named(n) if n < COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize => {
+				debug!(target: "block_builder", idx=self.code.len(), local=?n, updated=?(!(n as i8) as u8), "set byte");
 				self.code.push(!(n as i8) as u8)
 			},
 			Local::Named(n) => {
+				debug!(target: "block_builder", idx=self.code.len(), local=?n, updated=?((!n as isize) as usize), "set bytes");
 				self.code.push(COUNT_IS_NOT_ONE_BYTE_BUT_USIZE);
 				self.code.extend((!(n as isize)).to_ne_bytes());
 			},
@@ -144,8 +166,10 @@ impl Builder {
 
 		// TODO: verify this is sound.
 		if count <= COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize {
+			debug!(target: "block_builder", idx=self.code.len(), ?count, "set byte");
 			self.code.push(count as u8);
 		} else {
+			debug!(target: "block_builder", idx=self.code.len(), ?count, "set bytes");
 			self.code.push(COUNT_IS_NOT_ONE_BYTE_BUT_USIZE);
 			self.code.extend(count.to_ne_bytes());
 		}
@@ -157,18 +181,6 @@ impl Builder {
 
 		for arg in args {
 			self.local(*arg);
-		}
-	}
-
-	pub fn no_op(&mut self) {
-		unsafe {
-			self.simple_opcode(Opcode::NoOp, &[]);
-		}
-	}
-
-	pub fn debug(&mut self) {
-		unsafe {
-			self.simple_opcode(Opcode::Mov, &[]);
 		}
 	}
 

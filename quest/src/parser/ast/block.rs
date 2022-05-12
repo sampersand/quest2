@@ -113,7 +113,7 @@ impl Compile for Block<'_> {
 		}
 
 		self.body.compile(&mut inner_builder, scratch);
-		let frame = inner_builder.build();
-		builder.constant(frame.as_any(), dst);
+		let block = inner_builder.build();
+		builder.constant(block.as_any(), dst);
 	}
 }

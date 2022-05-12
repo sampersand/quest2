@@ -24,6 +24,15 @@ pub mod funcs {
 		Ok(Default::default())
 	}
 
+	pub fn dump(args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		println!("{:#?}", args[0]);
+
+		Ok(args[0])
+	}
+
 	pub fn r#if(args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() == 2 || a.positional().len() == 3)?;
@@ -61,6 +70,7 @@ impl Singleton for Kernel {
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Kernel", parent Pristine::instance();
 				Intern::print => justargs funcs::print,
+				Intern::dump => justargs funcs::dump,
 				Intern::r#if => justargs funcs::r#if,
 				Intern::r#while => justargs funcs::r#while,
 				Intern::Integer => constant ty::Integer::parent(),

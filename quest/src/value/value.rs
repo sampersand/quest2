@@ -402,14 +402,25 @@ impl Debug for AnyValue {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		use crate::value::ty::*;
 
+		struct StructDebug<T>(T, &'static str);
+		impl<T: Debug> Debug for StructDebug<T> {
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+				if f.alternate() {
+					write!(f, "{}({:?})", self.1, self.0)
+				} else {
+					Debug::fmt(&self.0, f)
+				}
+			}
+		}
+
 		if let Some(i) = self.downcast::<Integer>() {
-			Debug::fmt(&i, fmt)
+			Debug::fmt(&StructDebug(i, "Integer"), fmt)
 		} else if let Some(f) = self.downcast::<Float>() {
-			Debug::fmt(&f, fmt)
+			Debug::fmt(&StructDebug(f, "Float"), fmt)
 		} else if let Some(b) = self.downcast::<Boolean>() {
-			Debug::fmt(&b, fmt)
+			Debug::fmt(&StructDebug(b, "Boolean"), fmt)
 		} else if let Some(n) = self.downcast::<Null>() {
-			Debug::fmt(&n, fmt)
+			Debug::fmt(&StructDebug(n, "Null"), fmt)
 		} else if let Some(f) = self.downcast::<RustFn>() {
 			Debug::fmt(&f, fmt)
 		} else if let Some(t) = self.downcast::<Gc<Text>>() {
