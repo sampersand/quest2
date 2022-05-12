@@ -127,7 +127,23 @@ impl AnyValue {
 	}
 
 	pub fn typename(self) -> &'static str {
-		todo!()
+		use crate::value::ty::*;
+
+		match () {
+			_ if self.is_a::<Integer>() || self.is_a::<Gc<Wrap<Integer>>>() => "Integer",
+			_ if self.is_a::<Float>() || self.is_a::<Gc<Wrap<Float>>> ()=> "Float",
+			_ if self.is_a::<Boolean>() || self.is_a::<Gc<Wrap<Boolean>>>() => "Boolean",
+			_ if self.is_a::<Null>() || self.is_a::<Gc<Wrap<Null>>>() => "Null",
+			_ if self.is_a::<RustFn>() || self.is_a::<Gc<Wrap<RustFn>>>()  => "RustFn",
+			_ if self.is_a::<Gc<Text>>() => "Text",
+			_ if self.is_a::<Gc<List>>() => "List",
+			_ if self.is_a::<Gc<Class>>() => "Class",
+			_ if self.is_a::<Gc<Scope>>() => "Scope",
+			_ if self.is_a::<Gc<BoundFn>>() => "BoundFn",
+			_ if self.is_a::<Gc<crate::vm::Block>>() => "Block",
+			_ if self.is_a::<Gc<crate::vm::Frame>>() => "Frame",
+			_ => "unknown"
+		}
 	}
 
 	pub fn is_truthy(self) -> Result<bool> {
@@ -432,6 +448,10 @@ impl Debug for AnyValue {
 		} else if let Some(l) = self.downcast::<Gc<Scope>>() {
 			Debug::fmt(&l, fmt)
 		} else if let Some(l) = self.downcast::<Gc<BoundFn>>() {
+			Debug::fmt(&l, fmt)
+		} else if let Some(l) = self.downcast::<Gc<crate::vm::Block>>() {
+			Debug::fmt(&l, fmt)
+		} else if let Some(l) = self.downcast::<Gc<crate::vm::Frame>>() {
 			Debug::fmt(&l, fmt)
 		} else if let Some(i) = self.downcast::<Gc<Wrap<Integer>>>() {
 			Debug::fmt(&i, fmt)

@@ -86,7 +86,7 @@ define_interned! {
 
 	r#true "true" r#false "false" null
 
-	inspect print freeze
+	inspect print freeze resume
 
 	push pop shift unshift dump
 

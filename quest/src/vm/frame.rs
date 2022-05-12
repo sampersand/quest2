@@ -1,5 +1,6 @@
 use super::block::BlockInner;
 use super::bytecode::Opcode;
+use std::fmt::{self, Debug, Formatter};
 use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
 use crate::value::{AsAny, Gc, HasDefaultParent, Intern};
@@ -13,8 +14,14 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 quest_type! {
-	#[derive(Debug, NamedType)]
+	#[derive(NamedType)]
 	pub struct Frame(Inner);
+}
+
+impl Debug for Frame {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		write!(f, "Frame({:p}:{:?})", self, self.0.data().block.loc)
+	}
 }
 
 #[derive(Debug)]
@@ -234,6 +241,7 @@ impl Frame {
 		// out of bounds.
 		let byte = unsafe { *self.block.code.get_unchecked(self.pos) };
 		self.pos += 1;
+		trace!(target: "frame", ?byte, "read byte");
 		byte
 	}
 
@@ -276,7 +284,9 @@ impl Frame {
 	fn next_opcode(&mut self) -> Opcode {
 		let byte = self.next_byte();
 
-		Opcode::from_u8(byte).unwrap_or_else(|| unreachable!("unknown opcode {:02x}", byte))
+		let op = Opcode::from_u8(byte).unwrap_or_else(|| unreachable!("unknown opcode {:02x}", byte));
+		trace!(target: "frame", ?op, "read opcode");
+		op
 	}
 }
 
@@ -418,7 +428,7 @@ impl Gc<Frame> {
 		drop(this);
 		let value = object
 			.get_attr(attr)?
-			.expect("todo: we should actually make this return a straight Result");
+			.ok_or_else(|| format!("unknown attr {:?} for {:?}", attr, object))?;
 		self.as_mut()?.store_next_local(value);
 
 		Ok(())
@@ -432,7 +442,7 @@ impl Gc<Frame> {
 		drop(this); // as `get_attr` may modify us.
 		let value = object
 			.get_unbound_attr(attr)?
-			.expect("todo: we should actually make this return a straight Result");
+			.ok_or_else(|| format!("unknown attr {:?} for {:?}", attr, object))?;
 		self.as_mut()?.store_next_local(value);
 
 		Ok(())
@@ -514,9 +524,10 @@ impl Gc<Frame> {
 		}
 		let slice = unsafe { std::slice::from_raw_parts(ptr, amnt) };
 
+		let dst = this.next_count();
 		drop(this);
 		let result = object.call_attr(attr, Args::new(slice, &[]))?;
-		self.as_mut()?.store_next_local(result);
+		self.as_mut()?.set_local(dst as isize, result);
 
 		Ok(())
 	}
@@ -731,7 +742,18 @@ impl Gc<Frame> {
 	}
 }
 
+pub mod funcs {
+	use super::*;
+
+	pub fn resume(frame: Gc<Frame>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_arguments()?;
+
+		frame.run()
+	}
+}
+
 quest_type_attrs! { for Gc<Frame>, parents [Kernel, Callable];
+	resume => meth funcs::resume
 	// "+" => meth qs_add,
 	// "@text" => meth qs_at_text,
 }
