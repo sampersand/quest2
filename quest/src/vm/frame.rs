@@ -274,44 +274,9 @@ impl Frame {
 	}
 
 	fn next_opcode(&mut self) -> Opcode {
-		match self.next_byte() {
-			op if op == Opcode::NoOp as u8 => Opcode::NoOp,
-			op if op == Opcode::Debug as u8 => Opcode::Debug,
-			op if op == Opcode::CreateList as u8 => Opcode::CreateList,
+		let byte = self.next_byte();
 
-			op if op == Opcode::Mov as u8 => Opcode::Mov,
-			op if op == Opcode::Call as u8 => Opcode::Call,
-			op if op == Opcode::CallSimple as u8 => Opcode::CallSimple,
-			op if op == Opcode::ConstLoad as u8 => Opcode::ConstLoad,
-			op if op == Opcode::Stackframe as u8 => Opcode::Stackframe,
-
-			op if op == Opcode::GetAttr as u8 => Opcode::GetAttr,
-			op if op == Opcode::GetUnboundAttr as u8 => Opcode::GetUnboundAttr,
-			op if op == Opcode::HasAttr as u8 => Opcode::HasAttr,
-			op if op == Opcode::SetAttr as u8 => Opcode::SetAttr,
-			op if op == Opcode::DelAttr as u8 => Opcode::DelAttr,
-			op if op == Opcode::CallAttr as u8 => Opcode::CallAttr,
-			op if op == Opcode::CallAttrSimple as u8 => Opcode::CallAttrSimple,
-
-			op if op == Opcode::Not as u8 => Opcode::Not,
-			op if op == Opcode::Negate as u8 => Opcode::Negate,
-			op if op == Opcode::Equal as u8 => Opcode::Equal,
-			op if op == Opcode::NotEqual as u8 => Opcode::NotEqual,
-			op if op == Opcode::LessThan as u8 => Opcode::LessThan,
-			op if op == Opcode::GreaterThan as u8 => Opcode::GreaterThan,
-			op if op == Opcode::LessEqual as u8 => Opcode::LessEqual,
-			op if op == Opcode::GreaterEqual as u8 => Opcode::GreaterEqual,
-			op if op == Opcode::Compare as u8 => Opcode::Compare,
-			op if op == Opcode::Add as u8 => Opcode::Add,
-			op if op == Opcode::Subtract as u8 => Opcode::Subtract,
-			op if op == Opcode::Multuply as u8 => Opcode::Multuply,
-			op if op == Opcode::Divide as u8 => Opcode::Divide,
-			op if op == Opcode::Modulo as u8 => Opcode::Modulo,
-			op if op == Opcode::Power as u8 => Opcode::Power,
-			op if op == Opcode::Index as u8 => Opcode::Index,
-			op if op == Opcode::IndexAssign as u8 => Opcode::IndexAssign,
-			other => unreachable!("unknown opcode {:02x}", other),
-		}
+		Opcode::from_u8(byte).unwrap_or_else(|| unreachable!("unknown opcode {:02x}", byte))
 	}
 }
 
@@ -331,18 +296,6 @@ impl Frame {
 // }
 
 impl Gc<Frame> {
-	fn op_noop(&self) -> Result<()> {
-		Ok(())
-	}
-
-	fn op_debug(&self) -> Result<()> {
-		dbg!(&self.as_ref().unwrap().unnamed_locals);
-		Ok(())
-		// dbg!(&self.as_ref().unwrap().0.header().attributes());
-		// dbg!(self.as_ref().unwrap().get_local(-2));
-		// panic!();
-	}
-
 	fn op_mov(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let src = this.next_local()?;
@@ -393,14 +346,6 @@ impl Gc<Frame> {
 		self.as_mut()?.store_next_local(result);
 
 		Ok(())
-	}
-
-	fn op_return(&self) -> Result<AnyValue> {
-		let mut this = self.as_mut()?;
-		Err(Error::Return {
-			value: this.next_local()?,
-			from_frame: this.next_local()?,
-		})
 	}
 
 	// TODO: we need to make this CoW, as otherwise this happens:
@@ -517,7 +462,6 @@ impl Gc<Frame> {
 		*/
 		if 0 <= object_index {
 			let mut object = unsafe { this.get_unnamed_local(object_index as usize) };
-			drop(this);
 			object.set_attr(attr, value)?;
 		} else {
 			let index = !object_index as usize;
@@ -738,9 +682,6 @@ impl Gc<Frame> {
 	fn run_inner(mut self) -> Result<()> {
 		while let Some(op) = self.next_op()? {
 			match op {
-				Opcode::NoOp => self.op_noop(),
-				Opcode::Debug => self.op_debug(),
-
 				Opcode::CreateList => self.op_create_list(),
 				Opcode::Mov => self.op_mov(),
 				Opcode::Call => self.op_call(),

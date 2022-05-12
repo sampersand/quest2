@@ -6,6 +6,7 @@ use crate::{AnyValue, Error, Result};
 use std::cell::UnsafeCell;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
+use std::fmt::{self, Debug, Formatter};
 
 mod builder;
 pub use builder::{Builder, Local};
