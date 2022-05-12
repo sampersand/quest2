@@ -4,7 +4,6 @@ mod macros;
 #[macro_use]
 pub mod rustfn;
 
-mod block;
 pub mod boolean;
 mod boundfn;
 mod callable;
@@ -20,7 +19,6 @@ pub mod scope;
 pub mod text;
 mod wrap;
 
-pub use block::Block;
 pub use boolean::Boolean;
 pub use boundfn::BoundFn;
 pub use callable::Callable;
