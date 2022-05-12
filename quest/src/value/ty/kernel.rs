@@ -1,5 +1,6 @@
 use crate::value::ty::{self, Singleton};
 use crate::value::{Gc, HasDefaultParent};
+use crate::value::ty::Text;
 use crate::vm::Args;
 use crate::{AnyValue, Result};
 
@@ -15,8 +16,9 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 
 		for arg in args.positional() {
-			print!("{}", *arg.convert::<Gc<crate::value::ty::Text>>()?.as_ref()?);
+			print!("{}", *arg.convert::<Gc<Text>>()?.as_ref()?);
 		}
+
 		println!();
 
 		Ok(Default::default())
@@ -31,7 +33,7 @@ pub mod funcs {
 		} else if let Ok(if_false) = args.get(2) {
 			if_false.call(Args::default())
 		} else {
-			Ok(crate::Value::NULL.any())
+			Ok(AnyValue::default())
 		}
 	}
 
@@ -39,7 +41,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(2)?;
 
-		let mut last = crate::Value::NULL.any();
+		let mut last = AnyValue::default();
 
 		while args[0].call(Args::default())?.is_truthy()? {
 			last = args[1].call(Args::default())?;

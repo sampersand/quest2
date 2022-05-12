@@ -180,7 +180,6 @@ impl Singleton for IntegerClass {
 				Intern::op_leq => method funcs::leq,
 				Intern::op_neg => method funcs::neg,
 				Intern::at_text => method funcs::at_text,
-				Intern::r#return => function super::object::funcs::r#return, // todo: why doesnt inheritance work
 			}
 		})
 	}
