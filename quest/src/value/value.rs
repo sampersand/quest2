@@ -449,9 +449,9 @@ impl Debug for AnyValue {
 			Debug::fmt(&l, fmt)
 		} else if let Some(l) = self.downcast::<Gc<BoundFn>>() {
 			Debug::fmt(&l, fmt)
-		} else if let Some(l) = self.downcast::<Gc<crate::vm::Block>>() {
-			Debug::fmt(&l, fmt)
 		} else if let Some(l) = self.downcast::<Gc<crate::vm::Frame>>() {
+			Debug::fmt(&l, fmt)
+		} else if let Some(l) = self.downcast::<Gc<crate::vm::Block>>() {
 			Debug::fmt(&l, fmt)
 		} else if let Some(i) = self.downcast::<Gc<Wrap<Integer>>>() {
 			Debug::fmt(&i, fmt)

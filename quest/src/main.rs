@@ -46,7 +46,6 @@ fn setup_tracing() {
 }
 
 
-
 fn main() {
 	setup_tracing();
 	tracing::debug!("created str constant");
