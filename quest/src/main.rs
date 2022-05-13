@@ -10,7 +10,6 @@ use quest::value::*;
 use quest::vm::*;
 use quest::Result;
 
-
 fn run_code(code: &str) -> Result<AnyValue> {
 	let mut parser = Parser::new(code, None);
 	let mut builder = quest::vm::block::Builder::new(quest::vm::SourceLocation {}, None);
@@ -68,8 +67,6 @@ fn main() {
 
 recur = acc -> {
 	[acc, :0].return();
-
-	0; 0; # for some reason you need two blank statements?
 
 	recur(acc + "X")
 };
