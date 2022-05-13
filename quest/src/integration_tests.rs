@@ -1,10 +1,10 @@
-use crate::{Result, AnyValue};
-use crate::vm::{SourceLocation, block::Builder};
-use crate::parser::Parser;
 use crate::parser::ast::{Compile, Group};
+use crate::parser::Parser;
+use crate::vm::{block::Builder, SourceLocation};
+use crate::{AnyValue, Result};
 
+use crate::value::ty::{Boolean, Float, Integer, Text};
 use crate::value::Gc;
-use crate::value::ty::{Float, Integer, Boolean, Text};
 
 fn run_code(code: &str) -> Result<AnyValue> {
 	let mut parser = Parser::new(code, None);
@@ -24,7 +24,8 @@ fn divides() {
 		Integer.zero? = n -> { n == 0 };
 		Integer.divides? = (n, l) -> { (l % n).zero?() };
 		12.divides?(24).and(!12.divides?(13))
-	"#).unwrap();
+	"#)
+	.unwrap();
 
 	assert_eq!(result.downcast::<Boolean>().unwrap(), true);
 }
@@ -35,7 +36,8 @@ fn square_root() {
 		Integer.'^' = Integer::'**';
 		Integer.'√' = n -> { n ^ 0.5 };
 		√16
-	"#).unwrap();
+	"#)
+	.unwrap();
 
 	// `√16.0` would be `4.0` and `√16` is `4`?
 	assert_eq!(result.downcast::<Float>().unwrap(), 4.0);
@@ -54,7 +56,8 @@ fn fib_set_attr() {
 
 		fib.fibb = fib;
 		fib(10)
-	"#).unwrap();
+	"#)
+	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
 }
@@ -71,7 +74,8 @@ fn fib_set_parent() {
 
 		fib.__parents__ = [:0];
 		fib(10)
-	"#).unwrap();
+	"#)
+	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
 }
@@ -86,7 +90,8 @@ fn fib_pass_function() {
 		};
 
 		fib(10, fib)
-	"#).unwrap();
+	"#)
+	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
 }
@@ -102,7 +107,8 @@ fn fib_normal() {
 		};
 
 		fib(10)
-	"#).unwrap();
+	"#)
+	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
 }
@@ -113,10 +119,10 @@ fn modifying_string_literals_isnt_global() {
 		modify = { "x".concat("y") };
 
 		modify() + modify()
-	"#).unwrap();
+	"#)
+	.unwrap();
 
 	assert_eq!(*result.downcast::<Gc<Text>>().unwrap().as_ref().unwrap(), "xyxy");
-
 }
 
 #[test]
@@ -125,7 +131,8 @@ fn assign_and_fetch_from_arrays() {
 		ary = [9, 12, -99];
 		ary[1] = 4;
 		ary[0] + ary[1]
-	"#).unwrap();
+	"#)
+	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 13);
 }
@@ -143,7 +150,8 @@ fn if_and_while() {
 			:1.i = i + 1;
 		});
 		n
-	"#).unwrap();
+	"#)
+	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 20);
 }
@@ -162,8 +170,16 @@ fn basic_stackframe_continuation() {
 		tmp = tmp[1].resume(); q = q + ":" + tmp[0];
 		tmp = tmp[1].resume(); q = q + ":" + tmp[0];
 		q
-	"#).unwrap();
+	"#)
+	.unwrap();
 
-	assert_eq!(result.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str(),
-		"X:XX:XXX:XXXX");
+	assert_eq!(
+		result
+			.downcast::<Gc<Text>>()
+			.unwrap()
+			.as_ref()
+			.unwrap()
+			.as_str(),
+		"X:XX:XXX:XXXX"
+	);
 }

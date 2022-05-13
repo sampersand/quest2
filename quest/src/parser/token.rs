@@ -127,16 +127,17 @@ fn is_symbol_char(chr: char) -> bool {
 
 fn take_identifier<'a>(stream: &mut Stream<'a>) -> &'a str {
 	let mut was_last_question_mark = false;
-	stream.take_while(|c| !was_last_question_mark && 
-		if c.is_alphanumeric() || c == '_' {
-			true
-		} else if c == '?' {
-			was_last_question_mark = true;
-			true
-		} else {
-			false
-		}
-	)
+	stream.take_while(|c| {
+		!was_last_question_mark
+			&& if c.is_alphanumeric() || c == '_' {
+				true
+			} else if c == '?' {
+				was_last_question_mark = true;
+				true
+			} else {
+				false
+			}
+	})
 }
 
 impl<'a> TokenContents<'a> {
@@ -292,7 +293,9 @@ fn parse_number<'a>(stream: &mut Stream<'a>, integer_only: bool) -> Result<'a, T
 		Some('e' | 'E' | '.')
 			if base == 10
 				&& !integer_only
-				&& !stream.peek2().map_or(false, |c| c.is_alphabetic() || c == '_') =>
+				&& !stream
+					.peek2()
+					.map_or(false, |c| c.is_alphabetic() || c == '_') =>
 		{
 			TokenContents::Float(parse_float(integer, stream)?)
 		},

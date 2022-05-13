@@ -4,9 +4,9 @@ use crate::value::{base::Base, Gc, HasDefaultParent};
 use crate::vm::Args;
 use crate::{AnyValue, Error, Result};
 use std::cell::UnsafeCell;
+use std::fmt::{self, Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::sync::Arc;
-use std::fmt::{self, Debug, Formatter};
 
 mod builder;
 pub use builder::{Builder, Local};

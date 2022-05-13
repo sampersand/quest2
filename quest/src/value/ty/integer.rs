@@ -105,8 +105,8 @@ pub mod funcs {
 
 		Ok((int / denom).as_any())
 	}
-	
-	// TODO: verify it's actually modulus 
+
+	// TODO: verify it's actually modulus
 	pub fn r#mod(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
@@ -118,7 +118,7 @@ pub mod funcs {
 
 		Ok((int % denom).as_any())
 	}
-	
+
 	pub fn pow(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;

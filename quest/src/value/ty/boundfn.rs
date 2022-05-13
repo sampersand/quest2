@@ -7,7 +7,6 @@ quest_type! {
 	pub struct BoundFn(Inner);
 }
 
-
 impl Debug for BoundFn {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		if f.alternate() {

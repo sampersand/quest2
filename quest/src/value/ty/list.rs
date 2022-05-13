@@ -325,7 +325,9 @@ impl List {
 		}
 
 		unsafe {
-			self.as_mut_ptr().copy_to(self.as_mut_ptr().add(1), self.len());
+			self
+				.as_mut_ptr()
+				.copy_to(self.as_mut_ptr().add(1), self.len());
 			self.as_mut_ptr().write(ele);
 			self.set_len(self.len() + 1);
 		}
@@ -428,8 +430,8 @@ quest_type_attrs! { for Gc<List>, parent Object;
 
 pub mod funcs {
 	use super::*;
-	use crate::value::AsAny;
 	use crate::value::ty::Integer;
+	use crate::value::AsAny;
 	use crate::{vm::Args, Result};
 
 	pub fn index(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {

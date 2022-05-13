@@ -113,8 +113,7 @@ impl Opcode {
 			_ if byte == Opcode::Power as u8 => Some(Opcode::Power),
 			_ if byte == Opcode::Index as u8 => Some(Opcode::Index),
 			_ if byte == Opcode::IndexAssign as u8 => Some(Opcode::IndexAssign),
-			_ => None
+			_ => None,
 		}
-
 	}
 }

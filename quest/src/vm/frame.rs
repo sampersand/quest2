@@ -1,14 +1,14 @@
 use super::block::BlockInner;
 use super::bytecode::Opcode;
-use std::fmt::{self, Debug, Formatter};
 use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
 use crate::value::{AsAny, Gc, HasDefaultParent, Intern};
+use crate::vm::bytecode::{COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL};
 use crate::vm::{Args, Block};
-use crate::vm::bytecode::{MAX_ARGUMENTS_FOR_SIMPLE_CALL, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE};
 use crate::{AnyValue, Error, Result};
 use std::alloc::Layout;
 use std::cell::UnsafeCell;
+use std::fmt::{self, Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -245,6 +245,8 @@ impl Frame {
 	}
 
 	fn next_byte(&mut self) -> u8 {
+		debug_assert!(self.pos < self.block.code.len());
+
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
 		// out of bounds.
 		let byte = unsafe { *self.block.code.get_unchecked(self.pos) };
@@ -282,7 +284,6 @@ impl Frame {
 
 		Ok(value)
 	}
-
 
 	fn next_count(&mut self) -> usize {
 		match self.next_byte() {
@@ -358,7 +359,7 @@ impl Gc<Frame> {
 			}
 			std::slice::from_raw_parts(ptr, amnt)
 		};
-		
+
 		let dst = this.next_local_target();
 
 		drop(this);
@@ -387,7 +388,8 @@ impl Gc<Frame> {
 			let block = block.as_ref()?.deep_clone()?;
 			this.convert_to_object()?;
 
-			block.as_ref()?
+			block
+				.as_ref()?
 				.parents()?
 				.as_list()
 				.as_mut()?
@@ -499,18 +501,17 @@ impl Gc<Frame> {
 		but we don't actually assign the `object` to anything. On the other hand, we have to box
 		the `object` if it's not already a box.
 		*/
-		let object = 
-			if 0 <= object_index {
-				let mut object = unsafe { this.get_unnamed_local(object_index as usize) };
-				object.set_attr(attr, value)?;
-				object
-			} else {
-				let index = !object_index as usize;
-				let name = this.block.named_locals[index].as_any();
-				let object = this.0.header_mut().get_unbound_attr_mut(name)?;
-				object.set_attr(attr, value)?;
-				*object
-			};
+		let object = if 0 <= object_index {
+			let mut object = unsafe { this.get_unnamed_local(object_index as usize) };
+			object.set_attr(attr, value)?;
+			object
+		} else {
+			let index = !object_index as usize;
+			let name = this.block.named_locals[index].as_any();
+			let object = this.0.header_mut().get_unbound_attr_mut(name)?;
+			object.set_attr(attr, value)?;
+			*object
+		};
 
 		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "set_attr");
 		this.set_local(dst, value);
@@ -553,7 +554,7 @@ impl Gc<Frame> {
 			}
 			std::slice::from_raw_parts(ptr, amnt)
 		};
-		
+
 		let dst = this.next_local_target();
 		drop(this);
 		let result = object.call_attr(attr, Args::new(args, &[]))?;
@@ -800,10 +801,18 @@ pub mod funcs {
 
 		frame.run()
 	}
+
+	pub fn restart(frame: Gc<Frame>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_arguments()?;
+		frame.as_mut()?.pos = 0;
+
+		frame.run()
+	}
 }
 
 quest_type_attrs! { for Gc<Frame>, parents [Kernel, Callable];
-	resume => meth funcs::resume
+	resume => meth funcs::resume,
+	restart => meth funcs::restart,
 	// "+" => meth qs_add,
 	// "@text" => meth qs_at_text,
 }
@@ -836,7 +845,7 @@ mod tests {
 			builder.subtract(n, one, n);
 			builder.call_simple(fib, &[n], tmp2);
 			builder.add(tmp, tmp2, tmp);
-			builder.call_attr_simple(tmp, ret, &[], tmp);;
+			builder.call_attr_simple(tmp, ret, &[], tmp);
 
 			builder.build()
 		};

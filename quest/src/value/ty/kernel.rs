@@ -1,6 +1,6 @@
+use crate::value::ty::Text;
 use crate::value::ty::{self, Singleton};
 use crate::value::{Gc, HasDefaultParent};
-use crate::value::ty::Text;
 use crate::vm::Args;
 use crate::{AnyValue, Result};
 
@@ -59,7 +59,6 @@ pub mod funcs {
 		Ok(last)
 	}
 }
-
 
 impl Singleton for Kernel {
 	fn instance() -> crate::AnyValue {

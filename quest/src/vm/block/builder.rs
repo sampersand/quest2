@@ -133,7 +133,7 @@ impl Builder {
 
 	unsafe fn local(&mut self, local: Local) {
 		// todo: local
-				// debug!(target: "block_builder", "self[{}].local = 0 (scratch)", self.code.len());
+		// debug!(target: "block_builder", "self[{}].local = 0 (scratch)", self.code.len());
 		match local {
 			Local::Scratch => {
 				debug!(target: "block_builder", idx=self.code.len(), local=%"0 (scratch)", "set byte");
