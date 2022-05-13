@@ -147,3 +147,23 @@ fn if_and_while() {
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 20);
 }
+
+#[test]
+fn basic_stackframe_continuation() {
+	let result = run_code(r#"
+		recur = acc -> {
+			[acc, :0].return();
+
+			recur(acc + "X")
+		};
+
+		tmp = recur("X"); q = tmp[0];
+		tmp = tmp[1].resume(); q = q + ":" + tmp[0];
+		tmp = tmp[1].resume(); q = q + ":" + tmp[0];
+		tmp = tmp[1].resume(); q = q + ":" + tmp[0];
+		q
+	"#).unwrap();
+
+	assert_eq!(result.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str(),
+		"X:XX:XXX:XXXX");
+}

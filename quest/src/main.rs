@@ -47,61 +47,6 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	tracing::debug!("created str constant");
-
-// count = 0;
-// while2 = (a, b) -> { a; b; if(a(), b) };
-// recur = {
-// 	while2({ true }, {
-// 		:-1.count = count + 1;
-// 		:1.return(:-2);
-// 	})
-// };
-// tmp = recur();
-// print(count);
-// tmp = tmp.resume();
-// print(count);
-// tmp = tmp.resume();
-// print(count);
-	run_code(r#"
-
-recur = acc -> {
-	[acc, :0].return();
-
-	recur(acc + "X")
-};
-
-tmp = recur(""); print(tmp[0]);       #=>X
-tmp = tmp[1].resume(); print(tmp[0]); #=>XX
-tmp = tmp[1].resume(); print(tmp[0]); #=>XXX
-tmp = tmp[1].resume(); print(tmp[0]); #=>XXXX
-__EOF__
-print(s);
-tmp = tmp.resume();
-print(s);
-tmp = tmp.resume();
-print(s);
-
-__EOF__
-recur = acc -> {
-	acc.concat("X");
-	:0.return();
-
-	0; 0;
-
-	recur(acc)
-};
-
-s = "";
-tmp = recur(s);
-print(s);
-tmp = tmp.resume();
-print(s);
-tmp = tmp.resume();
-print(s);
-	"#).unwrap();
-	return;
-
 
 	match run_code(&std::env::args().skip(1).next().unwrap()) {
 		Err(err) => { eprintln!("error: {}", err); std::process::exit(0) },
