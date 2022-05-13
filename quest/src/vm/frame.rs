@@ -734,10 +734,11 @@ impl Gc<Frame> {
 			}
 		});
 
-		result?;
-
-		// read the implicit return value
-		self.as_mut().map(|this| unsafe { *this.unnamed_locals })
+		match result {
+			Err(Error::Return { value, from_frame }) if from_frame.is_identical(self.as_any()) => Ok(value),
+			Err(other) => Err(other),
+			Ok(_) => self.as_mut().map(|this| unsafe { *this.unnamed_locals })
+		}		
 	}
 
 	fn next_op(&mut self) -> Result<Option<Opcode>> {

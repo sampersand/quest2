@@ -69,14 +69,7 @@ impl Block {
 
 impl Gc<Block> {
 	pub fn run(self, args: Args) -> Result<AnyValue> {
-		let frame = Frame::new(self, args)?;
-
-		match frame.run() {
-			Err(Error::Return { value, from_frame }) if from_frame.is_identical(frame.into()) => {
-				Ok(value)
-			},
-			other => other,
-		}
+		Frame::new(self, args)?.run()
 	}
 }
 
