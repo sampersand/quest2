@@ -12,8 +12,14 @@ mod builder;
 pub use builder::{Builder, Local};
 
 quest_type! {
-	#[derive(NamedType, Debug)]
+	#[derive(NamedType)]
 	pub struct Block(Arc<BlockInner>);
+}
+
+impl Debug for Block {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		write!(f, "Block({:p}:{:?})", self, self.0.data().loc)
+	}
 }
 
 #[derive(Debug)]

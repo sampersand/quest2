@@ -30,7 +30,6 @@ pub struct Header {
 sa::assert_eq_size!(Header, [u64; 4]);
 
 #[repr(C, align(16))]
-#[derive(Debug)]
 pub struct Base<T: 'static> {
 	header: Header,
 	data: UnsafeCell<T>,
@@ -55,6 +54,12 @@ impl Debug for Header {
 			.field("flags", &self.flags)
 			.field("borrows", &self.borrows)
 			.finish()
+	}
+}
+
+impl<T: Debug> Debug for Base<T> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		Debug::fmt(&self.data(), f)
 	}
 }
 

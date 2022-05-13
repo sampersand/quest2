@@ -1,9 +1,27 @@
 use crate::value::Gc;
 use crate::AnyValue;
+use std::fmt::{self, Debug, Formatter};
 
 quest_type! {
-	#[derive(Debug, NamedType)]
+	#[derive(NamedType)]
 	pub struct BoundFn(Inner);
+}
+
+
+impl Debug for BoundFn {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		if f.alternate() {
+			f.debug_struct("BoundFn")
+				.field("object", &self.0.data().object)
+				.field("function", &self.0.data().function)
+				.finish()
+		} else {
+			f.debug_tuple("BoundFn")
+				.field(&self.0.data().object)
+				.field(&self.0.data().function)
+				.finish()
+		}
+	}
 }
 
 #[derive(Debug)]

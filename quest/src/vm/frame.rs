@@ -11,10 +11,17 @@ use std::cell::UnsafeCell;
 use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
+use std::fmt::{self, Debug, Formatter};
 
 quest_type! {
-	#[derive(Debug, NamedType)]
+	#[derive(NamedType)]
 	pub struct Frame(Inner);
+}
+
+impl Debug for Frame {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		write!(f, "Frame({:p}:{:?})", self, self.0.data().block.loc)
+	}
 }
 
 #[derive(Debug)]
@@ -44,6 +51,10 @@ impl Drop for Inner {
 		}
 	}
 }
+
+#[derive(Debug, Clone, Copy)]
+struct LocalTarget(isize);
+
 impl Frame {
 	pub fn new(gc_block: Gc<Block>, args: Args) -> Result<Gc<Frame>> {
 		args.assert_no_keyword()?; // todo: assign keyword arguments
@@ -154,7 +165,9 @@ impl Frame {
 	}
 
 	// this should also be unsafe
-	fn get_local(&self, index: isize) -> Result<AnyValue> {
+	fn get_local(&self, index: LocalTarget) -> Result<AnyValue> {
+		let index = index.0;
+
 		if 0 <= index {
 			return Ok(unsafe { self.get_unnamed_local(index as usize) });
 		}
@@ -180,7 +193,9 @@ impl Frame {
 			.ok_or_else(|| format!("unknown attribute {:?}", attr_name).into())
 	}
 
-	fn set_local(&mut self, index: isize, value: AnyValue) -> Result<()> {
+	fn set_local(&mut self, index: LocalTarget, value: AnyValue) -> Result<()> {
+		let index = index.0;
+
 		if 0 <= index {
 			let index = index as usize;
 			debug_assert!(index <= self.block.num_of_unnamed_locals);
@@ -233,6 +248,9 @@ impl Frame {
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
 		// out of bounds.
 		let byte = unsafe { *self.block.code.get_unchecked(self.pos) };
+
+		trace!(target: "frame", byte=%format!("{:02x}", byte), sp=%self.pos, "read byte");
+
 		self.pos += 1;
 		byte
 	}
@@ -256,14 +274,14 @@ impl Frame {
 	}
 
 	fn next_local(&mut self) -> Result<AnyValue> {
-		let index = self.next_count() as isize;
-		self.get_local(index)
+		let index = self.next_local_target();
+		let value = self.get_local(index)?;
+
+		trace!(target: "frame", ?index, ?value, "read local");
+
+		Ok(value)
 	}
 
-	fn store_next_local(&mut self, value: AnyValue) {
-		let index = self.next_count() as isize;
-		self.set_local(index, value);
-	}
 
 	fn next_count(&mut self) -> usize {
 		match self.next_byte() {
@@ -273,33 +291,29 @@ impl Frame {
 		}
 	}
 
+	fn next_local_target(&mut self) -> LocalTarget {
+		LocalTarget(self.next_count() as isize)
+	}
+
 	fn next_opcode(&mut self) -> Opcode {
 		let byte = self.next_byte();
 
-		Opcode::from_u8(byte).unwrap_or_else(|| unreachable!("unknown opcode {:02x}", byte))
+		let op = Opcode::from_u8(byte).unwrap_or_else(|| unreachable!("unknown opcode {:02x}", byte));
+		trace!(target: "frame", ?op, "read opcode");
+		op
 	}
 }
-
-// impl Gc<Frame> {
-// 	// We define `run` on `Gc<Frame>` directly, because we need people to be able to mutably access
-// 	// fields on us whilst we're running.
-// // 	pub f n run(self) -> Result<AnyValue> {
-// 		// If we're either currently mutably borrowed, or currently running, we cant actually run.
-// 		// if !self.as_ref().and_then(|r| r.flags().try_acquire_all_user(FLAG_CURRENTLY_RUNNING)).unwrap_or(false) {
-// 		// 	return Err("stackframe is currently running".to_string());
-// 		// }
-
-// 		todo!()
-
-// 		// let did_return = self.as_ref().expect("unable to mark stackframe as not running?")
-// 	}
-// }
 
 impl Gc<Frame> {
 	fn op_mov(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
+
 		let src = this.next_local()?;
-		this.store_next_local(src);
+		let dst = this.next_local_target();
+
+		debug!(target: "frame", ?dst, ?src, "mov");
+		this.set_local(dst, src);
+
 		Ok(())
 	}
 
@@ -309,14 +323,17 @@ impl Gc<Frame> {
 
 		// TODO: use simple list builder when we make it
 		let list = List::with_capacity(amnt);
-		let mut l = list.as_mut().unwrap();
-
-		for i in 0..amnt {
-			l.push(this.next_local()?);
+		{
+			let mut l = list.as_mut().unwrap();
+			for i in 0..amnt {
+				l.push(this.next_local()?);
+			}
 		}
 
-		drop(l);
-		this.store_next_local(list.as_any());
+		let dst = this.next_local_target();
+
+		debug!(target: "frame", ?dst, ?list, "create_list");
+		this.set_local(dst, list.as_any());
 
 		Ok(())
 	}
@@ -334,16 +351,20 @@ impl Gc<Frame> {
 		let mut positional = [MaybeUninit::<AnyValue>::uninit(); MAX_ARGUMENTS_FOR_SIMPLE_CALL];
 		let ptr = positional.as_mut_ptr().cast::<AnyValue>();
 
-		for i in 0..amnt {
-			unsafe {
+		let args = unsafe {
+			for i in 0..amnt {
 				ptr.add(i).write(this.next_local()?);
 			}
-		}
-		let slice = unsafe { std::slice::from_raw_parts(ptr, amnt) };
+			std::slice::from_raw_parts(ptr, amnt)
+		};
+		
+		let dst = this.next_local_target();
 
 		drop(this);
-		let result = object.call(Args::new(slice, &[]))?;
-		self.as_mut()?.store_next_local(result);
+		let result = object.call(Args::new(args, &[]))?;
+
+		debug!(target: "frame", ?dst, ?object, ?args, ?result, "call_simple");
+		self.as_mut()?.set_local(dst, result);
 
 		Ok(())
 	}
@@ -357,6 +378,7 @@ impl Gc<Frame> {
 	// ```
 	fn op_constload(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
+
 		let idx = this.next_count();
 		let constant = this.block.constants[idx];
 
@@ -371,13 +393,18 @@ impl Gc<Frame> {
 				.unshift(self.clone().as_any());
 		}
 
-		this.store_next_local(constant);
+		let dst = this.next_local_target();
+
+		debug!(target: "frame", ?dst, ?constant, "constload");
+		this.set_local(dst, constant);
+
 		Ok(())
 	}
 
 	fn op_stackframe(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let mut count = this.next_count() as isize;
+		let dst = this.next_local_target();
 
 		// todo: optimization for :0
 		drop(this);
@@ -397,21 +424,26 @@ impl Gc<Frame> {
 			)
 		})?;
 		frame.as_mut()?.convert_to_object()?;
-		self.as_mut()?.store_next_local(frame.as_any());
+
+		debug!(target: "frame", ?dst, ?frame, "stackframe");
+		self.as_mut()?.set_local(dst, frame.as_any());
 
 		Ok(())
 	}
 
-	fn op_getattr(&self) -> Result<()> {
+	fn op_get_attr(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
+		let dst = this.next_local_target();
 
 		drop(this);
 		let value = object
 			.get_attr(attr)?
-			.expect("todo: we should actually make this return a straight Result");
-		self.as_mut()?.store_next_local(value);
+			.ok_or_else(|| format!("unknown attr {:?} for {:?}", attr, object))?;
+
+		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "get_attr");
+		self.as_mut()?.set_local(dst, value);
 
 		Ok(())
 	}
@@ -420,34 +452,40 @@ impl Gc<Frame> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
+		let dst = this.next_local_target();
 
 		drop(this); // as `get_attr` may modify us.
 		let value = object
 			.get_unbound_attr(attr)?
-			.expect("todo: we should actually make this return a straight Result");
-		self.as_mut()?.store_next_local(value);
+			.ok_or_else(|| format!("unknown attr {:?} for {:?}", attr, object))?;
+
+		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "get_unbound_attr");
+		self.as_mut()?.set_local(dst, value);
 
 		Ok(())
 	}
 
-	fn op_hasattr(&self) -> Result<()> {
+	fn op_has_attr(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
+		let dst = this.next_local_target();
 
 		drop(this); // as `has_attr` may modify us.
 		let hasit = object.has_attr(attr)?;
-		self.as_mut()?.store_next_local(hasit.as_any());
+
+		debug!(target: "frame", ?dst, ?object, ?attr, ?hasit, "has_attr");
+		self.as_mut()?.set_local(dst, hasit.as_any());
 
 		Ok(())
 	}
 
-	fn op_setattr(&self) -> Result<()> {
+	fn op_set_attr(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object_index = this.next_count() as isize;
 		let attr = this.next_local()?;
 		let value = this.next_local()?;
-		this.store_next_local(value);
+		let dst = this.next_local_target();
 
 		/*
 		Because you can assign indices onto any object, we need to be able to dynamically convert
@@ -460,36 +498,45 @@ impl Gc<Frame> {
 		but we don't actually assign the `object` to anything. On the other hand, we have to box
 		the `object` if it's not already a box.
 		*/
-		if 0 <= object_index {
-			let mut object = unsafe { this.get_unnamed_local(object_index as usize) };
-			object.set_attr(attr, value)?;
-		} else {
-			let index = !object_index as usize;
-			let name = this.block.named_locals[index].as_any();
-			let object = this.0.header_mut().get_unbound_attr_mut(name)?;
-			object.set_attr(attr, value)?;
-		}
+		let object = 
+			if 0 <= object_index {
+				let mut object = unsafe { this.get_unnamed_local(object_index as usize) };
+				object.set_attr(attr, value)?;
+				object
+			} else {
+				let index = !object_index as usize;
+				let name = this.block.named_locals[index].as_any();
+				let object = this.0.header_mut().get_unbound_attr_mut(name)?;
+				object.set_attr(attr, value)?;
+				*object
+			};
+
+		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "set_attr");
+		this.set_local(dst, value);
 
 		Ok(())
 	}
 
-	fn op_delattr(&self) -> Result<()> {
+	fn op_del_attr(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
+		let dst = this.next_local_target();
 
 		drop(this); // as `has_attr` may modify us.
 		let value = object.del_attr(attr)?;
-		self.as_mut()?.store_next_local(value.unwrap_or_default());
+
+		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "del_attr");
+		self.as_mut()?.set_local(dst, value.unwrap_or_default());
 
 		Ok(())
 	}
 
-	fn op_callattr(&self) -> Result<()> {
+	fn op_call_attr(&self) -> Result<()> {
 		todo!("semantics for complicated callattr");
 	}
 
-	fn op_callattr_simple(&self) -> Result<()> {
+	fn op_call_attr_simple(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
@@ -499,16 +546,20 @@ impl Gc<Frame> {
 		let mut positional = [MaybeUninit::<AnyValue>::uninit(); MAX_ARGUMENTS_FOR_SIMPLE_CALL];
 		let ptr = positional.as_mut_ptr().cast::<AnyValue>();
 
-		for i in 0..amnt {
-			unsafe {
+		let args = unsafe {
+			for i in 0..amnt {
 				ptr.add(i).write(this.next_local()?);
 			}
-		}
-		let slice = unsafe { std::slice::from_raw_parts(ptr, amnt) };
+			std::slice::from_raw_parts(ptr, amnt)
+		};
+		
+		let dst = this.next_local_target();
 
 		drop(this);
-		let result = object.call_attr(attr, Args::new(slice, &[]))?;
-		self.as_mut()?.store_next_local(result);
+		let result = object.call_attr(attr, Args::new(args, &[]))?;
+
+		debug!(target: "frame", ?dst, ?object, ?attr, ?args, ?result, "call_attr_simple");
+		self.as_mut()?.set_local(dst, result);
 
 		Ok(())
 	}
@@ -517,10 +568,13 @@ impl Gc<Frame> {
 		let mut this = self.as_mut()?;
 		let lhs = this.next_local()?;
 		let rhs = this.next_local()?;
-		drop(this);
+		let dst = this.next_local_target();
 
+		drop(this);
 		let result = lhs.call_attr(op, Args::new(&[rhs], &[]))?;
-		self.as_mut()?.store_next_local(result);
+
+		debug!(target: "frame", ?dst, ?op, ?lhs, ?rhs, ?result, "binary_op");
+		self.as_mut()?.set_local(dst, result);
 
 		Ok(())
 	}
@@ -579,17 +633,20 @@ impl Gc<Frame> {
 
 	fn op_index(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
-		let ary = this.next_local()?;
+		let source = this.next_local()?;
 		let argc = this.next_count();
+		// todo: optimize me not to use a `Vec`.
 		let mut args = Vec::with_capacity(argc + 1);
 		for i in 0..argc {
 			args.push(this.next_local()?);
 		}
-		drop(this);
+		let dst = this.next_local_target();
 
-		self
-			.as_mut()?
-			.store_next_local(ary.call_attr(Intern::op_index, Args::new(&args, &[]))?);
+		drop(this);
+		let result = source.call_attr(Intern::op_index, Args::new(&args, &[]))?;
+
+		debug!(target: "frame", ?dst, ?source, ?args, ?result, "index");
+		self.as_mut()?.set_local(dst, result);
 
 		Ok(())
 	}
@@ -597,10 +654,13 @@ impl Gc<Frame> {
 	fn op_not(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let value = this.next_local()?;
-		drop(this);
+		let dst = this.next_local_target();
 
+		drop(this);
 		let result = value.call_attr(Intern::op_not, Args::default())?;
-		self.as_mut()?.store_next_local(result);
+
+		debug!(target: "frame", ?dst, ?value, ?result, "not");
+		self.as_mut()?.set_local(dst, result);
 
 		Ok(())
 	}
@@ -608,28 +668,37 @@ impl Gc<Frame> {
 	fn op_negate(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let value = this.next_local()?;
-		drop(this);
+		let dst = this.next_local_target();
 
+		drop(this);
 		let result = value.call_attr(Intern::op_neg, Args::default())?;
-		self.as_mut()?.store_next_local(result);
+
+		debug!(target: "frame", ?dst, ?value, ?result, "neg");
+		self.as_mut()?.set_local(dst, result);
 
 		Ok(())
 	}
 
 	fn op_indexassign(&self) -> Result<()> {
+		// todo: optimize me not to use a `Vec`.
 		let mut this = self.as_mut()?;
-		let ary = this.next_local()?;
+		let source = this.next_local()?;
 		let argc = this.next_count();
+
 		let mut args = Vec::with_capacity(argc + 1);
 		for i in 0..argc {
 			args.push(this.next_local()?);
 		}
 		let value = this.next_local()?;
 		args.push(value);
-		drop(this);
 
-		ary.call_attr(Intern::op_index_assign, Args::new(&args, &[]))?;
-		self.as_mut()?.store_next_local(value);
+		let dst = this.next_local_target();
+
+		drop(this);
+		let result = source.call_attr(Intern::op_index_assign, Args::new(&args, &[]))?;
+
+		debug!(target: "frame", ?dst, ?source, ?args, ?result, "index_assign");
+		self.as_mut()?.set_local(dst, result);
 
 		Ok(())
 	}
@@ -689,13 +758,13 @@ impl Gc<Frame> {
 
 				Opcode::ConstLoad => self.op_constload(),
 				Opcode::Stackframe => self.op_stackframe(),
-				Opcode::GetAttr => self.op_getattr(),
+				Opcode::GetAttr => self.op_get_attr(),
 				Opcode::GetUnboundAttr => self.op_get_unbound_attr(),
-				Opcode::HasAttr => self.op_hasattr(),
-				Opcode::SetAttr => self.op_setattr(),
-				Opcode::DelAttr => self.op_delattr(),
-				Opcode::CallAttr => self.op_callattr(),
-				Opcode::CallAttrSimple => self.op_callattr_simple(),
+				Opcode::HasAttr => self.op_has_attr(),
+				Opcode::SetAttr => self.op_set_attr(),
+				Opcode::DelAttr => self.op_del_attr(),
+				Opcode::CallAttr => self.op_call_attr(),
+				Opcode::CallAttrSimple => self.op_call_attr_simple(),
 
 				Opcode::Add => self.op_add(),
 				Opcode::Subtract => self.op_subtract(),
