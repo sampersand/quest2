@@ -18,8 +18,7 @@ impl<'a> FnArgs<'a> {
 		{
 			if parser.is_eof()? {
 				return Err(
-					start
-						.error(ErrorKind::Message(format!("missing closing {end:?} paren for fncall"))),
+					start.error(ErrorKind::Message(format!("missing closing {end:?} paren for fncall"))),
 				);
 			}
 

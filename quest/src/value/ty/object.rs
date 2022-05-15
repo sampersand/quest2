@@ -89,7 +89,7 @@ pub mod funcs {
 
 		Err(crate::Error::Return {
 			value: obj,
-			from_frame: args.get(0).ok()
+			from_frame: args.get(0).ok(),
 		})
 	}
 

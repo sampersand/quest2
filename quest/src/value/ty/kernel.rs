@@ -1,4 +1,4 @@
-use crate::value::ty::{self, Integer, Text, Singleton};
+use crate::value::ty::{self, Integer, Singleton, Text};
 use crate::value::{Gc, HasDefaultParent};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
@@ -38,7 +38,6 @@ pub mod funcs {
 
 		std::process::exit(args[0].convert::<Integer>()? as i32);
 	}
-
 
 	pub fn r#if(args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;

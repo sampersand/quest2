@@ -246,7 +246,7 @@ impl<T> Builder<T> {
 	/// # Examples
 	/// ```
 	/// # use quest::value::base::Base;
-	/// use quest::value::ty::{Kernel, Object, List};
+	/// use quest::value::ty::{Kernel, Object, List, Singleton};
 	///
 	/// let parents = List::from_slice(&[
 	///     Kernel::instance(),

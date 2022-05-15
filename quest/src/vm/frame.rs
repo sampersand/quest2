@@ -760,7 +760,9 @@ impl Gc<Frame> {
 		});
 
 		match result {
-			Err(Error::Return { value, from_frame }) if from_frame.map_or(true, |ff| ff.is_identical(self.as_any())) => {
+			Err(Error::Return { value, from_frame })
+				if from_frame.map_or(true, |ff| ff.is_identical(self.as_any())) =>
+			{
 				Ok(value)
 			},
 			Err(other) => Err(other),
