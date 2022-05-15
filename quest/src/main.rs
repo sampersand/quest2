@@ -45,6 +45,18 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
+	if false { run_code(r#"
+upto_ten = n -> {
+	(n >= 10).then(return);
+	forever.i = forever.i + 1;
+	:0
+};
+forever.i = 0;
+
+
+forever();
+
+"#).unwrap();return; }
 
 	match run_code(&std::env::args().skip(1).next().expect("usage: <expr>")) {
 		Err(err) => {

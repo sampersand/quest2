@@ -503,14 +503,28 @@ impl Gc<Frame> {
 		*/
 		let object = if 0 <= object_index {
 			let mut object = unsafe { this.get_unnamed_local(object_index as usize) };
-			object.set_attr(attr, value)?;
-			object
+
+			if self.as_any().is_identical(object) {
+				this.convert_to_object()?;
+				this.set_attr(attr, value)?;
+				self.as_any()
+			} else {
+				object.set_attr(attr, value)?;
+				object
+			}
 		} else {
 			let index = !object_index as usize;
 			let name = this.block.named_locals[index].as_any();
 			let object = this.0.header_mut().get_unbound_attr_mut(name)?;
-			object.set_attr(attr, value)?;
-			*object
+
+			if self.as_any().is_identical(*object) {
+				this.convert_to_object()?;
+				this.set_attr(attr, value)?;
+				self.as_any()
+			} else {
+				object.set_attr(attr, value)?;
+				*object
+			}
 		};
 
 		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "set_attr");
