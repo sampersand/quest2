@@ -2,8 +2,12 @@
 name = "qvm-macros"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Macros for the quest programming language"
+repository = "https://github.com/sampersand/quest2"
+readme = "README.md"
+keywords = ["prolang", "programming-language", "dynamic", "macros"]
+license = "<not for public use currently>"
+categories = ["compilers", "command-line-utilities"]
 
 [dependencies]
 proc-macro2 = "1"

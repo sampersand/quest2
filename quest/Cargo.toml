@@ -1,7 +1,13 @@
 [package]
 name = "quest"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+description = "The quest programming language"
+repository = "https://github.com/sampersand/quest2"
+readme = "README.md"
+keywords = ["prolang", "programming-language", "dynamic", "macros"]
+license = "<not for public use currently>"
+categories = ["compilers", "command-line-utilities"]
 
 [dependencies]
 static_assertions = "1.1"
