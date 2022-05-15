@@ -47,11 +47,13 @@ impl<T> Clone for Value<T> {
 
 impl<T> Value<T> {
 	#[inline]
+	#[must_use]
 	pub const fn bits(self) -> u64 {
 		self.0.get()
 	}
 
 	#[inline]
+	#[must_use]
 	pub const fn raw_bits(self) -> NonZeroU64 {
 		self.0
 	}
@@ -74,6 +76,7 @@ impl<T> Value<T> {
 		unsafe { std::mem::transmute(self) }
 	}
 
+	#[must_use]
 	pub const fn id(self) -> u64 {
 		self.0.get() // unique id for each object, technically lol
 	}
@@ -85,6 +88,7 @@ impl<T> Value<T> {
 	}
 
 	#[inline]
+	#[must_use]
 	pub const fn is_identical<U>(self, rhs: Value<U>) -> bool {
 		self.bits() == rhs.bits()
 	}
@@ -127,6 +131,7 @@ impl AnyValue {
 		}
 	}
 
+	#[must_use]
 	pub fn typename(self) -> &'static str {
 		use crate::value::ty::*;
 

@@ -227,9 +227,7 @@ impl List {
 
 		let mut alloc = &mut self.inner_mut().alloc;
 		let old_ptr = alloc.ptr;
-		alloc.ptr = crate::alloc(alloc_ptr_layout(capacity))
-			.as_ptr()
-			.cast::<AnyValue>();
+		alloc.ptr = crate::alloc(alloc_ptr_layout(capacity)).as_ptr();
 		alloc.cap = capacity;
 		std::ptr::copy(old_ptr, alloc.ptr, alloc.len);
 
@@ -265,7 +263,7 @@ impl List {
 
 		unsafe {
 			let len = self.embedded_len();
-			let ptr = crate::alloc(layout).as_ptr().cast::<AnyValue>();
+			let ptr = crate::alloc(layout).as_ptr();
 			std::ptr::copy(self.inner().embed.buf.as_ptr(), ptr, len);
 
 			self.inner_mut().alloc = AllocatedList {
@@ -307,8 +305,7 @@ impl List {
 				alloc_ptr_layout(alloc.cap),
 				new_cap * std::mem::size_of::<AnyValue>(),
 			)
-			.as_ptr()
-			.cast::<AnyValue>();
+			.as_ptr();
 
 			alloc.cap = new_cap;
 		}

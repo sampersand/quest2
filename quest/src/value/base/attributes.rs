@@ -271,18 +271,23 @@ mod tests {
 	#[test]
 	fn it_transitions_over_to_full_map() {
 		let text = Text::from_static_str("yo waddup");
-		let mut textmut = text.as_mut().unwrap();
 
-		for i in 0..=list::MAX_LISTMAP_LEN * 2 {
-			let value = Value::from(i as i64).any();
-			textmut.set_attr(value, value).unwrap();
+		{
+			let mut textmut = text.as_mut().unwrap();
 
-			// assert!(textmut.r().get_unbound_attr(value).unwrap().unwrap().try_eq(value).unwrap());
+			for i in 0..=list::MAX_LISTMAP_LEN * 2 {
+				let value = Value::from(i as i64).any();
+				textmut.set_attr(value, value).unwrap();
+
+				// assert!(textmut.r().get_unbound_attr(value).unwrap().unwrap().try_eq(value).unwrap());
+			}
 		}
 
+
+		let textref = text.as_ref().unwrap();
+
 		let value = Value::from(3).any();
-		assert!(textmut
-			.r()
+		assert!(textref
 			.get_unbound_attr(value)
 			.unwrap()
 			.unwrap()
@@ -292,8 +297,7 @@ mod tests {
 		// now it should be a full `map`, let's go over all of them again.
 		for i in 0..=list::MAX_LISTMAP_LEN * 2 {
 			let value = Value::from(i as i64).any();
-			assert!(textmut
-				.r()
+			assert!(textref
 				.get_unbound_attr(value)
 				.unwrap()
 				.unwrap()

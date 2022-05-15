@@ -10,6 +10,7 @@ pub struct Stream<'a> {
 }
 
 impl<'a> Stream<'a> {
+	#[must_use]
 	pub const fn new(src: &'a str, filename: Option<&'a Path>) -> Self {
 		Self {
 			src,
@@ -19,6 +20,7 @@ impl<'a> Stream<'a> {
 		}
 	}
 
+	#[must_use]
 	pub const fn location(&self) -> SourceLocation<'a> {
 		SourceLocation {
 			filename: self.filename,
@@ -31,10 +33,12 @@ impl<'a> Stream<'a> {
 		self.location().error(kind)
 	}
 
+	#[must_use]
 	pub const fn src(&self) -> &'a str {
 		self.src
 	}
 
+	#[must_use]
 	pub const fn is_eof(&self) -> bool {
 		self.src.is_empty()
 	}
@@ -48,16 +52,19 @@ impl<'a> Stream<'a> {
 		self.column = 1;
 	}
 
+	#[must_use]
 	pub fn peek(&self) -> Option<char> {
 		self.src.chars().next()
 	}
 
+	#[must_use]
 	pub fn peek2(&self) -> Option<char> {
 		let mut chars = self.src.chars();
 		chars.next();
 		chars.next()
 	}
 
+	#[must_use]
 	pub fn peek3(&self) -> Option<char> {
 		let mut chars = self.src.chars();
 		chars.next();
@@ -87,6 +94,7 @@ impl<'a> Stream<'a> {
 		chr
 	}
 
+	#[must_use]
 	pub fn starts_with(&mut self, s: &str) -> bool {
 		self.src.starts_with(s)
 	}

@@ -147,6 +147,7 @@ impl<T: Allocated> Gc<T> {
 	/// As [`Base`] doesn't require an [`Allocated`] type, [`Base::new`] and friends return a
 	/// `Gc<Base<T>>`. As such, the way you convert from this `Gc` to a `Gc` of the outer type is
 	/// through this function.
+	#[must_use]
 	pub fn from_inner(inner: Gc<Base<T::Inner>>) -> Self {
 		// SAFETY: This is valid, as `Allocated` guarantees that `T` and `Base<T>` are represented
 		// identically, and thus converting a `Gc` of the two is valid.
@@ -159,6 +160,7 @@ impl<T: Allocated> Gc<T> {
 	///
 	/// # Safety
 	/// All the same safety concerns as [`new`], except `ptr` may not be null.
+	#[must_use]
 	pub(crate) unsafe fn new_unchecked(ptr: *mut T) -> Self {
 		Self::new(NonNull::new_unchecked(ptr))
 	}
@@ -293,6 +295,7 @@ impl<T: Allocated> Gc<T> {
 	/// assert!(text1.ptr_eq(text3));
 	/// assert!(!text1.ptr_eq(text2));
 	/// ```
+	#[must_use]
 	pub fn ptr_eq(self, rhs: Self) -> bool {
 		self.0 == rhs.0
 	}
@@ -313,11 +316,13 @@ impl<T: Allocated> Gc<T> {
 	/// assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
 	/// # quest::Result::<()>::Ok(())
 	/// ```
+	#[must_use]
 	pub fn is_frozen(&self) -> bool {
 		self.flags().contains(Flags::FROZEN)
 	}
 
 	/// Converts `self` into a pointer to the base.
+	#[must_use]
 	pub(crate) fn as_ptr(self) -> *const T {
 		self.0.as_ptr()
 	}
@@ -422,6 +427,7 @@ impl<T: Allocated + Debug> Debug for Ref<T> {
 }
 
 impl<T: Allocated> Ref<T> {
+	#[must_use]
 	pub fn as_gc(&self) -> Gc<T> {
 		self.0
 	}
@@ -430,6 +436,7 @@ impl<T: Allocated> Ref<T> {
 		self.header().get_unbound_attr(attr, true)
 	}
 
+	#[must_use]
 	pub fn flags(&self) -> &Flags {
 		self.header().flags()
 	}
@@ -529,7 +536,7 @@ impl<T: Allocated> Mut<T> {
 	}
 }
 
-impl<T: Allocated> Mut<T> {
+/*impl<T: Allocated> Mut<T> {
 	/// Converts a [`Mut`] to a [`Ref`].
 	///
 	/// Just as you're able to downgrade mutable references to immutable ones in Rust (eg you can do
@@ -557,7 +564,7 @@ impl<T: Allocated> Mut<T> {
 		// return a reference to the `Ref`, its `Drop` won't be called.
 		unsafe { &*(self as *const Self).cast() }
 	}
-}
+}*/
 
 impl<T: Allocated> Deref for Mut<T> {
 	type Target = T;

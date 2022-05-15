@@ -32,6 +32,7 @@ macro_rules! define_interned {
 		}
 
 		impl Intern {
+			#[must_use]
 			pub const fn as_str(self) -> &'static str {
 				const STRINGS: [&'static str; Intern::__LAST.as_index()] = [
 					$(define_interned!(@ $name $($value)?)),*
@@ -40,6 +41,7 @@ macro_rules! define_interned {
 				STRINGS[self.as_index()]
 			}
 
+			#[must_use]
 			pub const fn fast_hash(self) -> u64 {
 				const HASHES: [u64; Intern::__LAST.as_index()] = [
 					$(crate::value::ty::text::fast_hash(define_interned!(@ $name $($value)?)), )*
@@ -126,6 +128,7 @@ impl Intern {
 		}
 	}
 
+	#[must_use]
 	pub fn as_text(self) -> Gc<Text> {
 		use once_cell::sync::OnceCell;
 

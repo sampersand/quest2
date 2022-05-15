@@ -45,6 +45,7 @@ pub enum Opcode {
 }
 
 impl Opcode {
+	#[must_use]
 	pub fn unary_from_symbol(symbol: &str) -> Option<Self> {
 		match symbol {
 			"!" => Some(Self::Not),
@@ -53,6 +54,7 @@ impl Opcode {
 		}
 	}
 
+	#[must_use]
 	pub fn binary_from_symbol(symbol: &str) -> Option<Self> {
 		match symbol {
 			"()" => Some(Self::CallSimple),
@@ -78,7 +80,8 @@ impl Opcode {
 		}
 	}
 
-	pub fn from_u8(byte: u8) -> Option<Self> {
+	#[must_use]
+	pub const fn from_u8(byte: u8) -> Option<Self> {
 		match byte {
 			_ if byte == Opcode::CreateList as u8 => Some(Opcode::CreateList),
 

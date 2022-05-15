@@ -40,6 +40,7 @@ impl Flags {
 	const UNUSED1: u32 = 1 << 30;
 	const UNUSED0: u32 = 1 << 31;
 
+	#[must_use]
 	pub const fn new(flags: u32) -> Self {
 		Self(AtomicU32::new(flags))
 	}

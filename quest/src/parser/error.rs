@@ -1,6 +1,7 @@
 use super::SourceLocation;
 
 #[derive(Debug)]
+#[must_use]
 pub struct Error<'a> {
 	pub location: SourceLocation<'a>,
 	pub kind: ErrorKind,

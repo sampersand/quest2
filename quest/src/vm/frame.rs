@@ -80,12 +80,11 @@ impl Frame {
 		builder.set_parents(List::from_slice(&[gc_block.to_any(), Gc::<Frame>::parent()]));
 
 		unsafe {
-			let unnamed_locals = crate::alloc_zeroed(locals_layout_for(
+			let unnamed_locals = crate::alloc_zeroed::<AnyValue>(locals_layout_for(
 				block.num_of_unnamed_locals,
 				block.named_locals.len(),
 			))
-			.as_ptr()
-			.cast::<AnyValue>();
+			.as_ptr();
 
 			let named_locals = unnamed_locals
 				.add(block.num_of_unnamed_locals)
@@ -266,6 +265,7 @@ impl Frame {
 	fn next_usize(&mut self) -> usize {
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
 		// out of bounds.
+		#[allow(clippy::cast_ptr_alignment)]
 		let us = unsafe {
 			self
 				.block

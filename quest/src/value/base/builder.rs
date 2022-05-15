@@ -87,7 +87,7 @@ impl<T> Builder<T> {
 	///
 	/// // SAFETY: we're guaranteed `layout` is not zero-sized,
 	/// // as `Base<T>` is nonzero sized.
-	/// let ptr = unsafe { quest::alloc_zeroed(layout) }.cast::<Base<u8>>();
+	/// let ptr = unsafe { quest::alloc_zeroed::<Base<u8>>(layout) };
 	///
 	/// // SAFETY: It was just zero allocated with the proper layout, which
 	/// // also means we can write to it.
@@ -124,7 +124,7 @@ impl<T> Builder<T> {
 	///
 	/// // SAFETY: we're guaranteed `layout` is not zero-sized,
 	/// // as `Base<T>` is nonzero sized.
-	/// let ptr = unsafe { quest::alloc(layout) }.cast::<Base<u8>>();
+	/// let ptr = unsafe { quest::alloc::<Base<u8>>(layout) };
 	///
 	/// // SAFETY: It was just allocated with the proper layout, which
 	/// // also means we can write to it.
@@ -180,7 +180,7 @@ impl<T> Builder<T> {
 		// - For `alloc_zeroed`, we know `layout` is nonzero size, because `Base` alone is nonzero.
 		// - For `new_uninit`, we know we can write to it and it is properly aligned because we just
 		//   allocated it.
-		unsafe { Self::new_zeroed(crate::alloc_zeroed(layout).cast::<Base<T>>()) }
+		unsafe { Self::new_zeroed(crate::alloc_zeroed(layout)) }
 	}
 
 	/// Gets a reference to the internal pointer.
@@ -193,6 +193,7 @@ impl<T> Builder<T> {
 	/// // ... do stuff with `ptr`.
 	/// # let _: std::ptr::NonNull<Base<i64>> = ptr;
 	/// ```
+	#[must_use]
 	pub fn as_ptr(&self) -> NonNull<Base<T>> {
 		self.0
 	}
@@ -297,6 +298,7 @@ impl<T> Builder<T> {
 	///         .flags()
 	///         .contains(FLAG_IS_SUPER_DUPER_COOL)
 	/// );
+	#[must_use]
 	pub fn flags(&self) -> &Flags {
 		#[allow(clippy::deref_addrof)]
 		// SAFETY: We know the pointer is aligned and can be read from b/c of Builder's invariants.
@@ -400,6 +402,7 @@ impl<T> Builder<T> {
 	/// // ... do stuff with the `base_ptr`.
 	/// ```
 	#[inline]
+	#[must_use]
 	pub fn base(&self) -> *const Base<T> {
 		self.0.as_ptr()
 	}
@@ -417,6 +420,7 @@ impl<T> Builder<T> {
 	/// // ... do stuff with `ptr`.
 	/// ```
 	#[inline]
+	#[must_use]
 	pub fn base_mut(&mut self) -> *mut Base<T> {
 		self.0.as_ptr()
 	}
@@ -433,6 +437,7 @@ impl<T> Builder<T> {
 	/// let ptr: *const Header = builder.header();
 	/// // ... do stuff with `ptr`.
 	/// ```
+	#[must_use]
 	pub fn header(&self) -> *const Header {
 		// SAFETY: `self.base()` is a valid pointer to a `Base<T>`.
 		unsafe { addr_of!((*self.base()).header) }
@@ -450,6 +455,7 @@ impl<T> Builder<T> {
 	/// let ptr: *mut Header = builder.header_mut();
 	/// // ... do stuff with `ptr`.
 	/// ```
+	#[must_use]
 	pub fn header_mut(&mut self) -> *mut Header {
 		// SAFETY: `self.base_mut()` is a valid pointer to a `Base<T>`.
 		unsafe { addr_of_mut!((*self.base_mut()).header) }
@@ -467,6 +473,7 @@ impl<T> Builder<T> {
 	/// let ptr: *const i32 = builder.data();
 	/// // ... do stuff with `ptr`.
 	/// ```
+	#[must_use]
 	pub fn data(&self) -> *const T {
 		// SAFETY: `self.base()` is a valid pointer to a `Base<T>`.
 		unsafe { addr_of!((*self.base()).data).cast::<T>() }
@@ -484,6 +491,7 @@ impl<T> Builder<T> {
 	/// let ptr: *mut i32 = builder.data_mut();
 	/// // ... do stuff with `ptr`.
 	/// ```
+	#[must_use]
 	pub fn data_mut(&mut self) -> *mut T {
 		// SAFETY: `self.base_mut()` is a valid pointer to a `Base<T>`.
 		unsafe { addr_of_mut!((*self.base_mut()).data).cast::<T>() }

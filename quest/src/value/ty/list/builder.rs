@@ -44,9 +44,7 @@ impl Builder {
 
 		// alloc.len is `0` because `Base::<T>::allocate` always zero allocates.
 		alloc.cap = capacity;
-		alloc.ptr = crate::alloc(super::alloc_ptr_layout(capacity))
-			.as_ptr()
-			.cast();
+		alloc.ptr = crate::alloc(super::alloc_ptr_layout(capacity)).as_ptr();
 	}
 
 	#[must_use]

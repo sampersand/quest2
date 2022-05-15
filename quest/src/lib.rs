@@ -1,8 +1,18 @@
 #![allow(
 	clippy::wildcard_imports, // used in `funcs` modules
-	clippy::missing_safety_doc, // this is a future TODO
-	clippy::module_inception, // just my coding style
 	clippy::unreadable_literal, // there's only a handful and they're not meant to be readable.
+
+	// TODOS:
+	clippy::missing_safety_doc,
+	clippy::missing_errors_doc,
+	clippy::missing_panics_doc,
+
+	// Things that could be issues but aren't
+	clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::cast_sign_loss,
+
+	// Simply my coding style, bite me clippy
+	clippy::module_inception,
+	clippy::module_name_repetitions,
 )]
 
 extern crate static_assertions as sa;
@@ -36,8 +46,12 @@ extern "Rust" {
 }
 
 #[allow(clippy::unusual_byte_groupings)]
-pub unsafe fn alloc(layout: std::alloc::Layout) -> std::ptr::NonNull<u8> {
-	let ptr = std::alloc::alloc(layout);
+#[must_use]
+pub unsafe fn alloc<T>(layout: std::alloc::Layout) -> std::ptr::NonNull<T> {
+	debug_assert!(std::alloc::Layout::new::<T>().align() <= layout.align());
+	debug_assert!(std::alloc::Layout::new::<T>().size() <= layout.size());
+
+	let ptr = std::alloc::alloc(layout).cast::<T>();
 
 	if ptr.is_null() || (ptr as u64 <= 0b111_111) {
 		std::alloc::handle_alloc_error(layout);
@@ -50,8 +64,12 @@ pub unsafe fn alloc(layout: std::alloc::Layout) -> std::ptr::NonNull<u8> {
 }
 
 #[allow(clippy::unusual_byte_groupings)]
-pub unsafe fn alloc_zeroed(layout: std::alloc::Layout) -> std::ptr::NonNull<u8> {
-	let ptr = std::alloc::alloc_zeroed(layout);
+#[must_use]
+pub unsafe fn alloc_zeroed<T>(layout: std::alloc::Layout) -> std::ptr::NonNull<T> {
+	debug_assert!(std::alloc::Layout::new::<T>().align() <= layout.align());
+	debug_assert!(std::alloc::Layout::new::<T>().size() <= layout.size());
+
+	let ptr = std::alloc::alloc_zeroed(layout).cast::<T>();
 
 	if ptr.is_null() || (ptr as u64 <= 0b111_111) {
 		std::alloc::handle_alloc_error(layout);
@@ -64,12 +82,17 @@ pub unsafe fn alloc_zeroed(layout: std::alloc::Layout) -> std::ptr::NonNull<u8> 
 }
 
 #[allow(clippy::unusual_byte_groupings)]
-pub unsafe fn realloc(
+#[must_use]
+pub unsafe fn realloc<T>(
 	ptr: *mut u8,
 	layout: std::alloc::Layout,
 	new_size: usize,
-) -> std::ptr::NonNull<u8> {
-	let ptr = std::alloc::realloc(ptr, layout, new_size);
+) -> std::ptr::NonNull<T> {
+	debug_assert!(std::alloc::Layout::new::<T>().align() <= layout.align());
+	debug_assert!(std::alloc::Layout::new::<T>().size() <= layout.size());
+	debug_assert!(std::alloc::Layout::new::<T>().size() <= new_size);
+
+	let ptr = std::alloc::realloc(ptr, layout, new_size).cast::<T>();
 
 	if ptr.is_null() || (ptr as u64 <= 0b111_111) {
 		std::alloc::handle_alloc_error(layout);

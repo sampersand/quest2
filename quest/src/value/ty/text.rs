@@ -159,6 +159,7 @@ fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 ///
 /// assert_eq!(hash, text.as_ref().unwrap().fast_hash());
 /// ```
+#[must_use]
 pub const fn fast_hash(input: &str) -> u64 {
 	fast_hash_continue(FAST_HASH_START, input)
 }
@@ -191,6 +192,7 @@ pub const FAST_HASH_START: u64 = 525201411107845655;
 ///
 /// assert_eq!(hash, fast_hash("hello, world"));
 /// ```
+#[must_use]
 pub const fn fast_hash_continue(mut hash: u64, input: &str) -> u64 {
 	let bytes = input.as_bytes();
 	let mut idx = 0;

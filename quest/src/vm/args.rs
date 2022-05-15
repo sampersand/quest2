@@ -19,7 +19,7 @@ impl<'a> Args<'a> {
 	}
 
 	#[must_use]
-	pub fn with_self(self, this: AnyValue) -> Self {
+	pub const fn with_self(self, this: AnyValue) -> Self {
 		assert!(
 			self.this.is_none(),
 			"todo: is this even possible? and if so, how should it work"
@@ -31,22 +31,27 @@ impl<'a> Args<'a> {
 		}
 	}
 
-	pub fn get_self(self) -> Option<AnyValue> {
+	#[must_use]
+	pub const fn get_self(self) -> Option<AnyValue> {
 		self.this
 	}
 
+	#[must_use]
 	pub const fn positional(self) -> &'a [AnyValue] {
 		self.positional
 	}
 
+	#[must_use]
 	pub const fn keyword(self) -> &'a [(&'a str, AnyValue)] {
 		self.keyword
 	}
 
+	#[must_use]
 	pub const fn len(self) -> usize {
 		self.positional.len() + self.keyword.len() + if self.this.is_some() { 1 } else { 0 }
 	}
 
+	#[must_use]
 	pub const fn is_empty(self) -> bool {
 		self.len() == 0
 	}
@@ -107,6 +112,7 @@ impl<'a> Args<'a> {
 		Ok((self[0], Self::new(&self.positional[1..], self.keyword)))
 	}
 
+	#[must_use]
 	pub fn into_value(self) -> AnyValue {
 		self
 			.assert_no_keyword()

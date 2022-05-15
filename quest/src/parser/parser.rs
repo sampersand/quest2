@@ -13,6 +13,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
+	#[must_use]
 	pub fn new(src: &'a str, filename: Option<&'a Path>) -> Self {
 		Self {
 			patterns: HashMap::new(),
@@ -31,6 +32,7 @@ impl<'a> Parser<'a> {
 		self.patterns.insert(name, pattern);
 	}
 
+	#[must_use]
 	pub fn get_pattern(&self, name: &str) -> Option<Rc<dyn Pattern<'a>>> {
 		self.patterns.get(name).cloned()
 	}
@@ -39,10 +41,12 @@ impl<'a> Parser<'a> {
 	// 	&self.plugins
 	// }
 
+	#[must_use]
 	pub fn stream(&self) -> &Stream<'a> {
 		&self.stream
 	}
 
+	#[must_use]
 	pub fn location(&self) -> super::SourceLocation<'a> {
 		self.stream.location()
 	}
