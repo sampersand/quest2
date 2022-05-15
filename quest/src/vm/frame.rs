@@ -723,6 +723,12 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
+	#[instrument(target="frame",
+		level="debug",
+		name="call frame",
+		skip(self),
+		fields(src=?self.as_ref()?.block.loc))
+	]
 	pub fn run(self) -> Result<AnyValue> {
 		if !self
 			.as_ref()?
@@ -754,10 +760,12 @@ impl Gc<Frame> {
 		});
 
 		match result {
-			Err(Error::Return { value, from_frame }) if from_frame.is_identical(self.as_any()) => Ok(value),
+			Err(Error::Return { value, from_frame }) if from_frame.is_identical(self.as_any()) => {
+				Ok(value)
+			},
 			Err(other) => Err(other),
-			Ok(_) => self.as_mut().map(|this| unsafe { *this.unnamed_locals })
-		}		
+			Ok(_) => self.as_mut().map(|this| unsafe { *this.unnamed_locals }),
+		}
 	}
 
 	fn next_op(&mut self) -> Result<Option<Opcode>> {

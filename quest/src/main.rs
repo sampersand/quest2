@@ -12,7 +12,7 @@ use quest::Result;
 
 fn run_code(code: &str) -> Result<AnyValue> {
 	let mut parser = Parser::new(code, None);
-	let mut builder = quest::vm::block::Builder::new(quest::vm::SourceLocation {}, None);
+	let mut builder = quest::vm::block::Builder::new(Default::default(), None);
 	let scratch = builder.scratch();
 
 	ast::Group::parse_all(&mut parser)
@@ -45,7 +45,9 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if false { run_code(r#"
+	if false {
+		run_code(
+			r#"
 upto_ten = n -> {
 	(n >= 10).then(return);
 	forever.i = forever.i + 1;
@@ -56,7 +58,11 @@ forever.i = 0;
 
 forever();
 
-"#).unwrap();return; }
+"#,
+		)
+		.unwrap();
+		return;
+	}
 
 	match run_code(&std::env::args().skip(1).next().expect("usage: <expr>")) {
 		Err(err) => {

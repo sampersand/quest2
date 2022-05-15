@@ -1,10 +1,11 @@
 use super::{Compile, Expression};
 use crate::parser::token::{ParenType, TokenContents};
-use crate::parser::{ErrorKind, Parser, Result};
+use crate::parser::{ErrorKind, Parser, Result, SourceLocation};
 use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
 pub struct Group<'a> {
+	pub start: SourceLocation<'a>,
 	statements: Vec<Statement<'a>>,
 	end_in_semicolon: bool,
 }
@@ -42,6 +43,7 @@ impl<'a> Statement<'a> {
 
 impl<'a> Group<'a> {
 	pub fn parse_all(parser: &mut Parser<'a>) -> Result<'a, Self> {
+		let start = parser.location();
 		let mut statements = Vec::new();
 		let mut end_in_semicolon = false;
 
@@ -75,12 +77,15 @@ impl<'a> Group<'a> {
 		}
 
 		Ok(Self {
+			start,
 			statements,
 			end_in_semicolon,
 		})
 	}
 
 	pub fn parse(parser: &mut Parser<'a>, paren: ParenType) -> Result<'a, Option<Self>> {
+		let start = parser.location();
+
 		if parser
 			.take_if_contents(TokenContents::LeftParen(paren))?
 			.is_none()
@@ -89,7 +94,6 @@ impl<'a> Group<'a> {
 		};
 
 		let mut statements = Vec::new();
-		let start = parser.location();
 		let mut end_in_semicolon = false;
 
 		while parser
@@ -135,6 +139,7 @@ impl<'a> Group<'a> {
 		}
 
 		Ok(Some(Self {
+			start,
 			statements,
 			end_in_semicolon,
 		}))

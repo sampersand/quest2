@@ -20,11 +20,13 @@ fn run_code(code: &str) -> Result<AnyValue> {
 
 #[test]
 fn divides() {
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		Integer.zero? = n -> { n == 0 };
 		Integer.divides? = (n, l) -> { (l % n).zero?() };
 		12.divides?(24).and(!12.divides?(13))
-	"#)
+	"#,
+	)
 	.unwrap();
 
 	assert_eq!(result.downcast::<Boolean>().unwrap(), true);
@@ -32,11 +34,13 @@ fn divides() {
 
 #[test]
 fn square_root() {
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		Integer.'^' = Integer::'**';
 		Integer.'√' = n -> { n ^ 0.5 };
 		√16
-	"#)
+	"#,
+	)
 	.unwrap();
 
 	// `√16.0` would be `4.0` and `√16` is `4`?
@@ -47,7 +51,8 @@ fn square_root() {
 fn fib_set_attr() {
 	// NOTE: I'm not sure these semantics are what we want, ie setting an attr on the function means
 	// the block its in inherits those attrs.
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		fib = n -> {
 			(n <= 1).then(n.return);
 
@@ -56,7 +61,8 @@ fn fib_set_attr() {
 
 		fib.fibb = fib;
 		fib(10)
-	"#)
+	"#,
+	)
 	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
@@ -65,7 +71,8 @@ fn fib_set_attr() {
 #[test]
 fn fib_set_parent() {
 	// NOTE: This won't be necessary later when i get auto inheritance working.
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		fib = n -> {
 			(n <= 1).then(n.return);
 
@@ -74,7 +81,8 @@ fn fib_set_parent() {
 
 		fib.__parents__ = [:0];
 		fib(10)
-	"#)
+	"#,
+	)
 	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
@@ -82,7 +90,8 @@ fn fib_set_parent() {
 
 #[test]
 fn fib_pass_function() {
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		fib = (n, fn) -> {
 			(n <= 1).then(n.return);
 
@@ -90,7 +99,8 @@ fn fib_pass_function() {
 		};
 
 		fib(10, fib)
-	"#)
+	"#,
+	)
 	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
@@ -99,7 +109,8 @@ fn fib_pass_function() {
 #[test]
 #[ignore] // TODO: remove ignore. doesnt currently work cause blcoks dont inherit from parents.
 fn fib_normal() {
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		fib = n -> {
 			(n <= 1).then(n.return);
 
@@ -107,7 +118,8 @@ fn fib_normal() {
 		};
 
 		fib(10)
-	"#)
+	"#,
+	)
 	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
@@ -115,11 +127,13 @@ fn fib_normal() {
 
 #[test]
 fn modifying_string_literals_isnt_global() {
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		modify = { "x".concat("y") };
 
 		modify() + modify()
-	"#)
+	"#,
+	)
 	.unwrap();
 
 	assert_eq!(*result.downcast::<Gc<Text>>().unwrap().as_ref().unwrap(), "xyxy");
@@ -127,11 +141,13 @@ fn modifying_string_literals_isnt_global() {
 
 #[test]
 fn assign_and_fetch_from_arrays() {
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		ary = [9, 12, -99];
 		ary[1] = 4;
 		ary[0] + ary[1]
-	"#)
+	"#,
+	)
 	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 13);
@@ -139,7 +155,8 @@ fn assign_and_fetch_from_arrays() {
 
 #[test]
 fn if_and_while() {
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		i = 0;
 		n = 0;
 		while({ i < 10 }, {
@@ -150,7 +167,8 @@ fn if_and_while() {
 			:1.i = i + 1;
 		});
 		n
-	"#)
+	"#,
+	)
 	.unwrap();
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 20);
@@ -158,7 +176,8 @@ fn if_and_while() {
 
 #[test]
 fn basic_stackframe_continuation() {
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		recur = acc -> {
 			[acc, :0].return();
 
@@ -170,7 +189,8 @@ fn basic_stackframe_continuation() {
 		tmp = tmp[1].resume(); q = q + ":" + tmp[0];
 		tmp = tmp[1].resume(); q = q + ":" + tmp[0];
 		q
-	"#)
+	"#,
+	)
 	.unwrap();
 
 	assert_eq!(

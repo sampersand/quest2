@@ -101,9 +101,9 @@ impl<'a> BlockArgs<'a> {
 
 impl Compile for Block<'_> {
 	fn compile(&self, builder: &mut Builder, dst: Local) {
-		// todo: somehow have `builder` have a partially-initialized reference to its stackframe.
-		let mut inner_builder =
-			Builder::new(/*self.body.location*/ crate::vm::SourceLocation {}, None);
+		let location = crate::vm::SourceLocation::from(self.body.start);
+
+		let mut inner_builder = Builder::new(location, None);
 		let scratch = inner_builder.scratch();
 
 		if let Some(args) = &self.args {
@@ -112,7 +112,8 @@ impl Compile for Block<'_> {
 			}
 		}
 
-		self.body.compile(&mut inner_builder, scratch);
+		let span = debug_span!(target: "block_builder", "new block", src=?crate::vm::SourceLocation::from(self.body.start));
+		span.in_scope(|| self.body.compile(&mut inner_builder, scratch));
 		let block = inner_builder.build();
 		builder.constant(block.as_any(), dst);
 	}
