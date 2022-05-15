@@ -108,7 +108,7 @@ impl Compile for Block<'_> {
 
 		if let Some(args) = &self.args {
 			for arg in &args.args {
-				let _ = builder.named_local(arg);
+				let _ = inner_builder.named_local(arg);
 			}
 		}
 

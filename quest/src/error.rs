@@ -17,7 +17,7 @@ pub enum Error {
 	Message(String),
 	Return {
 		value: AnyValue,
-		from_frame: AnyValue,
+		from_frame: Option<AnyValue>, // If it's `None`, that means the current frame.
 	},
 }
 

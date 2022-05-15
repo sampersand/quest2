@@ -3,6 +3,7 @@ use crate::value::AsAny;
 use crate::value::{ty::Text, AnyValue, Gc};
 use crate::vm::{bytecode::MAX_ARGUMENTS_FOR_SIMPLE_CALL, Opcode, SourceLocation};
 
+#[derive(Debug)]
 pub struct Builder {
 	loc: SourceLocation,
 	code: Vec<u8>,

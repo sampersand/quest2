@@ -116,7 +116,10 @@ impl Frame {
 			std::ptr::addr_of_mut!((*data_ptr).block).write(block);
 			// no need to initialize `pos` as it starts off as zero.
 
-			Ok(Gc::from_inner(builder.finish()))
+			let x: Gc<Self> = Gc::from_inner(builder.finish());
+			// dbg!((*x.as_ref().unwrap()).get_local(LocalTarget(-3)));
+			Ok(x)
+			// Ok(Gc::from_inner(builder.finish()))
 		}
 	}
 
@@ -760,7 +763,7 @@ impl Gc<Frame> {
 		});
 
 		match result {
-			Err(Error::Return { value, from_frame }) if from_frame.is_identical(self.as_any()) => {
+			Err(Error::Return { value, from_frame }) if from_frame.map_or(true, |ff| ff.is_identical(self.as_any())) => {
 				Ok(value)
 			},
 			Err(other) => Err(other),

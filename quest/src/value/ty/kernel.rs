@@ -1,5 +1,4 @@
-use crate::value::ty::Text;
-use crate::value::ty::{self, Singleton};
+use crate::value::ty::{self, Integer, Text, Singleton};
 use crate::value::{Gc, HasDefaultParent};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
@@ -32,6 +31,14 @@ pub mod funcs {
 
 		Ok(args[0])
 	}
+
+	pub fn exit(args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		std::process::exit(args[0].convert::<Integer>()? as i32);
+	}
+
 
 	pub fn r#if(args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
@@ -70,6 +77,7 @@ impl Singleton for Kernel {
 			create_class! { "Kernel", parent Pristine::instance();
 				Intern::print => justargs funcs::print,
 				Intern::dump => justargs funcs::dump,
+				Intern::exit => justargs funcs::exit,
 				Intern::r#if => justargs funcs::r#if,
 				Intern::r#while => justargs funcs::r#while,
 				Intern::Integer => constant ty::Integer::parent(),

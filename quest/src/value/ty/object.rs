@@ -87,16 +87,9 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() <= 1)?;
 
-		let from_frame = if let Ok(index) = args.get(0) {
-			index
-		} else {
-			crate::vm::Frame::with_stackframe(|sfs| *sfs.last().expect("returning from nothing?"))
-				.as_any()
-		};
-
 		Err(crate::Error::Return {
 			value: obj,
-			from_frame,
+			from_frame: args.get(0).ok()
 		})
 	}
 

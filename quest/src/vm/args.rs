@@ -110,7 +110,13 @@ impl<'a> Args<'a> {
 			.assert_no_keyword()
 			.expect("todo: keyword for argument into value");
 
-		crate::value::ty::List::from_slice(self.positional()).as_any()
+		let list = crate::value::ty::List::from_slice(self.positional());
+
+		if let Some(this) = self.this {
+			list.as_mut().unwrap().unshift(this);
+		}
+
+		list.as_any()
 	}
 }
 
