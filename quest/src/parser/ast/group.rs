@@ -57,7 +57,7 @@ impl<'a> Group<'a> {
 			} else {
 				let token = parser.peek()?;
 				return Err(
-					parser.error(ErrorKind::Message(format!("expected expression got {:?}", token))),
+					parser.error(ErrorKind::Message(format!("expected expression got {token:?}"))),
 				);
 			}
 
@@ -72,7 +72,7 @@ impl<'a> Group<'a> {
 		if !parser.is_eof()? {
 			let token = parser.peek()?;
 			return Err(
-				parser.error(ErrorKind::Message(format!("unknown token after expr: {:?}", token))),
+				parser.error(ErrorKind::Message(format!("unknown token after expr: {token:?}"))),
 			);
 		}
 
@@ -102,7 +102,7 @@ impl<'a> Group<'a> {
 		{
 			if parser.is_eof()? {
 				return Err(
-					start.error(ErrorKind::Message(format!("missing closing {:?} paren", paren))),
+					start.error(ErrorKind::Message(format!("missing closing {paren:?} paren"))),
 				);
 			}
 
@@ -115,8 +115,7 @@ impl<'a> Group<'a> {
 			} else {
 				let token = parser.peek()?;
 				return Err(parser.error(ErrorKind::Message(format!(
-					"expected expression in {:?} group, got {:?}",
-					paren, token
+					"expected expression in {paren:?} group, got {token:?}"
 				))));
 			}
 
@@ -132,7 +131,7 @@ impl<'a> Group<'a> {
 			{
 				let token = parser.peek()?;
 				return Err(
-					parser.error(ErrorKind::Message(format!("unknown token after expr: {:?}", token))),
+					parser.error(ErrorKind::Message(format!("unknown token after expr: {token:?}"))),
 				);
 			}
 			break;

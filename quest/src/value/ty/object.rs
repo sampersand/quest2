@@ -67,7 +67,7 @@ pub mod funcs {
 	pub fn at_text(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
 
-		Ok(format!("{:?}", obj).as_any())
+		Ok(format!("{obj:?}").as_any())
 	}
 
 	pub fn hash(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {

@@ -195,7 +195,7 @@ impl Frame {
 			.0
 			.header()
 			.get_unbound_attr(attr_name.as_any(), true)?
-			.ok_or_else(|| format!("unknown attribute {:?}", attr_name).into())
+			.ok_or_else(|| format!("unknown attribute {attr_name:?}").into())
 	}
 
 	fn set_local(&mut self, index: LocalTarget, value: AnyValue) -> Result<()> {
@@ -256,7 +256,7 @@ impl Frame {
 		// out of bounds.
 		let byte = unsafe { *self.block.code.get_unchecked(self.pos) };
 
-		trace!(target: "frame", byte=%format!("{:02x}", byte), sp=%self.pos, "read byte");
+		trace!(target: "frame", byte=%format!("{byte:02x}"), sp=%self.pos, "read byte");
 
 		self.pos += 1;
 		trace!(target: "frame", ?byte, "read byte");
@@ -448,7 +448,7 @@ impl Gc<Frame> {
 		drop(this);
 		let value = object
 			.get_attr(attr)?
-			.ok_or_else(|| format!("unknown attr {:?} for {:?}", attr, object))?;
+			.ok_or_else(|| format!("unknown attr {attr:?} for {object:?}"))?;
 
 		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "get_attr");
 		self.as_mut()?.set_local(dst, value);
@@ -465,7 +465,7 @@ impl Gc<Frame> {
 		drop(this); // as `get_attr` may modify us.
 		let value = object
 			.get_unbound_attr(attr)?
-			.ok_or_else(|| format!("unknown attr {:?} for {:?}", attr, object))?;
+			.ok_or_else(|| format!("unknown attr {attr:?} for {object:?}"))?;
 
 		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "get_unbound_attr");
 		self.as_mut()?.set_local(dst, value);

@@ -55,7 +55,7 @@ impl ConvertTo<Gc<Text>> for Integer {
 		};
 
 		if !(2..=36).contains(&base) {
-			Err(format!("invalid radix '{}'", base).into())
+			Err(format!("invalid radix '{base}'").into())
 		} else {
 			Ok(Text::from_string(radix_fmt::radix(*self, base as u8).to_string()))
 		}

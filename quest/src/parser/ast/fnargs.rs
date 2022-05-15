@@ -19,7 +19,7 @@ impl<'a> FnArgs<'a> {
 			if parser.is_eof()? {
 				return Err(
 					start
-						.error(ErrorKind::Message(format!("missing closing {:?} paren for fncall", end))),
+						.error(ErrorKind::Message(format!("missing closing {end:?} paren for fncall"))),
 				);
 			}
 
@@ -28,8 +28,7 @@ impl<'a> FnArgs<'a> {
 			} else {
 				let token = parser.peek()?;
 				return Err(parser.error(ErrorKind::Message(format!(
-					"expected expression in {:?} fnargs, got {:?}",
-					end, token
+					"expected expression in {end:?} fnargs, got {token:?}"
 				))));
 			}
 
@@ -40,8 +39,7 @@ impl<'a> FnArgs<'a> {
 				{
 					let token = parser.peek()?;
 					return Err(parser.error(ErrorKind::Message(format!(
-						"expected closing {:?} `,`, not {:?}",
-						end, token
+						"expected closing {end:?} `,`, not {token:?}"
 					))));
 				}
 
