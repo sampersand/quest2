@@ -312,7 +312,7 @@ impl Frame {
 }
 
 impl Gc<Frame> {
-	fn op_mov(&self) -> Result<()> {
+	fn op_mov(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 
 		let src = this.next_local()?;
@@ -324,7 +324,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_create_list(&self) -> Result<()> {
+	fn op_create_list(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let amnt = this.next_count();
 
@@ -345,11 +345,12 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_call(&self) -> Result<()> {
+	fn op_call(self) -> Result<()> {
+		let _ = self;
 		todo!()
 	}
 
-	fn op_call_simple(&self) -> Result<()> {
+	fn op_call_simple(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let amnt = this.next_count();
@@ -383,7 +384,7 @@ impl Gc<Frame> {
 	// foo(4);
 	// print(q.a); #=> 4
 	// ```
-	fn op_constload(&self) -> Result<()> {
+	fn op_constload(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 
 		let idx = this.next_count();
@@ -409,7 +410,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_stackframe(&self) -> Result<()> {
+	fn op_stackframe(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let mut count = this.next_count() as isize;
 		let dst = this.next_local_target();
@@ -419,9 +420,10 @@ impl Gc<Frame> {
 		let frame = Frame::with_stackframe(|frames| {
 			if count < 0 {
 				count += frames.len() as isize;
-			}
-			if count < 0 {
-				panic!("todo: out of bounds error");
+
+				if count < 0 {
+					return Err("todo: out of bounds error".to_string().into());
+				}
 			}
 
 			Result::<_>::Ok(
@@ -438,7 +440,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_get_attr(&self) -> Result<()> {
+	fn op_get_attr(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
@@ -455,7 +457,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_get_unbound_attr(&self) -> Result<()> {
+	fn op_get_unbound_attr(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
@@ -472,7 +474,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_has_attr(&self) -> Result<()> {
+	fn op_has_attr(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
@@ -487,7 +489,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_set_attr(&self) -> Result<()> {
+	fn op_set_attr(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object_index = this.next_count() as isize;
 		let attr = this.next_local()?;
@@ -537,7 +539,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_del_attr(&self) -> Result<()> {
+	fn op_del_attr(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
@@ -552,11 +554,12 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_call_attr(&self) -> Result<()> {
+	fn op_call_attr(self) -> Result<()> {
+		let _ = self;
 		todo!("semantics for complicated callattr");
 	}
 
-	fn op_call_attr_simple(&self) -> Result<()> {
+	fn op_call_attr_simple(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let object = this.next_local()?;
 		let attr = this.next_local()?;
@@ -583,7 +586,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn run_binary_op(&self, op: Intern) -> Result<()> {
+	fn run_binary_op(self, op: Intern) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let lhs = this.next_local()?;
 		let rhs = this.next_local()?;
@@ -598,59 +601,59 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_add(&self) -> Result<()> {
+	fn op_add(self) -> Result<()> {
 		self.run_binary_op(Intern::op_add)
 	}
 
-	fn op_subtract(&self) -> Result<()> {
+	fn op_subtract(self) -> Result<()> {
 		self.run_binary_op(Intern::op_sub)
 	}
 
-	fn op_multuply(&self) -> Result<()> {
+	fn op_multuply(self) -> Result<()> {
 		self.run_binary_op(Intern::op_mul)
 	}
 
-	fn op_divide(&self) -> Result<()> {
+	fn op_divide(self) -> Result<()> {
 		self.run_binary_op(Intern::op_div)
 	}
 
-	fn op_modulo(&self) -> Result<()> {
+	fn op_modulo(self) -> Result<()> {
 		self.run_binary_op(Intern::op_mod)
 	}
 
-	fn op_power(&self) -> Result<()> {
+	fn op_power(self) -> Result<()> {
 		self.run_binary_op(Intern::op_pow)
 	}
 
-	fn op_equal(&self) -> Result<()> {
+	fn op_equal(self) -> Result<()> {
 		self.run_binary_op(Intern::op_eql)
 	}
 
-	fn op_notequal(&self) -> Result<()> {
+	fn op_notequal(self) -> Result<()> {
 		self.run_binary_op(Intern::op_neq)
 	}
 
-	fn op_lessthan(&self) -> Result<()> {
+	fn op_lessthan(self) -> Result<()> {
 		self.run_binary_op(Intern::op_lth)
 	}
 
-	fn op_greaterthan(&self) -> Result<()> {
+	fn op_greaterthan(self) -> Result<()> {
 		self.run_binary_op(Intern::op_gth)
 	}
 
-	fn op_lessequal(&self) -> Result<()> {
+	fn op_lessequal(self) -> Result<()> {
 		self.run_binary_op(Intern::op_leq)
 	}
 
-	fn op_greaterequal(&self) -> Result<()> {
+	fn op_greaterequal(self) -> Result<()> {
 		self.run_binary_op(Intern::op_geq)
 	}
 
-	fn op_compare(&self) -> Result<()> {
+	fn op_compare(self) -> Result<()> {
 		self.run_binary_op(Intern::op_cmp)
 	}
 
-	fn op_index(&self) -> Result<()> {
+	fn op_index(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let source = this.next_local()?;
 		let num_args = this.next_count();
@@ -670,7 +673,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_not(&self) -> Result<()> {
+	fn op_not(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let value = this.next_local()?;
 		let dst = this.next_local_target();
@@ -684,7 +687,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_negate(&self) -> Result<()> {
+	fn op_negate(self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let value = this.next_local()?;
 		let dst = this.next_local_target();
@@ -698,7 +701,7 @@ impl Gc<Frame> {
 		Ok(())
 	}
 
-	fn op_indexassign(&self) -> Result<()> {
+	fn op_indexassign(self) -> Result<()> {
 		// todo: optimize me not to use a `Vec`.
 		let mut this = self.as_mut()?;
 		let source = this.next_local()?;
@@ -853,7 +856,7 @@ mod tests {
 	#[test]
 	fn test_fibonacci() {
 		let fib = {
-			let mut builder = crate::vm::block::Builder::new(Default::default(), None);
+			let mut builder = crate::vm::block::Builder::default();
 
 			let n = builder.named_local("n");
 			let fib = builder.named_local("fib");

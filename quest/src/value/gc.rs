@@ -340,11 +340,13 @@ impl<T: Allocated> Gc<T> {
 		unsafe { &*self.as_ptr() }.header().borrows()
 	}
 
-	fn parents(&self) -> Result<crate::value::base::ParentsGuard> {
+	#[allow(clippy::trivially_copy_pass_by_ref)] // by ref is needed for the lifetime (for now...?)
+	fn parents(&self) -> Result<crate::value::base::ParentsGuard<'_>> {
 		unsafe { Header::parents_raw(self.as_ptr().cast::<Header>()) }
 	}
 
-	fn attributes(&self) -> Result<crate::value::base::AttributesGuard> {
+	#[allow(clippy::trivially_copy_pass_by_ref)] // by ref is needed for the lifetime (for now...?)
+	fn attributes(&self) -> Result<crate::value::base::AttributesGuard<'_>> {
 		unsafe { Header::attributes_raw(self.as_ptr().cast::<Header>()) }
 	}
 
@@ -549,11 +551,11 @@ impl<T: Allocated> Mut<T> {
 	/// assert_eq!(textmut.r().len(), 14);
 	/// # quest::Result::<()>::Ok(())
 	/// ```
-	#[inline(always)]
+	#[inline]
 	pub fn r(&self) -> &Ref<T> {
 		// SAFETY: both `Mut` and `Ref` have the same internal layout. Additionally, since we
 		// return a reference to the `Ref`, its `Drop` won't be called.
-		unsafe { std::mem::transmute(self) }
+		unsafe { &*(self as *const Self).cast() }
 	}
 }
 

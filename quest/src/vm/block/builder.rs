@@ -22,6 +22,12 @@ pub enum Local {
 
 const COUNT_IS_NOT_ONE_BYTE_BUT_USIZE: u8 = i8::MAX as u8;
 
+impl Default for Builder {
+	fn default() -> Self {
+		Self::new(SourceLocation::default(), None)
+	}
+}
+
 impl Builder {
 	#[must_use]
 	pub fn new(loc: SourceLocation, parent_scope: Option<AnyValue>) -> Self {
@@ -39,10 +45,6 @@ impl Builder {
 			named_locals,
 			parent_scope,
 		}
-	}
-
-	pub fn scratch(&self) -> Local {
-		Local::Scratch
 	}
 
 	pub fn unnamed_local(&mut self) -> Local {
@@ -144,11 +146,11 @@ impl Builder {
 		match local {
 			Local::Scratch => {
 				debug!(target: "block_builder", idx=self.code.len(), local=%"0 (scratch)", "set byte");
-				self.code.push(0)
+				self.code.push(0);
 			},
 			Local::Unnamed(n) if n < COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize => {
 				debug!(target: "block_builder", idx=self.code.len(), local=%n, "set byte");
-				self.code.push(n as u8)
+				self.code.push(n as u8);
 			},
 			Local::Unnamed(n) => {
 				debug!(target: "block_builder", idx=self.code.len(), local=?n, "set bytes");
@@ -158,7 +160,7 @@ impl Builder {
 			// todo, im not sure if this is 100% correct, math-wise
 			Local::Named(n) if n < COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize => {
 				debug!(target: "block_builder", idx=self.code.len(), local=?n, updated=?(!(n as i8) as u8), "set byte");
-				self.code.push(!(n as i8) as u8)
+				self.code.push(!(n as i8) as u8);
 			},
 			Local::Named(n) => {
 				debug!(target: "block_builder", idx=self.code.len(), local=?n, updated=?((!n as isize) as usize), "set bytes");

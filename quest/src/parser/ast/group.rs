@@ -171,7 +171,7 @@ impl Compile for Group<'_> {
 		}
 
 		if self.end_in_semicolon {
-			builder.constant(Default::default(), dst);
+			builder.constant(crate::AnyValue::default(), dst);
 		}
 	}
 }

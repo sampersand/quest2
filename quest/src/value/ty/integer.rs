@@ -211,7 +211,7 @@ mod tests {
 
 		assert!(!Integer::is_a(Value::TRUE.any()));
 		assert!(!Integer::is_a(Value::FALSE.any()));
-		assert!(!Integer::is_a(Default::default()));
+		assert!(!Boolean::is_a(Value::NULL.any()));
 		assert!(!Integer::is_a(Value::from(1.0).any()));
 		assert!(!Integer::is_a(Value::from("hello").any()));
 		assert!(!Integer::is_a(Value::from(RustFn::NOOP).any()));

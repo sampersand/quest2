@@ -259,7 +259,7 @@ impl List {
 		debug_assert!(self.is_embedded());
 
 		let new_cap = std::cmp::max(MAX_EMBEDDED_LEN * 2, required_len);
-		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
+		assert!(isize::try_from(new_cap).is_ok(), "too much memory allocated: {new_cap} bytes");
 
 		let layout = alloc_ptr_layout(new_cap);
 
@@ -287,7 +287,7 @@ impl List {
 
 		// Find the new capacity we'll need.
 		let new_cap = std::cmp::max(unsafe { self.inner().alloc.cap } * 2, required_len);
-		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
+		assert!(isize::try_from(new_cap).is_ok(), "too much memory allocated: {new_cap} bytes");
 
 		// If the pointer is immutable, we have to allocate a new buffer, and then copy
 		// over the data.
@@ -444,7 +444,7 @@ pub mod funcs {
 			index += listref.len() as Integer;
 
 			if index < 0 {
-				panic!("todo: error for out of bounds");
+				return Err("todo: error for out of bounds".to_string().into());
 			}
 		}
 
@@ -466,7 +466,7 @@ pub mod funcs {
 			index += listmut.len() as Integer;
 
 			if index < 0 {
-				panic!("todo: error for out of bounds");
+				return Err("todo: error for out of bounds".to_string().into());
 			}
 		}
 

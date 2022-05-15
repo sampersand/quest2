@@ -26,9 +26,9 @@ impl<'a> Pattern<'a> for Sequence<'a> {
 			return Ok(None);
 		}
 
-		for pat in self.0[1..].iter() {
+		for pat in &self.0[1..] {
 			if let Some(pattern_match) = pat.try_match(parser)? {
-				matches.push(pattern_match)
+				matches.push(pattern_match);
 			} else {
 				SequenceMatches(matches).deconstruct(parser);
 				return Ok(None);
@@ -42,7 +42,7 @@ impl<'a> Pattern<'a> for Sequence<'a> {
 impl<'a> Expandable<'a> for SequenceMatches<'a> {
 	// TODO: should these two be swapped for which does rev?
 	fn expand(&self, parser: &mut Parser<'a>, context: Context) {
-		for pattern_match in self.0.iter() {
+		for pattern_match in &self.0 {
 			pattern_match.expand(parser, context.clone());
 		}
 	}

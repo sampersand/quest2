@@ -1,6 +1,6 @@
 use crate::parser::ast::{Compile, Group};
 use crate::parser::Parser;
-use crate::vm::block::Builder;
+use crate::vm::{Args, block::Builder};
 use crate::{AnyValue, Result};
 
 use crate::value::ty::{Boolean, Float, Integer, Text};
@@ -8,14 +8,14 @@ use crate::value::Gc;
 
 fn run_code(code: &str) -> Result<AnyValue> {
 	let mut parser = Parser::new(code, None);
-	let mut builder = Builder::new(Default::default(), None);
+	let mut builder = Builder::default();
 	let scratch = builder.scratch();
 
 	Group::parse_all(&mut parser)
 		.expect("bad parse")
 		.compile(&mut builder, scratch);
 
-	builder.build().run(Default::default())
+	builder.build().run(Args::default())
 }
 
 #[test]

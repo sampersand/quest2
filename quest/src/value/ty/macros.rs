@@ -100,7 +100,7 @@ macro_rules! new_quest_scope {
 				)*
 			}
 
-			Ok(builder.build(Default::default()))
+			Ok(builder.build(crate::vm::SourceLocation::default()))
 	})()};
 }
 
@@ -117,6 +117,7 @@ macro_rules! singleton_object {
 		$(,)?
 	) => {
 		impl<$($gens),*> $type {
+			#[must_use]
 			pub fn instance() -> $crate::AnyValue {
 				use ::once_cell::sync::OnceCell;
 				use $crate::value::ToAny;
@@ -247,7 +248,7 @@ macro_rules! quest_type_attrs {
 						$(.set_parents($crate::value::ty::List::from_slice(&[
 							$(<$parents>::instance()),*
 						])))?
-						.build(Default::default())
+						.build(crate::vm::SourceLocation::default())
 				});
 
 				if is_first_init {

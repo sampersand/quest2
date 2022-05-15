@@ -750,7 +750,7 @@ impl Text {
 		debug_assert!(self.is_embedded());
 
 		let new_cap = MAX_EMBEDDED_LEN * 2 + required_len;
-		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
+		assert!(isize::try_from(new_cap).is_ok(), "too much memory allocated: {new_cap} bytes");
 
 		let layout = alloc_ptr_layout(new_cap);
 
@@ -780,7 +780,7 @@ impl Text {
 
 		// Find the new capacity we'll need.
 		let new_cap = unsafe { self.inner().alloc.cap * 2 } + required_len;
-		assert!(new_cap <= isize::MAX as usize, "too much memory allocated");
+		assert!(isize::try_from(new_cap).is_ok(), "too much memory allocated: {new_cap} bytes");
 
 		// If the pointer is immutable, we have to allocate a new buffer, and then copy over the data.
 		if self.is_pointer_immutable() || self.is_from_string() {
@@ -1103,7 +1103,7 @@ mod tests {
 
 		assert!(!<Gc<Text>>::is_a(Value::TRUE.any()));
 		assert!(!<Gc<Text>>::is_a(Value::FALSE.any()));
-		assert!(!<Gc<Text>>::is_a(Default::default()));
+		assert!(!<Gc<Text>>::is_a(Value::NULL.any()));
 		assert!(!<Gc<Text>>::is_a(Value::ONE.any()));
 		assert!(!<Gc<Text>>::is_a(Value::ZERO.any()));
 		assert!(!<Gc<Text>>::is_a(Value::from(1.0).any()));

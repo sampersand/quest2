@@ -9,6 +9,7 @@ pub struct Args<'a> {
 }
 
 impl<'a> Args<'a> {
+	#[must_use]
 	pub const fn new(positional: &'a [AnyValue], keyword: &'a [(&'a str, AnyValue)]) -> Self {
 		Self {
 			positional,
@@ -17,6 +18,7 @@ impl<'a> Args<'a> {
 		}
 	}
 
+	#[must_use]
 	pub fn with_self(self, this: AnyValue) -> Self {
 		assert!(
 			self.this.is_none(),
@@ -138,7 +140,7 @@ impl ArgIndexer for usize {
 		args
 			.positional
 			.get(self)
-			.cloned()
+			.copied()
 			.ok_or(Error::MissingPositionalArgument(self))
 	}
 

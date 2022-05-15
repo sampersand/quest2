@@ -14,6 +14,7 @@ pub struct Inner {
 	src_loc: crate::vm::SourceLocation,
 }
 
+#[must_use]
 pub struct Builder(BaseBuilder<Inner>);
 
 impl Builder {
@@ -32,6 +33,7 @@ impl Builder {
 		self
 	}
 
+	#[must_use]
 	pub fn build(mut self, src_loc: crate::vm::SourceLocation) -> Gc<Scope> {
 		self.0.set_data(Inner { src_loc });
 

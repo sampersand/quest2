@@ -173,7 +173,7 @@ impl<T> Base<T> {
 
 		// TODO: you can currently make something froze whilst it's mutably borrowed, fix it.
 		if flags.contains(Flags::FROZEN) {
-			panic!("todo: how do we want to return an error here");
+			return Err("todo: how do we want to return an error here".to_string().into());
 			// return Err(Error::ValueFrozen(Gc::new(ptr).any()));
 		}
 
@@ -226,7 +226,7 @@ impl Header {
 	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
 	///
 	/// # Example
-	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
+	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
 	pub fn get_unbound_attr<A: Attribute>(
 		&self,
 		attr: A,
@@ -296,7 +296,7 @@ impl Header {
 	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
 	///
 	/// # Example
-	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
+	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
 		// SAFETY: Since we're already initialized, all the safety concerns are fulfilled.
 		unsafe { Self::set_attr_raw(self as *mut Self, attr, value) }
@@ -310,7 +310,7 @@ impl Header {
 	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
 	///
 	/// # Example
-	/// TODO: examples (happy path, try_hash failing, `gc<list>` mutably borrowed).
+	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
 		self.attributes()?.del_attr(attr)
 	}

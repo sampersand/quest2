@@ -148,7 +148,7 @@ impl<T> Builder<T> {
 
 		// These fields would normally be zero-initialized, but as we cannot assume `ptr` was
 		// zero-initialized, we have to do it ourselves
-		addr_of_mut!((*builder.header_mut()).borrows).write(Default::default());
+		addr_of_mut!((*builder.header_mut()).borrows).write(std::sync::atomic::AtomicU32::default());
 		addr_of_mut!((*builder.header_mut()).flags).write(Flags::default());
 
 		builder

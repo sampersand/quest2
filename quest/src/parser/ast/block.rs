@@ -80,7 +80,7 @@ impl<'a> BlockArgs<'a> {
 				let mut args = Vec::with_capacity(arg_tokens.len());
 				for token in arg_tokens {
 					if let TokenContents::Identifier(name) = token.contents {
-						args.push(name)
+						args.push(name);
 					}
 				}
 
@@ -104,7 +104,7 @@ impl Compile for Block<'_> {
 		let location = crate::vm::SourceLocation::from(self.body.start);
 
 		let mut inner_builder = Builder::new(location, None);
-		let scratch = inner_builder.scratch();
+		let scratch = Local::Scratch;
 
 		if let Some(args) = &self.args {
 			for arg in &args.args {

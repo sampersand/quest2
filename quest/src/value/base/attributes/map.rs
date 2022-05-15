@@ -53,13 +53,14 @@ impl Map {
 		debug_assert!(!attr.is_special());
 
 		if let Some(intern) = attr.as_intern()? {
-			Ok(self.interned.get(&intern).cloned())
+			Ok(self.interned.get(&intern).copied())
 		} else {
 			self.get_unbound_any_attr(attr)
 		}
 	}
 
 	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut AnyValue> {
+		let _ = self;
 		let _ = attr;
 		todo!("get unbound attr mut for maps");
 		// debug_assert!(!attr.is_special());

@@ -67,7 +67,7 @@ impl Compile for Expression<'_> {
 					let op_local = builder.unnamed_local();
 					builder.str_constant(op, op_local);
 					rhs.compile(builder, dst);
-					builder.call_attr_simple(lhs_local, op_local, &[dst], dst)
+					builder.call_attr_simple(lhs_local, op_local, &[dst], dst);
 				}
 			},
 		}

@@ -8,6 +8,7 @@ quest_type! {
 }
 
 impl Pristine {
+	#[must_use]
 	pub fn instance() -> AnyValue {
 		static INSTANCE: once_cell::sync::OnceCell<Gc<Pristine>> = once_cell::sync::OnceCell::new();
 

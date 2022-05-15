@@ -13,7 +13,7 @@ use quest::Result;
 fn run_code(code: &str) -> Result<AnyValue> {
 	let mut parser = Parser::new(code, None);
 	let mut builder = quest::vm::block::Builder::new(Default::default(), None);
-	let scratch = builder.scratch();
+	let scratch = quest::vm::block::Local::Scratch;
 
 	ast::Group::parse_all(&mut parser)
 		.expect("bad parse")

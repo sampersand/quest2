@@ -37,7 +37,7 @@ macro_rules! RustFn_new {
 			func: $func,
 		};
 
-		$crate::value::ty::RustFn::_new(INNER)
+		$crate::value::ty::RustFn::new(INNER)
 	}};
 	($name:expr, justargs $func:expr) => {{
 		const INNER: &'static $crate::value::ty::rustfn::Inner = &$crate::value::ty::rustfn::Inner {
@@ -45,7 +45,7 @@ macro_rules! RustFn_new {
 			func: $func,
 		};
 
-		$crate::value::ty::RustFn::_new(INNER)
+		$crate::value::ty::RustFn::new(INNER)
 	}};
 	($_name:expr, $other:tt $_func:expr) => {
 		compile_error!(concat!("Unknown rustfn kind '", $other, "'; Please use `method`, `function`, or `justargs`"))
@@ -58,7 +58,8 @@ impl crate::value::NamedType for RustFn {
 
 impl RustFn {
 	#[doc(hidden)]
-	pub const fn _new(inner: &'static Inner) -> Self {
+	#[must_use]
+	pub const fn new(inner: &'static Inner) -> Self {
 		Self(inner)
 	}
 
@@ -152,7 +153,7 @@ mod tests {
 
 		assert!(!RustFn::is_a(Value::TRUE.any()));
 		assert!(!RustFn::is_a(Value::FALSE.any()));
-		assert!(!RustFn::is_a(Default::default()));
+		assert!(!RustFn::is_a(Value::NULL.any()));
 		assert!(!RustFn::is_a(Value::ONE.any()));
 		assert!(!RustFn::is_a(Value::ZERO.any()));
 		assert!(!RustFn::is_a(Value::from(1.0).any()));

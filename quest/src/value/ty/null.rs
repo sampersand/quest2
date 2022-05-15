@@ -123,7 +123,7 @@ mod tests {
 
 	#[test]
 	fn test_is_a() {
-		assert!(Null::is_a(Default::default()));
+		assert!(Null::is_a(Value::NULL.any()));
 
 		assert!(!Null::is_a(Value::TRUE.any()));
 		assert!(!Null::is_a(Value::FALSE.any()));

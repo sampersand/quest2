@@ -79,7 +79,7 @@ impl<'a> AttributesGuard<'a> {
 				unsafe {
 					self.ptr.write(Attributes {
 						map: ManuallyDrop::new(Map::with_capacity(capacity).into()),
-					})
+					});
 				}
 			},
 			other => panic!("can only allocate up to isize::MAX ({} is too big)", other),
@@ -114,7 +114,7 @@ impl<'a> AttributesGuard<'a> {
 		debug_assert!(!attr.is_special());
 
 		if self.get_unbound_attr(attr)?.is_none() {
-			self.set_attr(attr, Default::default())?;
+			self.set_attr(attr, AnyValue::default())?;
 		}
 
 		match self.classify() {

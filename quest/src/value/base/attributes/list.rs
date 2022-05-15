@@ -86,7 +86,7 @@ impl ListMap {
 	}
 
 	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut AnyValue> {
-		for thing in self.data.iter_mut() {
+		for thing in &mut self.data {
 			if let Some((key, value)) = thing {
 				if key.is_eql(attr)? {
 					return Ok(value);
@@ -147,7 +147,7 @@ impl ListMap {
 			self.data[idx] = None;
 
 			// Find the last `None` element and swap it with the current one.
-			for j in (idx + 1..=MAX_LISTMAP_LEN - 1).rev() {
+			for j in (idx + 1..MAX_LISTMAP_LEN).rev() {
 				if self.data[j].is_none() {
 					self.data.swap(idx, j - 1);
 					break;

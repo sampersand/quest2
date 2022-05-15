@@ -43,6 +43,6 @@ impl PartialEq for InternKey {
 
 impl Hash for InternKey {
 	fn hash<H: Hasher>(&self, h: &mut H) {
-		self.0.hash(h)
+		self.0.hash(h);
 	}
 }

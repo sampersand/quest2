@@ -10,6 +10,7 @@ impl crate::value::NamedType for Object {
 }
 
 impl Object {
+	#[must_use]
 	pub fn instance() -> AnyValue {
 		use ::once_cell::sync::OnceCell;
 

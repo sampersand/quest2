@@ -52,6 +52,8 @@ pub enum TokenContents<'a> {
 
 impl Eq for TokenContents<'_> {}
 impl PartialEq for TokenContents<'_> {
+	// technically `identifier` and `symbol` could be merged, but its clearer this way
+	#[allow(clippy::match_same_arms)]
 	fn eq(&self, rhs: &Self) -> bool {
 		match (self, rhs) {
 			(Self::Text(l), Self::Text(r)) => *l.as_ref().unwrap() == *r.as_ref().unwrap(),
@@ -205,6 +207,7 @@ impl<'a> TokenContents<'a> {
 	}
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn parse_macro<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
 	let dollar = stream.take();
 	debug_assert_eq!(dollar, Some('$'));
@@ -228,9 +231,8 @@ fn determine_base<'a>(stream: &mut Stream<'a>) -> Result<'a, u32> {
 		Some('o' | 'O') => Ok(8),
 		Some('b' | 'B') => Ok(2),
 		Some('u' | 'U') => todo!("custom base"),
-		Some('d' | 'D') => Ok(10),
+		Some('d' | 'D') | None => Ok(10),
 		Some(_) => unreachable!(),
-		None => Ok(10),
 	}
 }
 
@@ -241,8 +243,8 @@ fn parse_integer_base(stream: &mut Stream<'_>, base: u32, is_negative: bool) -> 
 
 	while let Some(chr) = stream.peek() {
 		if let Some(digit) = chr.to_digit(base) {
-			integer *= base as Integer;
-			integer += digit as Integer;
+			integer *= Integer::from(base);
+			integer += Integer::from(digit);
 		} else if chr != '_' {
 			break;
 		}
@@ -257,9 +259,10 @@ fn parse_integer_base(stream: &mut Stream<'_>, base: u32, is_negative: bool) -> 
 	integer
 }
 
-fn parse_float<'a>(lhs: Integer, stream: &mut Stream<'a>) -> Result<'a, Float> {
+fn parse_float(lhs: Integer, stream: &mut Stream<'_>) -> Float {
 	const TEN: Float = 10.0;
 
+	#[allow(clippy::cast_precision_loss)]
 	let mut float = lhs as Float;
 
 	// OPTIMIZE: in the future, parsing a string should be handled by the rust stdlib or something.
@@ -270,7 +273,7 @@ fn parse_float<'a>(lhs: Integer, stream: &mut Stream<'a>) -> Result<'a, Float> {
 			if chr == '_' {
 				continue;
 			}
-			float += (chr.to_digit(10).unwrap() as Float) * i;
+			float += Float::from(chr.to_digit(10).unwrap()) * i;
 			i /= TEN;
 		}
 	}
@@ -282,7 +285,7 @@ fn parse_float<'a>(lhs: Integer, stream: &mut Stream<'a>) -> Result<'a, Float> {
 		0
 	};
 
-	Ok(float * TEN.powi(exponent as i32))
+	float * TEN.powi(exponent as i32)
 }
 
 // Note that unary minus/plus are coalesced during constant joining.
@@ -299,7 +302,7 @@ fn parse_number<'a>(stream: &mut Stream<'a>, integer_only: bool) -> Result<'a, T
 					.peek2()
 					.map_or(false, |c| c.is_alphabetic() || c == '_') =>
 		{
-			TokenContents::Float(parse_float(integer, stream)?)
+			TokenContents::Float(parse_float(integer, stream))
 		},
 		_ => TokenContents::Integer(integer),
 	};

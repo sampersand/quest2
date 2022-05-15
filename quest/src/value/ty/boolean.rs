@@ -166,7 +166,7 @@ mod tests {
 		assert!(Boolean::is_a(Value::FALSE.any()));
 		assert!(Boolean::is_a(Value::TRUE.any()));
 
-		assert!(!Boolean::is_a(Default::default()));
+		assert!(!Boolean::is_a(Value::NULL.any()));
 		assert!(!Boolean::is_a(Value::ZERO.any()));
 		assert!(!Boolean::is_a(Value::ONE.any()));
 		assert!(!Boolean::is_a(Value::from(12.0).any()));

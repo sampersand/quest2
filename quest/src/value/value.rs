@@ -79,6 +79,7 @@ impl<T> Value<T> {
 	}
 
 	#[must_use]
+	#[allow(clippy::verbose_bit_mask)] // makes more sense this way...
 	pub const fn is_allocated(self) -> bool {
 		self.bits() & 0b1111 == 0
 	}
@@ -342,7 +343,7 @@ impl AnyValue {
 			return Ok(this);
 		}
 
-		let conv = self.call_attr(C::ATTR_NAME, Default::default())?;
+		let conv = self.call_attr(C::ATTR_NAME, Args::default())?;
 
 		if let Some(attr) = conv.downcast::<C>() {
 			Ok(attr)

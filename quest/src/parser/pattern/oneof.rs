@@ -10,7 +10,7 @@ impl<'a> Pattern<'a> for OneOf<'a> {
 		&self,
 		parser: &mut Parser<'a>,
 	) -> Result<'a, Option<Box<dyn Expandable<'a> + 'a>>> {
-		for pattern in self.0.iter() {
+		for pattern in &self.0 {
 			if let Some(pattern) = pattern.try_match(parser)? {
 				return Ok(Some(pattern));
 			}

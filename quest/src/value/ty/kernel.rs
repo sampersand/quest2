@@ -20,7 +20,7 @@ pub mod funcs {
 
 		println!();
 
-		Ok(Default::default())
+		Ok(AnyValue::default())
 	}
 
 	pub fn dump(args: Args<'_>) -> Result<AnyValue> {

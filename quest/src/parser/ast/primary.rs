@@ -96,7 +96,7 @@ impl Compile for Primary<'_> {
 					let op_local = builder.unnamed_local();
 					builder.str_constant(op, op_local);
 					primary.compile(builder, dst);
-					builder.call_attr_simple(dst, op_local, &[], dst)
+					builder.call_attr_simple(dst, op_local, &[], dst);
 				}
 			},
 			Self::FnCall(function, arguments) => {
