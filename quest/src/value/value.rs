@@ -292,7 +292,6 @@ impl AnyValue {
 	// when calling `Intern::op_call`. todo, check that out.
 	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
 		if let Some(rustfn) = self.downcast::<RustFn>() {
-			// dbg!(self, args);
 			return rustfn.call(args);
 		}
 

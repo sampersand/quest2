@@ -101,7 +101,7 @@ impl Frame {
 			start = start.add(2);
 
 			if let Some(this) = args.get_self() {
-				named_locals.write(Some(this));
+				start.write(Some(this));
 				start = start.add(1);
 			}
 
@@ -116,10 +116,7 @@ impl Frame {
 			std::ptr::addr_of_mut!((*data_ptr).block).write(block);
 			// no need to initialize `pos` as it starts off as zero.
 
-			let x: Gc<Self> = Gc::from_inner(builder.finish());
-			// dbg!((*x.as_ref().unwrap()).get_local(LocalTarget(-3)));
-			Ok(x)
-			// Ok(Gc::from_inner(builder.finish()))
+			Ok(Gc::from_inner(builder.finish()))
 		}
 	}
 

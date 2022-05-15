@@ -1,6 +1,6 @@
 use crate::parser::ast::{Compile, Group};
 use crate::parser::Parser;
-use crate::vm::{block::Builder, SourceLocation};
+use crate::vm::block::Builder;
 use crate::{AnyValue, Result};
 
 use crate::value::ty::{Boolean, Float, Integer, Text};
@@ -8,7 +8,7 @@ use crate::value::Gc;
 
 fn run_code(code: &str) -> Result<AnyValue> {
 	let mut parser = Parser::new(code, None);
-	let mut builder = Builder::new(SourceLocation {}, None);
+	let mut builder = Builder::new(Default::default(), None);
 	let scratch = builder.scratch();
 
 	Group::parse_all(&mut parser)
