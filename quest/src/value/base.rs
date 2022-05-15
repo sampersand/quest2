@@ -116,8 +116,7 @@ impl<T: HasDefaultParent> Base<T> {
 
 impl Base<crate::value::value::Any> {
 	pub(crate) unsafe fn _typeid(this: *const Self) -> TypeId {
-		#[allow(clippy::deref_addrof)]
-		*std::ptr::addr_of!((*this).header.typeid)
+		(*this).header.typeid
 	}
 }
 
@@ -167,11 +166,10 @@ impl<T> Base<T> {
 		self.header_data_mut().1
 	}
 
-	#[allow(clippy::deref_addrof)]
 	pub unsafe fn data_mut_raw<'a>(ptr: *const Self) -> Result<DataMutGuard<'a, T>> {
-		let data_ptr = (*std::ptr::addr_of!((*ptr).data)).get();
-		let flags = &*std::ptr::addr_of!((*ptr).header.flags);
-		let borrows = &*std::ptr::addr_of!((*ptr).header.borrows);
+		let data_ptr = (*ptr).data.get();
+		let flags = &(*ptr).header.flags;
+		let borrows = &(*ptr).header.borrows;
 
 		// TODO: you can currently make something froze whilst it's mutably borrowed, fix it.
 		if flags.contains(Flags::FROZEN) {
@@ -184,9 +182,9 @@ impl<T> Base<T> {
 	}
 
 	pub unsafe fn data_ref_raw<'a>(ptr: *const Self) -> Result<DataRefGuard<'a, T>> {
-		let data_ptr = (*std::ptr::addr_of!((*ptr).data)).get();
-		let flags = &*std::ptr::addr_of!((*ptr).header.flags);
-		let borrows = &*std::ptr::addr_of!((*ptr).header.borrows);
+		let data_ptr = (*ptr).data.get();
+		let flags = &(*ptr).header.flags;
+		let borrows = &(*ptr).header.borrows;
 
 		DataRefGuard::new(data_ptr, flags, borrows)
 			.ok_or_else(|| "data is already locked".to_string().into())
@@ -283,8 +281,8 @@ impl Header {
 	/// - The `attribute`s field must have been initialized.
 	/// - The `flags` field must have been initialized.
 	unsafe fn set_attr_raw<A: Attribute>(ptr: *mut Self, attr: A, value: AnyValue) -> Result<()> {
-		let attrs_ptr = (*std::ptr::addr_of!((*ptr).attributes)).get();
-		let flags = &*std::ptr::addr_of!((*ptr).flags);
+		let attrs_ptr = (*ptr).attributes.get();
+		let flags = &(*ptr).flags;
 		AttributesGuard::new(attrs_ptr, flags)
 			.map(|mut attrs| attrs.set_attr(attr, value))
 			.ok_or_else(|| "attributes are already locked".to_string())?
@@ -326,16 +324,16 @@ impl Header {
 	}
 
 	pub unsafe fn parents_raw<'a>(ptr: *const Self) -> Result<ParentsGuard<'a>> {
-		let parents_ptr = (*std::ptr::addr_of!((*ptr).parents)).get();
-		let flags = &*std::ptr::addr_of!((*ptr).flags);
+		let parents_ptr = (*ptr).parents.get();
+		let flags = &(*ptr).flags;
 
 		ParentsGuard::new(parents_ptr, flags)
 			.ok_or_else(|| "parents are already locked".to_string().into())
 	}
 
 	pub unsafe fn attributes_raw<'a>(ptr: *const Self) -> Result<AttributesGuard<'a>> {
-		let attrs_ptr = (*std::ptr::addr_of!((*ptr).attributes)).get();
-		let flags = &*std::ptr::addr_of!((*ptr).flags);
+		let attrs_ptr = (*ptr).attributes.get();
+		let flags = &(*ptr).flags;
 
 		AttributesGuard::new(attrs_ptr, flags)
 			.ok_or_else(|| "attributes are already locked".to_string().into())

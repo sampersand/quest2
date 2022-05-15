@@ -1,8 +1,8 @@
 #![allow(
 	clippy::wildcard_imports, // used in `funcs` modules
-	clippy::deref_addrof, // all the warnings are just from `addr_of!`, which is a valid use.
 	clippy::missing_safety_doc, // this is a future TODO
 	clippy::module_inception, // just my coding style
+	clippy::unreadable_literal, // there's only a handful and they're not meant to be readable.
 )]
 
 extern crate static_assertions as sa;
