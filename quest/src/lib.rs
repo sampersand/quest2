@@ -1,3 +1,5 @@
+#![allow(clippy::wildcard_imports)]
+
 extern crate static_assertions as sa;
 
 #[macro_use]

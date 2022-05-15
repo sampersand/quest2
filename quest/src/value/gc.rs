@@ -2,7 +2,7 @@
 
 use crate::value::base::{Attribute, Base, Flags, Header};
 use crate::value::ty::{List, Wrap};
-use crate::value::{value::Any, AnyValue, AsAny, Convertible, Value};
+use crate::value::{value::Any, AnyValue, ToAny, Convertible, Value};
 use crate::{Error, Result};
 use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};
@@ -351,7 +351,7 @@ impl<T: Allocated> Gc<T> {
 	pub fn call_attr<A: Attribute>(self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
 		// try to get a function directly defined on `self`, which most likely wont exist.
 		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
-		let obj = self.as_any();
+		let obj = self.to_any();
 
 		if let Some(func) = self.attributes()?.get_unbound_attr(attr)? {
 			func.call(args.with_self(obj))

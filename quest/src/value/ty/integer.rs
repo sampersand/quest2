@@ -1,5 +1,5 @@
 use crate::value::ty::{ConvertTo, Float, InstanceOf, Singleton, Text};
-use crate::value::{AnyValue, AsAny, Convertible, Gc, Value};
+use crate::value::{AnyValue, ToAny, Convertible, Gc, Value};
 use crate::vm::Args;
 use crate::Result;
 
@@ -14,8 +14,8 @@ impl crate::value::NamedType for Integer {
 }
 
 impl Value<Integer> {
-	pub const ZERO: Self = unsafe { Self::from_bits_unchecked(0b000_001) };
-	pub const ONE: Self = unsafe { Self::from_bits_unchecked(0b000_011) };
+	pub const ZERO: Self = unsafe { Self::from_bits_unchecked(0b0000_0001) };
+	pub const ONE: Self = unsafe { Self::from_bits_unchecked(0b0000_0011) };
 }
 
 impl From<Integer> for Value<Integer> {
@@ -54,10 +54,10 @@ impl ConvertTo<Gc<Text>> for Integer {
 			10
 		};
 
-		if !(2..=36).contains(&base) {
-			Err(format!("invalid radix '{base}'").into())
-		} else {
+		if (2..=36).contains(&base) {
 			Ok(Text::from_string(radix_fmt::radix(*self, base as u8).to_string()))
+		} else {
+			Err(format!("invalid radix '{base}'").into())
 		}
 	}
 }
@@ -66,6 +66,7 @@ impl ConvertTo<Float> for Integer {
 	fn convert(&self, args: Args<'_>) -> Result<Float> {
 		args.assert_no_arguments()?;
 
+		#[allow(clippy::cast_precision_loss)] // Literally the definition of this method.
 		Ok(*self as Float)
 	}
 }
@@ -77,21 +78,21 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int + args[0].to_integer()?).as_any())
+		Ok((int + args[0].to_integer()?).to_any())
 	}
 
 	pub fn sub(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int - args[0].to_integer()?).as_any())
+		Ok((int - args[0].to_integer()?).to_any())
 	}
 
 	pub fn mul(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int * args[0].to_integer()?).as_any())
+		Ok((int * args[0].to_integer()?).to_any())
 	}
 
 	pub fn div(int: Integer, args: Args<'_>) -> Result<AnyValue> {
@@ -100,10 +101,10 @@ pub mod funcs {
 
 		let denom = args[0].to_integer()?;
 		if denom == 0 {
-			panic!("todo: return a division by zero error");
+			Err("division by zero".to_string().into())
+		} else {
+			Ok((int / denom).to_any())
 		}
-
-		Ok((int / denom).as_any())
 	}
 
 	// TODO: verify it's actually modulus
@@ -112,21 +113,25 @@ pub mod funcs {
 		args.assert_positional_len(1)?;
 
 		let denom = args[0].to_integer()?;
-		if denom == 0 {
-			panic!("todo: return a modulo by zero error");
-		}
 
-		Ok((int % denom).as_any())
+		if denom == 0 {
+			Err("modulo by zero".to_string().into())
+		} else {
+			Ok((int % denom).to_any())
+		}
 	}
 
 	pub fn pow(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
+		#[allow(clippy::cast_precision_loss)] // Eh, maybe in the future i should fix this?
 		if let Some(float) = args[0].downcast::<Float>() {
-			Ok(((int as Float).powf(float)).as_any())
+			Ok(((int as Float).powf(float)).to_any())
 		} else {
-			Ok((int.pow(args[0].to_integer()? as _)).as_any())
+			let exp = args[0].to_integer()?;
+
+			Ok(int.pow(exp.try_into().expect("todo: exception for not valid number")).to_any())
 		}
 	}
 
@@ -134,24 +139,24 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int < args[0].to_integer()?).as_any())
+		Ok((int < args[0].to_integer()?).to_any())
 	}
 
 	pub fn leq(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int <= args[0].to_integer()?).as_any())
+		Ok((int <= args[0].to_integer()?).to_any())
 	}
 
 	pub fn neg(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
 
-		Ok((-int).as_any())
+		Ok((-int).to_any())
 	}
 
 	pub fn at_text(int: Integer, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Gc<Text>>::convert(&int, args).map(AsAny::as_any)
+		ConvertTo::<Gc<Text>>::convert(&int, args).map(ToAny::to_any)
 	}
 }
 

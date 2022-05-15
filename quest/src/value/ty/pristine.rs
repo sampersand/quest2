@@ -1,4 +1,4 @@
-use crate::value::{base::Base, AsAny, Gc, Intern};
+use crate::value::{base::Base, ToAny, Gc, Intern};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
 
@@ -21,7 +21,7 @@ impl Pristine {
 					builder
 						.set_attr(
 							Intern::__get_attr__,
-							RustFn_new!("__get_attr__", function funcs::__get_attr__).as_any(),
+							RustFn_new!("__get_attr__", function funcs::__get_attr__).to_any(),
 						)
 						.unwrap();
 
@@ -29,35 +29,35 @@ impl Pristine {
 						.set_attr(
 							Intern::__get_unbound_attr__,
 							RustFn_new!("__get_unbound_attr__", function funcs::__get_unbound_attr__)
-								.as_any(),
+								.to_any(),
 						)
 						.unwrap();
 
 					builder
 						.set_attr(
 							Intern::__set_attr__,
-							RustFn_new!("__set_attr__", function funcs::__set_attr__).as_any(),
+							RustFn_new!("__set_attr__", function funcs::__set_attr__).to_any(),
 						)
 						.unwrap();
 
 					builder
 						.set_attr(
 							Intern::__del_attr__,
-							RustFn_new!("__del_attr__", function funcs::__del_attr__).as_any(),
+							RustFn_new!("__del_attr__", function funcs::__del_attr__).to_any(),
 						)
 						.unwrap();
 
 					builder
 						.set_attr(
 							Intern::__has_attr__,
-							RustFn_new!("__has_attr__", function funcs::__has_attr__).as_any(),
+							RustFn_new!("__has_attr__", function funcs::__has_attr__).to_any(),
 						)
 						.unwrap();
 
 					builder
 						.set_attr(
 							Intern::__call_attr__,
-							RustFn_new!("__call_attr__", function funcs::__call_attr__).as_any(),
+							RustFn_new!("__call_attr__", function funcs::__call_attr__).to_any(),
 						)
 						.unwrap();
 
@@ -65,7 +65,7 @@ impl Pristine {
 					Gc::from_inner(builder.finish())
 				}
 			})
-			.as_any()
+			.to_any()
 	}
 }
 
@@ -77,7 +77,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok(obj.has_attr(args[0])?.as_any())
+		Ok(obj.has_attr(args[0])?.to_any())
 	}
 
 	pub fn __get_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {

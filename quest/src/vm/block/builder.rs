@@ -1,5 +1,5 @@
 use super::Block;
-use crate::value::AsAny;
+use crate::value::ToAny;
 use crate::value::{ty::Text, AnyValue, Gc};
 use crate::vm::{bytecode::MAX_ARGUMENTS_FOR_SIMPLE_CALL, Opcode, SourceLocation};
 
@@ -25,10 +25,11 @@ const COUNT_IS_NOT_ONE_BYTE_BUT_USIZE: u8 = i8::MAX as u8;
 impl Builder {
 	#[must_use]
 	pub fn new(loc: SourceLocation, parent_scope: Option<AnyValue>) -> Self {
-		let mut named_locals = Vec::with_capacity(2);
-
-		named_locals.push(Text::from_static_str("__block__"));
-		named_locals.push(Text::from_static_str("__args__"));
+		// these are present in every block
+		let named_locals = vec![
+			Text::from_static_str("__block__"),
+			Text::from_static_str("__args__")
+		];
 
 		Self {
 			loc,
@@ -94,7 +95,7 @@ impl Builder {
 			let idx = self.constants.len();
 			trace!(target: "block_builder", ?idx, ?string, "created str constant");
 
-			self.constants.push(Text::from_str(string).as_any());
+			self.constants.push(Text::from_str(string).to_any());
 			idx
 		});
 

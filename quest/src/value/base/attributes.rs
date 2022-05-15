@@ -1,5 +1,5 @@
 use crate::value::ty::Text;
-use crate::value::{base::Flags, AsAny, Gc, Intern};
+use crate::value::{base::Flags, ToAny, Gc, Intern};
 use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::mem::ManuallyDrop;
@@ -206,7 +206,7 @@ impl Attribute for crate::value::Intern {
 	}
 
 	fn to_value(self) -> AnyValue {
-		self.as_text().as_any()
+		self.as_text().to_any()
 	}
 
 	fn to_repr(self) -> u64 {
@@ -227,7 +227,7 @@ impl Attribute for AnyValue {
 		if let Some(text) = self.downcast::<Gc<Text>>() {
 			Ok(*text.as_ref()? == rhs)
 		} else {
-			self.try_eq(rhs.as_text().as_any())
+			self.try_eq(rhs.as_text().to_any())
 		}
 	}
 
@@ -236,8 +236,10 @@ impl Attribute for AnyValue {
 	}
 
 	fn as_intern(self) -> Result<Option<Intern>> {
+		use std::str::FromStr;
+
 		if let Some(text) = self.downcast::<Gc<Text>>() {
-			Ok(Intern::from_str(text.as_ref()?.as_ref()))
+			Ok(Intern::from_str(text.as_ref()?.as_ref()).ok())
 		} else {
 			Ok(None)
 		}

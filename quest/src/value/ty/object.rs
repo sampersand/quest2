@@ -1,4 +1,4 @@
-use crate::value::{AsAny, Intern};
+use crate::value::{ToAny, Intern};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
 
@@ -44,7 +44,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((obj.id() == args[0].id()).as_any())
+		Ok((obj.id() == args[0].id()).to_any())
 	}
 
 	pub fn neq(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
@@ -55,25 +55,25 @@ pub mod funcs {
 	pub fn not(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
 
-		Ok((!obj.is_truthy()?).as_any())
+		Ok((!obj.is_truthy()?).to_any())
 	}
 
 	pub fn at_bool(_obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
 
-		Ok(true.as_any())
+		Ok(true.to_any())
 	}
 
 	pub fn at_text(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
 
-		Ok(format!("{obj:?}").as_any())
+		Ok(format!("{obj:?}").to_any())
 	}
 
 	pub fn hash(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
 
-		Ok((obj.bits() as crate::value::ty::Integer).as_any())
+		Ok((obj.bits() as crate::value::ty::Integer).to_any())
 	}
 
 	pub fn clone(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {

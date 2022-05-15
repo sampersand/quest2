@@ -164,12 +164,6 @@ impl ParentsGuard<'_> {
 		attr: A,
 		args: crate::vm::Args<'_>,
 	) -> Result<AnyValue> {
-		if obj.is_a::<bool>() {
-			if attr.try_eq_intern(crate::value::Intern::r#return)? {
-				return crate::value::ty::object::funcs::r#return(obj, args);
-			}
-		}
-
 		let attr = self
 			.get_unbound_attr(attr)?
 			.ok_or_else(|| Error::UnknownAttribute(obj, attr.to_value()))?;

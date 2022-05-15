@@ -1,5 +1,5 @@
 use super::{Attribute, InternKey};
-use crate::value::AsAny;
+use crate::value::ToAny;
 use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 
@@ -62,8 +62,8 @@ impl ListMap {
 			type Item = (AnyValue, AnyValue);
 
 			fn next(&mut self) -> Option<Self::Item> {
-				if let Some((k, v)) = self.0.data.get(self.1).map(|x| *x).flatten() {
-					let k = if_intern!(k, |intern| intern.as_text().as_any(), |value| value);
+				if let Some((k, v)) = self.0.data.get(self.1).copied().flatten() {
+					let k = if_intern!(k, |intern| intern.as_text().to_any(), |value| value);
 					self.1 += 1;
 					Some((k, v))
 				} else {

@@ -37,11 +37,14 @@ impl Default for SourceLocation {
 
 impl From<crate::parser::SourceLocation<'_>> for SourceLocation {
 	fn from(inp: crate::parser::SourceLocation<'_>) -> Self {
+		#[allow(clippy::or_fun_call)] // Path::new is a zero-cost function.
+		let file = inp
+			.filename
+			.unwrap_or(std::path::Path::new("<unknown>"))
+			.into();
+
 		Self {
-			file: inp
-				.filename
-				.unwrap_or(std::path::Path::new("<unknown>"))
-				.into(),
+			file,
 			line: inp.line,
 			column: inp.column,
 		}

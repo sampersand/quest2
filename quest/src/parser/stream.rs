@@ -130,6 +130,6 @@ impl<'a> Stream<'a> {
 			}
 		}
 
-		std::mem::replace(&mut self.src, "")
+		std::mem::take(&mut self.src)
 	}
 }

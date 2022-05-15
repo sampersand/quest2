@@ -1,4 +1,4 @@
-use crate::value::AsAny;
+use crate::value::ToAny;
 use crate::{AnyValue, Error, Result};
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -19,7 +19,7 @@ impl<'a> Args<'a> {
 
 	pub fn with_self(self, this: AnyValue) -> Self {
 		assert!(
-			!self.this.is_some(),
+			self.this.is_none(),
 			"todo: is this even possible? and if so, how should it work"
 		);
 
@@ -100,7 +100,7 @@ impl<'a> Args<'a> {
 			return Ok((this, self));
 		}
 
-		self.idx_err_unless(|a| a.len() >= 1)?;
+		self.idx_err_unless(|a| !a.is_empty())?;
 
 		Ok((self[0], Self::new(&self.positional[1..], self.keyword)))
 	}
@@ -116,7 +116,7 @@ impl<'a> Args<'a> {
 			list.as_mut().unwrap().unshift(this);
 		}
 
-		list.as_any()
+		list.to_any()
 	}
 }
 
@@ -130,7 +130,7 @@ impl<A: ArgIndexer> std::ops::Index<A> for Args<'_> {
 
 pub trait ArgIndexer {
 	fn get(self, args: Args<'_>) -> Result<AnyValue>;
-	fn index<'a>(self, args: Args<'a>) -> &'a AnyValue;
+	fn index(self, args: Args<'_>) -> &AnyValue;
 }
 
 impl ArgIndexer for usize {
@@ -142,7 +142,7 @@ impl ArgIndexer for usize {
 			.ok_or(Error::MissingPositionalArgument(self))
 	}
 
-	fn index<'a>(self, args: Args<'a>) -> &'a AnyValue {
+	fn index(self, args: Args<'_>) -> &AnyValue {
 		&args.positional[self]
 	}
 }
@@ -158,13 +158,13 @@ impl ArgIndexer for &'static str {
 		Err(Error::MissingKeywordArgument(self))
 	}
 
-	fn index<'a>(self, args: Args<'a>) -> &'a AnyValue {
+	fn index(self, args: Args<'_>) -> &AnyValue {
 		for (kw, val) in args.keyword {
 			if *kw == self {
 				return val;
 			}
 		}
 
-		panic!("variable {:?} doesnt exist in {:?}", self, args);
+		panic!("variable {self:?} doesnt exist in {args:?}");
 	}
 }

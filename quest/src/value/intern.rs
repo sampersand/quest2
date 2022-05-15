@@ -1,5 +1,5 @@
 use crate::value::ty::Text;
-use crate::value::{AsAny, Gc};
+use crate::value::{ToAny, Gc};
 use crate::{AnyValue, Value};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -16,8 +16,8 @@ macro_rules! define_interned {
 	(@ $_name:ident $value:literal) => ($value);
 
 	($($name:ident $($value:literal)?)*) => {
-		#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-		#[allow(non_camel_case_types)]
+		#[derive(Debug, Clone, Copy)]
+		#[allow(non_camel_case_types, clippy::manual_non_exhaustive)]
 		#[repr(u64)]
 		#[non_exhaustive]
 		pub enum Intern {
@@ -40,13 +40,6 @@ macro_rules! define_interned {
 				STRINGS[self.as_index()]
 			}
 
-			pub fn from_str(s: &str) -> Option<Self> {
-				match s {
-					$(define_interned!(@ $name $($value)?) => Some(Self::$name),)*
-					_ => None
-				}
-			}
-
 			pub const fn fast_hash(self) -> u64 {
 				const HASHES: [u64; Intern::__LAST.as_index()] = [
 					$(crate::value::ty::text::fast_hash(define_interned!(@ $name $($value)?)), )*
@@ -54,8 +47,21 @@ macro_rules! define_interned {
 
 				HASHES[self.as_index()]
 			}
-
 		}
+
+
+		impl std::str::FromStr for Intern {
+			type Err = ();
+
+			fn from_str(s: &str) -> Result<Self, Self::Err> {
+				match s {
+					$(define_interned!(@ $name $($value)?) => Ok(Self::$name),)*
+					_ => Err(())
+				}
+			}
+		}
+
+
 	};
 }
 
@@ -92,6 +98,13 @@ define_interned! {
 	Block Boolean BoundFn Callable Class Float Integer Kernel List Null Object Pristine RustFn Scope Text
 }
 
+
+impl Eq for Intern {}
+impl PartialEq for Intern {
+	fn eq(&self, rhs: &Self) -> bool {
+		*self as u64 == *rhs as u64
+	}
+}
 impl Hash for Intern {
 	fn hash<H: Hasher>(&self, h: &mut H) {
 		h.write_u64(self.fast_hash());
@@ -117,6 +130,9 @@ impl Intern {
 		use once_cell::sync::OnceCell;
 
 		const AMNT: usize = Intern::__LAST.as_index() - 1;
+
+		// We only need the const for the `TEXTS` initializer
+		#[allow(clippy::declare_interior_mutable_const)]
 		const BLANK_TEXT: OnceCell<Gc<Text>> = OnceCell::new();
 
 		static TEXTS: [OnceCell<Gc<Text>>; AMNT] = [BLANK_TEXT; AMNT];
@@ -135,8 +151,8 @@ impl From<Intern> for Value<Gc<Text>> {
 	}
 }
 
-impl AsAny for Intern {
-	fn as_any(self) -> AnyValue {
+impl ToAny for Intern {
+	fn to_any(self) -> AnyValue {
 		Value::from(self).any()
 	}
 }

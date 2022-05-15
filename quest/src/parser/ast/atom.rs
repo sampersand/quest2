@@ -2,7 +2,7 @@ use super::{Compile, Group};
 use crate::parser::token::{ParenType, TokenContents};
 use crate::parser::{Parser, Result};
 use crate::value::ty::{Float, Integer, Text};
-use crate::value::{AsAny, Gc};
+use crate::value::{ToAny, Gc};
 use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
@@ -44,9 +44,9 @@ impl<'a> Atom<'a> {
 impl Compile for Atom<'_> {
 	fn compile(&self, builder: &mut Builder, dst: Local) {
 		match self {
-			Self::Integer(integer) => builder.constant((*integer).as_any(), dst),
-			Self::Float(float) => builder.constant((*float).as_any(), dst),
-			Self::Text(text) => builder.constant((*text).as_any(), dst),
+			Self::Integer(integer) => builder.constant((*integer).to_any(), dst),
+			Self::Float(float) => builder.constant((*float).to_any(), dst),
+			Self::Text(text) => builder.constant((*text).to_any(), dst),
 			Self::Group(group) => group.compile(builder, dst),
 			Self::Identifier(identifier) => {
 				let local = builder.named_local(identifier);

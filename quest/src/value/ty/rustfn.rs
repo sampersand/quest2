@@ -37,7 +37,7 @@ macro_rules! RustFn_new {
 			func: $func,
 		};
 
-		$crate::value::ty::RustFn::new(INNER)
+		$crate::value::ty::RustFn::_new(INNER)
 	}};
 	($name:expr, justargs $func:expr) => {{
 		const INNER: &'static $crate::value::ty::rustfn::Inner = &$crate::value::ty::rustfn::Inner {
@@ -45,7 +45,7 @@ macro_rules! RustFn_new {
 			func: $func,
 		};
 
-		$crate::value::ty::RustFn::new(INNER)
+		$crate::value::ty::RustFn::_new(INNER)
 	}};
 	($_name:expr, $other:tt $_func:expr) => {
 		compile_error!(concat!("Unknown rustfn kind '", $other, "'; Please use `method`, `function`, or `justargs`"))
@@ -58,7 +58,7 @@ impl crate::value::NamedType for RustFn {
 
 impl RustFn {
 	#[doc(hidden)]
-	pub const fn new(inner: &'static Inner) -> Self {
+	pub const fn _new(inner: &'static Inner) -> Self {
 		Self(inner)
 	}
 
@@ -86,7 +86,7 @@ impl PartialEq for RustFn {
 }
 
 impl RustFn {
-	pub const NOOP: Self = RustFn_new!("noop", justargs | _ | Ok(Default::default()));
+	pub const NOOP: Self = RustFn_new!("noop", justargs | _ | Ok(AnyValue::default()));
 }
 
 impl Debug for RustFn {

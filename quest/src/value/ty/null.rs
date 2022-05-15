@@ -1,5 +1,5 @@
 use crate::value::ty::{Boolean, ConvertTo, Float, Integer, List, Text};
-use crate::value::{AnyValue, AsAny, Convertible, Gc, Value};
+use crate::value::{AnyValue, ToAny, Convertible, Gc, Value};
 use crate::vm::Args;
 use crate::Result;
 use std::fmt::{self, Debug, Formatter};
@@ -79,23 +79,23 @@ impl ConvertTo<Gc<List>> for Null {
 
 impl Null {
 	pub fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Gc<Text>>::convert(&self, args).map(AsAny::as_any)
+		ConvertTo::<Gc<Text>>::convert(&self, args).map(ToAny::to_any)
 	}
 
 	pub fn qs_at_int(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Integer>::convert(&self, args).map(AsAny::as_any)
+		ConvertTo::<Integer>::convert(&self, args).map(ToAny::to_any)
 	}
 
 	pub fn qs_at_float(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Float>::convert(&self, args).map(AsAny::as_any)
+		ConvertTo::<Float>::convert(&self, args).map(ToAny::to_any)
 	}
 
 	pub fn qs_at_list(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Gc<List>>::convert(&self, args).map(AsAny::as_any)
+		ConvertTo::<Gc<List>>::convert(&self, args).map(ToAny::to_any)
 	}
 
 	pub fn qs_at_bool(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Boolean>::convert(&self, args).map(AsAny::as_any)
+		ConvertTo::<Boolean>::convert(&self, args).map(ToAny::to_any)
 	}
 
 	pub fn qs_inspect(self, args: Args<'_>) -> Result<AnyValue> {

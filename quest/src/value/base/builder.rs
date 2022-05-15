@@ -11,7 +11,7 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 ///
 /// # Example
 /// ```
-/// use quest::value::{AsAny, Gc};
+/// use quest::value::{ToAny, Gc};
 /// use quest::value::ty::{Pristine, Text};
 /// use quest::value::base::{Base, Flags};
 ///
@@ -24,9 +24,9 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 ///
 /// // SAFETY: We just allocated the attributes.
 /// unsafe {
-///     builder.set_attr("foo".as_any(), "bar".as_any())?;
-///     builder.set_attr("baz".as_any(), "quux".as_any())?;
-///     builder.set_attr(12.as_any(), 34.as_any())?;
+///     builder.set_attr("foo".to_any(), "bar".to_any())?;
+///     builder.set_attr("baz".to_any(), "quux".to_any())?;
+///     builder.set_attr(12.to_any(), 34.to_any())?;
 /// }
 ///
 /// // You can also set custom flags, if you attribute meanings to them.
@@ -41,7 +41,7 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 /// assert_eq!(
 ///    "bar",
 ///    baseref.header()
-///        .get_unbound_attr("foo".as_any(), false)?
+///        .get_unbound_attr("foo".to_any(), false)?
 ///        .unwrap()
 ///        .downcast::<Gc<Text>>()
 ///        .unwrap()
@@ -204,7 +204,7 @@ impl<T> Builder<T> {
 	/// # Examples
 	/// ```
 	/// # use quest::value::base::Base;
-	/// use quest::value::{AsAny, Gc};
+	/// use quest::value::{ToAny, Gc};
 	/// use quest::value::ty::Text;
 	///
 	/// let mut builder = Base::<()>::builder();
@@ -212,9 +212,9 @@ impl<T> Builder<T> {
 	///
 	/// // SAFETY: we just allocated the attributes the line above.
 	/// unsafe {
-	///    builder.set_attr("foo".as_any(), "bar".as_any())?;
-	///    builder.set_attr("baz".as_any(), "quux".as_any())?;
-	///    builder.set_attr(12.as_any(), 34.as_any())?;
+	///    builder.set_attr("foo".to_any(), "bar".to_any())?;
+	///    builder.set_attr("baz".to_any(), "quux".to_any())?;
+	///    builder.set_attr(12.to_any(), 34.to_any())?;
 	/// }
 	///
 	/// // SAFETY: Since `builder` was zero-initialized to a ZST, we didn't have to do anything.
@@ -224,7 +224,7 @@ impl<T> Builder<T> {
 	///    "bar",
 	///     base.as_ref().expect("we hold the only reference")
 	///         .header()
-	///         .get_unbound_attr("foo".as_any(), false)?
+	///         .get_unbound_attr("foo".to_any(), false)?
 	///         .unwrap()
 	///         .downcast::<Gc<Text>>()
 	///         .unwrap()
@@ -298,6 +298,7 @@ impl<T> Builder<T> {
 	///         .contains(FLAG_IS_SUPER_DUPER_COOL)
 	/// );
 	pub fn flags(&self) -> &Flags {
+		#[allow(clippy::deref_addrof)]
 		// SAFETY: We know the pointer is aligned and can be read from b/c of Builder's invariants.
 		unsafe { &*addr_of!((*self.header()).flags) }
 	}

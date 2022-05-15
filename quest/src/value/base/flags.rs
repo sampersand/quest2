@@ -62,7 +62,7 @@ impl Flags {
 			.0
 			.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
 				if (value & (flag & Self::USER_FLAGS_MASK)) == 0 {
-					Some(value | (flag & &Self::USER_FLAGS_MASK))
+					Some(value | (flag & Self::USER_FLAGS_MASK))
 				} else {
 					None
 				}

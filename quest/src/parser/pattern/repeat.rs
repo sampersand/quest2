@@ -29,7 +29,7 @@ impl<'a> Pattern<'a> for Repeat<'a> {
 	) -> Result<'a, Option<Box<dyn Expandable<'a> + 'a>>> {
 		let mut matches;
 		if let Some(pattern_match) = self.pattern.try_match(parser)? {
-			matches = Vec::new(); // todo: allocate with max-min lor somethin
+			matches = Vec::with_capacity(2); // todo: allocate with max-min lor somethin
 			matches.push(pattern_match);
 		} else if self.min == 0 {
 			return Ok(Some(Box::new(RepeatMatches(vec![]))));

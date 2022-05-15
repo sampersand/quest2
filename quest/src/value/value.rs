@@ -1,6 +1,6 @@
 use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{AttrConversionDefined, BoundFn, Float, Integer, List, RustFn, Text, Wrap};
-use crate::value::{AsAny, Convertible, Gc, Intern};
+use crate::value::{ToAny, Convertible, Gc, Intern};
 use crate::vm::{Args, Block};
 use crate::{Error, Result};
 use std::fmt::{self, Debug, Formatter};
@@ -199,7 +199,7 @@ impl AnyValue {
 
 		// If the value is callable, wrap it in a bound fn.
 		if value.is_a::<RustFn>() || value.has_attr(Intern::op_call)? {
-			Ok(Some(BoundFn::new(self, value).as_any()))
+			Ok(Some(BoundFn::new(self, value).to_any()))
 		} else {
 			Ok(Some(value))
 		}
@@ -210,7 +210,7 @@ impl AnyValue {
 			return if attr.is_parents() {
 				// TODO: if this is modified, it wont reflect on the integer.
 				// so make `get_unbound_attr` require a reference?
-				Ok(Some(List::from_slice(&[self.parents_for()]).as_any()))
+				Ok(Some(List::from_slice(&[self.parents_for()]).to_any()))
 			} else {
 				self.parents_for().get_unbound_attr(attr)
 			};
@@ -224,7 +224,7 @@ impl AnyValue {
 		}
 
 		if attr.is_parents() {
-			Ok(Some(gc.as_mut()?.parents_list().as_any()))
+			Ok(Some(gc.as_mut()?.parents_list().to_any()))
 		} else {
 			unreachable!("unknown special attribute");
 		}
@@ -361,7 +361,6 @@ impl AnyValue {
 		T::downcast(self).map(T::get)
 	}
 
-	#[must_use]
 	pub fn try_downcast<T: Convertible + crate::value::NamedType>(self) -> Result<T> {
 		self
 			.downcast()
@@ -489,7 +488,7 @@ mod tests {
 
 	macro_rules! value {
 		($lit:literal) => {
-			$lit.as_any()
+			$lit.to_any()
 		};
 		($name:expr) => {
 			$name

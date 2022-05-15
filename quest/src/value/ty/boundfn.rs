@@ -31,6 +31,7 @@ pub struct Inner {
 }
 
 impl BoundFn {
+	#[must_use]
 	pub fn new(object: AnyValue, function: AnyValue) -> Gc<Self> {
 		use crate::value::base::{Base, HasDefaultParent};
 

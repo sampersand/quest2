@@ -116,6 +116,7 @@ impl<T: HasDefaultParent> Base<T> {
 
 impl Base<crate::value::value::Any> {
 	pub(crate) unsafe fn _typeid(this: *const Self) -> TypeId {
+		#[allow(clippy::deref_addrof)]
 		*std::ptr::addr_of!((*this).header.typeid)
 	}
 }
@@ -166,6 +167,7 @@ impl<T> Base<T> {
 		self.header_data_mut().1
 	}
 
+	#[allow(clippy::deref_addrof)]
 	pub unsafe fn data_mut_raw<'a>(ptr: *const Self) -> Result<DataMutGuard<'a, T>> {
 		let data_ptr = (*std::ptr::addr_of!((*ptr).data)).get();
 		let flags = &*std::ptr::addr_of!((*ptr).header.flags);

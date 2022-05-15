@@ -90,9 +90,9 @@ forever();
 // 		let ret = builder.unnamed_local();
 // 		let scratch = builder.scratch();
 
-// 		builder.constant(1.as_any(), one);
-// 		builder.constant("then".as_any(), tmp2);
-// 		builder.constant("return".as_any(), scratch);
+// 		builder.constant(1.to_any(), one);
+// 		builder.constant("then".to_any(), tmp2);
+// 		builder.constant("return".to_any(), scratch);
 // 		builder.get_attr(n, scratch, scratch);
 // 		builder.less_equal(n, one, tmp);
 // 		builder.call_attr_simple(tmp, tmp2, &[scratch], scratch);
@@ -107,10 +107,10 @@ forever();
 
 // 	fib.as_mut()
 // 		.unwrap()
-// 		.set_attr("fib".as_any(), fib.as_any())?;
+// 		.set_attr("fib".to_any(), fib.to_any())?;
 
 // 	let fib_of = 30;
-// 	let result = fib.run(Args::new(&[fib_of.as_any()], &[]))?;
+// 	let result = fib.run(Args::new(&[fib_of.to_any()], &[]))?;
 
 // 	println!("fib({:?}) = {:?}", fib_of, result);
 

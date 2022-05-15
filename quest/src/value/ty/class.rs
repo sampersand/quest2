@@ -34,13 +34,14 @@ impl Builder {
 	// pub fn function(&mut self, name: &'static str, value: fn(AnyValue, Args<'_>) -> Result<AnyValue>) {
 	// 	self.set_attr(name, RustFn_new!(name, value))
 	// }
-
+	#[must_use]
 	pub fn finish(self) -> Gc<Class> {
 		unsafe { Gc::from_inner(self.0.finish()) }
 	}
 }
 
 impl Class {
+	#[must_use]
 	pub fn builder(name: &'static str, attr_capacity: usize) -> Builder {
 		let mut builder = Base::builder();
 

@@ -26,10 +26,10 @@ macro_rules! _length_of {
 #[macro_export]
 macro_rules! create_class {
 	(@$_attr:expr, constant, $value:expr) => ($value);
-	(@$attr:expr, $kind:ident, $value:expr) => ($crate::RustFn_new!($attr, $kind $value).as_any());
+	(@$attr:expr, $kind:ident, $value:expr) => ($crate::RustFn_new!($attr, $kind $value).to_any());
 	($name:expr $(, parent $parent:expr)?; $($attr:expr => $kind:ident $value:expr),* $(,)?) => {(|| -> $crate::Result<$crate::AnyValue> {
 		#[allow(unused_imports)]
-		use $crate::value::{AsAny, Intern};
+		use $crate::value::{ToAny, Intern};
 
 		#[allow(unused_mut)]
 		let mut builder = $crate::value::ty::Class::builder($name, $crate::_length_of!($($attr)*));
@@ -41,7 +41,7 @@ macro_rules! create_class {
 
 		$(builder.set_attr($attr, create_class!(@$attr, $kind, $value))?;)*
 
-		Ok(builder.finish().as_any())
+		Ok(builder.finish().to_any())
 	})().expect(concat!("Class creation for '", $name, "' failed!"))}
 }
 
@@ -56,7 +56,9 @@ macro_rules! new_quest_scope {
 	 $(@parents [$($parents:ty)*];)?
 	 $($attr:expr => $value:expr),*
 	 $(,)?
-	) => { (|| -> $crate::Result<_> {
+	) => {
+		#[allow(clippy::redundant_closure_call)]
+		(|| -> $crate::Result<_> {
 			#[allow(unused_mut)]
 			let mut builder = {
 				#[allow(unused_imports)]
@@ -94,7 +96,7 @@ macro_rules! new_quest_scope {
 				use $crate::value::Intern;
 
 				$(
-					builder.set_attr($attr, RustFn_new!($attr, justargs $value).as_any())?;
+					builder.set_attr($attr, RustFn_new!($attr, justargs $value).to_any())?;
 				)*
 			}
 
@@ -117,7 +119,7 @@ macro_rules! singleton_object {
 		impl<$($gens),*> $type {
 			pub fn instance() -> $crate::AnyValue {
 				use ::once_cell::sync::OnceCell;
-				use $crate::value::AsAny;
+				use $crate::value::ToAny;
 
 				static INSTANCE: OnceCell<$crate::AnyValue> = OnceCell::new();
 
@@ -128,7 +130,7 @@ macro_rules! singleton_object {
 					$(@parent $parent;)?
 					$(@parents [$($parents),*];)?
 					$($attr => $value),*
-				}.unwrap().as_any()});
+				}.unwrap().to_any()});
 
 				if is_first_init {
 					$(
@@ -230,7 +232,7 @@ macro_rules! quest_type_attrs {
 		impl $crate::value::base::HasDefaultParent for $type {
 			fn parent() -> $crate::AnyValue {
 				#[allow(unused_imports)]
-				use $crate::value::{AsAny, gc::Allocated};
+				use $crate::value::{ToAny, gc::Allocated};
 				static PARENT: ::once_cell::sync::OnceCell<$crate::value::gc::Gc<$crate::value::ty::Scope>>
 					= ::once_cell::sync::OnceCell::new();
 

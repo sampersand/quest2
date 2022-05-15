@@ -2,7 +2,7 @@ use super::block::BlockInner;
 use super::bytecode::Opcode;
 use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
-use crate::value::{AsAny, Gc, HasDefaultParent, Intern};
+use crate::value::{ToAny, Gc, HasDefaultParent, Intern};
 use crate::vm::bytecode::{COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL};
 use crate::vm::{Args, Block};
 use crate::{AnyValue, Error, Result};
@@ -77,7 +77,7 @@ impl Frame {
 		// do we want? Do we want the outside stackframe to be first or last? and in any case,
 		// this is setting the _block_ itself as the parent, which isn't what we want. how do we
 		// want to register the outer block as the parent?
-		builder.set_parents(List::from_slice(&[gc_block.as_any(), Gc::<Frame>::parent()]));
+		builder.set_parents(List::from_slice(&[gc_block.to_any(), Gc::<Frame>::parent()]));
 
 		unsafe {
 			let unnamed_locals = crate::alloc_zeroed(locals_layout_for(
@@ -96,7 +96,7 @@ impl Frame {
 
 			// copy positional arguments over into the first few named local arguments.
 			let mut start = named_locals;
-			start.add(0).write(Some(gc_block.as_any()));
+			start.add(0).write(Some(gc_block.to_any()));
 			start.add(1).write(Some(args.into_value()));
 			start = start.add(2);
 
@@ -144,7 +144,7 @@ impl Frame {
 
 		for i in 0..data.block.named_locals.len() {
 			if let Some(value) = unsafe { *data.named_locals.add(i) } {
-				header.set_attr(data.block.named_locals[i].as_any(), value)?;
+				header.set_attr(data.block.named_locals[i].to_any(), value)?;
 			}
 		}
 
@@ -194,7 +194,7 @@ impl Frame {
 		self
 			.0
 			.header()
-			.get_unbound_attr(attr_name.as_any(), true)?
+			.get_unbound_attr(attr_name.to_any(), true)?
 			.ok_or_else(|| format!("unknown attribute {attr_name:?}").into())
 	}
 
@@ -226,7 +226,7 @@ impl Frame {
 
 		debug_assert!(index <= self.block.named_locals.len());
 		let attr_name = unsafe { *self.block.named_locals.get_unchecked(index) };
-		self.0.header_mut().set_attr(attr_name.as_any(), value)
+		self.0.header_mut().set_attr(attr_name.to_any(), value)
 	}
 }
 
@@ -305,7 +305,7 @@ impl Frame {
 	fn next_opcode(&mut self) -> Opcode {
 		let byte = self.next_byte();
 
-		let op = Opcode::from_u8(byte).unwrap_or_else(|| unreachable!("unknown opcode {:02x}", byte));
+		let op = Opcode::from_u8(byte).unwrap_or_else(|| unreachable!("unknown opcode {byte:02x}"));
 		trace!(target: "frame", ?op, "read opcode");
 		op
 	}
@@ -340,7 +340,7 @@ impl Gc<Frame> {
 		let dst = this.next_local_target();
 
 		debug!(target: "frame", ?dst, ?list, "create_list");
-		this.set_local(dst, list.as_any());
+		this.set_local(dst, list.to_any());
 
 		Ok(())
 	}
@@ -398,7 +398,7 @@ impl Gc<Frame> {
 				.parents()?
 				.as_list()
 				.as_mut()?
-				.unshift(self.clone().as_any());
+				.unshift(self.to_any());
 		}
 
 		let dst = this.next_local_target();
@@ -425,16 +425,15 @@ impl Gc<Frame> {
 			}
 
 			Result::<_>::Ok(
-				frames
+				*frames
 					.get(frames.len() - count as usize - 1)
 					.expect("todo: out of bounds error")
-					.clone(),
 			)
 		})?;
 		frame.as_mut()?.convert_to_object()?;
 
 		debug!(target: "frame", ?dst, ?frame, "stackframe");
-		self.as_mut()?.set_local(dst, frame.as_any());
+		self.as_mut()?.set_local(dst, frame.to_any());
 
 		Ok(())
 	}
@@ -483,7 +482,7 @@ impl Gc<Frame> {
 		let hasit = object.has_attr(attr)?;
 
 		debug!(target: "frame", ?dst, ?object, ?attr, ?hasit, "has_attr");
-		self.as_mut()?.set_local(dst, hasit.as_any());
+		self.as_mut()?.set_local(dst, hasit.to_any());
 
 		Ok(())
 	}
@@ -509,23 +508,23 @@ impl Gc<Frame> {
 		let object = if 0 <= object_index {
 			let mut object = unsafe { this.get_unnamed_local(object_index as usize) };
 
-			if self.as_any().is_identical(object) {
+			if self.to_any().is_identical(object) {
 				this.convert_to_object()?;
 				this.set_attr(attr, value)?;
-				self.as_any()
+				self.to_any()
 			} else {
 				object.set_attr(attr, value)?;
 				object
 			}
 		} else {
 			let index = !object_index as usize;
-			let name = this.block.named_locals[index].as_any();
+			let name = this.block.named_locals[index].to_any();
 			let object = this.0.header_mut().get_unbound_attr_mut(name)?;
 
-			if self.as_any().is_identical(*object) {
+			if self.to_any().is_identical(*object) {
 				this.convert_to_object()?;
 				this.set_attr(attr, value)?;
-				self.as_any()
+				self.to_any()
 			} else {
 				object.set_attr(attr, value)?;
 				*object
@@ -654,10 +653,10 @@ impl Gc<Frame> {
 	fn op_index(&self) -> Result<()> {
 		let mut this = self.as_mut()?;
 		let source = this.next_local()?;
-		let argc = this.next_count();
+		let num_args = this.next_count();
 		// todo: optimize me not to use a `Vec`.
-		let mut args = Vec::with_capacity(argc + 1);
-		for i in 0..argc {
+		let mut args = Vec::with_capacity(num_args + 1);
+		for i in 0..num_args {
 			args.push(this.next_local()?);
 		}
 		let dst = this.next_local_target();
@@ -703,10 +702,10 @@ impl Gc<Frame> {
 		// todo: optimize me not to use a `Vec`.
 		let mut this = self.as_mut()?;
 		let source = this.next_local()?;
-		let argc = this.next_count();
+		let num_args = this.next_count();
 
-		let mut args = Vec::with_capacity(argc + 1);
-		for i in 0..argc {
+		let mut args = Vec::with_capacity(num_args + 1);
+		for i in 0..num_args {
 			args.push(this.next_local()?);
 		}
 		let value = this.next_local()?;
@@ -761,7 +760,7 @@ impl Gc<Frame> {
 
 		match result {
 			Err(Error::Return { value, from_frame })
-				if from_frame.map_or(true, |ff| ff.is_identical(self.as_any())) =>
+				if from_frame.map_or(true, |ff| ff.is_identical(self.to_any())) =>
 			{
 				Ok(value)
 			},
@@ -864,10 +863,10 @@ mod tests {
 			let tmp3 = builder.unnamed_local();
 			let ret = builder.unnamed_local();
 
-			builder.constant(1.as_any(), one);
+			builder.constant(1.to_any(), one);
 			builder.less_equal(n, one, tmp);
-			builder.constant("then".as_any(), tmp2);
-			builder.constant("return".as_any(), ret);
+			builder.constant("then".to_any(), tmp2);
+			builder.constant("return".to_any(), ret);
 			builder.get_attr(n, ret, tmp3);
 			builder.call_attr_simple(tmp, tmp2, &[tmp3], tmp);
 			builder.subtract(n, one, n);
@@ -882,10 +881,10 @@ mod tests {
 
 		fib.as_mut()
 			.unwrap()
-			.set_attr("fib".as_any(), fib.as_any())
+			.set_attr("fib".to_any(), fib.to_any())
 			.unwrap();
 
-		let result = fib.run(Args::new(&[15.as_any()], &[])).unwrap();
+		let result = fib.run(Args::new(&[15.to_any()], &[])).unwrap();
 
 		assert_eq!(result.downcast::<crate::value::ty::Integer>(), Some(610));
 	}

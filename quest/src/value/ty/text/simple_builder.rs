@@ -4,6 +4,12 @@ use crate::value::gc::Gc;
 #[must_use]
 pub struct SimpleBuilder(Builder);
 
+impl Default for SimpleBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl SimpleBuilder {
 	pub fn new() -> Self {
 		Self::with_capacity(0)

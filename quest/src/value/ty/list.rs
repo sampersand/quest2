@@ -66,7 +66,6 @@ impl List {
 		self.0.data_mut()
 	}
 
-	#[must_use]
 	pub fn builder() -> Builder {
 		Builder::allocate()
 	}
@@ -431,7 +430,7 @@ quest_type_attrs! { for Gc<List>, parent Object;
 pub mod funcs {
 	use super::*;
 	use crate::value::ty::Integer;
-	use crate::value::AsAny;
+	use crate::value::ToAny;
 	use crate::{vm::Args, Result};
 
 	pub fn index(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
@@ -484,7 +483,7 @@ pub mod funcs {
 
 		list.as_mut()?.push(args[0]);
 
-		Ok(list.as_any())
+		Ok(list.to_any())
 	}
 
 	pub fn unshift(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
@@ -493,6 +492,6 @@ pub mod funcs {
 
 		list.as_mut()?.unshift(args[0]);
 
-		Ok(list.as_any())
+		Ok(list.to_any())
 	}
 }

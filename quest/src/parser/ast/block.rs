@@ -1,7 +1,7 @@
 use super::{Compile, Group};
 use crate::parser::token::{ParenType, TokenContents};
 use crate::parser::{Parser, Result};
-use crate::value::AsAny;
+use crate::value::ToAny;
 use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
@@ -44,10 +44,10 @@ impl<'a> BlockArgs<'a> {
 				.is_some()
 			{
 				return Ok(Some(Self { args: vec![ident] }));
-			} else {
-				parser.add_back(token);
-				return Ok(None);
 			}
+
+			parser.add_back(token);
+			return Ok(None);
 		}
 
 		let left_paren = if let Some(token) =
@@ -115,6 +115,6 @@ impl Compile for Block<'_> {
 		let span = debug_span!(target: "block_builder", "new block", src=?crate::vm::SourceLocation::from(self.body.start));
 		span.in_scope(|| self.body.compile(&mut inner_builder, scratch));
 		let block = inner_builder.build();
-		builder.constant(block.as_any(), dst);
+		builder.constant(block.to_any(), dst);
 	}
 }

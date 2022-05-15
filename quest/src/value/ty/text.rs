@@ -4,7 +4,7 @@ use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 #[allow(unused)]
 use crate::value::ty::List;
-use crate::value::{AsAny, Intern};
+use crate::value::{ToAny, Intern};
 use crate::vm::Args;
 use crate::{AnyValue, Result, Value};
 use std::alloc;
@@ -949,15 +949,15 @@ impl From<&'static str> for Value<Gc<Text>> {
 	}
 }
 
-impl AsAny for &'static str {
-	fn as_any(self) -> AnyValue {
+impl ToAny for &'static str {
+	fn to_any(self) -> AnyValue {
 		Value::from(self).any()
 	}
 }
 
-impl AsAny for String {
-	fn as_any(self) -> AnyValue {
-		Gc::<Text>::from(self).as_any()
+impl ToAny for String {
+	fn to_any(self) -> AnyValue {
+		Gc::<Text>::from(self).to_any()
 	}
 }
 
@@ -1019,7 +1019,7 @@ pub mod funcs {
 
 		text.as_mut()?.push_str(rhs.as_ref()?.as_str());
 
-		Ok(text.as_any())
+		Ok(text.to_any())
 	}
 
 	pub fn add(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
@@ -1031,7 +1031,7 @@ pub mod funcs {
 		let text = text.as_ref()?.dup();
 		text.as_mut().unwrap().push_str(rhs.as_ref()?.as_str());
 
-		Ok(text.as_any())
+		Ok(text.to_any())
 	}
 
 	pub fn eql(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
@@ -1039,15 +1039,15 @@ pub mod funcs {
 		args.assert_positional_len(1)?;
 
 		if let Some(rhs) = args[0].downcast::<Gc<Text>>() {
-			Ok((*text.as_ref()? == *rhs.as_ref()?).as_any())
+			Ok((*text.as_ref()? == *rhs.as_ref()?).to_any())
 		} else {
-			Ok(false.as_any())
+			Ok(false.to_any())
 		}
 	}
 
 	pub fn len(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
-		Ok((text.as_ref()?.len() as i64).as_any())
+		Ok((text.as_ref()?.len() as i64).to_any())
 	}
 
 	pub fn assign(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
@@ -1057,9 +1057,9 @@ pub mod funcs {
 		let value = args[0];
 		let mut frame =
 			crate::vm::Frame::with_stackframe(|sfs| *sfs.last().expect("returning from nothing?"))
-				.as_any();
+				.to_any();
 
-		frame.set_attr(text.as_any(), value)?;
+		frame.set_attr(text.to_any(), value)?;
 
 		Ok(value)
 	}

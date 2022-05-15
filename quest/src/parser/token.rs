@@ -186,7 +186,7 @@ impl<'a> TokenContents<'a> {
 				stream.advance();
 				match parse_number(stream, true)? {
 					Self::Integer(num) => Ok(Self::Stackframe(num as isize)),
-					other => panic!("todo: error for bad stackframe: {:?}", other),
+					other => panic!("todo: error for bad stackframe: {other:?}"),
 				}
 			},
 			':' if stream.peek2() == Some(':') && !stream.peek3().map_or(false, is_symbol_char) => {
@@ -258,6 +258,8 @@ fn parse_integer_base(stream: &mut Stream<'_>, base: u32, is_negative: bool) -> 
 }
 
 fn parse_float<'a>(lhs: Integer, stream: &mut Stream<'a>) -> Result<'a, Float> {
+	const TEN: Float = 10.0;
+
 	let mut float = lhs as Float;
 
 	// OPTIMIZE: in the future, parsing a string should be handled by the rust stdlib or something.
@@ -269,7 +271,7 @@ fn parse_float<'a>(lhs: Integer, stream: &mut Stream<'a>) -> Result<'a, Float> {
 				continue;
 			}
 			float += (chr.to_digit(10).unwrap() as Float) * i;
-			i /= 10.0;
+			i /= TEN;
 		}
 	}
 
@@ -280,7 +282,7 @@ fn parse_float<'a>(lhs: Integer, stream: &mut Stream<'a>) -> Result<'a, Float> {
 		0
 	};
 
-	Ok(float * (10.0 as Float).powi(exponent as i32))
+	Ok(float * TEN.powi(exponent as i32))
 }
 
 // Note that unary minus/plus are coalesced during constant joining.
