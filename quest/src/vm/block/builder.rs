@@ -24,12 +24,17 @@ const COUNT_IS_NOT_ONE_BYTE_BUT_USIZE: u8 = i8::MAX as u8;
 impl Builder {
 	#[must_use]
 	pub fn new(loc: SourceLocation, parent_scope: Option<AnyValue>) -> Self {
+		let mut named_locals = Vec::with_capacity(2);
+
+		named_locals.push(Text::from_static_str("__block__"));
+		named_locals.push(Text::from_static_str("__args__"));
+
 		Self {
 			loc,
 			code: Vec::default(),
 			constants: Vec::default(),
 			num_of_unnamed_locals: 1, // The first register is scratch
-			named_locals: Vec::default(),
+			named_locals,
 			parent_scope,
 		}
 	}

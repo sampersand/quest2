@@ -1,4 +1,5 @@
 use crate::{AnyValue, Error, Result};
+use crate::value::AsAny;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Args<'a> {
@@ -102,6 +103,12 @@ impl<'a> Args<'a> {
 		self.idx_err_unless(|a| a.len() >= 1)?;
 
 		Ok((self[0], Self::new(&self.positional[1..], self.keyword)))
+	}
+
+	pub fn into_value(self) -> AnyValue {
+		self.assert_no_keyword().expect("todo: keyword for argument into value");
+
+		crate::value::ty::List::from_slice(self.positional()).as_any()
 	}
 }
 

@@ -96,10 +96,15 @@ impl Frame {
 
 			// copy positional arguments over into the first few named local arguments.
 			let mut start = named_locals;
+			start.add(0).write(Some(gc_block.as_any()));
+			start.add(1).write(Some(args.into_value()));
+			start = start.add(2);
+
 			if let Some(this) = args.get_self() {
 				named_locals.write(Some(this));
-				start = named_locals.add(1);
+				start = start.add(1);
 			}
+
 			start.copy_from_nonoverlapping(
 				args.positional().as_ptr().cast::<Option<AnyValue>>(),
 				args.positional().len(),
