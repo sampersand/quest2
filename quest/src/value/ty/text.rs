@@ -4,7 +4,7 @@ use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 #[allow(unused)]
 use crate::value::ty::List;
-use crate::value::{ToAny, Intern};
+use crate::value::{Intern, ToAny};
 use crate::vm::Args;
 use crate::{AnyValue, Result, Value};
 use std::alloc;

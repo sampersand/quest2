@@ -1,4 +1,4 @@
-use crate::value::{ToAny, Intern};
+use crate::value::{Intern, ToAny};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
 

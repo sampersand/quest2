@@ -34,7 +34,7 @@ impl Builder {
 		// these are present in every block
 		let named_locals = vec![
 			Text::from_static_str("__block__"),
-			Text::from_static_str("__args__")
+			Text::from_static_str("__args__"),
 		];
 
 		Self {

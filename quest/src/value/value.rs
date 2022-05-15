@@ -1,6 +1,6 @@
 use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{AttrConversionDefined, BoundFn, Float, Integer, List, RustFn, Text, Wrap};
-use crate::value::{ToAny, Convertible, Gc, Intern};
+use crate::value::{Convertible, Gc, Intern, ToAny};
 use crate::vm::{Args, Block};
 use crate::{Error, Result};
 use std::fmt::{self, Debug, Formatter};
@@ -113,7 +113,7 @@ impl Default for AnyValue {
 }
 
 impl AnyValue {
-	fn parents_for(self) -> AnyValue {
+	fn parents_for(self) -> Self {
 		use crate::value::ty::*;
 
 		if self.is_a::<Integer>() {
@@ -196,7 +196,7 @@ impl AnyValue {
 		self.get_unbound_attr(attr).map(|opt| opt.is_some())
 	}
 
-	pub fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
 		let value = if let Some(value) = self.get_unbound_attr(attr)? {
 			value
 		} else {
@@ -211,7 +211,7 @@ impl AnyValue {
 		}
 	}
 
-	pub fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
 		if !self.is_allocated() {
 			return if attr.is_parents() {
 				// TODO: if this is modified, it wont reflect on the integer.
@@ -236,7 +236,7 @@ impl AnyValue {
 		}
 	}
 
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Self) -> Result<()> {
 		if !self.is_allocated() {
 			*self = self.allocate_self_and_copy_data_over();
 		}
@@ -261,7 +261,7 @@ impl AnyValue {
 		}
 	}
 
-	pub fn del_attr<A: Attribute>(self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
 		if self.is_allocated() {
 			unsafe { self.get_gc_any_unchecked() }
 				.as_mut()?
@@ -281,7 +281,7 @@ impl AnyValue {
 			.parents_list())
 	}
 
-	pub fn call_attr<A: Attribute>(self, attr: A, args: Args<'_>) -> Result<AnyValue> {
+	pub fn call_attr<A: Attribute>(self, attr: A, args: Args<'_>) -> Result<Self> {
 		if self.is_allocated() {
 			return unsafe { self.get_gc_any_unchecked() }.call_attr(attr, args);
 		}
@@ -296,7 +296,7 @@ impl AnyValue {
 
 	// there's a potential logic flaw here, as this may actually pass `self`
 	// when calling `Intern::op_call`. todo, check that out.
-	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
+	pub fn call(self, args: Args<'_>) -> Result<Self> {
 		if let Some(rustfn) = self.downcast::<RustFn>() {
 			return rustfn.call(args);
 		}
@@ -389,7 +389,7 @@ impl AnyValue {
 		}
 	}
 
-	pub fn try_eq(self, rhs: AnyValue) -> Result<bool> {
+	pub fn try_eq(self, rhs: Self) -> Result<bool> {
 		if self.is_identical(rhs) {
 			return Ok(true);
 		}

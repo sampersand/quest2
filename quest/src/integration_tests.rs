@@ -1,6 +1,9 @@
 use crate::parser::ast::{Compile, Group};
 use crate::parser::Parser;
-use crate::vm::{Args, block::{Builder, Local}};
+use crate::vm::{
+	block::{Builder, Local},
+	Args,
+};
 use crate::{AnyValue, Result};
 
 use crate::value::ty::{Boolean, Float, Integer, Text};

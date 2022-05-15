@@ -1,5 +1,5 @@
 use crate::value::ty::Text;
-use crate::value::{base::Flags, ToAny, Gc, Intern};
+use crate::value::{base::Flags, Gc, Intern, ToAny};
 use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::mem::ManuallyDrop;
@@ -220,7 +220,7 @@ impl Attribute for crate::value::Intern {
 
 impl Attribute for AnyValue {
 	fn try_eq_value(self, rhs: AnyValue) -> Result<bool> {
-		AnyValue::try_eq(self, rhs)
+		Self::try_eq(self, rhs)
 	}
 
 	fn try_eq_intern(self, rhs: Intern) -> Result<bool> {
@@ -232,7 +232,7 @@ impl Attribute for AnyValue {
 	}
 
 	fn try_hash(self) -> Result<u64> {
-		AnyValue::try_hash(self)
+		Self::try_hash(self)
 	}
 
 	fn as_intern(self) -> Result<Option<Intern>> {
@@ -282,7 +282,6 @@ mod tests {
 				// assert!(textmut.r().get_unbound_attr(value).unwrap().unwrap().try_eq(value).unwrap());
 			}
 		}
-
 
 		let textref = text.as_ref().unwrap();
 

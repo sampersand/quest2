@@ -2,7 +2,7 @@
 
 use crate::value::base::{Attribute, Base, Flags, Header};
 use crate::value::ty::{List, Wrap};
-use crate::value::{value::Any, AnyValue, ToAny, Convertible, Value};
+use crate::value::{value::Any, AnyValue, Convertible, ToAny, Value};
 use crate::{Error, Result};
 use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};

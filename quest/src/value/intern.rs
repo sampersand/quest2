@@ -1,5 +1,5 @@
 use crate::value::ty::Text;
-use crate::value::{ToAny, Gc};
+use crate::value::{Gc, ToAny};
 use crate::{AnyValue, Value};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -99,7 +99,6 @@ define_interned! {
 
 	Block Boolean BoundFn Callable Class Float Integer Kernel List Null Object Pristine RustFn Scope Text
 }
-
 
 impl Eq for Intern {}
 impl PartialEq for Intern {

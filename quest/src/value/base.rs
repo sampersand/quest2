@@ -35,6 +35,7 @@ pub struct Base<T: 'static> {
 	data: UnsafeCell<T>,
 }
 
+// TODO: are these actually safe? idts, since theyre wrapped in `Gc`
 unsafe impl<T: Send + 'static> Send for Base<T> {}
 unsafe impl<T: Sync + 'static> Sync for Base<T> {}
 
@@ -173,7 +174,11 @@ impl<T> Base<T> {
 
 		// TODO: you can currently make something froze whilst it's mutably borrowed, fix it.
 		if flags.contains(Flags::FROZEN) {
-			return Err("todo: how do we want to return an error here".to_string().into());
+			return Err(
+				"todo: how do we want to return an error here"
+					.to_string()
+					.into(),
+			);
 			// return Err(Error::ValueFrozen(Gc::new(ptr).any()));
 		}
 

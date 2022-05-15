@@ -302,7 +302,9 @@ impl<T> Builder<T> {
 	pub fn flags(&self) -> &Flags {
 		#[allow(clippy::deref_addrof)]
 		// SAFETY: We know the pointer is aligned and can be read from b/c of Builder's invariants.
-		unsafe { &*addr_of!((*self.header()).flags) }
+		unsafe {
+			&*addr_of!((*self.header()).flags)
+		}
 	}
 
 	/// Sets flags in the header's [`Flags`].

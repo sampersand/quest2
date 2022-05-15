@@ -1,5 +1,5 @@
 use crate::value::ty::{ConvertTo, Float, InstanceOf, Singleton, Text};
-use crate::value::{AnyValue, ToAny, Convertible, Gc, Value};
+use crate::value::{AnyValue, Convertible, Gc, ToAny, Value};
 use crate::vm::Args;
 use crate::Result;
 
@@ -131,7 +131,12 @@ pub mod funcs {
 		} else {
 			let exp = args[0].to_integer()?;
 
-			Ok(int.pow(exp.try_into().expect("todo: exception for not valid number")).to_any())
+			Ok(int
+				.pow(
+					exp.try_into()
+						.expect("todo: exception for not valid number"),
+				)
+				.to_any())
 		}
 	}
 

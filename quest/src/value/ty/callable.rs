@@ -1,4 +1,4 @@
-use crate::value::{ToAny, Gc};
+use crate::value::{Gc, ToAny};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
 
@@ -25,7 +25,6 @@ impl Callable {
 }
 
 impl Gc<Callable> {
-
 	pub fn qs_ignore(args: Args<'_>) -> Result<AnyValue> {
 		let _ = true.to_any();
 		let _ = args;

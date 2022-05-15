@@ -1,5 +1,5 @@
 use crate::value::ty::{Boolean, ConvertTo, Float, Integer, List, Text};
-use crate::value::{AnyValue, ToAny, Convertible, Gc, Value};
+use crate::value::{AnyValue, Convertible, Gc, ToAny, Value};
 use crate::vm::Args;
 use crate::Result;
 use std::fmt::{self, Debug, Formatter};

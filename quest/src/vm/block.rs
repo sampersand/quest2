@@ -51,9 +51,9 @@ impl Block {
 		});
 
 		let gc = Gc::from_inner(if let Some(parent_scope) = parent_scope {
-			Base::new(inner.clone(), List::from_slice(&[parent_scope, Gc::<Block>::parent()]))
+			Base::new(inner.clone(), List::from_slice(&[parent_scope, Gc::<Self>::parent()]))
 		} else {
-			Base::new(inner.clone(), Gc::<Block>::parent())
+			Base::new(inner.clone(), Gc::<Self>::parent())
 		});
 
 		unsafe {

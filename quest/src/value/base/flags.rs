@@ -140,6 +140,7 @@ impl Flags {
 }
 
 impl Debug for Flags {
+	#[allow(clippy::cognitive_complexity)]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(f, "Flags(")?;
 		let mut is_first = true;

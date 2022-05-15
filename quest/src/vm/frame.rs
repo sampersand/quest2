@@ -2,7 +2,7 @@ use super::block::BlockInner;
 use super::bytecode::Opcode;
 use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
-use crate::value::{ToAny, Gc, HasDefaultParent, Intern};
+use crate::value::{Gc, HasDefaultParent, Intern, ToAny};
 use crate::vm::bytecode::{COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL};
 use crate::vm::{Args, Block};
 use crate::{AnyValue, Error, Result};
@@ -56,7 +56,7 @@ impl Drop for Inner {
 struct LocalTarget(isize);
 
 impl Frame {
-	pub fn new(gc_block: Gc<Block>, args: Args) -> Result<Gc<Frame>> {
+	pub fn new(gc_block: Gc<Block>, args: Args) -> Result<Gc<Self>> {
 		args.assert_no_keyword()?; // todo: assign keyword arguments
 		let block = gc_block.as_ref()?.inner();
 
@@ -77,7 +77,7 @@ impl Frame {
 		// do we want? Do we want the outside stackframe to be first or last? and in any case,
 		// this is setting the _block_ itself as the parent, which isn't what we want. how do we
 		// want to register the outer block as the parent?
-		builder.set_parents(List::from_slice(&[gc_block.to_any(), Gc::<Frame>::parent()]));
+		builder.set_parents(List::from_slice(&[gc_block.to_any(), Gc::<Self>::parent()]));
 
 		unsafe {
 			let unnamed_locals = crate::alloc_zeroed::<AnyValue>(locals_layout_for(
@@ -119,7 +119,7 @@ impl Frame {
 		}
 	}
 
-	pub fn with_stackframe<F: FnOnce(&mut Vec<Gc<Frame>>) -> T, T>(func: F) -> T {
+	pub fn with_stackframe<F: FnOnce(&mut Vec<Gc<Self>>) -> T, T>(func: F) -> T {
 		use std::cell::RefCell;
 		thread_local! {
 			static STACKFRAMES: RefCell<Vec<Gc<Frame>>> = RefCell::new(Vec::new());
@@ -429,7 +429,7 @@ impl Gc<Frame> {
 			Result::<_>::Ok(
 				*frames
 					.get(frames.len() - count as usize - 1)
-					.expect("todo: out of bounds error")
+					.expect("todo: out of bounds error"),
 			)
 		})?;
 		frame.as_mut()?.convert_to_object()?;
@@ -754,11 +754,12 @@ impl Gc<Frame> {
 		}
 
 		Frame::with_stackframe(|sfs| {
-			if cfg!(debug_assertions) {
-				debug_assert!(sfs.pop().unwrap().ptr_eq(self));
-			} else {
-				sfs.pop();
-			}
+			let p = sfs.pop();
+
+			debug_assert!(
+				p.unwrap().ptr_eq(self),
+				"removed invalid value from stackframe? {p:?} <=> {self:?}"
+			);
 		});
 
 		match result {
@@ -818,6 +819,7 @@ impl Gc<Frame> {
 
 				Opcode::Index => self.op_index(),
 				Opcode::IndexAssign => self.op_indexassign(),
+				Opcode::__LAST => unreachable!(),
 			}?;
 		}
 
