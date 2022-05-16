@@ -148,6 +148,7 @@ impl AnyValue {
 			_ if self.is_a::<Gc<BoundFn>>() => "BoundFn",
 			_ if self.is_a::<Gc<crate::vm::Block>>() => "Block",
 			_ if self.is_a::<Gc<crate::vm::Frame>>() => "Frame",
+			_ if cfg!(debug_assertions) => panic!("todo: typename for {:?}", self),
 			_ => "unknown",
 		}
 	}
@@ -458,13 +459,13 @@ impl Debug for AnyValue {
 		} else if let Some(l) = self.downcast::<Gc<crate::vm::Block>>() {
 			Debug::fmt(&l, fmt)
 		} else if let Some(i) = self.downcast::<Gc<Wrap<Integer>>>() {
-			Debug::fmt(&i, fmt)
+			Debug::fmt(&StructDebug(i, "Integer"), fmt)
 		} else if let Some(f) = self.downcast::<Gc<Wrap<Float>>>() {
-			Debug::fmt(&f, fmt)
+			Debug::fmt(&StructDebug(f, "Float"), fmt)
 		} else if let Some(b) = self.downcast::<Gc<Wrap<Boolean>>>() {
-			Debug::fmt(&b, fmt)
+			Debug::fmt(&StructDebug(b, "Boolean"), fmt)
 		} else if let Some(n) = self.downcast::<Gc<Wrap<Null>>>() {
-			Debug::fmt(&n, fmt)
+			Debug::fmt(&StructDebug(n, "Null"), fmt)
 		} else if let Some(f) = self.downcast::<Gc<Wrap<RustFn>>>() {
 			Debug::fmt(&f, fmt)
 		} else {
