@@ -124,6 +124,16 @@ pub mod funcs {
 
 		Ok(args[0])
 	}
+
+	pub fn at_text(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+
+		ConvertTo::<Gc<Text>>::convert(&boolean, args).map(ToAny::to_any)
+	}
+
+	pub fn dbg(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+		at_text(boolean, args)
+	}
 }
 
 impl HasDefaultParent for Boolean {
@@ -141,7 +151,8 @@ impl HasDefaultParent for Boolean {
 				Intern::or_else => method funcs::or_else,
 				Intern::and => method funcs::and,
 				Intern::or => method funcs::or,
-				// "@text" => method funcs::at_text
+				Intern::dbg => method funcs::dbg,
+				Intern::at_text => method funcs::at_text,
 			}
 		})
 	}

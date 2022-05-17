@@ -59,10 +59,9 @@ impl Block {
 }
 
 impl Gc<Block> {
-	pub fn run(self, args: Args) -> Result<AnyValue> {
+	pub fn run(self, args: Args<'_>) -> Result<AnyValue> {
 		Frame::new(self, args)?.run()
 	}
-
 
 	pub fn deep_clone(&self) -> Result<Self> {
 		// TODO: optimize me, eg maybe have shared attributes pointer or something
@@ -80,8 +79,32 @@ impl Gc<Block> {
 	}
 }
 
+pub mod funcs {
+	use super::*;
+	use crate::value::ToAny;
+
+	pub fn call(block: Gc<Block>, args: Args<'_>) -> Result<AnyValue> {
+		block.run(args)
+	}
+
+	pub fn dbg(block: Gc<Block>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+
+		let blockref = block.as_ref()?;
+
+		// TODO: maybe cache this in the future?
+		let mut builder = Text::simple_builder();
+		builder.push_str("<Block:");
+		builder.push_str(&blockref.inner().loc.to_string());
+		builder.push('>');
+
+		Ok(builder.finish().to_any())
+	}
+}
+
 quest_type_attrs! { for Gc<Block>, parent Object;
-	op_call => meth Gc::<Block>::run,
+	op_call => meth funcs::call,
+	dbg => meth funcs::dbg,
 	// "+" => meth qs_add,
 	// "@text" => meth qs_at_text,
 }

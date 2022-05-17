@@ -21,6 +21,12 @@ pub struct SourceLocation {
 
 impl std::fmt::Debug for SourceLocation {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		std::fmt::Display::fmt(self, f)
+	}
+}
+
+impl std::fmt::Display for SourceLocation {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(f, "{}:{}:{}", self.file.display(), self.line, self.column)
 	}
 }
@@ -28,7 +34,7 @@ impl std::fmt::Debug for SourceLocation {
 impl Default for SourceLocation {
 	fn default() -> Self {
 		Self {
-			file: "<unknown>".into(),
+			file: "(unknown)".into(),
 			line: 0,
 			column: 0,
 		}
@@ -40,7 +46,7 @@ impl From<crate::parser::SourceLocation<'_>> for SourceLocation {
 		#[allow(clippy::or_fun_call)] // Path::new is a zero-cost function.
 		let file = inp
 			.filename
-			.unwrap_or(std::path::Path::new("<unknown>"))
+			.unwrap_or(std::path::Path::new("(unknown)"))
 			.into();
 
 		Self {

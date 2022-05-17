@@ -116,9 +116,25 @@ unsafe impl Convertible for RustFn {
 	}
 }
 
-impl RustFn {
-	pub fn qs_call(self, args: Args<'_>) -> Result<AnyValue> {
-		self.call(args)
+pub mod funcs {
+	use super::*;
+	use crate::value::ToAny;
+
+	pub fn call(func: RustFn, args: Args<'_>) -> Result<AnyValue> {
+		func.call(args)
+	}
+
+	pub fn dbg(func: RustFn, args: Args<'_>) -> Result<AnyValue> {
+		use crate::value::ty::text::SimpleBuilder;
+
+		args.assert_no_arguments()?;
+
+		let mut builder = SimpleBuilder::with_capacity(9 + func.name().len());
+		builder.push_str("<RustFn:");
+		builder.push_str(func.name());
+		builder.push('>');
+
+		Ok(builder.finish().to_any())
 	}
 }
 
@@ -133,7 +149,8 @@ impl Singleton for RustFnClass {
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "RustFn", parent Callable::instance();
-				Intern::op_call => method RustFn::qs_call,
+				Intern::op_call => method funcs::call,
+				Intern::dbg => method funcs::dbg,
 			}
 		})
 	}

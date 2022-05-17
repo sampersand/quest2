@@ -33,6 +33,7 @@ impl Object {
 				Intern::itself => function funcs::itself,
 				Intern::print => function funcs::print,
 				Intern::freeze => function funcs::freeze,
+				Intern::dbg => function funcs::dbg,
 			}
 		})
 	}
@@ -66,9 +67,7 @@ pub mod funcs {
 	}
 
 	pub fn at_text(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-		args.assert_no_arguments()?;
-
-		Ok(format!("{obj:?}").to_any())
+		obj.call_attr(Intern::at_text, args)
 	}
 
 	pub fn hash(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
@@ -191,6 +190,22 @@ pub mod funcs {
 		obj.freeze()?;
 
 		Ok(obj)
+	}
+
+	pub fn dbg(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+		use crate::value::ty::text::SimpleBuilder;
+
+		args.assert_no_arguments()?;
+		let typename = obj.typename();
+
+		let mut builder = SimpleBuilder::with_capacity(21 + typename.len());
+		builder.push('<');
+		builder.push_str(typename);
+		builder.push(':');
+		builder.push_str(&format!("{:p}", obj.bits() as *const u8));
+		builder.push('>');
+
+		Ok(builder.finish().to_any())
 	}
 }
 /*

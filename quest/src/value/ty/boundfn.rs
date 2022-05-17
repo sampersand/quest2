@@ -1,4 +1,4 @@
-use crate::value::Gc;
+use crate::value::{Gc, ToAny};
 use crate::AnyValue;
 use std::fmt::{self, Debug, Formatter};
 
@@ -54,11 +54,27 @@ impl BoundFn {
 impl Gc<BoundFn> {
 	pub fn qs_call(self, args: crate::vm::Args<'_>) -> crate::Result<AnyValue> {
 		let (func, obj) = {
-			let sref = self.as_ref()?;
-			(sref.function(), sref.object())
+			let selfref = self.as_ref()?;
+			(selfref.function(), selfref.object())
 		};
 
 		func.call(args.with_self(obj))
+	}
+
+	pub fn dbg(self, args: crate::vm::Args<'_>) -> crate::Result<AnyValue> {
+		args.assert_no_arguments()?;
+
+		let selfref = self.as_ref()?;
+
+		let mut builder = crate::value::ty::Text::simple_builder();
+
+		builder.push_str("<BoundFn:");
+		builder.push_str(&selfref.function().dbg_text()?.as_ref()?.as_str());
+		builder.push(':');
+		builder.push_str(&selfref.object().dbg_text()?.as_ref()?.as_str());
+		builder.push('>');
+
+		Ok(builder.finish().to_any())
 	}
 }
 
@@ -73,4 +89,5 @@ singleton_object! {
 		parent Callable;
 
 	Intern::op_call => method!(qs_call),
+	Intern::dbg => method!(dbg),
 }

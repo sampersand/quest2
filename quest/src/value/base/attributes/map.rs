@@ -1,8 +1,8 @@
 use super::Attribute;
 use crate::value::{Intern, ToAny};
 use crate::{AnyValue, Result};
+use hashbrown::hash_map::{Iter as HashBrownIter, RawEntryMut};
 use hashbrown::HashMap;
-use hashbrown::hash_map::{RawEntryMut, Iter as HashBrownIter};
 
 /*
 Under the (hopefully final) design, `Text::attr==` is the function that's used to compare a text
