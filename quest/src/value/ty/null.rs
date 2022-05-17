@@ -1,4 +1,4 @@
-use crate::value::ty::{Singleton, Boolean, ConvertTo, Float, Integer, List, Text, InstanceOf};
+use crate::value::ty::{Boolean, ConvertTo, Float, InstanceOf, Integer, List, Singleton, Text};
 use crate::value::{AnyValue, Convertible, Gc, ToAny, Value};
 use crate::vm::Args;
 use crate::Result;

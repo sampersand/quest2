@@ -63,7 +63,6 @@ impl Gc<Block> {
 		Frame::new(self, args)?.run()
 	}
 
-
 	pub fn deep_clone(&self) -> Result<Self> {
 		// TODO: optimize me, eg maybe have shared attributes pointer or something
 		let selfref = self.as_ref()?;
@@ -81,8 +80,8 @@ impl Gc<Block> {
 }
 
 pub mod funcs {
-	use crate::value::ToAny;
 	use super::*;
+	use crate::value::ToAny;
 
 	pub fn call(block: Gc<Block>, args: Args<'_>) -> Result<AnyValue> {
 		block.run(args)

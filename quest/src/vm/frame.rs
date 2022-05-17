@@ -849,7 +849,6 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		use crate::value::ty::text::SimpleBuilder;
 
-
 		// TODO: maybe cache this in the future?
 		let mut builder = Text::simple_builder();
 		builder.push_str("<Frame:");

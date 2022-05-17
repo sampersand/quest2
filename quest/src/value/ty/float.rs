@@ -1,5 +1,5 @@
-use crate::value::ty::{Singleton, InstanceOf, ConvertTo, Text};
-use crate::value::{AnyValue, Convertible, Value, Gc, ToAny};
+use crate::value::ty::{ConvertTo, InstanceOf, Singleton, Text};
+use crate::value::{AnyValue, Convertible, Gc, ToAny, Value};
 use crate::vm::Args;
 use crate::Result;
 
@@ -81,7 +81,6 @@ pub mod funcs {
 		at_text(float, args)
 	}
 }
-
 
 #[cfg(test)]
 mod tests {

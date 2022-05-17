@@ -154,7 +154,9 @@ impl AnyValue {
 	}
 
 	pub fn dbg_text(self) -> Result<Gc<Text>> {
-		self.call_attr(Intern::dbg, Args::default())?.try_downcast::<Gc<Text>>()
+		self
+			.call_attr(Intern::dbg, Args::default())?
+			.try_downcast::<Gc<Text>>()
 	}
 
 	pub fn is_truthy(self) -> Result<bool> {
