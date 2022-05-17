@@ -393,7 +393,7 @@ impl Gc<Frame> {
 		let constant = this.block.constants[idx];
 
 		if let Some(block) = constant.downcast::<Gc<Block>>() {
-			let block = block.as_ref()?.deep_clone()?;
+			let block = block.deep_clone()?;
 			this.convert_to_object()?;
 
 			block

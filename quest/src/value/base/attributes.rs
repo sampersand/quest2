@@ -58,6 +58,14 @@ impl<'a> AttributesGuard<'a> {
 		}
 	}
 
+	pub fn iter(&self) -> AttributesIter<'a> {
+		AttributesIter(match self.classify() {
+			AttributesKind::None => AttributesIterInner::None,
+			AttributesKind::List(list) => AttributesIterInner::List(unsafe { &*list }.iter()),
+			AttributesKind::Map(map) => AttributesIterInner::Map(unsafe { &*map }.iter()),
+		})
+	}
+
 	pub fn allocate(&mut self, capacity: usize) {
 		match capacity {
 			0 => {
@@ -98,6 +106,18 @@ impl<'a> AttributesGuard<'a> {
 		} else {
 			AttributesKind::Map(unsafe { &mut **(*self.ptr).map as *mut Map })
 		}
+	}
+
+	pub fn len(&self) -> usize {
+		match self.classify() {
+			AttributesKind::None => 0,
+			AttributesKind::List(list) => unsafe { &*list }.len(),
+			AttributesKind::Map(map) => unsafe { &*map }.len(),
+		}
+	}
+
+	pub fn is_empty(&self) -> bool {
+		matches!(self.classify(), AttributesKind::None)
 	}
 
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
@@ -164,6 +184,26 @@ impl<'a> AttributesGuard<'a> {
 			AttributesKind::None => {},
 			AttributesKind::List(list) => ManuallyDrop::<ListMap>::drop(&mut *list.cast()),
 			AttributesKind::Map(map) => ManuallyDrop::<Map>::drop(&mut *map.cast()),
+		}
+	}
+}
+
+pub struct AttributesIter<'a>(AttributesIterInner<'a>);
+// we need an inner enum so people cant access the internals whilst the iter is public.
+enum AttributesIterInner<'a> {
+	None,
+	List(list::ListMapIter<'a>),
+	Map(map::MapIter<'a>),
+}
+
+impl Iterator for AttributesIter<'_> {
+	type Item = (AnyValue, AnyValue);
+
+	fn next(&mut self) -> Option<Self::Item> {
+		match &mut self.0 {
+			AttributesIterInner::None => None,
+			AttributesIterInner::List(list_iter) => list_iter.next(),
+			AttributesIterInner::Map(map_iter) => map_iter.next(),
 		}
 	}
 }

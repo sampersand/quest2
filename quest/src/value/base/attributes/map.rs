@@ -1,7 +1,8 @@
 use super::Attribute;
-use crate::value::Intern;
+use crate::value::{Intern, ToAny};
 use crate::{AnyValue, Result};
-use hashbrown::{hash_map::RawEntryMut, HashMap};
+use hashbrown::HashMap;
+use hashbrown::hash_map::{RawEntryMut, Iter as HashBrownIter};
 
 /*
 Under the (hopefully final) design, `Text::attr==` is the function that's used to compare a text
@@ -48,7 +49,31 @@ impl Map {
 	}
 }
 
+pub struct MapIter<'a>(HashBrownIter<'a, Intern, AnyValue>, HashBrownIter<'a, AnyValue, AnyValue>);
+
+impl Iterator for MapIter<'_> {
+	type Item = (AnyValue, AnyValue);
+
+	fn next(&mut self) -> Option<Self::Item> {
+		if let Some((&key, &value)) = self.0.next() {
+			Some((key.to_any(), value))
+		} else if let Some((&key, &value)) = self.1.next() {
+			Some((key, value))
+		} else {
+			None
+		}
+	}
+}
+
 impl Map {
+	pub fn iter(&self) -> MapIter<'_> {
+		MapIter(self.interned.iter(), self.any.iter())
+	}
+
+	pub fn len(&self) -> usize {
+		self.interned.len() + self.any.len()
+	}
+
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		debug_assert!(!attr.is_special());
 
