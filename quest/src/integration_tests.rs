@@ -9,7 +9,7 @@ use crate::{AnyValue, Result};
 use crate::value::ty::{Boolean, Float, Integer, Text};
 use crate::value::Gc;
 
-fn run_code(code: &str) -> Result<AnyValue> {
+pub fn run_code(code: &str) -> Result<AnyValue> {
 	let mut parser = Parser::new(code, None);
 	let mut builder = Builder::default();
 

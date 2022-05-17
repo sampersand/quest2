@@ -35,6 +35,7 @@ pub mod vm;
 
 #[cfg(test)]
 mod integration_tests;
+
 pub mod parser;
 
 pub use error::{Error, Result};
