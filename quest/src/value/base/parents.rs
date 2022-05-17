@@ -64,6 +64,16 @@ unsafe impl IntoParent for Gc<List> {
 	}
 }
 
+unsafe impl IntoParent for ParentsGuard<'_> {
+	fn into_parent(self, guard: &mut ParentsGuard<'_>) {
+		match self.classify() {
+			ParentsKind::None => NoParents.into_parent(guard),
+			ParentsKind::Single(single) => unsafe { *single }.into_parent(guard),
+			ParentsKind::List(list) => unsafe { *list }.into_parent(guard),
+		}
+	}
+}
+
 enum ParentsKind {
 	None,
 	Single(*mut AnyValue),
