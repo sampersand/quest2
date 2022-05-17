@@ -50,29 +50,33 @@ impl Key {
 	}
 }
 
+pub struct ListMapIter<'a>(&'a ListMap, usize);
+
+impl Iterator for ListMapIter<'_> {
+	type Item = (AnyValue, AnyValue);
+
+	fn next(&mut self) -> Option<Self::Item> {
+		if let Some((k, v)) = self.0.data.get(self.1).copied().flatten() {
+			let k = if_intern!(k, |intern| intern.as_text().to_any(), |value| value);
+			self.1 += 1;
+			Some((k, v))
+		} else {
+			None
+		}
+	}
+}
+
 impl ListMap {
+	pub fn iter(&self) -> ListMapIter<'_> {
+		ListMapIter(self, 0)
+	}
+
 	pub fn is_full(&self) -> bool {
 		self.data[MAX_LISTMAP_LEN - 1].is_some()
 	}
 
-	// Note that this drops the "intern"ness, but that's ok (i guess?)
-	pub fn iter(&self) -> impl Iterator<Item = (AnyValue, AnyValue)> + '_ {
-		struct Iter<'a>(&'a ListMap, usize);
-		impl Iterator for Iter<'_> {
-			type Item = (AnyValue, AnyValue);
-
-			fn next(&mut self) -> Option<Self::Item> {
-				if let Some((k, v)) = self.0.data.get(self.1).copied().flatten() {
-					let k = if_intern!(k, |intern| intern.as_text().to_any(), |value| value);
-					self.1 += 1;
-					Some((k, v))
-				} else {
-					None
-				}
-			}
-		}
-
-		Iter(self, 0)
+	pub fn len(&self) -> usize {
+		self.data.iter().take_while(|v| v.is_some()).count()
 	}
 
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {

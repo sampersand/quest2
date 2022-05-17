@@ -448,20 +448,9 @@ impl<T: Allocated> Ref<T> {
 	pub fn parents(&self) -> Result<crate::value::base::ParentsGuard> {
 		self.header().parents()
 	}
-}
 
-impl<T: Allocated> Ref<T>
-where
-	T::Inner: Clone,
-{
-	pub fn deep_clone(&self) -> Result<Gc<T>> {
-		// unsafe {
-		// todo: we dont need to use zeroed
-		// let mut builder = crate::value::base::Builder::allocate();
-		// TODO: deep clone
-		// let _ = builder;
-		// }
-		Ok(self.as_gc())
+	pub fn attributes(&self) -> Result<crate::value::base::AttributesGuard> {
+		self.header().attributes()
 	}
 }
 
