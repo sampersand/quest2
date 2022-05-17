@@ -298,9 +298,9 @@ fn parse_number<'a>(stream: &mut Stream<'a>, integer_only: bool) -> Result<'a, T
 		Some('e' | 'E' | '.')
 			if base == 10
 				&& !integer_only
-				&& !stream
+				&& stream
 					.peek2()
-					.map_or(false, |c| c.is_alphabetic() || c == '_') =>
+					.map_or(false, |c| c.is_ascii_digit()) =>
 		{
 			TokenContents::Float(parse_float(integer, stream))
 		},

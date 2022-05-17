@@ -206,3 +206,17 @@ fn basic_stackframe_continuation() {
 		"X:XX:XXX:XXXX"
 	);
 }
+
+#[test]
+fn dbg_representations() {
+	let result = run_code(r#"
+		block = { :0 };
+		frame = block();
+		[true, false, null, 12."+", 1.12, 1, "f\n", frame, block].dbg()
+	"#).unwrap();
+
+	// We don't actually check the return value as it's not defined exactly.
+	assert!(result.is_a::<Gc<Text>>());
+
+	// Also note we don't test `Integer` and friends debug representations. See issue #23
+}

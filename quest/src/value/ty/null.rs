@@ -1,4 +1,4 @@
-use crate::value::ty::{Boolean, ConvertTo, Float, Integer, List, Text};
+use crate::value::ty::{Singleton, Boolean, ConvertTo, Float, Integer, List, Text, InstanceOf};
 use crate::value::{AnyValue, Convertible, Gc, ToAny, Value};
 use crate::vm::Args;
 use crate::Result;
@@ -77,43 +77,58 @@ impl ConvertTo<Gc<List>> for Null {
 	}
 }
 
-impl Null {
-	pub fn qs_at_text(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Gc<Text>>::convert(&self, args).map(ToAny::to_any)
+pub mod funcs {
+	use super::*;
+
+	pub fn at_text(null: Null, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Gc<Text>>::convert(&null, args).map(ToAny::to_any)
 	}
 
-	pub fn qs_at_int(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Integer>::convert(&self, args).map(ToAny::to_any)
+	pub fn at_int(null: Null, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Integer>::convert(&null, args).map(ToAny::to_any)
 	}
 
-	pub fn qs_at_float(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Float>::convert(&self, args).map(ToAny::to_any)
+	pub fn at_float(null: Null, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Float>::convert(&null, args).map(ToAny::to_any)
 	}
 
-	pub fn qs_at_list(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Gc<List>>::convert(&self, args).map(ToAny::to_any)
+	pub fn at_list(null: Null, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Gc<List>>::convert(&null, args).map(ToAny::to_any)
 	}
 
-	pub fn qs_at_bool(self, args: Args<'_>) -> Result<AnyValue> {
-		ConvertTo::<Boolean>::convert(&self, args).map(ToAny::to_any)
+	pub fn at_bool(null: Null, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Boolean>::convert(&null, args).map(ToAny::to_any)
 	}
 
-	pub fn qs_inspect(self, args: Args<'_>) -> Result<AnyValue> {
-		self.qs_at_text(args)
+	pub fn dbg(null: Null, args: Args<'_>) -> Result<AnyValue> {
+		at_text(null, args)
 	}
 }
 
-quest_type! {
-	#[derive(Debug, NamedType)]
-	pub struct NullClass(());
+impl InstanceOf for Null {
+	type Parent = NullClass;
 }
 
-singleton_object! { for NullClass, parentof Null;
-	Intern::inspect => method!(qs_inspect),
-	Intern::at_text => method!(qs_at_text),
-	Intern::at_int => method!(qs_at_int),
-	Intern::at_float => method!(qs_at_float),
-	Intern::at_list => method!(qs_at_list),
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct NullClass;
+
+impl Singleton for NullClass {
+	fn instance() -> crate::AnyValue {
+		use once_cell::sync::OnceCell;
+
+		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+
+		*INSTANCE.get_or_init(|| {
+			create_class! { "Null", parent Object::instance();
+				Intern::dbg => method funcs::dbg,
+				Intern::at_text => method funcs::at_text,
+				Intern::at_int => method funcs::at_int,
+				Intern::at_float => method funcs::at_float,
+				Intern::at_bool => method funcs::at_bool,
+				Intern::at_list => method funcs::at_list,
+			}
+		})
+	}
 }
 
 #[cfg(test)]

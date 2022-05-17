@@ -1,4 +1,8 @@
-use crate::value::{AnyValue, Convertible, Value};
+use crate::value::ty::{Singleton, InstanceOf, ConvertTo, Text};
+use crate::value::{AnyValue, Convertible, Value, Gc, ToAny};
+use crate::vm::Args;
+use crate::Result;
+
 pub type Float = f64;
 
 pub const EPSILON: Float = 0.0000000000000008881784197001252;
@@ -27,10 +31,57 @@ unsafe impl Convertible for Float {
 	}
 }
 
-quest_type_attrs! { for Float, parent Object;
-	// "+" => meth qs_add,
-	// "@text" => meth qs_at_text,
+impl ConvertTo<Gc<Text>> for Float {
+	fn convert(&self, args: Args<'_>) -> Result<Gc<Text>> {
+		args.assert_no_arguments()?;
+
+		Ok(Text::from_string(self.to_string()))
+	}
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct FloatClass;
+
+impl Singleton for FloatClass {
+	fn instance() -> crate::AnyValue {
+		use once_cell::sync::OnceCell;
+
+		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+
+		*INSTANCE.get_or_init(|| {
+			create_class! { "Float", parent Object::instance();
+				// Intern::op_add => method funcs::add,
+				// Intern::op_sub => method funcs::sub,
+				// Intern::op_mul => method funcs::mul,
+				// Intern::op_div => method funcs::div,
+				// Intern::op_mod => method funcs::r#mod,
+				// Intern::op_pow => method funcs::pow,
+				// Intern::op_lth => method funcs::lth,
+				// Intern::op_leq => method funcs::leq,
+				// Intern::op_neg => method funcs::neg,
+				Intern::at_text => method funcs::at_text,
+				Intern::dbg => method funcs::dbg,
+			}
+		})
+	}
+}
+
+impl InstanceOf for Float {
+	type Parent = FloatClass;
+}
+
+pub mod funcs {
+	use super::*;
+
+	pub fn at_text(float: Float, args: Args<'_>) -> Result<AnyValue> {
+		ConvertTo::<Gc<Text>>::convert(&float, args).map(ToAny::to_any)
+	}
+
+	pub fn dbg(float: Float, args: Args<'_>) -> Result<AnyValue> {
+		at_text(float, args)
+	}
+}
+
 
 #[cfg(test)]
 mod tests {

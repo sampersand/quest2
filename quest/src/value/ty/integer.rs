@@ -163,6 +163,19 @@ pub mod funcs {
 	pub fn at_text(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		ConvertTo::<Gc<Text>>::convert(&int, args).map(ToAny::to_any)
 	}
+
+	pub fn dbg(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+		at_text(int, args)
+	}
+
+	// pub fn dbg(val: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	// 	if let Some(int) = val.downcast::<Integer>() {
+	// 		dbg_int(int, args)
+	// 	} else if val.is_identical(Integer::parent()) {
+	// 		args.assert_no_arguments()?;
+	// 		Ok(Text::from_string(format!("")).to_any())
+	// 	}
+	// }
 }
 
 // impl crate::value::base::HasDefaultParent for Integer {
@@ -190,6 +203,7 @@ impl Singleton for IntegerClass {
 				Intern::op_leq => method funcs::leq,
 				Intern::op_neg => method funcs::neg,
 				Intern::at_text => method funcs::at_text,
+				Intern::dbg => method funcs::dbg,
 			}
 		})
 	}

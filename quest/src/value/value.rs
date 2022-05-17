@@ -149,8 +149,12 @@ impl AnyValue {
 			_ if self.is_a::<Gc<crate::vm::Block>>() => "Block",
 			_ if self.is_a::<Gc<crate::vm::Frame>>() => "Frame",
 			_ if cfg!(debug_assertions) => panic!("todo: typename for {:?}", self),
-			_ => "unknown",
+			_ => "(Unknown)",
 		}
+	}
+
+	pub fn dbg_text(self) -> Result<Gc<Text>> {
+		self.call_attr(Intern::dbg, Args::default())?.try_downcast::<Gc<Text>>()
 	}
 
 	pub fn is_truthy(self) -> Result<bool> {

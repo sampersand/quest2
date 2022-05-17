@@ -94,7 +94,7 @@ define_interned! {
 	exit
 
 	r#true "true" r#false "false" null
-	inspect print freeze resume restart
+	print freeze resume restart dbg
 	push pop shift unshift dump
 
 	Block Boolean BoundFn Callable Class Float Integer Kernel List Null Object Pristine RustFn Scope Text

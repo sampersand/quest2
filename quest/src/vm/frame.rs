@@ -77,7 +77,9 @@ impl Frame {
 		// do we want? Do we want the outside stackframe to be first or last? and in any case,
 		// this is setting the _block_ itself as the parent, which isn't what we want. how do we
 		// want to register the outer block as the parent?
-		builder.set_parents(List::from_slice(&[gc_block.to_any(), Gc::<Self>::parent()]));
+		// ^^ update: having them like `[gc_block, parent]` means that attribute lookups such as `dbg`
+		// are first found on frame, which is not good.
+		builder.set_parents(List::from_slice(&[Gc::<Self>::parent(), gc_block.to_any()]));
 
 		unsafe {
 			let unnamed_locals = crate::alloc_zeroed::<AnyValue>(locals_layout_for(
@@ -842,11 +844,28 @@ pub mod funcs {
 
 		frame.run()
 	}
+
+	pub fn dbg(frame: Gc<Frame>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		use crate::value::ty::text::SimpleBuilder;
+
+
+		// TODO: maybe cache this in the future?
+		let mut builder = Text::simple_builder();
+		builder.push_str("<Frame:");
+		builder.push_str(&format!("{:p}", frame.to_any().bits() as *const u8));
+		builder.push(':');
+		builder.push_str(&frame.as_ref()?.block.loc.to_string());
+		builder.push('>');
+
+		Ok(builder.finish().to_any())
+	}
 }
 
 quest_type_attrs! { for Gc<Frame>, parents [Kernel, Callable];
 	resume => meth funcs::resume,
 	restart => meth funcs::restart,
+	dbg => meth funcs::dbg,
 	// "+" => meth qs_add,
 	// "@text" => meth qs_at_text,
 }

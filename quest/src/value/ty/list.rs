@@ -422,11 +422,13 @@ quest_type_attrs! { for Gc<List>, parent Object;
 	op_index_assign => meth funcs::index_assign,
 	push => meth funcs::push,
 	unshift => meth funcs::unshift,
+	dbg => meth funcs::dbg,
+	at_text => meth funcs::at_text,
 }
 
 pub mod funcs {
 	use super::*;
-	use crate::value::ty::Integer;
+	use crate::value::ty::{Integer, Text};
 	use crate::value::ToAny;
 	use crate::{vm::Args, Result};
 
@@ -490,5 +492,34 @@ pub mod funcs {
 		list.as_mut()?.unshift(args[0]);
 
 		Ok(list.to_any())
+	}
+
+	pub fn at_text(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+		dbg(list, args)
+	}
+
+	pub fn dbg(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_arguments()?;
+
+		// TODO: implement some form of recursion guards.
+		let listref = list.as_ref()?;
+
+		let (first, rest) = if let Some(ret) = listref.as_slice().split_first() {
+			ret
+		} else {
+			return Ok(Text::from_static_str("[]").to_any());
+		};
+
+		let mut builder = Text::simple_builder();
+		builder.push('[');
+		builder.push_str(&first.dbg_text()?.as_ref()?.as_str());
+
+		for element in rest {
+			builder.push_str(", ");
+			builder.push_str(&element.dbg_text()?.as_ref()?.as_str());
+		}
+
+		builder.push(']');
+		Ok(builder.finish().to_any())
 	}
 }

@@ -391,11 +391,10 @@ impl Text {
 		// SAFETY: TODO
 		let mut alloc = unsafe { &mut builder.inner_mut().alloc };
 
-		alloc.ptr = string.as_ptr() as *mut u8;
 		alloc.len = string.len();
 		alloc.cap = string.capacity();
+		alloc.ptr = Box::into_raw(string.into_boxed_str()).cast::<u8>();
 
-		std::mem::forget(string); // so it doesn't become freed
 		builder.finish()
 	}
 
@@ -1065,6 +1064,12 @@ pub mod funcs {
 
 		Ok(value)
 	}
+
+	pub fn dbg(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_arguments()?;
+
+		Ok(Text::from_string(format!("{:?}", text.as_ref()?.as_str())).to_any())
+	}
 }
 
 quest_type_attrs! { for Gc<Text>,
@@ -1074,6 +1079,7 @@ quest_type_attrs! { for Gc<Text>,
 	op_eql => meth funcs::eql,
 	op_add => meth funcs::add,
 	op_assign => meth funcs::assign,
+	dbg => meth funcs::dbg,
 }
 
 // quest_type! {
