@@ -1,14 +1,14 @@
 pub mod ast;
 mod error;
+pub mod macros;
 mod parser;
-pub mod pattern;
 mod source_location;
 mod stream;
 pub mod token;
 
 pub use error::{Error, ErrorKind, Result};
+pub use macros::Macro;
 pub use parser::Parser;
-pub use pattern::Pattern;
 pub use source_location::SourceLocation;
 pub use stream::Stream;
 pub use token::Token;

@@ -46,8 +46,8 @@ pub enum TokenContents<'a> {
 	LeftParen(ParenType),
 	RightParen(ParenType),
 
-	MacroIdentifier(&'a str),
-	MacroLeftParen(ParenType),
+	MacroIdentifier(usize, &'a str),
+	MacroLeftParen(usize, ParenType),
 }
 
 impl Eq for TokenContents<'_> {}
@@ -70,8 +70,8 @@ impl PartialEq for TokenContents<'_> {
 			(Self::LeftParen(l), Self::LeftParen(r)) => l == r,
 			(Self::RightParen(l), Self::RightParen(r)) => l == r,
 
-			(Self::MacroIdentifier(l), Self::MacroIdentifier(r)) => l == r,
-			(Self::MacroLeftParen(l), Self::MacroLeftParen(r)) => l == r,
+			(Self::MacroIdentifier(ln, l), Self::MacroIdentifier(rn, r)) => ln == rn && l == r,
+			(Self::MacroLeftParen(ln, l), Self::MacroLeftParen(rn, r)) => ln == rn && l == r,
 			_ => false,
 		}
 	}
@@ -209,15 +209,17 @@ impl<'a> TokenContents<'a> {
 
 #[allow(clippy::unnecessary_wraps)]
 fn parse_macro<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
-	let dollar = stream.take();
-	debug_assert_eq!(dollar, Some('$'));
+	let dollars = stream.take_while(|c| c == '$');
+	debug_assert_ne!(dollars, "");
 
 	match stream.peek() {
-		Some('(') => Ok(TokenContents::MacroLeftParen(ParenType::Round)),
-		Some('[') => Ok(TokenContents::MacroLeftParen(ParenType::Square)),
-		Some('{') => Ok(TokenContents::MacroLeftParen(ParenType::Curly)),
-		Some(c) if c.is_alphanumeric() => Ok(TokenContents::MacroIdentifier(take_identifier(stream))),
-		_ => Ok(TokenContents::Symbol("$")),
+		Some('(') => Ok(TokenContents::MacroLeftParen(dollars.len(), ParenType::Round)),
+		Some('[') => Ok(TokenContents::MacroLeftParen(dollars.len(), ParenType::Square)),
+		Some('{') => Ok(TokenContents::MacroLeftParen(dollars.len(), ParenType::Curly)),
+		Some(c) if c.is_alphanumeric() => {
+			Ok(TokenContents::MacroIdentifier(dollars.len(), take_identifier(stream)))
+		},
+		_ => Ok(TokenContents::Symbol(dollars)),
 	}
 }
 

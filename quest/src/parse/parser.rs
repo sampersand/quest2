@@ -1,13 +1,13 @@
-use super::{Error, ErrorKind, Pattern, Result, Stream, /*Plugin,*/ Token};
+use super::{Error, ErrorKind, Macro, /*Pattern, */ Result, Stream, Token};
 use crate::parse::token::TokenContents;
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::path::Path;
-use std::rc::Rc;
+// use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Parser<'a> {
-	// plugins: Vec<Box<u8>>,
-	patterns: HashMap<String, Rc<dyn Pattern<'a>>>,
+	macros: Vec<Macro<'a>>,
+	// patterns: HashMap<String, Rc<dyn Pattern<'a>>>,
 	stream: Stream<'a>,
 	peeked_tokens: Vec<Token<'a>>,
 }
@@ -16,8 +16,8 @@ impl<'a> Parser<'a> {
 	#[must_use]
 	pub fn new(src: &'a str, filename: Option<&'a Path>) -> Self {
 		Self {
-			patterns: HashMap::new(),
-			// plugins: vec![],
+			// patterns: HashMap::new(),
+			macros: vec![],
 			stream: Stream::new(src, filename),
 			peeked_tokens: vec![],
 		}
@@ -27,15 +27,15 @@ impl<'a> Parser<'a> {
 		self.stream.error(kind)
 	}
 
-	// TODO: this doens't take into account optional order of operations _or_ when it was declared.
-	pub fn add_pattern(&mut self, name: String, pattern: Rc<dyn Pattern<'a>>) {
-		self.patterns.insert(name, pattern);
-	}
+	// // TODO: this doens't take into account optional order of operations _or_ when it was declared.
+	// pub fn add_pattern(&mut self, name: String, pattern: Rc<dyn Pattern<'a>>) {
+	// 	self.patterns.insert(name, pattern);
+	// }
 
-	#[must_use]
-	pub fn get_pattern(&self, name: &str) -> Option<Rc<dyn Pattern<'a>>> {
-		self.patterns.get(name).cloned()
-	}
+	// #[must_use]
+	// pub fn get_pattern(&self, name: &str) -> Option<Rc<dyn Pattern<'a>>> {
+	// 	self.patterns.get(name).cloned()
+	// }
 
 	// pub fn plugins(&self) -> &[Box<u8>] {
 	// 	&self.plugins
