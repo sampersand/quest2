@@ -78,28 +78,29 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int + args[0].to_integer()?).to_any())
+		Ok((int + args[0].try_downcast::<Integer>()?).to_any())
 	}
 
 	pub fn sub(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int - args[0].to_integer()?).to_any())
+		Ok((int - args[0].try_downcast::<Integer>()?).to_any())
 	}
 
 	pub fn mul(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int * args[0].to_integer()?).to_any())
+		Ok((int * args[0].try_downcast::<Integer>()?).to_any())
 	}
 
 	pub fn div(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		let denom = args[0].to_integer()?;
+		let denom = args[0].try_downcast::<Integer>()?;
+
 		if denom == 0 {
 			Err("division by zero".to_string().into())
 		} else {
@@ -112,7 +113,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		let denom = args[0].to_integer()?;
+		let denom = args[0].try_downcast::<Integer>()?;
 
 		if denom == 0 {
 			Err("modulo by zero".to_string().into())
@@ -129,7 +130,7 @@ pub mod funcs {
 		if let Some(float) = args[0].downcast::<Float>() {
 			Ok(((int as Float).powf(float)).to_any())
 		} else {
-			let exp = args[0].to_integer()?;
+			let exp = args[0].try_downcast::<Integer>()?;
 
 			Ok(int
 				.pow(
@@ -144,14 +145,14 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int < args[0].to_integer()?).to_any())
+		Ok((int < args[0].try_downcast::<Integer>()?).to_any())
 	}
 
 	pub fn leq(int: Integer, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int <= args[0].to_integer()?).to_any())
+		Ok((int <= args[0].try_downcast::<Integer>()?).to_any())
 	}
 
 	pub fn neg(int: Integer, args: Args<'_>) -> Result<AnyValue> {
