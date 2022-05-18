@@ -1,5 +1,5 @@
-use crate::parser::ast::{Compile, Group};
-use crate::parser::Parser;
+use crate::parse::ast::{Compile, Group};
+use crate::parse::Parser;
 use crate::vm::{
 	block::{Builder, Local},
 	Args,

@@ -36,7 +36,7 @@ pub mod vm;
 #[cfg(test)]
 mod integration_tests;
 
-pub mod parser;
+pub mod parse;
 
 pub use error::{Error, Result};
 pub use value::{AnyValue, Value};

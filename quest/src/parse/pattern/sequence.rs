@@ -1,5 +1,5 @@
-use crate::parser::pattern::{Context, Expandable, Pattern};
-use crate::parser::{Parser, Result};
+use crate::parse::pattern::{Context, Expandable, Pattern};
+use crate::parse::{Parser, Result};
 use std::rc::Rc;
 
 #[derive(Debug)]

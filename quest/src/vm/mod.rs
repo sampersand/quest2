@@ -41,8 +41,8 @@ impl Default for SourceLocation {
 	}
 }
 
-impl From<crate::parser::SourceLocation<'_>> for SourceLocation {
-	fn from(inp: crate::parser::SourceLocation<'_>) -> Self {
+impl From<crate::parse::SourceLocation<'_>> for SourceLocation {
+	fn from(inp: crate::parse::SourceLocation<'_>) -> Self {
 		#[allow(clippy::or_fun_call)] // Path::new is a zero-cost function.
 		let file = inp
 			.filename

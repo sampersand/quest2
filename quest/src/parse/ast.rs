@@ -1,5 +1,5 @@
-use crate::parser::token::TokenContents;
-use crate::parser::{Parser, Result};
+use crate::parse::token::TokenContents;
+use crate::parse::{Parser, Result};
 
 mod assignment;
 mod atom;

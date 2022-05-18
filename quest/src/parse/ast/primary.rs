@@ -1,6 +1,6 @@
 use super::{Atom, AttrAccessKind, Block, Compile, FnArgs};
-use crate::parser::token::{ParenType, TokenContents};
-use crate::parser::{ErrorKind, Parser, Result};
+use crate::parse::token::{ParenType, TokenContents};
+use crate::parse::{ErrorKind, Parser, Result};
 use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]

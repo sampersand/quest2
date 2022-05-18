@@ -1,6 +1,6 @@
 use super::Expression;
-use crate::parser::token::{ParenType, TokenContents};
-use crate::parser::{ErrorKind, Parser, Result};
+use crate::parse::token::{ParenType, TokenContents};
+use crate::parse::{ErrorKind, Parser, Result};
 
 #[derive(Debug)]
 pub struct FnArgs<'a> {
