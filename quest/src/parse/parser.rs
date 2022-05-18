@@ -1,5 +1,5 @@
 use super::{Error, ErrorKind, Pattern, Result, Stream, /*Plugin,*/ Token};
-use crate::parser::token::TokenContents;
+use crate::parse::token::TokenContents;
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;

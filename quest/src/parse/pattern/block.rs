@@ -1,6 +1,6 @@
-use crate::parser::pattern::{Context, Expandable, Pattern};
-use crate::parser::token::{ParenType, TokenContents};
-use crate::parser::{ErrorKind, Parser, Result};
+use crate::parse::pattern::{Context, Expandable, Pattern};
+use crate::parse::token::{ParenType, TokenContents};
+use crate::parse::{ErrorKind, Parser, Result};
 
 #[derive(Debug)]
 pub struct Block;

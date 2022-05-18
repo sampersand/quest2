@@ -1,4 +1,4 @@
-use crate::parser::{Error, ErrorKind, SourceLocation};
+use crate::parse::{Error, ErrorKind, SourceLocation};
 use std::path::Path;
 
 #[derive(Debug)]

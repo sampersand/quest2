@@ -3,8 +3,8 @@
 
 #[macro_use]
 use quest;
-use quest::parser::ast::Compile;
-use quest::parser::{pattern::*, token::*, *};
+use quest::parse::ast::Compile;
+use quest::parse::{pattern::*, token::*, *};
 use quest::value::ty::*;
 use quest::value::*;
 use quest::vm::*;

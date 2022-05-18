@@ -1,6 +1,6 @@
 use super::{Assignment, Compile, Primary};
-use crate::parser::token::TokenContents;
-use crate::parser::{Parser, Result};
+use crate::parse::token::TokenContents;
+use crate::parse::{Parser, Result};
 use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]

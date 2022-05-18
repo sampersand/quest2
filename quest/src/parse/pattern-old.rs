@@ -1,5 +1,5 @@
-use crate::parser::token::{Token, TokenContents};
-use crate::parser::{Parser, Result, ErrorKind};
+use crate::parse::token::{Token, TokenContents};
+use crate::parse::{Parser, Result, ErrorKind};
 
 #[derive(Debug, Clone)]
 pub enum Pattern<'a> {

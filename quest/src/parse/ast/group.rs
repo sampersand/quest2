@@ -1,6 +1,6 @@
 use super::{Compile, Expression};
-use crate::parser::token::{ParenType, TokenContents};
-use crate::parser::{ErrorKind, Parser, Result, SourceLocation};
+use crate::parse::token::{ParenType, TokenContents};
+use crate::parse::{ErrorKind, Parser, Result, SourceLocation};
 use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 use super::{Compile, Group};
-use crate::parser::token::{ParenType, TokenContents};
-use crate::parser::{Parser, Result};
+use crate::parse::token::{ParenType, TokenContents};
+use crate::parse::{Parser, Result};
 use crate::value::ty::{Float, Integer, Text};
 use crate::value::{Gc, ToAny};
 use crate::vm::block::{Builder, Local};

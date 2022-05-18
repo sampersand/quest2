@@ -26,7 +26,7 @@ pub use repeat::Repeat;
 pub use sequence::Sequence;
 pub use symbol::Symbol;
 
-use crate::parser::{Parser, Result};
+use crate::parse::{Parser, Result};
 
 pub trait Pattern<'a>: std::fmt::Debug {
 	fn try_match(&self, parser: &mut Parser<'a>)
@@ -42,7 +42,7 @@ pub trait Expandable<'a>: std::fmt::Debug {
 	fn deconstruct(&self, parser: &mut Parser<'a>);
 }
 
-impl<'a> Expandable<'a> for crate::parser::Token<'a> {
+impl<'a> Expandable<'a> for crate::parse::Token<'a> {
 	fn expand(&self, parser: &mut Parser<'a>, _: Context) {
 		parser.add_back(*self);
 	}

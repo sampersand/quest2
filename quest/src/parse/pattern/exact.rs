@@ -1,6 +1,6 @@
-use crate::parser::pattern::{Expandable, Pattern};
-use crate::parser::token::TokenContents;
-use crate::parser::{Parser, Result};
+use crate::parse::pattern::{Expandable, Pattern};
+use crate::parse::token::TokenContents;
+use crate::parse::{Parser, Result};
 
 #[derive(Debug)]
 pub struct Exact<'a>(pub TokenContents<'a>);
