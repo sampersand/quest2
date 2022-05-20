@@ -47,6 +47,7 @@ pub enum TokenContents<'a> {
 	RightParen(ParenType),
 
 	MacroIdentifier(usize, &'a str),
+	MacroOr(usize),
 	MacroLeftParen(usize, ParenType),
 }
 
@@ -70,8 +71,9 @@ impl PartialEq for TokenContents<'_> {
 			(Self::LeftParen(l), Self::LeftParen(r)) => l == r,
 			(Self::RightParen(l), Self::RightParen(r)) => l == r,
 
-			(Self::MacroIdentifier(ln, l), Self::MacroIdentifier(rn, r)) => ln == rn && l == r,
-			(Self::MacroLeftParen(ln, l), Self::MacroLeftParen(rn, r)) => ln == rn && l == r,
+			(Self::MacroIdentifier(ld, l), Self::MacroIdentifier(rd, r)) => ld == rd && l == r,
+			(Self::MacroOr(ld), Self::MacroOr(rd)) => ld == rd,
+			(Self::MacroLeftParen(ld, l), Self::MacroLeftParen(rd, r)) => ld == rd && l == r,
 			_ => false,
 		}
 	}
@@ -212,12 +214,15 @@ fn parse_macro<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
 	let dollars = stream.take_while(|c| c == '$');
 	debug_assert_ne!(dollars, "");
 
+	let depth = dollars.len() - 1;
+
 	match stream.peek() {
-		Some('(') => Ok(TokenContents::MacroLeftParen(dollars.len(), ParenType::Round)),
-		Some('[') => Ok(TokenContents::MacroLeftParen(dollars.len(), ParenType::Square)),
-		Some('{') => Ok(TokenContents::MacroLeftParen(dollars.len(), ParenType::Curly)),
+		Some('(') => Ok(TokenContents::MacroLeftParen(depth, ParenType::Round)),
+		Some('[') => Ok(TokenContents::MacroLeftParen(depth, ParenType::Square)),
+		Some('{') => Ok(TokenContents::MacroLeftParen(depth, ParenType::Curly)),
+		Some('|') => Ok(TokenContents::MacroOr(depth)),
 		Some(c) if c.is_alphanumeric() => {
-			Ok(TokenContents::MacroIdentifier(dollars.len(), take_identifier(stream)))
+			Ok(TokenContents::MacroIdentifier(depth, take_identifier(stream)))
 		},
 		_ => Ok(TokenContents::Symbol(dollars)),
 	}

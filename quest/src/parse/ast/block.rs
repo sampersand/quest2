@@ -46,7 +46,7 @@ impl<'a> BlockArgs<'a> {
 				return Ok(Some(Self { args: vec![ident] }));
 			}
 
-			parser.add_back(token);
+			parser.untake(token);
 			return Ok(None);
 		}
 
@@ -87,14 +87,14 @@ impl<'a> BlockArgs<'a> {
 				return Ok(Some(Self { args }));
 			}
 
-			parser.add_back(token);
+			parser.untake(token);
 		}
 
 		for token in arg_tokens.into_iter().rev() {
-			parser.add_back(token);
+			parser.untake(token);
 		}
 
-		parser.add_back(left_paren);
+		parser.untake(left_paren);
 		Ok(None)
 	}
 }

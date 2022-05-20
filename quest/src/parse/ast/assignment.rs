@@ -25,7 +25,7 @@ impl<'a> Assignment<'a> {
 		let rhs = if let Some(expr) = Expression::parse(parser)? {
 			expr
 		} else {
-			parser.add_back(token);
+			parser.untake(token);
 			return Ok(Err(primary));
 		};
 

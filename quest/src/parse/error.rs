@@ -20,3 +20,9 @@ pub enum ErrorKind {
 	UnterminatedGroup,
 	Message(String),
 }
+
+impl From<String> for ErrorKind {
+	fn from(inp: String) -> Self {
+		Self::Message(inp)
+	}
+}

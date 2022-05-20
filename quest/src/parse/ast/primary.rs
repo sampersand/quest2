@@ -38,7 +38,7 @@ impl<'a> Primary<'a> {
 				Self::UnaryOp(symbol, Box::new(rhs))
 			} else {
 				// todo: should this be an error or do we put it back?
-				parser.add_back(token);
+				parser.untake(token);
 				return Ok(None);
 			}
 		} else {

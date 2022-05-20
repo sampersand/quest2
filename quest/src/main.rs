@@ -4,7 +4,7 @@
 #[macro_use]
 use quest;
 use quest::parse::ast::Compile;
-use quest::parse::{pattern::*, token::*, *};
+use quest::parse::{token::*, *};
 use quest::value::ty::*;
 use quest::value::*;
 use quest::vm::*;
@@ -45,9 +45,14 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if false {
+	if true {
 		run_code(
 			r#"
+$syntax { $id:ident bar } = { $id - 2 };
+
+x = 10;
+print(x bar);
+__EOF__
 upto_ten = n -> {
 	(n >= 10).then(return);
 	forever.i = forever.i + 1;
