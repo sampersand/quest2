@@ -71,9 +71,7 @@ impl<'a> PatternSequence<'a> {
 		let mut seq = Vec::new();
 
 		while !matches!(parser.peek_bypass_macros()?, Some(Token { contents: TokenContents::MacroOr(0), .. })) {
-			if let Some(atom) = PatternAtom::parse(parser, end)? {
-				seq.push(atom);
-			} else {
+			if !PatternAtom::attempt_to_parse(&mut seq, parser, end)? {
 				break;
 			}
 		}
@@ -107,7 +105,11 @@ impl<'a> PatternKind<'a> {
 }
 
 impl<'a> PatternAtom<'a> {
-	fn parse(parser: &mut Parser<'a>, end: ParenType) -> Result<'a, Option<Self>> {
+			// if !PatternAtom::attempt_to_parse(parser, seq, end)? {
+			// 	break;
+			// }
+
+	fn attempt_to_parse(seq: &mut Vec<Self>, parser: &mut Parser<'a>, end: ParenType) -> Result<'a, bool> {
 		match parser.take_bypass_macros()? {
 			// `$foo` should be followed via `:` and a `kind`
 			Some(Token { contents: TokenContents::MacroIdentifier(0, name), .. }) => {
@@ -116,14 +118,16 @@ impl<'a> PatternAtom<'a> {
 				}
 
 				if let Some(kind) = PatternKind::parse(parser)? {
-					Ok(Some(Self::Capture(name, kind)))
+					seq.push(Self::Capture(name, kind));
+					Ok(true)
 				} else {
 					Err(parser.error("expected macro kind after `:`".to_string().into()))
 				}
 			},
 			Some(Token { contents: TokenContents::MacroLeftParen(0, paren), .. }) => {
 				if let Some(body) = PatternBody::parse(parser, paren)? {
-					Ok(Some(Self::Paren(paren, body)))
+					seq.push(Self::Paren(paren, body));
+					Ok(true)
 				} else {
 					Err(parser.error(format!("expected macro body after $`{:?}`", paren).into()))
 				}
@@ -134,7 +138,7 @@ impl<'a> PatternAtom<'a> {
 			   | token @ Token { contents: TokenContents::MacroLeftParen(..), .. }
 			) => {
 				parser.untake(token);
-				Ok(None)
+				Ok(false)
 			},
 
 			// TODO: handle matched parens so we can have `$syntax { foo { } }` within our code.
@@ -143,12 +147,28 @@ impl<'a> PatternAtom<'a> {
 			// 	Ok(None)
 			// },
 
-			Some(token @ Token { contents: TokenContents::RightParen(rp), .. }) if rp == end=> {
-				parser.untake(token);
-				Ok(None)
+			Some(left @ Token { contents: TokenContents::LeftParen(paren), .. }) => {
+				seq.push(Self::Token(left));
+
+				while Self::attempt_to_parse(seq, parser, paren)? {
+					// do nothing
+				}
+				if let Some(right) = parser.take_if_contents_bypass_macros(TokenContents::RightParen(paren))? {
+					seq.push(Self::Token(right));
+					Ok(true)
+				} else {
+					Err(left.span.start.error("parens in macros must be matched!".to_string().into()))
+				}
 			},
-			Some(token) => Ok(Some(Self::Token(token))),
-			None => Ok(None)
+			Some(token @ Token { contents: TokenContents::RightParen(paren), .. }) if paren == end => {
+				parser.untake(token);
+				Ok(false)
+			},
+			Some(token) => {
+				seq.push(Self::Token(token));
+				Ok(true)
+			},
+			None => Ok(false)
 		}
 	}
 }

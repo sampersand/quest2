@@ -228,15 +228,29 @@ fn dbg_representations() {
 fn basic_macros()  {
 	let result = run_code(r#"
 		$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
-		print(12 3);
-	"#)
-	.unwrap();
-	assert_eq!(result.downcast::<Integer>().unwrap(), 8);
-
-	let result = run_code(r#"
-		$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
-		print(12 3);
+		12 3
 	"#)
 	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), 9);
+
+	let result = run_code(r#"
+		$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
+		12 4
+	"#)
+	.unwrap();
+	assert_eq!(result.downcast::<Integer>().unwrap(), 8);
+}
+
+#[test]
+fn nested_macros() {
+	let result = run_code(r#"
+		$syntax { defn $name:(a $| b) } = {
+			$$syntax { $name } = { 3 - };
+		};
+
+		defn a
+		(a 10) * (a 0)
+	"#)
+	.unwrap();
+	assert_eq!(result.downcast::<Integer>().unwrap(), -21);
 }
