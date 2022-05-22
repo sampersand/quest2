@@ -31,8 +31,8 @@ impl<'a> ReplacementBody<'a> {
 	pub fn parse(parser: &mut Parser<'a>, end: ParenType) -> Result<'a, Self> {
 		let mut body = Vec::new();
 
-		while let Some(atom) = ReplacementAtom::parse(parser, end)? {
-			body.push(atom)
+		while ReplacementAtom::attempt_to_parse(&mut body, parser, end)? {
+			// do
 		}
 
 		if parser.take_if_contents_bypass_macros(TokenContents::RightParen(end))?.is_none() {
@@ -44,34 +44,55 @@ impl<'a> ReplacementBody<'a> {
 }
 
 impl<'a> ReplacementAtom<'a> {
-	pub fn parse(parser: &mut Parser<'a>, end: ParenType) -> Result<'a, Option<Self>> {
+	pub fn attempt_to_parse(seq: &mut Vec<Self>, parser: &mut Parser<'a>, end: ParenType) -> Result<'a, bool> {
 		match parser.take_bypass_macros()? {
 			Some(Token { contents: TokenContents::MacroIdentifier(0, name), .. }) => {
-				Ok(Some(Self::Capture(name)))
+				seq.push(Self::Capture(name));
+				Ok(true)
 			},
 			Some(Token { contents: TokenContents::MacroIdentifier(n, name), span }) => {
-				Ok(Some(Self::Token(Token { contents: TokenContents::MacroIdentifier(n - 1, name), span })))
+				seq.push(Self::Token(Token { contents: TokenContents::MacroIdentifier(n - 1, name), span }));
+				Ok(true)
 			},
 
 			Some(Token { contents: TokenContents::MacroLeftParen(0, paren), .. }) => {
-				Ok(Some(Self::Paren(paren, ReplacementBody::parse(parser, paren)?)))
+				seq.push(Self::Paren(paren, ReplacementBody::parse(parser, paren)?));
+				Ok(true)
 			},
 			Some(Token { contents: TokenContents::MacroLeftParen(n, paren), span }) => {
-				Ok(Some(Self::Token(Token { contents: TokenContents::MacroLeftParen(n - 1, paren), span })))
+				seq.push(Self::Token(Token { contents: TokenContents::MacroLeftParen(n - 1, paren), span }));
+				Ok(true)
 			},
 
-			// TODO: handle matched parens so we can have `$syntax { foo { } }` within our code.
-			// Some(token @ Token { contents: TokenContents::RightParen(rp), .. }) if rp == end=> {
-			// 	parser.untake(token);
-			// 	Ok(None)
-			// },
+			Some(Token { contents: TokenContents::MacroOr(0), .. }) => unreachable!(),
+			Some(Token { contents: TokenContents::MacroOr(n), span }) => {
+				seq.push(Self::Token(Token { contents: TokenContents::MacroOr(n - 1), span }));
+				Ok(true)
+			},
 
-			Some(token @ Token { contents: TokenContents::RightParen(rp), .. }) if rp == end => {
+			Some(left @ Token { contents: TokenContents::LeftParen(paren), .. }) => {
+				seq.push(Self::Token(left));
+
+				while Self::attempt_to_parse(seq, parser, paren)? {
+					// do nothing
+				}
+				if let Some(right) = parser.take_if_contents_bypass_macros(TokenContents::RightParen(paren))? {
+					seq.push(Self::Token(right));
+					Ok(true)
+				} else {
+					Err(left.span.start.error("parens in macros must be matched!".to_string().into()))
+				}
+			},
+
+			Some(token @ Token { contents: TokenContents::RightParen(paren), .. }) if paren == end => {
 				parser.untake(token);
-				Ok(None)
+				Ok(false)
 			},
-			Some(token) => Ok(Some(Self::Token(token))),
-			None => Ok(None)
+			Some(token) => {
+				seq.push(Self::Token(token));
+				Ok(true)
+			},
+			None => Ok(false)
 		}
 	}
 }
