@@ -225,7 +225,7 @@ fn dbg_representations() {
 }
 
 #[test]
-fn basic_macros()  {
+fn basic_syntax()  {
 	let result = run_code(r#"
 		$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
 		12 3
@@ -242,7 +242,7 @@ fn basic_macros()  {
 }
 
 #[test]
-fn nested_macros() {
+fn nested_syntax() {
 	let result = run_code(r#"
 		$syntax { defn $name:(a $| b) } = {
 			$$syntax { $name } = { 3 - };

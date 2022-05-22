@@ -10,7 +10,7 @@ replacement-atom
   | '$'+[ pattern-body ']'
   | '$'+( pattern-body ')'
   | '$'+{ pattern-body '}'
-  | (? any non-macro token ?)
+  | (? any non-syntax token ?)
   ;
 */
 
@@ -32,10 +32,10 @@ impl<'a> ReplacementBody<'a> {
 		let mut body = Vec::new();
 
 		while ReplacementAtom::attempt_to_parse(&mut body, parser, end)? {
-			// do
+			// do nothing
 		}
 
-		if parser.take_if_contents_bypass_macros(TokenContents::RightParen(end))?.is_none() {
+		if parser.take_if_contents_bypass_syntax(TokenContents::RightParen(end))?.is_none() {
 			return Err(parser.error(format!("expected `{:?}` after replacement body", end).into()));
 		}
 
@@ -45,28 +45,28 @@ impl<'a> ReplacementBody<'a> {
 
 impl<'a> ReplacementAtom<'a> {
 	pub fn attempt_to_parse(seq: &mut Vec<Self>, parser: &mut Parser<'a>, end: ParenType) -> Result<'a, bool> {
-		match parser.take_bypass_macros()? {
-			Some(Token { contents: TokenContents::MacroIdentifier(0, name), .. }) => {
+		match parser.take_bypass_syntax()? {
+			Some(Token { contents: TokenContents::SyntaxIdentifier(0, name), .. }) => {
 				seq.push(Self::Capture(name));
 				Ok(true)
 			},
-			Some(Token { contents: TokenContents::MacroIdentifier(n, name), span }) => {
-				seq.push(Self::Token(Token { contents: TokenContents::MacroIdentifier(n - 1, name), span }));
+			Some(Token { contents: TokenContents::SyntaxIdentifier(n, name), span }) => {
+				seq.push(Self::Token(Token { contents: TokenContents::SyntaxIdentifier(n - 1, name), span }));
 				Ok(true)
 			},
 
-			Some(Token { contents: TokenContents::MacroLeftParen(0, paren), .. }) => {
+			Some(Token { contents: TokenContents::SyntaxLeftParen(0, paren), .. }) => {
 				seq.push(Self::Paren(paren, ReplacementBody::parse(parser, paren)?));
 				Ok(true)
 			},
-			Some(Token { contents: TokenContents::MacroLeftParen(n, paren), span }) => {
-				seq.push(Self::Token(Token { contents: TokenContents::MacroLeftParen(n - 1, paren), span }));
+			Some(Token { contents: TokenContents::SyntaxLeftParen(n, paren), span }) => {
+				seq.push(Self::Token(Token { contents: TokenContents::SyntaxLeftParen(n - 1, paren), span }));
 				Ok(true)
 			},
 
-			Some(Token { contents: TokenContents::MacroOr(0), .. }) => unreachable!(),
-			Some(Token { contents: TokenContents::MacroOr(n), span }) => {
-				seq.push(Self::Token(Token { contents: TokenContents::MacroOr(n - 1), span }));
+			Some(Token { contents: TokenContents::SyntaxOr(0), .. }) => unreachable!(),
+			Some(Token { contents: TokenContents::SyntaxOr(n), span }) => {
+				seq.push(Self::Token(Token { contents: TokenContents::SyntaxOr(n - 1), span }));
 				Ok(true)
 			},
 
@@ -76,11 +76,11 @@ impl<'a> ReplacementAtom<'a> {
 				while Self::attempt_to_parse(seq, parser, paren)? {
 					// do nothing
 				}
-				if let Some(right) = parser.take_if_contents_bypass_macros(TokenContents::RightParen(paren))? {
+				if let Some(right) = parser.take_if_contents_bypass_syntax(TokenContents::RightParen(paren))? {
 					seq.push(Self::Token(right));
 					Ok(true)
 				} else {
-					Err(left.span.start.error("parens in macros must be matched!".to_string().into()))
+					Err(left.span.start.error("parens in syntax must be matched!".to_string().into()))
 				}
 			},
 
@@ -100,7 +100,7 @@ impl<'a> ReplacementAtom<'a> {
 
 impl<'a> Replacement<'a> {
 	pub fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
-		if parser.take_if_contents_bypass_macros(TokenContents::LeftParen(ParenType::Curly))?.is_none() {
+		if parser.take_if_contents_bypass_syntax(TokenContents::LeftParen(ParenType::Curly))?.is_none() {
 			return Ok(None);
 		}
 
@@ -127,7 +127,7 @@ impl<'a> ReplacementBody<'a> {
 
 impl<'a> ReplacementAtom<'a> {
 	fn replace(&self, matches: &mut PatternMatches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
-		// TODO: remove 1 from every macro token here.
+		// TODO: remove 1 from every syntax token here.
 
 		match self {
 			Self::Token(token) => {
@@ -136,7 +136,7 @@ impl<'a> ReplacementAtom<'a> {
 			},
 			Self::Capture(name) => {
 				let captures = matches.capture(name)
-					.ok_or_else(|| parser.error(format!("macro variable ${} never matched", name).into()))?;
+					.ok_or_else(|| parser.error(format!("syntax variable ${} never matched", name).into()))?;
 
 				for capture in captures {
 					parser.untake_tokens(capture.all_tokens().iter().copied());

@@ -15,7 +15,7 @@ pattern-atom
   | '$'*( pattern-body ')' (* note that non-`$` braces have to be matched *)
   | '$'*[ pattern-body ']'
   | '$'*{ pattern-body '}'
-  | (? any non-macro token ?)
+  | (? any non-syntax token ?)
   ;
 pattern-kind := ident | '(' pattern-body ')' ;
 */
@@ -50,7 +50,7 @@ impl<'a> PatternBody<'a> {
 				return Ok(None)
 			};
 
-		while parser.take_if_contents_bypass_macros(TokenContents::MacroOr(0))?.is_some() {
+		while parser.take_if_contents_bypass_syntax(TokenContents::SyntaxOr(0))?.is_some() {
 			if let Some(seq) = PatternSequence::parse(parser, end)? {
 				body.push(seq);
 			} else {
@@ -58,7 +58,7 @@ impl<'a> PatternBody<'a> {
 			}
 		}
 
-		if parser.take_if_contents_bypass_macros(TokenContents::RightParen(end))?.is_none() {
+		if parser.take_if_contents_bypass_syntax(TokenContents::RightParen(end))?.is_none() {
 			return Err(parser.error(format!("expected `{:?}` after pattern body", end).into()));
 		}
 
@@ -70,7 +70,7 @@ impl<'a> PatternSequence<'a> {
 	fn parse(parser: &mut Parser<'a>, end: ParenType) -> Result<'a, Option<Self>> {
 		let mut seq = Vec::new();
 
-		while !matches!(parser.peek_bypass_macros()?, Some(Token { contents: TokenContents::MacroOr(0), .. })) {
+		while !matches!(parser.peek_bypass_syntax()?, Some(Token { contents: TokenContents::SyntaxOr(0), .. })) {
 			if !PatternAtom::attempt_to_parse(&mut seq, parser, end)? {
 				break;
 			}
@@ -86,7 +86,7 @@ impl<'a> PatternSequence<'a> {
 
 impl<'a> PatternKind<'a> {
 	fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
-		match parser.take_bypass_macros()? {
+		match parser.take_bypass_syntax()? {
 			Some(Token { contents: TokenContents::Identifier(name), .. }) => Ok(Some(Self::Name(name))),
 			Some(Token { contents: TokenContents::LeftParen(paren), .. }) => {
 				if let Some(body) = PatternBody::parse(parser, paren)? {
@@ -105,37 +105,33 @@ impl<'a> PatternKind<'a> {
 }
 
 impl<'a> PatternAtom<'a> {
-			// if !PatternAtom::attempt_to_parse(parser, seq, end)? {
-			// 	break;
-			// }
-
 	fn attempt_to_parse(seq: &mut Vec<Self>, parser: &mut Parser<'a>, end: ParenType) -> Result<'a, bool> {
-		match parser.take_bypass_macros()? {
+		match parser.take_bypass_syntax()? {
 			// `$foo` should be followed via `:` and a `kind`
-			Some(Token { contents: TokenContents::MacroIdentifier(0, name), .. }) => {
-				if parser.take_if_contents_bypass_macros(TokenContents::Symbol(":"))?.is_none() {
-					return Err(parser.error("you must put a `:` after a macro name".to_string().into()));
+			Some(Token { contents: TokenContents::SyntaxIdentifier(0, name), .. }) => {
+				if parser.take_if_contents_bypass_syntax(TokenContents::Symbol(":"))?.is_none() {
+					return Err(parser.error("you must put a `:` after a syntax name".to_string().into()));
 				}
 
 				if let Some(kind) = PatternKind::parse(parser)? {
 					seq.push(Self::Capture(name, kind));
 					Ok(true)
 				} else {
-					Err(parser.error("expected macro kind after `:`".to_string().into()))
+					Err(parser.error("expected syntax kind after `:`".to_string().into()))
 				}
 			},
-			Some(Token { contents: TokenContents::MacroLeftParen(0, paren), .. }) => {
+			Some(Token { contents: TokenContents::SyntaxLeftParen(0, paren), .. }) => {
 				if let Some(body) = PatternBody::parse(parser, paren)? {
 					seq.push(Self::Paren(paren, body));
 					Ok(true)
 				} else {
-					Err(parser.error(format!("expected macro body after $`{:?}`", paren).into()))
+					Err(parser.error(format!("expected syntax body after $`{:?}`", paren).into()))
 				}
 			},
 
-			Some(token @ Token { contents: TokenContents::MacroIdentifier(..), .. }
-			   | token @ Token { contents: TokenContents::MacroOr(..), .. }
-			   | token @ Token { contents: TokenContents::MacroLeftParen(..), .. }
+			Some(token @ Token { contents: TokenContents::SyntaxIdentifier(..), .. }
+			   | token @ Token { contents: TokenContents::SyntaxOr(..), .. }
+			   | token @ Token { contents: TokenContents::SyntaxLeftParen(..), .. }
 			) => {
 				parser.untake(token);
 				Ok(false)
@@ -153,11 +149,12 @@ impl<'a> PatternAtom<'a> {
 				while Self::attempt_to_parse(seq, parser, paren)? {
 					// do nothing
 				}
-				if let Some(right) = parser.take_if_contents_bypass_macros(TokenContents::RightParen(paren))? {
+
+				if let Some(right) = parser.take_if_contents_bypass_syntax(TokenContents::RightParen(paren))? {
 					seq.push(Self::Token(right));
 					Ok(true)
 				} else {
-					Err(left.span.start.error("parens in macros must be matched!".to_string().into()))
+					Err(left.span.start.error("parens in syntaxes must be matched!".to_string().into()))
 				}
 			},
 			Some(token @ Token { contents: TokenContents::RightParen(paren), .. }) if paren == end => {
@@ -175,7 +172,7 @@ impl<'a> PatternAtom<'a> {
 
 impl<'a> Pattern<'a> {
 	pub fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
-		if parser.take_if_contents_bypass_macros(TokenContents::LeftParen(ParenType::Curly))?.is_none() {
+		if parser.take_if_contents_bypass_syntax(TokenContents::LeftParen(ParenType::Curly))?.is_none() {
 			return Ok(None);
 		}
 
@@ -183,7 +180,7 @@ impl<'a> Pattern<'a> {
 			if let Some(body) = PatternBody::parse(parser, ParenType::Curly)? {
 				body
 			} else {
-				return Err(parser.error("you cannot create empty macro matches".to_string().into()));
+				return Err(parser.error("you cannot create empty syntax matches".to_string().into()));
 			};
 
 		Ok(Some(Self(body)))
@@ -233,7 +230,7 @@ impl<'a> PatternAtom<'a> {
 				if let Some(new_matches) = body.matches(parser)? {
 					let x = matches.captures.insert(name, vec![new_matches]);
 					if x.is_some() {
-						panic!("duplicate macro encountered. (todo, error?)");
+						panic!("duplicate syntax encountered. (todo, error?)");
 					}
 					Ok(true)
 				} else {
@@ -243,7 +240,7 @@ impl<'a> PatternAtom<'a> {
 			Self::Capture(_, _) => todo!(),
 			Self::Paren(_, _) => todo!(),
 			Self::Token(token) => {
-				if let Some(token) = parser.take_if_contents_bypass_macros(token.contents)? {
+				if let Some(token) = parser.take_if_contents_bypass_syntax(token.contents)? {
 					matches.all_tokens.push(token);
 					Ok(true)
 				} else {

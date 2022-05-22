@@ -12,14 +12,14 @@ pub const MAX_PRIORITY: Priority = 100;
 pub const DEFAULT_PRIORITY: Priority = MAX_PRIORITY / 2;
 
 #[derive(Debug)]
-pub struct Macro<'a> {
+pub struct Syntax<'a> {
 	group: Option<&'a str>,
 	priority: Priority,
 	pattern: Pattern<'a>,
 	replacement: Replacement<'a>,
 }
 
-impl<'a> Macro<'a> {
+impl<'a> Syntax<'a> {
 	pub fn group(&self) -> Option<&'a str> {
 		self.group
 	}
@@ -29,8 +29,8 @@ impl<'a> Macro<'a> {
 	}
 
 	pub fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
-		match parser.take_bypass_macros()? {
-			Some(Token { contents: TokenContents::MacroIdentifier(0, "syntax"), .. }) => {},
+		match parser.take_bypass_syntax()? {
+			Some(Token { contents: TokenContents::SyntaxIdentifier(0, "syntax"), .. }) => {},
 			Some(token) => {
 				parser.untake(token);
 				return Ok(None)
