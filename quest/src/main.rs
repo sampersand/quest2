@@ -45,9 +45,19 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if true {
+	if false {
 		run_code(
 			r#"
+
+#$syntax { defn $name:(a $| b) } = {
+#	$$syntax { $name } = { 3 * }; # <-- doesnt work rn cause of nested {}
+
+$syntax { doit $bar:(0 $| 2 $| 4 $| 6 $| 8) } = { print('Even!') };
+$syntax { doit $bar:(1 $| 3 $| 5 $| 7 $| 9) } = { print('Odd!') };
+doit 1;
+doit 8;
+doit 9;
+
 $syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
 print(12 3);
 __EOF__

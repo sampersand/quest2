@@ -47,15 +47,20 @@ impl<'a> Group<'a> {
 		let mut statements = Vec::new();
 		let mut end_in_semicolon = false;
 
-		while !parser.is_eof()? {
+		loop {
 			while parser.take_if_contents(TokenContents::Semicolon)?.is_some() {
 				// remove leading semicolons
+			}
+
+			if parser.is_eof()? {
+				break;
 			}
 
 			if let Some(statement) = Statement::parse(parser)? {
 				statements.push(statement);
 			} else {
 				let token = parser.peek()?;
+
 				return Err(
 					parser.error(ErrorKind::Message(format!("expected expression got {token:?}"))),
 				);

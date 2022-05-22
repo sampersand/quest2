@@ -121,11 +121,6 @@ impl<'a> PatternAtom<'a> {
 					Err(parser.error("expected macro kind after `:`".to_string().into()))
 				}
 			},
-			// `$$foo` and higher gets parsed as `$foo`.
-			Some(Token { contents: TokenContents::MacroIdentifier(n, name), span }) => {
-				Ok(Some(Self::Token(Token { contents: TokenContents::MacroIdentifier(n - 1, name), span })))
-			},
-
 			Some(Token { contents: TokenContents::MacroLeftParen(0, paren), .. }) => {
 				if let Some(body) = PatternBody::parse(parser, paren)? {
 					Ok(Some(Self::Paren(paren, body)))
@@ -133,8 +128,13 @@ impl<'a> PatternAtom<'a> {
 					Err(parser.error(format!("expected macro body after $`{:?}`", paren).into()))
 				}
 			},
-			Some(Token { contents: TokenContents::MacroLeftParen(n, paren), span }) => {
-				Ok(Some(Self::Token(Token { contents: TokenContents::MacroLeftParen(n - 1, paren), span })))
+
+			Some(token @ Token { contents: TokenContents::MacroIdentifier(..), .. }
+			   | token @ Token { contents: TokenContents::MacroOr(..), .. }
+			   | token @ Token { contents: TokenContents::MacroLeftParen(..), .. }
+			) => {
+				parser.untake(token);
+				Ok(None)
 			},
 
 			// TODO: handle matched parens so we can have `$syntax { foo { } }` within our code.

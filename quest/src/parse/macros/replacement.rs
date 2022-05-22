@@ -96,7 +96,7 @@ impl<'a> Replacement<'a> {
 
 impl<'a> ReplacementBody<'a> {
 	fn replace(&self, matches: &mut PatternMatches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
-		for atom in self.0.iter() {
+		for atom in self.0.iter().rev() {
 			atom.replace(matches, parser)?;
 		}
 
@@ -106,6 +106,8 @@ impl<'a> ReplacementBody<'a> {
 
 impl<'a> ReplacementAtom<'a> {
 	fn replace(&self, matches: &mut PatternMatches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
+		// TODO: remove 1 from every macro token here.
+
 		match self {
 			Self::Token(token) => {
 				parser.untake(*token);

@@ -217,10 +217,22 @@ fn parse_macro<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
 	let depth = dollars.len() - 1;
 
 	match stream.peek() {
-		Some('(') => Ok(TokenContents::MacroLeftParen(depth, ParenType::Round)),
-		Some('[') => Ok(TokenContents::MacroLeftParen(depth, ParenType::Square)),
-		Some('{') => Ok(TokenContents::MacroLeftParen(depth, ParenType::Curly)),
-		Some('|') => Ok(TokenContents::MacroOr(depth)),
+		Some('(') => {
+			stream.take();
+			Ok(TokenContents::MacroLeftParen(depth, ParenType::Round))
+		},
+		Some('[') => {
+			stream.take();
+			Ok(TokenContents::MacroLeftParen(depth, ParenType::Square))
+		},
+		Some('{') => {
+			stream.take();
+			Ok(TokenContents::MacroLeftParen(depth, ParenType::Curly))
+		},
+		Some('|') => {
+			stream.take();
+			Ok(TokenContents::MacroOr(depth))
+		},
 		Some(c) if c.is_alphanumeric() => {
 			Ok(TokenContents::MacroIdentifier(depth, take_identifier(stream)))
 		},
