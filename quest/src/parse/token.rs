@@ -46,9 +46,9 @@ pub enum TokenContents<'a> {
 	LeftParen(ParenType),
 	RightParen(ParenType),
 
-	MacroIdentifier(usize, &'a str),
-	MacroOr(usize),
-	MacroLeftParen(usize, ParenType),
+	SyntaxIdentifier(usize, &'a str),
+	SyntaxOr(usize),
+	SyntaxLeftParen(usize, ParenType),
 }
 
 impl Eq for TokenContents<'_> {}
@@ -71,9 +71,9 @@ impl PartialEq for TokenContents<'_> {
 			(Self::LeftParen(l), Self::LeftParen(r)) => l == r,
 			(Self::RightParen(l), Self::RightParen(r)) => l == r,
 
-			(Self::MacroIdentifier(ld, l), Self::MacroIdentifier(rd, r)) => ld == rd && l == r,
-			(Self::MacroOr(ld), Self::MacroOr(rd)) => ld == rd,
-			(Self::MacroLeftParen(ld, l), Self::MacroLeftParen(rd, r)) => ld == rd && l == r,
+			(Self::SyntaxIdentifier(ld, l), Self::SyntaxIdentifier(rd, r)) => ld == rd && l == r,
+			(Self::SyntaxOr(ld), Self::SyntaxOr(rd)) => ld == rd,
+			(Self::SyntaxLeftParen(ld, l), Self::SyntaxLeftParen(rd, r)) => ld == rd && l == r,
 			_ => false,
 		}
 	}
@@ -201,7 +201,7 @@ impl<'a> TokenContents<'a> {
 			chr if chr.is_ascii_digit() => parse_number(stream, false),
 			// '-' | '+' if stream.peek2().map_or(false, |c| c.is_ascii_digit()) => parse_number(stream),
 			'\'' | '"' => parse_text(stream),
-			'$' => parse_macro(stream),
+			'$' => parse_syntax(stream),
 			chr if chr.is_alphabetic() || chr == '_' => Ok(Self::Identifier(take_identifier(stream))),
 			chr if is_symbol_char(chr) => Ok(Self::Symbol(stream.take_while(is_symbol_char))),
 			other => Err(stream.error(ErrorKind::UnknownTokenStart(other))),
@@ -210,7 +210,7 @@ impl<'a> TokenContents<'a> {
 }
 
 #[allow(clippy::unnecessary_wraps)]
-fn parse_macro<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
+fn parse_syntax<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
 	let dollars = stream.take_while(|c| c == '$');
 	debug_assert_ne!(dollars, "");
 
@@ -219,22 +219,22 @@ fn parse_macro<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
 	match stream.peek() {
 		Some('(') => {
 			stream.take();
-			Ok(TokenContents::MacroLeftParen(depth, ParenType::Round))
+			Ok(TokenContents::SyntaxLeftParen(depth, ParenType::Round))
 		},
 		Some('[') => {
 			stream.take();
-			Ok(TokenContents::MacroLeftParen(depth, ParenType::Square))
+			Ok(TokenContents::SyntaxLeftParen(depth, ParenType::Square))
 		},
 		Some('{') => {
 			stream.take();
-			Ok(TokenContents::MacroLeftParen(depth, ParenType::Curly))
+			Ok(TokenContents::SyntaxLeftParen(depth, ParenType::Curly))
 		},
 		Some('|') => {
 			stream.take();
-			Ok(TokenContents::MacroOr(depth))
+			Ok(TokenContents::SyntaxOr(depth))
 		},
 		Some(c) if c.is_alphanumeric() => {
-			Ok(TokenContents::MacroIdentifier(depth, take_identifier(stream)))
+			Ok(TokenContents::SyntaxIdentifier(depth, take_identifier(stream)))
 		},
 		_ => Ok(TokenContents::Symbol(dollars)),
 	}
