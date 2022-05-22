@@ -1,5 +1,6 @@
 use crate::parse::token::{Token, TokenContents, ParenType};
 use crate::parse::{Parser, Result};
+use std::collections::HashMap;
 /*
 
 (*
@@ -43,8 +44,7 @@ enum PatternAtom<'a> {
 
 impl<'a> PatternBody<'a> {
 	fn parse(parser: &mut Parser<'a>, end: ParenType) -> Result<'a, Option<Self>> {
-		let mut body = Vec::new();
-			if let Some(seq) = PatternSequence::parse(parser, end)? {
+		let mut body = if let Some(seq) = PatternSequence::parse(parser, end)? {
 				vec![seq]
 			} else {
 				return Ok(None)
@@ -153,7 +153,6 @@ impl<'a> PatternAtom<'a> {
 	}
 }
 
-
 impl<'a> Pattern<'a> {
 	pub fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
 		if parser.take_if_contents_bypass_macros(TokenContents::LeftParen(ParenType::Curly))?.is_none() {
@@ -171,15 +170,76 @@ impl<'a> Pattern<'a> {
 	}
 }
 
+#[derive(Debug, Default)]
+pub struct PatternMatches<'a> {
+	all_tokens: Vec<Token<'a>>,
+	captures: HashMap<&'a str, Vec<PatternMatches<'a>>>,
+}
 
 impl<'a> Pattern<'a> {
-	pub fn match_pattern(&self, parser: &mut Parser<'a>) -> Result<'a, Option<PatternMatch<'a>>> {
-		let _ = parser;
-		todo!();
+	pub fn matches(&self, parser: &mut Parser<'a>) -> Result<'a, Option<PatternMatches<'a>>> {
+		self.0.matches(parser)
 	}
 }
 
-#[derive(Debug)]
-pub struct PatternMatch<'a> {
-	_x: &'a ()
+impl<'a> PatternBody<'a> {
+	fn matches(&self, parser: &mut Parser<'a>) -> Result<'a, Option<PatternMatches<'a>>> {
+		self.0
+			.iter()
+			.find_map(|sequence| sequence.matches(parser).transpose())
+			.transpose()
+	}
+}
+
+impl<'a> PatternSequence<'a> {
+	fn matches(&self, parser: &mut Parser<'a>) -> Result<'a, Option<PatternMatches<'a>>> {
+		let mut matches = PatternMatches::default();
+
+		for atom in &self.0 {
+			if !atom.does_match(&mut matches, parser)? {
+				parser.untake_tokens(matches.all_tokens);
+				return Ok(None)
+			}
+		}
+
+		Ok(Some(matches))
+	}
+}
+
+impl<'a> PatternAtom<'a> {
+	fn does_match(&self, matches: &mut PatternMatches<'a>, parser: &mut Parser<'a>) -> Result<'a, bool> {
+		match self {
+			Self::Capture(name, PatternKind::Body(ParenType::Round, body)) => {
+				if let Some(new_matches) = body.matches(parser)? {
+					let x = matches.captures.insert(name, vec![new_matches]);
+					if x.is_some() {
+						panic!("duplicate macro encountered. (todo, error?)");
+					}
+					Ok(true)
+				} else {
+					Ok(false)
+				}
+			},
+			Self::Capture(_, _) => todo!(),
+			Self::Paren(_, _) => todo!(),
+			Self::Token(token) => {
+				if let Some(token) = parser.take_if_contents_bypass_macros(token.contents)? {
+					matches.all_tokens.push(token);
+					Ok(true)
+				} else {
+					Ok(false)
+				}
+			},
+		}
+	}
+}
+
+impl<'a> PatternMatches<'a> {
+	pub fn all_tokens(&self) -> &[Token<'a>] {
+		&self.all_tokens
+	}
+
+	pub fn capture(&self, name: &str) -> Option<&[PatternMatches<'a>]> {
+		self.captures.get(name).map(Vec::as_slice)
+	}
 }

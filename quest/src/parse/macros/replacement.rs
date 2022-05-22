@@ -1,6 +1,6 @@
 use crate::parse::token::{Token, TokenContents, ParenType};
 use crate::parse::{Parser, Result};
-use super::pattern::PatternMatch;
+use super::pattern::PatternMatches;
 
 /*
 replacements := '{' replacement-body '}'
@@ -89,8 +89,42 @@ impl<'a> Replacement<'a> {
 }
 
 impl<'a> Replacement<'a> {
-	pub fn replace(&self, matches: PatternMatch<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
-		let _ = (matches, parser);
-		todo!();
+	pub fn replace(&self, mut matches: PatternMatches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
+		self.0.replace(&mut matches, parser)
 	}
 }
+
+impl<'a> ReplacementBody<'a> {
+	fn replace(&self, matches: &mut PatternMatches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
+		for atom in self.0.iter() {
+			atom.replace(matches, parser)?;
+		}
+
+		Ok(())
+	}
+}
+
+impl<'a> ReplacementAtom<'a> {
+	fn replace(&self, matches: &mut PatternMatches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
+		match self {
+			Self::Token(token) => {
+				parser.untake(*token);
+				Ok(())
+			},
+			Self::Capture(name) => {
+				let captures = matches.capture(name)
+					.ok_or_else(|| parser.error(format!("macro variable ${} never matched", name).into()))?;
+
+				for capture in captures {
+					parser.untake_tokens(capture.all_tokens().iter().copied());
+				}
+
+				Ok(())
+			},
+			Self::Paren(_kind, _body) => {
+				todo!()
+			},
+		}
+	}
+}
+

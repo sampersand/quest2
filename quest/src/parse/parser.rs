@@ -46,6 +46,14 @@ impl<'a> Parser<'a> {
 		self.peeked_tokens.push(token);
 	}
 
+	pub fn untake_tokens<I>(&mut self, tokens: I)
+	where
+		I: IntoIterator<Item=Token<'a>>,
+		I::IntoIter: DoubleEndedIterator
+	{
+		self.peeked_tokens.extend(tokens.into_iter().rev());
+	}
+
 	pub fn take(&mut self) -> Result<'a, Option<Token<'a>>> {
 		self.expand_macros()?;
 		self.take_bypass_macros()

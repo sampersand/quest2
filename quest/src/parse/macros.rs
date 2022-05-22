@@ -82,7 +82,7 @@ impl<'a> Macro<'a> {
 	}
 
 	pub fn replace(&self, parser: &mut Parser<'a>) -> Result<'a, bool> {
-		if let Some(matches) = self.pattern.match_pattern(parser)? {
+		if let Some(matches) = self.pattern.matches(parser)? {
 			self.replacement.replace(matches, parser)?;
 			Ok(true)
 		} else {

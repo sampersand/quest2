@@ -48,10 +48,8 @@ fn main() {
 	if true {
 		run_code(
 			r#"
-$syntax { $id:ident bar } = { $id - 2 };
-
-x = 10;
-print(x bar);
+$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
+print(12 3);
 __EOF__
 upto_ten = n -> {
 	(n >= 10).then(return);
