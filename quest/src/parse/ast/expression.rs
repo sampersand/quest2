@@ -40,7 +40,7 @@ impl<'a> Expression<'a> {
 			}
 
 			// todo: should this be an error?
-			parser.add_back(token);
+			parser.untake(token);
 		}
 
 		Ok(Some(Self::Primary(primary)))

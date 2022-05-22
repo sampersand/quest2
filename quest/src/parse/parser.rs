@@ -1,45 +1,36 @@
-use super::{Error, ErrorKind, Pattern, Result, Stream, /*Plugin,*/ Token};
+use super::{Error, ErrorKind, Result, Stream, Token};
+use crate::parse::macros::{Macro, MAX_PRIORITY};
 use crate::parse::token::TokenContents;
-use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Parser<'a> {
-	// plugins: Vec<Box<u8>>,
-	patterns: HashMap<String, Rc<dyn Pattern<'a>>>,
+	macros: [Vec<Rc<Macro<'a>>>; MAX_PRIORITY + 1], // `+1` because `MAX_PRIORITY` is still a valid priority
 	stream: Stream<'a>,
 	peeked_tokens: Vec<Token<'a>>,
 }
 
 impl<'a> Parser<'a> {
 	#[must_use]
-	pub fn new(src: &'a str, filename: Option<&'a Path>) -> Self {
+	pub const fn new(src: &'a str, filename: Option<&'a Path>) -> Self {
+		const EMPTY_VEC: Vec<Rc<Macro<'static>>> = Vec::new();
+
 		Self {
-			patterns: HashMap::new(),
-			// plugins: vec![],
+			macros: [EMPTY_VEC; MAX_PRIORITY + 1],
 			stream: Stream::new(src, filename),
-			peeked_tokens: vec![],
+			peeked_tokens: Vec::new(),
 		}
 	}
 
 	pub fn error(&self, kind: ErrorKind) -> Error<'a> {
-		self.stream.error(kind)
+		self.stream.error(kind.into())
 	}
 
 	// TODO: this doens't take into account optional order of operations _or_ when it was declared.
-	pub fn add_pattern(&mut self, name: String, pattern: Rc<dyn Pattern<'a>>) {
-		self.patterns.insert(name, pattern);
+	pub fn add_macro(&mut self, mac: Macro<'a>) {
+		self.macros[MAX_PRIORITY - mac.priority()].push(Rc::new(mac));
 	}
-
-	#[must_use]
-	pub fn get_pattern(&self, name: &str) -> Option<Rc<dyn Pattern<'a>>> {
-		self.patterns.get(name).cloned()
-	}
-
-	// pub fn plugins(&self) -> &[Box<u8>] {
-	// 	&self.plugins
-	// }
 
 	#[must_use]
 	pub fn stream(&self) -> &Stream<'a> {
@@ -51,15 +42,24 @@ impl<'a> Parser<'a> {
 		self.stream.location()
 	}
 
-	pub fn add_back(&mut self, token: Token<'a>) {
+	pub fn untake(&mut self, token: Token<'a>) {
 		self.peeked_tokens.push(token);
 	}
 
-	pub fn take(&mut self) -> Result<'a, Option<Token<'a>>> {
-		self.advance()
+	pub fn untake_tokens<I>(&mut self, tokens: I)
+	where
+		I: IntoIterator<Item=Token<'a>>,
+		I::IntoIter: DoubleEndedIterator
+	{
+		self.peeked_tokens.extend(tokens.into_iter().rev());
 	}
 
-	pub fn advance(&mut self) -> Result<'a, Option<Token<'a>>> {
+	pub fn take(&mut self) -> Result<'a, Option<Token<'a>>> {
+		self.expand_macros()?;
+		self.take_bypass_macros()
+	}
+
+	pub fn take_bypass_macros(&mut self) -> Result<'a, Option<Token<'a>>> {
 		if let Some(token) = self.peeked_tokens.pop() {
 			Ok(Some(token))
 		} else {
@@ -71,7 +71,29 @@ impl<'a> Parser<'a> {
 		Ok(self.peek()?.is_none())
 	}
 
+	fn expand_macros(&mut self) -> Result<'a, ()> {
+		for i in 0..self.macros.len() {
+			for j in 0..self.macros[i].len() {
+				if self.macros[i][j].clone().replace(self)? {
+					return self.expand_macros();
+				}
+			}
+		}
+
+		if let Some(mac) = Macro::parse(self)? {
+			self.add_macro(mac);
+			return self.expand_macros();
+		}
+
+		Ok(())
+	}
+
 	pub fn peek(&mut self) -> Result<'a, Option<Token<'a>>> {
+		self.expand_macros()?;
+		self.peek_bypass_macros()
+	}
+
+	pub fn peek_bypass_macros(&mut self) -> Result<'a, Option<Token<'a>>> {
 		if let Some(&peeked_token) = self.peeked_tokens.last() {
 			Ok(Some(peeked_token))
 		} else if let Some(token) = Token::parse(&mut self.stream)? {
@@ -94,9 +116,27 @@ impl<'a> Parser<'a> {
 		cond: impl FnOnce(Token<'a>) -> bool,
 	) -> Result<'a, Option<Token<'a>>> {
 		if self.peek()?.map_or(false, cond) {
-			self.advance()
+			self.take()
 		} else {
 			Ok(None)
 		}
+	}
+
+	pub fn take_if_bypass_macros(
+		&mut self,
+		cond: impl FnOnce(Token<'a>) -> bool,
+	) -> Result<'a, Option<Token<'a>>> {
+		if self.peek_bypass_macros()?.map_or(false, cond) {
+			self.take_bypass_macros()
+		} else {
+			Ok(None)
+		}
+	}
+
+	pub fn take_if_contents_bypass_macros(
+		&mut self,
+		contents: TokenContents<'a>,
+	) -> Result<'a, Option<Token<'a>>> {
+		self.take_if_bypass_macros(|token| token.contents == contents)
 	}
 }

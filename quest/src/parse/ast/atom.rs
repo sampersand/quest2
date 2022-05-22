@@ -34,7 +34,7 @@ impl<'a> Atom<'a> {
 			TokenContents::Identifier(ident) => Ok(Some(Self::Identifier(ident))),
 			TokenContents::Stackframe(depth) => Ok(Some(Self::Stackframe(depth))),
 			_ => {
-				parser.add_back(token);
+				parser.untake(token);
 				Ok(None)
 			},
 		}

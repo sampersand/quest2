@@ -46,8 +46,9 @@ pub enum TokenContents<'a> {
 	LeftParen(ParenType),
 	RightParen(ParenType),
 
-	MacroIdentifier(&'a str),
-	MacroLeftParen(ParenType),
+	MacroIdentifier(usize, &'a str),
+	MacroOr(usize),
+	MacroLeftParen(usize, ParenType),
 }
 
 impl Eq for TokenContents<'_> {}
@@ -70,8 +71,9 @@ impl PartialEq for TokenContents<'_> {
 			(Self::LeftParen(l), Self::LeftParen(r)) => l == r,
 			(Self::RightParen(l), Self::RightParen(r)) => l == r,
 
-			(Self::MacroIdentifier(l), Self::MacroIdentifier(r)) => l == r,
-			(Self::MacroLeftParen(l), Self::MacroLeftParen(r)) => l == r,
+			(Self::MacroIdentifier(ld, l), Self::MacroIdentifier(rd, r)) => ld == rd && l == r,
+			(Self::MacroOr(ld), Self::MacroOr(rd)) => ld == rd,
+			(Self::MacroLeftParen(ld, l), Self::MacroLeftParen(rd, r)) => ld == rd && l == r,
 			_ => false,
 		}
 	}
@@ -209,15 +211,32 @@ impl<'a> TokenContents<'a> {
 
 #[allow(clippy::unnecessary_wraps)]
 fn parse_macro<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
-	let dollar = stream.take();
-	debug_assert_eq!(dollar, Some('$'));
+	let dollars = stream.take_while(|c| c == '$');
+	debug_assert_ne!(dollars, "");
+
+	let depth = dollars.len() - 1;
 
 	match stream.peek() {
-		Some('(') => Ok(TokenContents::MacroLeftParen(ParenType::Round)),
-		Some('[') => Ok(TokenContents::MacroLeftParen(ParenType::Square)),
-		Some('{') => Ok(TokenContents::MacroLeftParen(ParenType::Curly)),
-		Some(c) if c.is_alphanumeric() => Ok(TokenContents::MacroIdentifier(take_identifier(stream))),
-		_ => Ok(TokenContents::Symbol("$")),
+		Some('(') => {
+			stream.take();
+			Ok(TokenContents::MacroLeftParen(depth, ParenType::Round))
+		},
+		Some('[') => {
+			stream.take();
+			Ok(TokenContents::MacroLeftParen(depth, ParenType::Square))
+		},
+		Some('{') => {
+			stream.take();
+			Ok(TokenContents::MacroLeftParen(depth, ParenType::Curly))
+		},
+		Some('|') => {
+			stream.take();
+			Ok(TokenContents::MacroOr(depth))
+		},
+		Some(c) if c.is_alphanumeric() => {
+			Ok(TokenContents::MacroIdentifier(depth, take_identifier(stream)))
+		},
+		_ => Ok(TokenContents::Symbol(dollars)),
 	}
 }
 

@@ -44,10 +44,10 @@ pub trait Expandable<'a>: std::fmt::Debug {
 
 impl<'a> Expandable<'a> for crate::parse::Token<'a> {
 	fn expand(&self, parser: &mut Parser<'a>, _: Context) {
-		parser.add_back(*self);
+		parser.untake(*self);
 	}
 
 	fn deconstruct(&self, parser: &mut Parser<'a>) {
-		parser.add_back(*self);
+		parser.untake(*self);
 	}
 }

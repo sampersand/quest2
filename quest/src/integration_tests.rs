@@ -223,3 +223,20 @@ fn dbg_representations() {
 
 	// Also note we don't test `Integer` and friends debug representations. See issue #23
 }
+
+#[test]
+fn basic_macros()  {
+	let result = run_code(r#"
+		$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
+		print(12 3);
+	"#)
+	.unwrap();
+	assert_eq!(result.downcast::<Integer>().unwrap(), 8);
+
+	let result = run_code(r#"
+		$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
+		print(12 3);
+	"#)
+	.unwrap();
+	assert_eq!(result.downcast::<Integer>().unwrap(), 9);
+}

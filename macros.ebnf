@@ -1,0 +1,31 @@
+macro := '$syntax' [identifier] [integer] pattern '=' replacements ';' ;
+
+(*
+ NOTE: `'$'*FOO` means that `FOO` can be proceeded by any amount of `$`s.
+ Likewise, `'$'+FOO` must be proceeded by at least one `$`
+*)
+pattern := '{' pattern-body '}' ;
+pattern-body := pattern-sequence {'$|' pattern-sequence} ;
+pattern-sequence := pattern-atom {pattern-atom};
+pattern-atom
+ := '$'+ident ':' pattern-kind
+  | '$'*( pattern-body ')' (* note that non-`$` braces have to be matched *)
+  | '$'*[ pattern-body ']'
+  | '$'*{ pattern-body '}'
+  | (? any non-macro token ?)
+  ;
+pattern-kind
+ := '$'*	ident
+  | '(' pattern-body ')'
+  | '[' pattern-body ']'
+  | '{' pattern-body '}' ;
+
+replacements := '{' replacement-body '}'
+replacement-body := replacement-atom {replacement-atom} ;
+replacement-atom
+ := '$'+ident
+  | '$'+[ replacement-body ']'
+  | '$'+( replacement-body ')'
+  | '$'+{ replacement-body '}'
+  | (? any non-macro token ?)
+  ;
