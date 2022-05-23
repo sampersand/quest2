@@ -225,32 +225,79 @@ fn dbg_representations() {
 }
 
 #[test]
-fn basic_syntax()  {
-	let result = run_code(r#"
+fn basic_syntax() {
+	let result = run_code(
+		r#"
 		$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
 		12 3
-	"#)
+	"#,
+	)
 	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), 9);
 
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
 		12 4
-	"#)
+	"#,
+	)
 	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), 8);
 }
 
 #[test]
 fn nested_syntax() {
-	let result = run_code(r#"
+	let result = run_code(
+		r#"
 		$syntax { defn $name:(a $| b) } = {
 			$$syntax { $name } = { 3 - };
 		};
 
 		defn a
 		(a 10) * (a 0)
-	"#)
+	"#,
+	)
 	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), -21);
+}
+
+#[test]
+fn if_while_and_do_while() {
+	let result = run_code(
+		r#"
+		$syntax { if $cond:group $body:block } = { (if)($cond, $body); };
+		$syntax { while $cond:group $body:block } = { (while)({ $cond }, $body); };
+		$syntax { do $body:block while $cond:group } = { $body(); while $cond $body };
+
+		x = 0;
+		i = 0;
+		do {
+			:-1.x = :-1.x + 1;
+			if (0 != :-1.x % 2) {
+				:-1.i = :-1.i + :-1.x;
+			}
+		} while (:1.x < 10);
+		i
+	"#,
+	)
+	.unwrap();
+	assert_eq!(result.downcast::<Integer>().unwrap(), 25);
+}
+
+#[test]
+fn alias_macro() {
+	let result = run_code(
+		r#"
+		$syntax { alias $new:token $orig:token ; } = {
+		  $$syntax { $new } = { $orig };
+		};
+
+		alias <- = ;
+		alias __current_stackframe__ :0 ;
+		x <- 3;
+		__current_stackframe__.x
+	"#,
+	)
+	.unwrap();
+	assert_eq!(result.downcast::<Integer>().unwrap(), 3);
 }

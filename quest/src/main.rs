@@ -48,12 +48,66 @@ fn main() {
 	if true {
 		run_code(
 			r#"
+$syntax { ++ } = { += 1 };
+$syntax { $name:tt += } = { $name = $name + };
 
-$syntax { defn $name:(a $| b) } = {
+x = 3;
+x++;
+print(x) #=> 4
+__EOF__
+# ```php
+# $syntax { alias $new:token $orig:token } = {
+#   $$syntax { $new } = { $orig };
+# };
+# 
+# alias <- =;
+# x <- 3;
+# 
+# ``` even better
+$syntax { if $cond:group $body:block } = { (if)($cond, $body); };
+$syntax { while $cond:group $body:block } = { (while)({ $cond }, $body); };
+$syntax { do $body:block while $cond:group } = { $body(); while $cond $body };
+
+x = 0;
+i = 0;
+do {
+	:-1.x = :-1.x + 1;
+	if (0 != :-1.x % 2) {
+		:-1.i = :-1.i + :-1.x;
+#		print("x is odd: " + :-1.x."@text"());
+	}
+} while (:1.x < 10);
+
+i.print();
+
+__EOF__
+$syntax { while $cond:group $body:block } = { (while)({ $cond }, $body); };
+$syntax { do $body:block while $cond:group } = { $body(); while $cond $body };
+
+$syntax {
+	for (
+		$var:ident = $init:num ;;
+		$i:ident $op:symbol $max:num ;;
+		$j:ident ++
+	) $body:block
+} = {
+	$var = $init;
+	while (:1. $var $op $max) {
+		$body();
+		:1. $var = :1. $var + 1;
+	}
+};
+
+for (i = 0 ;; i < 10 ;; i++) {
+	print(:-1.i);
+}
+
+
+__EOF__
+$syntax { defn $name:ident } = {
 	$$syntax { $name } = { 3 - };
 };
 
-defn a
 print(a 4); #=> -1
 print(a 2); #=> 1
 __EOF__

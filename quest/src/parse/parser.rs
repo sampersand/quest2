@@ -27,14 +27,14 @@ impl<'a> Parser<'a> {
 		self.stream.error(kind.into())
 	}
 
-	// TODO: this doens't take into account optional order of operations _or_ when it was declared.
-	pub fn add_syntax(&mut self, syntax: Syntax<'a>) {
-		self.syntaxes[MAX_PRIORITY - syntax.priority()].push(Rc::new(syntax));
-	}
-
 	#[must_use]
 	pub fn stream(&self) -> &Stream<'a> {
 		&self.stream
+	}
+
+	// TODO: this doens't take into account optional order of operations _or_ when it was declared.
+	pub fn add_syntax(&mut self, syntax: Syntax<'a>) {
+		self.syntaxes[MAX_PRIORITY - syntax.priority()].push(Rc::new(syntax));
 	}
 
 	#[must_use]
@@ -48,8 +48,8 @@ impl<'a> Parser<'a> {
 
 	pub fn untake_tokens<I>(&mut self, tokens: I)
 	where
-		I: IntoIterator<Item=Token<'a>>,
-		I::IntoIter: DoubleEndedIterator
+		I: IntoIterator<Item = Token<'a>>,
+		I::IntoIter: DoubleEndedIterator,
 	{
 		self.peeked_tokens.extend(tokens.into_iter().rev());
 	}
