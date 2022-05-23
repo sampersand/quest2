@@ -390,7 +390,7 @@ impl Gc<Frame> {
 		let mut this = self.as_mut()?;
 
 		let idx = this.next_count();
-		let constant = this.block.constants[idx];
+		let mut constant = this.block.constants[idx];
 
 		if let Some(block) = constant.downcast::<Gc<Block>>() {
 			let block = block.deep_clone()?;
@@ -402,6 +402,8 @@ impl Gc<Frame> {
 				.as_list()
 				.as_mut()?
 				.unshift(self.to_any());
+
+			constant = block.to_any();
 		}
 
 		let dst = this.next_local_target();
