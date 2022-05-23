@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
 
 	// TODO: this doens't take into account optional order of operations _or_ when it was declared.
 	pub fn add_syntax(&mut self, syntax: Syntax<'a>) {
-		self.syntaxes[MAX_PRIORITY - syntax.priority()].push(Rc::new(syntax));
+		self.syntaxes[MAX_PRIORITY - syntax.priority()].insert(0, Rc::new(syntax));
 	}
 
 	#[must_use]

@@ -59,7 +59,7 @@ pub unsafe fn alloc<T>(layout: std::alloc::Layout) -> std::ptr::NonNull<T> {
 	}
 
 	#[cfg(miri)]
-	miri_static_root(ptr); // TODO: garbage collection
+	miri_static_root(ptr.cast()); // TODO: garbage collection
 
 	std::ptr::NonNull::new_unchecked(ptr)
 }
@@ -77,7 +77,7 @@ pub unsafe fn alloc_zeroed<T>(layout: std::alloc::Layout) -> std::ptr::NonNull<T
 	}
 
 	#[cfg(miri)]
-	miri_static_root(ptr); // TODO: garbage collection
+	miri_static_root(ptr.cast()); // TODO: garbage collection
 
 	std::ptr::NonNull::new_unchecked(ptr)
 }
@@ -100,7 +100,7 @@ pub unsafe fn realloc<T>(
 	}
 
 	#[cfg(miri)]
-	miri_static_root(ptr); // TODO: garbage collection
+	miri_static_root(ptr.cast()); // TODO: garbage collection
 
 	std::ptr::NonNull::new_unchecked(ptr)
 }
