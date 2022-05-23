@@ -38,7 +38,7 @@ impl<'a> FnArgs<'a> {
 				{
 					let token = parser.peek()?;
 					return Err(parser.error(ErrorKind::Message(format!(
-						"expected closing {end:?} `,`, not {token:?}"
+						"expected closing {end:?} or `,`, not {token:?}"
 					))));
 				}
 
