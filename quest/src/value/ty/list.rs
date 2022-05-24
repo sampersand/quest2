@@ -424,6 +424,7 @@ quest_type_attrs! { for Gc<List>, parent Object;
 	unshift => meth funcs::unshift,
 	dbg => meth funcs::dbg,
 	at_text => meth funcs::at_text,
+	map => meth funcs::map,
 }
 
 pub mod funcs {
@@ -521,5 +522,20 @@ pub mod funcs {
 
 		builder.push(']');
 		Ok(builder.finish().to_any())
+	}
+
+	pub fn map(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?; // todo: more positional args for slicing
+
+		let listref = list.as_ref()?;
+		let new = List::with_capacity(listref.len());
+		let mut newmut = new.as_mut()?;
+
+		for ele in listref.as_slice() {
+			newmut.push(args[0].call(Args::new(&[*ele], &[]))?);
+		}
+
+		Ok(new.to_any())
 	}
 }

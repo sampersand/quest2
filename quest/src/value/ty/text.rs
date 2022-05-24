@@ -724,7 +724,7 @@ impl Text {
 	}
 
 	unsafe fn duplicate_alloc_ptr(&mut self, capacity: usize) {
-		debug_assert!(self.is_pointer_immutable());
+		debug_assert!(self.is_pointer_immutable() || self.is_from_string());
 
 		let mut alloc = &mut self.inner_mut().alloc;
 		let old_ptr = alloc.ptr;
@@ -839,7 +839,9 @@ impl Text {
 	pub unsafe fn push_str_unchecked(&mut self, string: &str) {
 		debug_assert!(self.len() + string.len() < self.capacity());
 
-		self.mut_end_ptr().copy_from_nonoverlapping(string.as_ptr(), string.len());
+		self
+			.mut_end_ptr()
+			.copy_from_nonoverlapping(string.as_ptr(), string.len());
 
 		self.set_len(self.len() + string.len());
 	}

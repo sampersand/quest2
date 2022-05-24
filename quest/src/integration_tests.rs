@@ -6,7 +6,7 @@ use crate::vm::{
 };
 use crate::{AnyValue, Result};
 
-use crate::value::ty::{Boolean, Float, Integer, Text};
+use crate::value::ty::{Boolean, Float, Integer, List, Text};
 use crate::value::Gc;
 
 pub fn run_code(code: &str) -> Result<AnyValue> {
@@ -24,10 +24,10 @@ pub fn run_code(code: &str) -> Result<AnyValue> {
 fn divides() {
 	let result = run_code(
 		r#"
-		Integer.zero? = n -> { n == 0 };
-		Integer.divides? = (n, l) -> { (l % n).zero?() };
-		12.divides?(24).and(!12.divides?(13))
-	"#,
+			Integer.zero? = n -> { n == 0 };
+			Integer.divides? = (n, l) -> { (l % n).zero?() };
+			12.divides?(24).and(!12.divides?(13))
+		"#,
 	)
 	.unwrap();
 
@@ -38,10 +38,10 @@ fn divides() {
 fn square_root() {
 	let result = run_code(
 		r#"
-		Integer.'^' = Integer::'**';
-		Integer.'√' = n -> { n ^ 0.5 };
-		√16
-	"#,
+			Integer.'^' = Integer::'**';
+			Integer.'√' = n -> { n ^ 0.5 };
+			√16
+		"#,
 	)
 	.unwrap();
 
@@ -55,15 +55,15 @@ fn fib_set_attr() {
 	// the block its in inherits those attrs.
 	let result = run_code(
 		r#"
-		fib = n -> {
-			(n <= 1).then(n.return);
+			fib = n -> {
+				(n <= 1).then(n.return);
 
-			fibb(n - 1) + fibb(n - 2)
-		};
+				fibb(n - 1) + fibb(n - 2)
+			};
 
-		fib.fibb = fib;
-		fib(10)
-	"#,
+			fib.fibb = fib;
+			fib(10)
+		"#,
 	)
 	.unwrap();
 
@@ -75,15 +75,15 @@ fn fib_set_parent() {
 	// NOTE: This won't be necessary later when i get auto inheritance working.
 	let result = run_code(
 		r#"
-		fib = n -> {
-			(n <= 1).then(n.return);
+			fib = n -> {
+				(n <= 1).then(n.return);
 
-			fib(n - 1) + fib(n - 2)
-		};
+				fib(n - 1) + fib(n - 2)
+			};
 
-		fib.__parents__ = [:0];
-		fib(10)
-	"#,
+			fib.__parents__ = [:0];
+			fib(10)
+		"#,
 	)
 	.unwrap();
 
@@ -94,14 +94,14 @@ fn fib_set_parent() {
 fn fib_pass_function() {
 	let result = run_code(
 		r#"
-		fib = (n, fn) -> {
-			(n <= 1).then(n.return);
+			fib = (n, fn) -> {
+				(n <= 1).then(n.return);
 
-			fn(n - 1, fn) + fn(n - 2, fn)
-		};
+				fn(n - 1, fn) + fn(n - 2, fn)
+			};
 
-		fib(10, fib)
-	"#,
+			fib(10, fib)
+		"#,
 	)
 	.unwrap();
 
@@ -113,14 +113,14 @@ fn fib_pass_function() {
 fn fib_normal() {
 	let result = run_code(
 		r#"
-		fib = n -> {
-			(n <= 1).then(n.return);
+			fib = n -> {
+				(n <= 1).then(n.return);
 
-			fib(n - 1) + fib(n - 2)
-		};
+				fib(n - 1) + fib(n - 2)
+			};
 
-		fib(10)
-	"#,
+			fib(10)
+		"#,
 	)
 	.unwrap();
 
@@ -132,10 +132,10 @@ fn fib_normal() {
 fn modifying_string_literals_isnt_global() {
 	let result = run_code(
 		r#"
-		modify = { "x".concat("y") };
+			modify = { "x".concat("y") };
 
-		modify() + modify()
-	"#,
+			modify() + modify()
+		"#,
 	)
 	.unwrap();
 
@@ -146,10 +146,10 @@ fn modifying_string_literals_isnt_global() {
 fn assign_and_fetch_from_arrays() {
 	let result = run_code(
 		r#"
-		ary = [9, 12, -99];
-		ary[1] = 4;
-		ary[0] + ary[1]
-	"#,
+			ary = [9, 12, -99];
+			ary[1] = 4;
+			ary[0] + ary[1]
+		"#,
 	)
 	.unwrap();
 
@@ -160,17 +160,17 @@ fn assign_and_fetch_from_arrays() {
 fn if_and_while() {
 	let result = run_code(
 		r#"
-		i = 0;
-		n = 0;
-		while({ i < 10 }, {
-			if((i % 2) == 0, {
-				:2.n = n + i;
-			});
+			i = 0;
+			n = 0;
+			while({ i < 10 }, {
+				if((i % 2) == 0, {
+					:2.n = n + i;
+				});
 
-			:1.i = i + 1;
-		});
-		n
-	"#,
+				:1.i = i + 1;
+			});
+			n
+		"#,
 	)
 	.unwrap();
 
@@ -181,18 +181,18 @@ fn if_and_while() {
 fn basic_stackframe_continuation() {
 	let result = run_code(
 		r#"
-		recur = acc -> {
-			[acc, :0].return();
+			recur = acc -> {
+				[acc, :0].return();
 
-			recur(acc + "X")
-		};
+				recur(acc + "X")
+			};
 
-		tmp = recur("X"); q = tmp[0];
-		tmp = tmp[1].resume(); q = q + ":" + tmp[0];
-		tmp = tmp[1].resume(); q = q + ":" + tmp[0];
-		tmp = tmp[1].resume(); q = q + ":" + tmp[0];
-		q
-	"#,
+			tmp = recur("X"); q = tmp[0];
+			tmp = tmp[1].resume(); q = q + ":" + tmp[0];
+			tmp = tmp[1].resume(); q = q + ":" + tmp[0];
+			tmp = tmp[1].resume(); q = q + ":" + tmp[0];
+			q
+		"#,
 	)
 	.unwrap();
 
@@ -211,10 +211,10 @@ fn basic_stackframe_continuation() {
 fn dbg_representations() {
 	let result = run_code(
 		r#"
-		block = { :0 };
-		frame = block();
-		[true, false, null, 12."+", 1.12, 1, "f\n", frame, block].dbg()
-	"#,
+			block = { :0 };
+			frame = block();
+			[true, false, null, 12."+", 1.12, 1, "f\n", frame, block].dbg()
+		"#,
 	)
 	.unwrap();
 
@@ -228,18 +228,18 @@ fn dbg_representations() {
 fn basic_syntax() {
 	let result = run_code(
 		r#"
-		$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
-		12 3
-	"#,
+			$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
+			12 3
+		"#,
 	)
 	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), 9);
 
 	let result = run_code(
 		r#"
-		$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
-		12 4
-	"#,
+			$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
+			12 4
+		"#,
 	)
 	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), 8);
@@ -249,13 +249,13 @@ fn basic_syntax() {
 fn nested_syntax() {
 	let result = run_code(
 		r#"
-		$syntax { defn $name:(a $| b) } = {
-			$$syntax { $name } = { 3 - };
-		};
+			$syntax { defn $name:(a $| b) } = {
+				$$syntax { $name } = { 3 - };
+			};
 
-		defn a
-		(a 10) * (a 0)
-	"#,
+			defn a
+			(a 10) * (a 0)
+		"#,
 	)
 	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), -21);
@@ -265,20 +265,20 @@ fn nested_syntax() {
 fn if_while_and_do_while() {
 	let result = run_code(
 		r#"
-		$syntax { if $cond:group $body:block } = { (if)($cond, $body); };
-		$syntax { while $cond:group $body:block } = { (while)({ $cond }, $body); };
-		$syntax { do $body:block while $cond:group } = { $body(); while $cond $body };
+			$syntax { if $cond:group $body:block } = { (if)($cond, $body); };
+			$syntax { while $cond:group $body:block } = { (while)({ $cond }, $body); };
+			$syntax { do $body:block while $cond:group } = { $body(); while $cond $body };
 
-		x = 0;
-		i = 0;
-		do {
-			:-1.x = x + 1;
-			if (0 != x % 2) {
-				:-1.i = i + x;
-			}
-		} while (x < 10);
-		i
-	"#,
+			x = 0;
+			i = 0;
+			do {
+				:-1.x = x + 1;
+				if (0 != x % 2) {
+					:-1.i = i + x;
+				}
+			} while (x < 10);
+			i
+		"#,
 	)
 	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), 25);
@@ -288,16 +288,39 @@ fn if_while_and_do_while() {
 fn alias_macro() {
 	let result = run_code(
 		r#"
-		$syntax { alias $new:token $orig:token ; } = {
-		  $$syntax { $new } = { $orig };
-		};
+			$syntax { alias $new:token $orig:token ; } = {
+			  $$syntax { $new } = { $orig };
+			};
 
-		alias <- = ;
-		alias __current_stackframe__ :0 ;
-		x <- 3;
-		__current_stackframe__.x
-	"#,
+			alias <- = ;
+			alias __current_stackframe__ :0 ;
+			x <- 3;
+			__current_stackframe__.x
+		"#,
 	)
 	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), 3);
+}
+
+#[test]
+fn list_comprehension() {
+	let result = run_code(
+		r#"
+			$syntax {
+				[ $body:tt | $var:ident in $src:tt ]
+			} = {
+				$src.map($var -> { $body })
+			};
+
+			[(x * 2) | x in [1,2,3,4]]
+		"#,
+	)
+	.unwrap();
+
+	let list = result.downcast::<Gc<List>>().unwrap().as_ref().unwrap();
+	assert_eq!(list.len(), 4);
+	assert_eq!(list.as_slice()[0].downcast::<Integer>().unwrap(), 2);
+	assert_eq!(list.as_slice()[1].downcast::<Integer>().unwrap(), 4);
+	assert_eq!(list.as_slice()[2].downcast::<Integer>().unwrap(), 6);
+	assert_eq!(list.as_slice()[3].downcast::<Integer>().unwrap(), 8);
 }

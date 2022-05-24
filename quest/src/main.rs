@@ -48,13 +48,32 @@ fn main() {
 	if false {
 		run_code(
 			r#"
-print("The time right now in seconds is: ".dbg() + 4);
+#block = { :0 };
+#print(block.__parents__[0].name);
+#frame = block();
+#[true, false, null, 12."+", 1.12, 1, "f\n", frame, block].dbg()
+
+
 __EOF__
-#$syntax { $$syntax $foo:ident } = { $$syntax {} }
-$syntax { $hr:int : $min:int am } = { ($hr*60) + $min};
+$syntax {
+	[ $body:tt | $var:ident in $src:tt ]
+} = {
+	$src.map($var -> { $body })
+};
+
+[(x * 2) | x in [1,2,3,4]].print()
+__EOF__
+# $syntax { $$syntax $foo:ident } = { $$syntax {} }
+
+
+$syntax hrmin { $hr:int : $min:int } + { ... };
+$syntax { $hm:hrmin am } = { ($hr*60) + $min };
+$syntax { $hm:hrmin pm } = { ($hr : $min am) + 720 };
+
+$syntax { $hr:int : $min:int am } = { ($hr*60) + $min };
 $syntax { $hr:int : $min:int pm } = { ($hr : $min am) + 720 };
 
-print("The time right now in seconds is: " + (7 : 04 pm));
+print("The time right now in minutes is: " + 8 : 25 pm);
 
 __EOF__
 $syntax { $cond:tt ? $ift:tt : $iff:tt } = {
