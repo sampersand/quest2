@@ -69,7 +69,7 @@ unsafe impl IntoParent for ParentsGuard<'_> {
 		match self.classify() {
 			ParentsKind::None => NoParents.into_parent(guard),
 			ParentsKind::Single(single) => unsafe { *single }.into_parent(guard),
-			ParentsKind::List(list) => unsafe { *list }.into_parent(guard),
+			ParentsKind::List(list) => unsafe { *list }.as_ref().unwrap().dup().into_parent(guard),
 		}
 	}
 }

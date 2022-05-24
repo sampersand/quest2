@@ -401,7 +401,7 @@ impl Gc<Frame> {
 				.parents()?
 				.as_list()
 				.as_mut()?
-				.unshift(self.to_any());
+				.push(self.to_any()); // TODO: what are the implications of `.push` on parent scope vars?
 
 			constant = block.to_any();
 		}

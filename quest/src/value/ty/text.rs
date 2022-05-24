@@ -837,7 +837,7 @@ impl Text {
 
 	// SAFETY: you must recalculate hash afterwards, in addition to other things.
 	pub unsafe fn push_str_unchecked(&mut self, string: &str) {
-		debug_assert!(self.len() + string.len() < self.capacity());
+		debug_assert!(self.len() + string.len() <= self.capacity(), "{} + {} > {}", self.len(), string.len(), self.capacity());
 
 		self
 			.mut_end_ptr()
