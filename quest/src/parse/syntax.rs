@@ -9,7 +9,7 @@ use replacement::Replacement;
 
 pub type Priority = usize;
 pub const MAX_PRIORITY: Priority = 100;
-pub const DEFAULT_PRIORITY: Priority = MAX_PRIORITY / 2;
+pub const DEFAULT_PRIORITY: Priority = 25; // it's not common to want to be less than default.
 
 #[derive(Debug)]
 pub struct Syntax<'a> {

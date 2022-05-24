@@ -425,6 +425,7 @@ quest_type_attrs! { for Gc<List>, parent Object;
 	dbg => meth funcs::dbg,
 	at_text => meth funcs::at_text,
 	map => meth funcs::map,
+	each => meth funcs::each,
 }
 
 pub mod funcs {
@@ -526,16 +527,29 @@ pub mod funcs {
 
 	pub fn map(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
-		args.assert_positional_len(1)?; // todo: more positional args for slicing
+		args.assert_positional_len(1)?;
+		let func = args[0];
 
 		let listref = list.as_ref()?;
 		let new = List::with_capacity(listref.len());
 		let mut newmut = new.as_mut()?;
 
 		for ele in listref.as_slice() {
-			newmut.push(args[0].call(Args::new(&[*ele], &[]))?);
+			newmut.push(func.call(Args::new(&[*ele], &[]))?);
 		}
 
 		Ok(new.to_any())
+	}
+
+	pub fn each(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+		let func = args[0];
+
+		for ele in list.as_ref()?.as_slice() {
+			func.call(Args::new(&[*ele], &[]))?;
+		}
+
+		Ok(list.to_any())
 	}
 }

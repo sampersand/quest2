@@ -3,21 +3,24 @@ use crate::parse::syntax::{Syntax, MAX_PRIORITY};
 use crate::parse::token::TokenContents;
 use std::path::Path;
 use std::rc::Rc;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Parser<'a> {
 	syntaxes: [Vec<Rc<Syntax<'a>>>; MAX_PRIORITY + 1], // `+1` because `MAX_PRIORITY` is still a valid priority
+	groups: HashMap<&'a str, Vec<Rc<Syntax<'a>>>>,
 	stream: Stream<'a>,
 	peeked_tokens: Vec<Token<'a>>,
 }
 
 impl<'a> Parser<'a> {
 	#[must_use]
-	pub const fn new(src: &'a str, filename: Option<&'a Path>) -> Self {
+	pub fn new(src: &'a str, filename: Option<&'a Path>) -> Self {
 		const EMPTY_VEC: Vec<Rc<Syntax<'static>>> = Vec::new();
 
 		Self {
 			syntaxes: [EMPTY_VEC; MAX_PRIORITY + 1],
+			groups: HashMap::default(),
 			stream: Stream::new(src, filename),
 			peeked_tokens: Vec::new(),
 		}
@@ -34,7 +37,17 @@ impl<'a> Parser<'a> {
 
 	// TODO: this doens't take into account optional order of operations _or_ when it was declared.
 	pub fn add_syntax(&mut self, syntax: Syntax<'a>) {
-		self.syntaxes[MAX_PRIORITY - syntax.priority()].insert(0, Rc::new(syntax));
+		let syntax = Rc::new(syntax);
+
+		if let Some(group) = syntax.group() {
+			self.groups.entry(group).or_default().push(syntax.clone());
+		}
+
+		self.syntaxes[MAX_PRIORITY - syntax.priority()].insert(0, syntax);
+	}
+
+	pub fn get_group(&self, name: &str) -> Option<&[Rc<Syntax<'a>>]> {
+		self.groups.get(name).map(Vec::as_slice)
 	}
 
 	#[must_use]

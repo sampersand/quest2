@@ -398,8 +398,20 @@ fn does_match_named<'a>(
 			}
 		},
 
-		// todo: look up the rest in `parser`
-		other => Err(parser.error(format!("unknown capture type {}", other).into())),
+		other => 
+			if let Some(group) = parser.get_group(other) {
+				let _ = group;
+				todo!();
+/*
+fn does_match_named<'a>(
+	capture_name: &'a str,
+	name: &str,
+	matches: &mut PatternMatches<'a>,
+	parser: &mut Parser<'a>,
+*/
+			} else {
+				Err(parser.error(format!("unknown capture type {}", other).into()))
+			},
 	}
 }
 

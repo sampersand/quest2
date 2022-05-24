@@ -1,4 +1,4 @@
-use crate::value::ty::{ConvertTo, Float, InstanceOf, Singleton, Text};
+use crate::value::ty::{ConvertTo, Float, InstanceOf, Singleton, Text, List};
 use crate::value::{AnyValue, Convertible, Gc, ToAny, Value};
 use crate::vm::Args;
 use crate::Result;
@@ -177,6 +177,28 @@ pub mod funcs {
 	// 		Ok(Text::from_string(format!("")).to_any())
 	// 	}
 	// }
+
+
+	// TODO: in the future, return an enumerable
+	pub fn upto(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let max = args[0].try_downcast::<Integer>()?;
+
+		if max <= int {
+			return Ok(List::new().to_any());
+		}
+
+		let list = List::with_capacity((max - int) as usize);
+		let mut listmut = list.as_mut().unwrap();
+
+		for i in int..=max {
+			listmut.push(i.to_any());
+		}
+
+		Ok(list.to_any())
+	}
 }
 
 // impl crate::value::base::HasDefaultParent for Integer {
@@ -205,6 +227,7 @@ impl Singleton for IntegerClass {
 				Intern::op_neg => method funcs::neg,
 				Intern::at_text => method funcs::at_text,
 				Intern::dbg => method funcs::dbg,
+				Intern::upto => method funcs::upto,
 			}
 		})
 	}

@@ -45,14 +45,109 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if false {
+	if true {
 		run_code(
 			r#"
-#block = { :0 };
-#print(block.__parents__[0].name);
-#frame = block();
-#[true, false, null, 12."+", 1.12, 1, "f\n", frame, block].dbg()
 
+$syntax { $l:tt .. $r:tt } = { $l.upto($r) };
+Integer."|" = (b, a) -> { 0 == a % b };
+
+fizzbuzz = max -> {
+	(1..max).map(n -> {
+		
+		(15 | n).then('FizzBuzz'.return);
+		(3  | n).then('Fizz'.return);
+		(5  | n).then('Buzz'.return);
+		n
+	})
+};
+
+fizzbuzz(1000).each(print);
+
+__EOF__
+#![allow(unused)] /*
+$syntax { fn $name:ident ($arg:ident : $i:ident) -> $j:ident $body:block } = {
+    $name = ($arg) -> $body;
+} ;
+$syntax { let } = { };
+$syntax { if $cond:tt $ift:block else $iff:block } = { (if)($cond, $ift, $iff) } ;
+println = (_, what) -> { what.print() };
+$syntax { println ! } = { println };
+$syntax { fn main () $body:block } = { $body() } ;
+# */
+
+fn fibonacci (n: i32) -> i32 {
+	let less_than_one = n <= 1;
+
+	if less_than_one {
+		n
+	} else {
+		fibonacci(n-1) + fibonacci(n-2)
+	}
+}
+
+fn main() {
+	let max = 10;
+
+	println!("{}", fibonacci(max));
+}
+__EOF__
+$syntax { fn $name:ident () $body:block } = { $name = () -> $body; } ;
+$syntax { fn $name:ident ($arg:ident : $i:ident) -> $j:ident $body:block } = {
+	$name = ($arg) -> $body;
+} ;
+$syntax { let } = { };
+
+# $syntax { $i:ident $name:ident () $body:block } = { $name = () -> $body; };
+# $syntax { $i:ident $name:ident ($j:ident $arg:ident) $body:block } = { $name = ($arg) -> $body; };
+# printf = (_, what) -> { what.print() };
+# $syntax { $cond:tt ? $ift:tt : $iff:tt } = { if($cond, { $ift }, { $iff }) };
+# $syntax { return $what:tt ; } = { $what };
+# $syntax { int main (void) $body:block } = { int main () $body main(); } ;
+# $syntax { $i:ident $name:ident = $value:tt ; } = { $name = $value; };
+
+
+fn fibonacci(n: i64) -> i64 {
+	let less_than_one = n <= 1;
+#
+#	if less_than_one {
+#		n
+#	} else {
+#		fibonacci(n-1) + fibonacci(n-2)
+#	}
+}
+__EOF__
+
+fn main() {
+	let max = 50;
+	# println!("{}", fibonacci(max));
+}
+__EOF__
+#include <stdio.h>
+#if 0
+$syntax { $i:ident $name:ident () $body:block } = { $name = () -> $body; };
+$syntax { $i:ident $name:ident ($j:ident $arg:ident) $body:block } = { $name = ($arg) -> $body; };
+printf = (_, what) -> { what.print() };
+$syntax { $cond:tt ? $ift:tt : $iff:tt } = { if($cond, { $ift }, { $iff }) };
+$syntax { return $what:tt ; } = { $what };
+$syntax { if $cond:tt $ift:block else $iff:block } = { (if)($cond, $ift, $iff) } ;
+$syntax { int main (void) $body:block } = { int main () $body main(); } ;
+$syntax { $i:ident $name:ident = $value:tt ; } = { $name = $value; };
+#endif
+
+long fibonacci(long n) {
+	if (n <= 1) {
+		return n;
+	} else {
+		return (fibonacci(n-1) + fibonacci(n-2));
+	}
+}
+
+int main (void) {
+	long max = 10;
+
+	printf("%ld\n", fibonacci(max));
+}
 
 __EOF__
 $syntax {

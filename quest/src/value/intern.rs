@@ -97,7 +97,7 @@ define_interned! {
 	print freeze resume restart dbg
 	push pop shift unshift dump
 
-	map
+	map upto each
 
 	Block Boolean BoundFn Callable Class Float Integer Kernel List Null Object Pristine RustFn Scope Text
 }
