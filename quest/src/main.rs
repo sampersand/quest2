@@ -48,6 +48,46 @@ fn main() {
 	if false {
 		run_code(
 			r#"
+print("The time right now in seconds is: ".dbg() + 4);
+__EOF__
+#$syntax { $$syntax $foo:ident } = { $$syntax {} }
+$syntax { $hr:int : $min:int am } = { ($hr*60) + $min};
+$syntax { $hr:int : $min:int pm } = { ($hr : $min am) + 720 };
+
+print("The time right now in seconds is: " + (7 : 04 pm));
+
+__EOF__
+$syntax { $cond:tt ? $ift:tt : $iff:tt } = {
+	if($cond, { $ift }, { $iff })
+};
+
+fibonacci = n -> {
+	#(n <= 1) ? n : (fibonacci(n-1) + fibonacci(n-2))
+	(n <= 1).then(n.return);
+
+	fibonacci(n-1) + fibonacci(n-2)
+};
+
+print(fibonacci(30));
+__EOF__
+upto_ten.i = 0;
+upto_ten(0);
+upto_ten(0);
+upto_ten(0);
+print(upto_ten.i);
+
+__EOF__
+$syntax { fn $name:tt $args:group $body:block } = {
+	$name = $args -> $body;
+};
+
+fn add (x, y) {
+	x + y
+}
+
+print(add(3,4))
+
+__EOF__
 $syntax { ++ } = { += 1 };
 $syntax { $name:tt += } = { $name = $name + };
 

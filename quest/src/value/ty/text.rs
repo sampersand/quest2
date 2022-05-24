@@ -393,7 +393,7 @@ impl Text {
 
 		alloc.len = string.len();
 		alloc.cap = string.capacity();
-		alloc.ptr = Box::into_raw(string.into_boxed_str()).cast::<u8>();
+		alloc.ptr = std::mem::ManuallyDrop::new(string).as_mut_ptr();
 
 		builder.finish()
 	}
@@ -474,7 +474,12 @@ impl Text {
 	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub unsafe fn set_len(&mut self, new_len: usize) {
-		debug_assert!(new_len <= self.capacity(), "new len is larger than capacity");
+		debug_assert!(
+			new_len <= self.capacity(),
+			"new len is larger than capacity ({} > {})",
+			new_len,
+			self.capacity()
+		);
 
 		if self.is_embedded() {
 			self.set_embedded_len(new_len);
@@ -614,7 +619,7 @@ impl Text {
 			// Both static Rust strings (`FLAG_NOFREE`) and shared strings (`FLAG_SHARED`) don't allow
 			// us to write to their pointer. As such, we need to duplicate the `alloc.ptr` field, which
 			// gives us ownership of it. Afterwards, we have to remove the relevant flags.
-			self.duplicate_alloc_ptr(self.inner().alloc.len);
+			self.duplicate_alloc_ptr(self.inner().alloc.cap);
 		}
 
 		self.inner_mut().alloc.ptr
@@ -725,9 +730,10 @@ impl Text {
 		let old_ptr = alloc.ptr;
 		let old_cap = alloc.cap;
 		let len = alloc.len;
+
 		alloc.ptr = crate::alloc(alloc_ptr_layout(capacity)).as_ptr();
+		alloc.ptr.copy_from_nonoverlapping(old_ptr, len);
 		alloc.cap = capacity;
-		std::ptr::copy(old_ptr, alloc.ptr, alloc.len);
 
 		if self.is_from_string() {
 			drop(String::from_raw_parts(old_ptr, len, old_cap));
@@ -831,7 +837,10 @@ impl Text {
 
 	// SAFETY: you must recalculate hash afterwards, in addition to other things.
 	pub unsafe fn push_str_unchecked(&mut self, string: &str) {
-		std::ptr::copy(string.as_ptr(), self.mut_end_ptr(), string.len());
+		debug_assert!(self.len() + string.len() < self.capacity());
+
+		self.mut_end_ptr().copy_from_nonoverlapping(string.as_ptr(), string.len());
+
 		self.set_len(self.len() + string.len());
 	}
 
@@ -1029,6 +1038,7 @@ pub mod funcs {
 
 		let rhs = args[0].to_text()?;
 
+		// TODO: allocate a new string
 		let text = text.as_ref()?.dup();
 		text.as_mut().unwrap().push_str(rhs.as_ref()?.as_str());
 
@@ -1137,5 +1147,14 @@ mod tests {
 		let text = Text::from_str("hello, ");
 		text.as_mut().unwrap().push_str("world");
 		assert_eq!(text.as_ref().unwrap().fast_hash(), hash1);
+	}
+
+	#[test]
+	fn larger_strings_still_reallocate_properly() {
+		let text = Text::from_string("The time right now in minutes is: ".to_string());
+
+		text.as_mut().unwrap().push_str("4");
+
+		assert_eq!(text.as_ref().unwrap().as_str(), "The time right now in minutes is: 4");
 	}
 }
