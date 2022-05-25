@@ -139,6 +139,25 @@ impl<'a> ReplacementAtom<'a> {
 				parser.untake(token);
 				Ok(false)
 			},
+
+			Some(
+				Token {
+					contents: TokenContents::EscapedLeftParen(paren),
+					span
+				},
+			) => {
+				seq.push(Self::Token(Token { contents: TokenContents::LeftParen(paren), span }));
+				Ok(true)
+			},
+			Some(
+				Token {
+					contents: TokenContents::EscapedRightParen(paren),
+					span
+				},
+			) => {
+				seq.push(Self::Token(Token { contents: TokenContents::RightParen(paren), span }));
+				Ok(true)
+			},
 			Some(token) => {
 				seq.push(Self::Token(token));
 				Ok(true)

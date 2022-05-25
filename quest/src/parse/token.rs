@@ -30,6 +30,42 @@ pub enum ParenType {
 	Curly,
 }
 
+impl ParenType {
+	pub const fn left(self) -> char {
+		match self {
+			Self::Round => '(',
+			Self::Square => '[',
+			Self::Curly => '{',
+		}
+	}
+
+	pub const fn right(self) -> char {
+		match self {
+			Self::Round => ')',
+			Self::Square => ']',
+			Self::Curly => '}',
+		}
+	}
+
+	pub const fn parse_left(c: char) -> Option<Self> {
+		match c {
+			'(' => Some(Self::Round),
+			'[' => Some(Self::Square),
+			'{' => Some(Self::Curly),
+			_ => None
+		}
+	}
+
+	pub const fn parse_right(c: char) -> Option<Self> {
+		match c {
+			')' => Some(Self::Round),
+			']' => Some(Self::Square),
+			'}' => Some(Self::Curly),
+			_ => None
+		}
+	}
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum TokenContents<'a> {
 	Text(Gc<Text>),
@@ -45,6 +81,8 @@ pub enum TokenContents<'a> {
 	ColonColon,
 	LeftParen(ParenType),
 	RightParen(ParenType),
+	EscapedLeftParen(ParenType),
+	EscapedRightParen(ParenType),
 
 	SyntaxIdentifier(usize, &'a str),
 	SyntaxOr(usize),
@@ -68,8 +106,11 @@ impl PartialEq for TokenContents<'_> {
 			(Self::Semicolon, Self::Semicolon) => true,
 			(Self::Comma, Self::Comma) => true,
 			(Self::ColonColon, Self::ColonColon) => true,
-			(Self::LeftParen(l), Self::LeftParen(r)) => l == r,
-			(Self::RightParen(l), Self::RightParen(r)) => l == r,
+			(Self::LeftParen(l) | Self::EscapedLeftParen(l),
+				Self::LeftParen(r) | Self::EscapedLeftParen(r)) => l == r,
+			(Self::RightParen(l) | Self::EscapedRightParen(l),
+				Self::RightParen(r) | Self::EscapedRightParen(r)) => l == r,
+			// TODO: should an escaped paren equal an unescaped paren?
 
 			(Self::SyntaxIdentifier(ld, l), Self::SyntaxIdentifier(rd, r)) => ld == rd && l == r,
 			(Self::SyntaxOr(ld), Self::SyntaxOr(rd)) => ld == rd,
@@ -171,6 +212,17 @@ impl<'a> TokenContents<'a> {
 				stream.advance();
 				Ok(Self::RightParen(ParenType::Curly))
 			},
+
+			// TODO: nested escaped parens? 
+			'\\' if stream.peek2().and_then(ParenType::parse_left).is_some() => {
+				stream.advance();
+				Ok(Self::EscapedLeftParen(ParenType::parse_left(stream.take().unwrap()).unwrap()))
+			}
+			'\\' if stream.peek2().and_then(ParenType::parse_right).is_some() => {
+				stream.advance();
+				Ok(Self::EscapedRightParen(ParenType::parse_right(stream.take().unwrap()).unwrap()))
+			}
+
 			'.' if !stream.peek2().map_or(false, is_symbol_char) => {
 				stream.advance();
 				Ok(Self::Period)

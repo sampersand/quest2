@@ -45,16 +45,108 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if true {
+	if false {
 		run_code(
-			r#"
+			r##"
+Integer.is_between = (self, l, r) -> { (l < self).and(self < r) };
+$syntax cmpop { $op:(< $| <= $| > $| >= $| == $| !=) } = { $op };
+$syntax { $l:tt $o1:cmpop $m:tt $o2:cmpop $r:tt } = {
+	((l, m, r) -> { (l $o1 m).and(m $o2 r) })($l, $m, $r)
+};
 
+print(1 < 2 < 3);
+__EOF__
+forever = n -> {
+	n = n + 1;
+	if(n <= 10, {
+		:1.n = n + 1;
+		print(n);
+		:1.restart(); # note this doesnt work
+	})
+};
+
+tmp = forever(0);
+__EOF__
+print(tmp[0]); tmp = tmp[1].restart();
+print(tmp[0]); tmp = tmp[1].restart();
+print(tmp[0]); tmp = tmp[1].restart();
+print(tmp[0]); tmp = tmp[1].restart();
+__EOF__
+{ p=><<-"#EOS" };
+$syntax { do } = { \{ };
+$syntax { end } = { \} };
+$syntax { def $name:ident ($arg:ident) } = { $name = ($arg) -> \{ } ;
+$syntax { $func:(fizzbuzz$|upto) $arg:literal } = { $func($arg) } ;
+$syntax { \) do | $n:ident | } = { \).each \( $n -> \{ } ;
+$syntax { end end fizzbuzz } = { \}\); \}; fizzbuzz };
+$syntax { case } = { \(\{ } ;
+$syntax { when } = { \( } ;
+$syntax { then $val:literal } = { \).then($val.return); };
+$syntax { else $val:tt } = { $val \}()\); \{ };
+#EOS
+puts = print;
+
+def fizzbuzz(max)
+	1.upto max do |n|
+		puts case
+		     when (0 == n % 15) then 'FizzBuzz'
+		     when (0 == n %  3) then 'Fizz'
+		     when (0 == n %  5) then 'Buzz'
+		     else n
+		     end
+	end
+end
+
+fizzbuzz 100
+
+
+__EOF__
+$syntax { do } = { \{ };
+$syntax { end } = { \} };
+$syntax { def $name:ident ($arg:ident) } = { $name = ($arg) -> \{ } ;
+$syntax { $func:(fizzbuzz$|upto) $arg:literal } = { $func($arg) } ;
+$syntax { \) do | $n:ident | } = { \).each \( $n -> \{ } ;
+
+puts = print;
+$syntax { case } = { \(\{ } ;
+$syntax { when $cond:tt then $val:tt } = { $cond.then($val.return); };
+$syntax { else $val:tt } = { $val \}()\); \{ };
+def fizzbuzz(max)
+	1.upto max do |n|
+		puts case
+		     when (0 == n % 15) then 'FizzBuzz'
+		     when (0 == n %  3) then 'Fizz'
+		     when (0 == n %  5) then 'Buzz'
+		     else n
+		     end
+	end)
+end;
+
+fizzbuzz 16
+
+__EOF__
+def fizzbuzz(max)
+	1.upto(max).each({
+
+	});
+# 	1.upto max do |n|
+# 		case
+# 		when n % 15 == 0 then puts 'Fizzbuzz'
+# 		when n %  3 == 0 then puts 'Fizz'
+# 		when n %  5 == 0 then puts 'Buzz'
+# 		else                  puts n
+# 		end
+# 	end
+end;
+fizzbuzz 100
+
+__EOF__
 $syntax { $l:tt .. $r:tt } = { $l.upto($r) };
 Integer."|" = (b, a) -> { 0 == a % b };
 
 fizzbuzz = max -> {
 	(1..max).map(n -> {
-		
+
 		(15 | n).then('FizzBuzz'.return);
 		(3  | n).then('Fizz'.return);
 		(5  | n).then('Buzz'.return);
@@ -285,7 +377,7 @@ forever.i = 0;
 
 forever();
 
-"#,
+"##,
 		)
 		.unwrap();
 		return;

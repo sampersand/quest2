@@ -220,6 +220,27 @@ impl<'a> PatternAtom<'a> {
 				parser.untake(token);
 				Ok(false)
 			},
+
+			Some(
+				Token {
+					contents: TokenContents::EscapedLeftParen(paren),
+					span
+				},
+			) => {
+				seq.push(Self::Token(Token { contents: TokenContents::LeftParen(paren), span }));
+				Ok(true)
+			},
+
+			Some(
+				Token {
+					contents: TokenContents::EscapedRightParen(paren),
+					span
+				},
+			) => {
+				seq.push(Self::Token(Token { contents: TokenContents::RightParen(paren), span }));
+				Ok(true)
+			},
+
 			Some(token) => {
 				seq.push(Self::Token(token));
 				Ok(true)
@@ -437,6 +458,8 @@ impl<'a> PatternAtom<'a> {
 			Self::Capture(_, _) => todo!(),
 			Self::Paren(_, _) => todo!(),
 			Self::Token(token) => {
+				// TODO: we should allow macros to match before we currently match.
+				// but that requires a way for us to keep track of what's been matched yet.
 				if let Some(token) = parser.take_if_contents_bypass_syntax(token.contents)? {
 					matches.all_tokens.push(token);
 					Ok(true)
