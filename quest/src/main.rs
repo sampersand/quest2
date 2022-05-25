@@ -45,9 +45,30 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if false {
+	if true {
 		run_code(
 			r##"
+l = [1,2];
+l[0] = [3,4];
+l[0][0] = l[0];
+l[1] = l[0];
+print(l);
+__EOF__
+acc = (init, amnt, func) -> {
+	while({ init.len() != amnt }, { init.push(func(init)) });
+	init
+};
+
+$syntax {
+
+}
+
+print(acc([0, 1], 11, (l) -> { l[-2] + l[-1] }))
+__EOF__
+[ 8:39PM 2084] quest2 % raku -e 'say (0, 1, * + * … ∞)[^11]'  
+(0 1 1 2 3 5 8 13 21 34 55)
+
+__EOF__
 Integer.is_between = (self, l, r) -> { (l < self).and(self < r) };
 $syntax cmpop { $op:(< $| <= $| > $| >= $| == $| !=) } = { $op };
 $syntax { $l:tt $o1:cmpop $m:tt $o2:cmpop $r:tt } = {

@@ -324,3 +324,20 @@ fn list_comprehension() {
 	assert_eq!(list.as_slice()[2].downcast::<Integer>().unwrap(), 6);
 	assert_eq!(list.as_slice()[3].downcast::<Integer>().unwrap(), 8);
 }
+
+#[test]
+fn lists_containing_themselves() {
+	let result = run_code(
+		r#"
+			l = [1,2];
+			l[0] = [3,4];
+			l[0][0] = l[0];
+			l[1] = l[0];
+			l.dbg()
+		"#,
+	)
+	.unwrap();
+
+	let result = result.downcast::<Gc<Text>>().unwrap().as_ref().unwrap();
+	assert_eq!(result.as_str(), "[[[...], 4], [[...], 4]]");
+}

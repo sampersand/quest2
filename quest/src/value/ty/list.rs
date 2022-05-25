@@ -420,6 +420,7 @@ impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
 quest_type_attrs! { for Gc<List>, parent Object;
 	op_index => meth funcs::index,
 	op_index_assign => meth funcs::index_assign,
+	len => meth funcs::len,
 	push => meth funcs::push,
 	unshift => meth funcs::unshift,
 	dbg => meth funcs::dbg,
@@ -433,6 +434,12 @@ pub mod funcs {
 	use crate::value::ty::{Integer, Text};
 	use crate::value::ToAny;
 	use crate::{vm::Args, Result};
+
+	pub fn len(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_arguments()?;
+
+		Ok((list.as_ref()?.len() as Integer).to_any())
+	}
 
 	pub fn index(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
@@ -497,32 +504,50 @@ pub mod funcs {
 	}
 
 	pub fn at_text(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
-		dbg(list, args)
+		use crate::value::ty::text::SimpleBuilder;
+
+		fn at_text_maybe_list(value: AnyValue, builder: &mut SimpleBuilder, visited: &mut Vec<Gc<List>>) -> Result<()> {
+			if let Some(list) = value.downcast::<Gc<List>>() {
+				at_text_recursive(list, builder, visited)
+			} else {
+				builder.push_str(&value.dbg_text()?.as_ref()?.as_str());
+				Ok(())
+			}
+		}
+
+		fn at_text_recursive(list: Gc<List>, builder: &mut SimpleBuilder, visited: &mut Vec<Gc<List>>) -> Result<()> {
+			if visited.iter().any(|&ac| list.ptr_eq(ac)) {
+				builder.push_str("[...]");
+				return Ok(())
+			}
+
+			builder.push('[');
+			if let Some((first, rest)) = list.as_ref()?.as_slice().split_first() {
+				visited.push(list);
+				at_text_maybe_list(*first, builder, visited)?;
+
+				for element in rest {
+					builder.push_str(", ");
+					at_text_maybe_list(*element, builder, visited)?;
+				}
+
+				let last = visited.pop();
+				debug_assert!(last.unwrap().ptr_eq(list));
+			}
+			builder.push(']');
+
+			Ok(())
+		}
+
+		args.assert_no_arguments()?;
+
+		let mut builder = Text::simple_builder();
+		at_text_recursive(list, &mut builder, &mut Vec::new())?;
+		Ok(builder.finish().to_any())
 	}
 
 	pub fn dbg(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
-		args.assert_no_arguments()?;
-
-		// TODO: implement some form of recursion guards.
-		let listref = list.as_ref()?;
-
-		let (first, rest) = if let Some(ret) = listref.as_slice().split_first() {
-			ret
-		} else {
-			return Ok(Text::from_static_str("[]").to_any());
-		};
-
-		let mut builder = Text::simple_builder();
-		builder.push('[');
-		builder.push_str(&first.dbg_text()?.as_ref()?.as_str());
-
-		for element in rest {
-			builder.push_str(", ");
-			builder.push_str(&element.dbg_text()?.as_ref()?.as_str());
-		}
-
-		builder.push(']');
-		Ok(builder.finish().to_any())
+		at_text(list, args)
 	}
 
 	pub fn map(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
