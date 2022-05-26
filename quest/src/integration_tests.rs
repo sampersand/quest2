@@ -346,11 +346,13 @@ fn lists_containing_themselves() {
 fn reference_syntax_groups() {
 	let result = run_code(
 		r#"
-			$syntax time { $hr:int : $min:int } = { ($min + $hr*60) } ;
+			$syntax time { $hr:int : $min:int } = { $hr : $min . 0 } ;
+			$syntax time { $hr:int : $min:int . $sec:int } = { ($min*60) + ($hr*3600) + $sec) } ;
+
 			$syntax { $t:time am } = { $t } ;
 			$syntax { $t:time pm } = { ($t + 3600) } ;
 
-			(10 : 30 am) * (10 : 30 pm)
+			(10 : 30 . 45 pm) - (10 : 30 am)
 		"#,
 	)
 	.unwrap();

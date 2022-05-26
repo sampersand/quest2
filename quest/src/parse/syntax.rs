@@ -10,13 +10,14 @@ use pattern::Pattern;
 use replacement::Replacement;
 
 pub type Priority = usize;
-pub const MAX_PRIORITY: Priority = 100;
-pub const DEFAULT_PRIORITY: Priority = 25; // it's not common to want to be less than default.
+pub const MIN_PRIORITY: Priority = 100;
+pub const DEFAULT_PRIORITY: Priority = 75; // it's not common to want to be less than default.
 
 #[derive(Debug)]
 pub struct Syntax<'a> {
 	group: Option<&'a str>,
 	priority: Priority,
+	nomatch: bool, // dont use it when matching normal expressions, ie only when used in groups
 	pattern: Pattern<'a>,
 	replacement: Replacement<'a>,
 }
@@ -28,6 +29,10 @@ impl<'a> Syntax<'a> {
 
 	pub fn priority(&self) -> Priority {
 		self.priority
+	}
+
+	pub fn nomatch(&self) -> bool {
+		self.nomatch
 	}
 
 	pub fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
@@ -42,6 +47,8 @@ impl<'a> Syntax<'a> {
 			},
 			None => return Ok(None),
 		}
+
+		let nomatch = parser.take_if_contents_bypass_syntax(TokenContents::Symbol("!"))?.is_some();
 
 		let group = match parser.take()? {
 			Some(Token {
@@ -60,10 +67,10 @@ impl<'a> Syntax<'a> {
 				contents: TokenContents::Integer(num),
 				..
 			}) => {
-				if num <= MAX_PRIORITY as _ {
+				if num <= MIN_PRIORITY as _ {
 					num as Priority
 				} else {
-					return Err(parser.error(format!("priority must be 0..{}", MAX_PRIORITY).into()));
+					return Err(parser.error(format!("priority must be 0..{}", MIN_PRIORITY).into()));
 				}
 			},
 			Some(token) => {
@@ -99,6 +106,7 @@ impl<'a> Syntax<'a> {
 		Ok(Some(Self {
 			group,
 			priority,
+			nomatch,
 			pattern,
 			replacement,
 		}))

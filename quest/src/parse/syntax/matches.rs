@@ -34,7 +34,7 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 		}
 	}
 
-	pub fn _subnesting(&mut self) -> Matcher<'tkn, '_, '_> {
+	pub fn subpattern(&mut self) -> Matcher<'tkn, '_, '_> {
 		Matcher {
 			start_index: self.all_tokens.len(),
 			all_tokens: self.all_tokens,

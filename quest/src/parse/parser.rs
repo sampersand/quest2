@@ -1,5 +1,5 @@
 use super::{Error, ErrorKind, Result, Stream, Token};
-use crate::parse::syntax::{Syntax, MAX_PRIORITY};
+use crate::parse::syntax::{Syntax, MIN_PRIORITY};
 use crate::parse::token::TokenContents;
 use std::path::Path;
 use std::rc::Rc;
@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Parser<'a> {
-	syntaxes: [Vec<Rc<Syntax<'a>>>; MAX_PRIORITY + 1], // `+1` because `MAX_PRIORITY` is still a valid priority
+	syntaxes: [Vec<Rc<Syntax<'a>>>; MIN_PRIORITY + 1], // `+1` because `MIN_PRIORITY` is still a valid priority
 	groups: HashMap<&'a str, Vec<Rc<Syntax<'a>>>>,
 	stream: Stream<'a>,
 	peeked_tokens: Vec<Token<'a>>,
@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
 		const EMPTY_VEC: Vec<Rc<Syntax<'static>>> = Vec::new();
 
 		Self {
-			syntaxes: [EMPTY_VEC; MAX_PRIORITY + 1],
+			syntaxes: [EMPTY_VEC; MIN_PRIORITY + 1],
 			groups: HashMap::default(),
 			stream: Stream::new(src, filename),
 			peeked_tokens: Vec::new(),
@@ -45,7 +45,14 @@ impl<'a> Parser<'a> {
 			groups.sort_by(|l, r| l.priority().cmp(&r.priority())); // OPTIMIZE: maybe insert it in the right spot?
 		}
 
-		self.syntaxes[MAX_PRIORITY - syntax.priority()].insert(0, syntax);
+		if syntax.nomatch() {
+			if syntax.group().is_none() {
+				warn!(?syntax, "syntax encountered with nomatch and no group name");
+			}
+			todo!("nomatch is currently not working and is unsupported");
+		} else {
+			self.syntaxes[syntax.priority()].insert(0, syntax);
+		}
 	}
 
 	pub fn get_groups(&self, name: &str) -> Option<&[Rc<Syntax<'a>>]> {
@@ -71,7 +78,13 @@ impl<'a> Parser<'a> {
 
 	pub fn take(&mut self) -> Result<'a, Option<Token<'a>>> {
 		self.expand_syntax()?;
-		self.take_bypass_syntax()
+		let x = self.take_bypass_syntax();
+		if let Ok(Some(x)) = x {
+			println!("{:?}", x);
+		} else {
+			dbg!(&x);
+		}
+		x
 	}
 
 	pub fn take_bypass_syntax(&mut self) -> Result<'a, Option<Token<'a>>> {

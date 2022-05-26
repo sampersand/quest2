@@ -34,7 +34,7 @@ fn setup_tracing() {
 		Ok("W") | Ok("WARN") => LevelFilter::WARN,
 		Ok("E") | Ok("ERROR") => LevelFilter::ERROR,
 		Ok("O") | Ok("OFF") => LevelFilter::OFF,
-		_ => return,
+		_ => LevelFilter::WARN,
 	};
 
 	tracing_subscriber::fmt()
@@ -48,12 +48,26 @@ fn main() {
 	if true {
 		run_code(
 			r##"
-$syntax time { $hr:int : $min:int } = { ($min + $hr*60) } ;
+# $syntax time { $hr1:int : $min1:int } = { ($hr1 : $min1 . 0) } ;
+# $syntax time { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
+$syntax time { $hr1:int : $min1:int } = { $hr1 : $min1 . 0 } ;
+$syntax time { $hr:int : $min:int . $sec:int } = { [$min, $hr, $sec] } ;
+
+$syntax 30 { $t:list am } = { ["A", 3, 1] } ;
+
+{@1};
+
+print(10 : 30 . 45 am);
+#print((10 : 30 . 45 pm) - (10 : 30 am))
+
+__EOF__
+$syntax time { $hr1:int : $min1:int } = { $hr1 : $min1 . 0 } ;
+$syntax time { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
+
 $syntax { $t:time am } = { $t } ;
 $syntax { $t:time pm } = { ($t + 3600) } ;
 
-print(10 : 30 am); # => 630
-print(10 : 30 pm); # => 4230
+print((10 : 30 . 45 pm) - (10 : 30 am))
 
 __EOF__
 l = [1,2];
