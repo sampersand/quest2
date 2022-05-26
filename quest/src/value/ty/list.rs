@@ -315,6 +315,20 @@ impl List {
 		unsafe { self.as_mut_ptr().add(self.len()) }
 	}
 
+	pub fn shift(&mut self) -> Option<AnyValue> {
+		let ret = self.as_slice().first().copied();
+
+		if ret.is_some() {
+			unsafe {
+				self.set_len(self.len() - 1);
+				self.as_mut_ptr().copy_from(self.as_mut_ptr().add(1), self.len());
+			}
+		}
+
+		ret
+	}
+
+
 	pub fn unshift(&mut self, ele: AnyValue) {
 		if self.capacity() <= self.len() + 1 {
 			self.allocate_more(1);
@@ -332,6 +346,16 @@ impl List {
 	pub fn push(&mut self, ele: AnyValue) {
 		// OPTIMIZE: you can make this work better for single values.
 		self.push_slice(std::slice::from_ref(&ele));
+	}
+
+	pub fn pop(&mut self) -> Option<AnyValue> {
+		let ret = self.as_slice().last().copied();
+
+		if ret.is_some() {
+			unsafe { self.set_len(self.len() - 1); }
+		}
+
+		ret
 	}
 
 	pub fn push_slice(&mut self, slice: &[AnyValue]) {
@@ -422,6 +446,8 @@ quest_type_attrs! { for Gc<List>, parent Object;
 	op_index_assign => meth funcs::index_assign,
 	len => meth funcs::len,
 	push => meth funcs::push,
+	pop => meth funcs::pop,
+	shift => meth funcs::shift,
 	unshift => meth funcs::unshift,
 	dbg => meth funcs::dbg,
 	at_text => meth funcs::at_text,
@@ -487,11 +513,23 @@ pub mod funcs {
 
 	pub fn push(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
-		args.assert_positional_len(1)?; // todo: more positional args for slicing
+		args.assert_positional_len(1)?;
 
 		list.as_mut()?.push(args[0]);
 
 		Ok(list.to_any())
+	}
+
+	pub fn pop(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_arguments()?;
+
+		Ok(list.as_mut()?.pop().unwrap_or_default())
+	}
+
+	pub fn shift(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_arguments()?;
+
+		Ok(list.as_mut()?.shift().unwrap_or_default())
 	}
 
 	pub fn unshift(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
