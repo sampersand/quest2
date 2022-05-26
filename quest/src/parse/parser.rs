@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
 
 		if let Some(group) = syntax.group() {
 			let groups = self.groups.entry(group).or_default();
-			groups.push(syntax.clone());
+			groups.insert(0, syntax.clone());
 			groups.sort_by(|l, r| l.priority().cmp(&r.priority())); // OPTIMIZE: maybe insert it in the right spot?
 		}
 
@@ -78,13 +78,7 @@ impl<'a> Parser<'a> {
 
 	pub fn take(&mut self) -> Result<'a, Option<Token<'a>>> {
 		self.expand_syntax()?;
-		let x = self.take_bypass_syntax();
-		if let Ok(Some(x)) = x {
-			println!("{:?}", x);
-		} else {
-			dbg!(&x);
-		}
-		x
+		self.take_bypass_syntax()
 	}
 
 	pub fn take_bypass_syntax(&mut self) -> Result<'a, Option<Token<'a>>> {

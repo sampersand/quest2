@@ -48,16 +48,25 @@ fn main() {
 	if true {
 		run_code(
 			r##"
+$syntax time { $hr1:int : $min1:int } = { $hr1 : $min1 . 0 } ;
+$syntax time { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
+
+$syntax { $t:time am } = { $t } ;
+$syntax { $t:time pm } = { ($t + 3600) } ;
+
+print(10 : 30 . 45 pm);
+
+__EOF__
 # $syntax time { $hr1:int : $min1:int } = { ($hr1 : $min1 . 0) } ;
 # $syntax time { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
 $syntax time { $hr1:int : $min1:int } = { $hr1 : $min1 . 0 } ;
-$syntax time { $hr:int : $min:int . $sec:int } = { [$min, $hr, $sec] } ;
+$syntax time 0 { $hr:int : $min:int . $sec:int } = { [$min, $hr, $sec] } ;
 
-$syntax 30 { $t:list am } = { ["A", 3, 1] } ;
+$syntax 30 { @ $t:time am } = { ["A", 3, 1] } ;
 
 {@1};
 
-print(10 : 30 . 45 am);
+print(@ 10 : 30 . 45 am);
 #print((10 : 30 . 45 pm) - (10 : 30 am))
 
 __EOF__

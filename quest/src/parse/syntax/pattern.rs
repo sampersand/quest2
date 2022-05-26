@@ -423,7 +423,7 @@ fn does_match_named<'a>(
 				for syntax in groups {
 					if syntax.does_match(&mut subpattern, parser)? {
 						let matches = subpattern.finish();
-						// matcher.declare_capture(capture_name, vec![matches])?;
+						matcher.declare_capture(capture_name, vec![matches])?;
 						return Ok(true);
 					}
 				}
