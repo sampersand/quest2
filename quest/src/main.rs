@@ -48,6 +48,44 @@ fn main() {
 	if true {
 		run_code(
 			r##"
+$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
+print(12 3)
+__EOF__
+#![allow(unused)] /*
+$syntax { fn $name:ident ($arg:ident : $i:ident) -> $j:ident $body:block } = {
+    $name = ($arg) -> $body;
+} ;
+$syntax { let } = { };
+$syntax { if $cond:tt $ift:block else $iff:block } = { (if)($cond, $ift, $iff) } ;
+println = (_, what) -> { what.print() };
+$syntax { println ! } = { println };
+$syntax { fn main () $body:block } = { $body() } ;
+# */
+
+fn fibonacci (n: i32) -> i32 {
+	let less_than_one = n <= 1;
+
+	if less_than_one {
+		n
+	} else {
+		fibonacci(n-1) + fibonacci(n-2)
+	}
+}
+
+fn main() {
+	let max = 10;
+
+	println!("{}", fibonacci(max));
+}
+
+__EOF__
+$syntax time { $hr:int : $min:int } = { ($min + $hr*60) } ;
+$syntax { $t:time am } = { $t } ;
+$syntax { $t:time pm } = { ($t + 3600) } ;
+
+print(10 : 30 am)
+
+__EOF__
 l = [1,2];
 l[0] = [3,4];
 l[0][0] = l[0];

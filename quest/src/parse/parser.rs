@@ -40,13 +40,15 @@ impl<'a> Parser<'a> {
 		let syntax = Rc::new(syntax);
 
 		if let Some(group) = syntax.group() {
-			self.groups.entry(group).or_default().push(syntax.clone());
+			let groups = self.groups.entry(group).or_default();
+			groups.push(syntax.clone());
+			groups.sort_by(|l, r| l.priority().cmp(&r.priority())); // OPTIMIZE: maybe insert it in the right spot?
 		}
 
 		self.syntaxes[MAX_PRIORITY - syntax.priority()].insert(0, syntax);
 	}
 
-	pub fn get_group(&self, name: &str) -> Option<&[Rc<Syntax<'a>>]> {
+	pub fn get_groups(&self, name: &str) -> Option<&[Rc<Syntax<'a>>]> {
 		self.groups.get(name).map(Vec::as_slice)
 	}
 

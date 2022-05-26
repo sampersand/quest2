@@ -1,9 +1,11 @@
 use crate::parse::token::{Token, TokenContents};
 use crate::parse::{Parser, Result};
 
+mod matches;
 mod pattern;
 mod replacement;
 
+use matches::{Matches, Matcher};
 use pattern::Pattern;
 use replacement::Replacement;
 
@@ -102,9 +104,17 @@ impl<'a> Syntax<'a> {
 		}))
 	}
 
+	// fn matches(&self, matches: &mut Matches<'a>, parser: &mut Parser<'a>) -> Result<'a, bool> {
+	// 	let mut matched_tokens = Vec::new();
+	// 	let matches = Matches::new
+	// 	Ok(true)
+	// }
+
 	pub fn replace(&self, parser: &mut Parser<'a>) -> Result<'a, bool> {
-		if let Some(matches) = self.pattern.matches(parser)? {
-			self.replacement.replace(matches, parser)?;
+		let mut matched_tokens = Vec::new();
+		let mut matches = Matcher::new(&mut matched_tokens);
+		if self.pattern.does_match(&mut matches, parser)? {
+			self.replacement.replace(matches.finish(), parser)?;
 			Ok(true)
 		} else {
 			Ok(false)

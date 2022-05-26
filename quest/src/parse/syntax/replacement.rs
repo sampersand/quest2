@@ -1,4 +1,4 @@
-use super::pattern::PatternMatches;
+use super::Matches;
 use crate::parse::token::{ParenType, Token, TokenContents};
 use crate::parse::{Parser, Result};
 
@@ -184,7 +184,7 @@ impl<'a> Replacement<'a> {
 impl<'a> Replacement<'a> {
 	pub fn replace(
 		&self,
-		mut matches: PatternMatches<'a>,
+		mut matches: Matches<'a>,
 		parser: &mut Parser<'a>,
 	) -> Result<'a, ()> {
 		self.0.replace(&mut matches, parser)
@@ -192,7 +192,7 @@ impl<'a> Replacement<'a> {
 }
 
 impl<'a> ReplacementBody<'a> {
-	fn replace(&self, matches: &mut PatternMatches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
+	fn replace(&self, matches: &mut Matches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
 		for atom in self.0.iter().rev() {
 			atom.replace(matches, parser)?;
 		}
@@ -202,7 +202,7 @@ impl<'a> ReplacementBody<'a> {
 }
 
 impl<'a> ReplacementAtom<'a> {
-	fn replace(&self, matches: &mut PatternMatches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
+	fn replace(&self, matches: &mut Matches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
 		// TODO: remove 1 from every syntax token here.
 
 		match self {

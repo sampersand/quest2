@@ -1,6 +1,6 @@
+use super::Matcher;
 use crate::parse::token::{ParenType, Token, TokenContents};
 use crate::parse::{Parser, Result};
-use std::collections::HashMap;
 /*
 
 (*
@@ -251,6 +251,10 @@ impl<'a> PatternAtom<'a> {
 }
 
 impl<'a> Pattern<'a> {
+	pub fn does_match(&self, matcher: &mut Matcher<'a, '_, '_>, parser: &mut Parser<'a>) -> Result<'a, bool> {
+		self.0.does_match(matcher, parser)
+	}
+
 	pub fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
 		if parser
 			.take_if_contents_bypass_syntax(TokenContents::LeftParen(ParenType::Curly))?
@@ -269,45 +273,55 @@ impl<'a> Pattern<'a> {
 	}
 }
 
-#[derive(Debug, Default)]
-pub struct PatternMatches<'a> {
-	all_tokens: Vec<Token<'a>>,
-	captures: HashMap<&'a str, Vec<PatternMatches<'a>>>,
-}
-
-impl<'a> Pattern<'a> {
-	pub fn matches(&self, parser: &mut Parser<'a>) -> Result<'a, Option<PatternMatches<'a>>> {
-		self.0.matches(parser)
-	}
-}
-
 impl<'a> PatternBody<'a> {
-	fn matches(&self, parser: &mut Parser<'a>) -> Result<'a, Option<PatternMatches<'a>>> {
-		self
-			.0
-			.iter()
-			.find_map(|sequence| sequence.matches(parser).transpose())
-			.transpose()
+	fn does_match(&self, matcher: &mut Matcher<'a, '_, '_>, parser: &mut Parser<'a>) -> Result<'a, bool> {
+		for sequence in self.0.iter() {
+			if sequence.does_match(matcher, parser)? {
+				return Ok(true)
+			}
+		}
+		Ok(false)
 	}
+
+	// fn matches(&self, parser: &mut Parser<'a>) -> Result<'a, Option<Matches<'a>>> {
+	// 	self
+	// 		.0
+	// 		.iter()
+	// 		.find_map(|sequence| sequence.matches(parser).transpose())
+	// 		.transpose()
+	// }
 }
 
 impl<'a> PatternSequence<'a> {
-	fn matches(&self, parser: &mut Parser<'a>) -> Result<'a, Option<PatternMatches<'a>>> {
-		let mut matches = PatternMatches::default();
+	fn does_match<'v>(&self, matcher: &mut Matcher<'a, '_, '_>, parser: &mut Parser<'a>) -> Result<'a, bool> {
+		let mut submatcher = matcher.submatcher();
 
 		for atom in &self.0 {
-			if !atom.does_match(&mut matches, parser)? {
-				parser.untake_tokens(matches.all_tokens);
-				return Ok(None);
+			if !atom.does_match(&mut submatcher, parser)? {
+				submatcher.unmatch(parser);
+				return Ok(false);
 			}
 		}
 
-		Ok(Some(matches))
+		Ok(true)
 	}
+
+	// fn matches(&self, parser: &mut Parser<'a>) -> Result<'a, Option<Matches<'a>>> {
+	// 	let mut builder = Matcher::default();
+
+	// 	for atom in &self.0 {
+	// 		if !atom.does_match(&mut builder, parser)? {
+	// 			builder.unmatch(parser);
+	// 			return Ok(None);
+	// 		}
+	// 	}
+
+	// 	Ok(Some(builder.finish()))
+	// }
 }
 
 fn match_group<'a>(
-	matches: &mut PatternMatches<'a>,
+	matcher: &mut Matcher<'a, '_, '_>,
 	parser: &mut Parser<'a>,
 	paren: ParenType,
 ) -> Result<'a, bool> {
@@ -317,12 +331,12 @@ fn match_group<'a>(
 		} else {
 			return Ok(false);
 		};
-		matches.all_tokens.push(token);
+		matcher.push(token);
 
 		match token.contents {
 			TokenContents::RightParen(rp) if rp == paren => return Ok(true),
 			TokenContents::LeftParen(lp) => {
-				if !match_group(matches, parser, lp)? {
+				if !match_group(matcher, parser, lp)? {
 					return Ok(false);
 				}
 			},
@@ -334,15 +348,19 @@ fn match_group<'a>(
 fn does_match_named<'a>(
 	capture_name: &'a str,
 	name: &str,
-	matches: &mut PatternMatches<'a>,
+	matcher: &mut Matcher<'a, '_, '_>,
 	parser: &mut Parser<'a>,
 ) -> Result<'a, bool> {
+	let mut submatcher = matcher.submatcher();
+
 	macro_rules! single_token_group {
 		($pat:pat) => {
 			if let Some(token) =
 				parser.take_if_bypass_syntax(|token| matches!(token.contents, $pat))?
 			{
-				matches.declare_capture(capture_name, vec![PatternMatches::single_token(token)])?;
+				submatcher.push(token);
+				let subm = submatcher.finish();
+				matcher.declare_capture(capture_name, vec![subm])?;
 				Ok(true)
 			} else {
 				Ok(false)
@@ -365,42 +383,17 @@ fn does_match_named<'a>(
 			single_token_group!(Integer(_) | Float(_) | Identifier(_) | Text(_) | Stackframe(_))
 		},
 
-		"tt" => Ok(does_match_named(capture_name, "literal", matches, parser)?
-			|| does_match_named(capture_name, "group", matches, parser)?
-			|| does_match_named(capture_name, "list", matches, parser)?
-			|| does_match_named(capture_name, "block", matches, parser)?),
+		"tt" => Ok(does_match_named(capture_name, "literal", matcher, parser)?
+			|| does_match_named(capture_name, "group", matcher, parser)?
+			|| does_match_named(capture_name, "list", matcher, parser)?
+			|| does_match_named(capture_name, "block", matcher, parser)?),
 		"group" | "block" | "list" => {
-			let mut group_matches = PatternMatches::default();
 
 			let paren = match (name, parser.take_bypass_syntax()?) {
-				(
-					"group",
-					Some(
-						token @ Token {
-							contents: TokenContents::LeftParen(paren @ ParenType::Round),
-							..
-						},
-					),
-				)
-				| (
-					"block",
-					Some(
-						token @ Token {
-							contents: TokenContents::LeftParen(paren @ ParenType::Curly),
-							..
-						},
-					),
-				)
-				| (
-					"list",
-					Some(
-						token @ Token {
-							contents: TokenContents::LeftParen(paren @ ParenType::Square),
-							..
-						},
-					),
-				) => {
-					group_matches.all_tokens.push(token);
+				("group", Some(token @ Token {contents: TokenContents::LeftParen(paren @ ParenType::Round), .. }))
+				| ("block", Some(token @ Token {contents: TokenContents::LeftParen(paren @ ParenType::Curly), .. }))
+				| ("list", Some(token @ Token {contents: TokenContents::LeftParen(paren @ ParenType::Square), .. })) => {
+					submatcher.push(token);
 					paren
 				},
 				(_, Some(token)) => {
@@ -410,24 +403,28 @@ fn does_match_named<'a>(
 				(_, None) => return Ok(false),
 			};
 
-			if match_group(&mut group_matches, parser, paren)? {
-				matches.declare_capture(capture_name, vec![group_matches])?;
-				Ok(true)
+			if match_group(&mut submatcher, parser, paren)? {
+				let matches = submatcher.finish();
+				matcher.declare_capture(capture_name, vec![matches]).and(Ok(true))
 			} else {
-				parser.untake_tokens(group_matches.all_tokens);
+				submatcher.unmatch(parser);
 				Ok(false)
 			}
 		},
 
 		other => 
-			if let Some(group) = parser.get_group(other) {
-				let _ = group;
+			if let Some(groups) = parser.get_groups(other) {
+				// `groups` is already sorted by priority
+				for syntax in groups {
+					// if syntax.
+					let _ = syntax;
+				}
 				todo!();
 /*
 fn does_match_named<'a>(
 	capture_name: &'a str,
 	name: &str,
-	matches: &mut PatternMatches<'a>,
+	matches: &mut Matches<'a>,
 	parser: &mut Parser<'a>,
 */
 			} else {
@@ -439,19 +436,20 @@ fn does_match_named<'a>(
 impl<'a> PatternAtom<'a> {
 	fn does_match(
 		&self,
-		matches: &mut PatternMatches<'a>,
-		parser: &mut Parser<'a>,
+		matcher: &mut Matcher<'a, '_, '_>,
+		parser: &mut Parser<'a>
 	) -> Result<'a, bool> {
 		match self {
 			Self::Capture(capture_name, PatternKind::Name(name)) => {
-				does_match_named(capture_name, name, matches, parser)
+				does_match_named(capture_name, name, matcher, parser)
 			},
 			Self::Capture(capture_name, PatternKind::Body(ParenType::Round, body)) => {
-				// todo: should these be put in the global "all_tokens" state?
-				if let Some(new_matches) = body.matches(parser)? {
-					matches.declare_capture(capture_name, vec![new_matches])?;
-					Ok(true)
+				let mut submatcher = matcher.submatcher();
+				if body.does_match(&mut submatcher, parser)? {
+					let matches = submatcher.finish();
+					matcher.declare_capture(capture_name, vec![matches]).and(Ok(true))
 				} else {
+					submatcher.unmatch(parser);
 					Ok(false)
 				}
 			},
@@ -461,52 +459,12 @@ impl<'a> PatternAtom<'a> {
 				// TODO: we should allow macros to match before we currently match.
 				// but that requires a way for us to keep track of what's been matched yet.
 				if let Some(token) = parser.take_if_contents_bypass_syntax(token.contents)? {
-					matches.all_tokens.push(token);
+					matcher.push(token);
 					Ok(true)
 				} else {
 					Ok(false)
 				}
 			},
-		}
-	}
-}
-
-impl<'a> PatternMatches<'a> {
-	fn single_token(token: Token<'a>) -> Self {
-		Self {
-			all_tokens: vec![token],
-			..Self::default()
-		}
-	}
-	pub fn all_tokens(&self) -> &[Token<'a>] {
-		&self.all_tokens
-	}
-
-	pub fn capture(&self, name: &str) -> Option<&[PatternMatches<'a>]> {
-		self.captures.get(name).map(Vec::as_slice)
-	}
-
-	fn declare_capture(
-		&mut self,
-		name: &'a str,
-		matches: Vec<PatternMatches<'a>>,
-	) -> Result<'a, ()> {
-		for m in &matches {
-			self.all_tokens.extend(m.all_tokens.iter().copied());
-		}
-
-		if name == "_" {
-			return Ok(());
-		}
-
-		let start = matches[0].all_tokens[0].span.start;
-		let old = self.captures.insert(name, matches);
-
-		if old.is_none() {
-			Ok(())
-		} else {
-			// todo: should the error originate from the syntax token?
-			Err(start.error(format!("duplicate syntax variable '${}' encountered", name).into()))
 		}
 	}
 }
