@@ -87,7 +87,6 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 			}
 		}
 	}
-
 }
 
 

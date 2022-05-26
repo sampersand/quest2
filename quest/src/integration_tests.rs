@@ -341,3 +341,18 @@ fn lists_containing_themselves() {
 	let result = result.downcast::<Gc<Text>>().unwrap().as_ref().unwrap();
 	assert_eq!(result.as_str(), "[[[...], 4], [[...], 4]]");
 }
+
+#[test]
+fn reference_syntax_groups() {
+	let result = run_code(
+		r#"
+			$syntax time { $hr:int : $min:int } = { ($min + $hr*60) } ;
+			$syntax { $t:time am } = { $t } ;
+			$syntax { $t:time pm } = { ($t + 3600) } ;
+
+			(10 : 30 am) * (10 : 30 pm)
+		"#,
+	)
+	.unwrap();
+	assert_eq!(result.downcast::<Integer>().unwrap(), 630*4230);
+}

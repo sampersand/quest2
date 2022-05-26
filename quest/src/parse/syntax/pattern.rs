@@ -414,19 +414,19 @@ fn does_match_named<'a>(
 
 		other => 
 			if let Some(groups) = parser.get_groups(other) {
+				let groups = groups.to_vec(); // lol, i wish this were better.
+
 				// `groups` is already sorted by priority
 				for syntax in groups {
-					// if syntax.
-					let _ = syntax;
+					if syntax.does_match(&mut submatcher, parser)? {
+						let matches = submatcher.finish();
+						matcher.declare_capture(capture_name, vec![matches])?;
+						return Ok(true);
+					}
 				}
-				todo!();
-/*
-fn does_match_named<'a>(
-	capture_name: &'a str,
-	name: &str,
-	matches: &mut Matches<'a>,
-	parser: &mut Parser<'a>,
-*/
+
+				// TODO: should we unmatch the submatches?
+				return Ok(false);
 			} else {
 				Err(parser.error(format!("unknown capture type {}", other).into()))
 			},

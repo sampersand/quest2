@@ -110,10 +110,14 @@ impl<'a> Syntax<'a> {
 	// 	Ok(true)
 	// }
 
+	fn does_match(&self, matcher: &mut Matcher<'a, '_, '_>, parser: &mut Parser<'a>) -> Result<'a, bool> {
+		self.pattern.does_match(matcher, parser)
+	}
+
 	pub fn replace(&self, parser: &mut Parser<'a>) -> Result<'a, bool> {
 		let mut matched_tokens = Vec::new();
 		let mut matches = Matcher::new(&mut matched_tokens);
-		if self.pattern.does_match(&mut matches, parser)? {
+		if self.does_match(&mut matches, parser)? {
 			self.replacement.replace(matches.finish(), parser)?;
 			Ok(true)
 		} else {
