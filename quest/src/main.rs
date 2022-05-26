@@ -48,6 +48,16 @@ fn main() {
 	if false {
 		run_code(
 			r##"
+
+$syntax { @ $e:literal } = { List::push(stack, $e); };
+$syntax { $ } = { List::pop(stack); };
+$syntax { . } = { print(List::pop(stack)); };
+$syntax { : } = { a = List::pop(stack); List::push(stack, a); List::push(stack, a); };
+
+stack = [];
+
+@"hello" @"quest syntax rocks" . @"sup" : $ . .
+__EOF__
 $syntax time { $hr:int : $min:int } = { $hr : $min . 0 } ;
 $syntax time { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
 

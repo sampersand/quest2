@@ -1,3 +1,4 @@
+use crate::value::ty::{Singleton, InstanceOf};
 use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 use crate::AnyValue;
@@ -441,20 +442,6 @@ impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
 	}
 }
 
-quest_type_attrs! { for Gc<List>, parent Object;
-	op_index => meth funcs::index,
-	op_index_assign => meth funcs::index_assign,
-	len => meth funcs::len,
-	push => meth funcs::push,
-	pop => meth funcs::pop,
-	shift => meth funcs::shift,
-	unshift => meth funcs::unshift,
-	dbg => meth funcs::dbg,
-	at_text => meth funcs::at_text,
-	map => meth funcs::map,
-	each => meth funcs::each,
-}
-
 pub mod funcs {
 	use super::*;
 	use crate::value::ty::{Integer, Text};
@@ -615,4 +602,36 @@ pub mod funcs {
 
 		Ok(list.to_any())
 	}
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct ListClass;
+
+impl Singleton for ListClass {
+	fn instance() -> crate::AnyValue {
+		use once_cell::sync::OnceCell;
+
+		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+
+		*INSTANCE.get_or_init(|| {
+			create_class! { "List", parent Object::instance();
+				Intern::op_index => method funcs::index,
+				Intern::op_index_assign => method funcs::index_assign,
+				Intern::len => method funcs::len,
+				Intern::push => method funcs::push,
+				Intern::pop => method funcs::pop,
+				Intern::shift => method funcs::shift,
+				Intern::unshift => method funcs::unshift,
+				Intern::dbg => method funcs::dbg,
+				Intern::at_text => method funcs::at_text,
+				Intern::map => method funcs::map,
+				Intern::each => method funcs::each,
+			}
+		})
+	}
+}
+
+impl InstanceOf for List {
+	type Parent = ListClass;
 }

@@ -8,7 +8,7 @@ pub struct Builder(BaseBuilder<Inner>);
 
 impl Builder {
 	pub unsafe fn new(mut builder: BaseBuilder<Inner>) -> Self {
-		builder.set_parents(Gc::<List>::parent());
+		builder.set_parents(List::parent());
 
 		Self(builder)
 	}
