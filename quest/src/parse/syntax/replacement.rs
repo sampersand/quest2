@@ -191,15 +191,15 @@ impl<'a> Replacement<'a> {
 impl<'a> Replacement<'a> {
 	pub fn replace(
 		&self,
-		mut matches: Matches<'a>,
+		matches: Matches<'a>,
 		parser: &mut Parser<'a>,
 	) -> Result<'a, ()> {
-		self.0.replace(&mut matches, parser)
+		self.0.replace(&matches, parser)
 	}
 }
 
 impl<'a> ReplacementBody<'a> {
-	fn replace(&self, matches: &mut Matches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
+	fn replace(&self, matches: &Matches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
 		for atom in self.0.iter().rev() {
 			atom.replace(matches, parser)?;
 		}
@@ -209,7 +209,7 @@ impl<'a> ReplacementBody<'a> {
 }
 
 impl<'a> ReplacementAtom<'a> {
-	fn replace(&self, matches: &mut Matches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
+	fn replace(&self, matches: &Matches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
 		// TODO: remove 1 from every syntax token here.
 
 		match self {
@@ -223,13 +223,46 @@ impl<'a> ReplacementAtom<'a> {
 				})?;
 
 				for capture in captures {
-					parser.untake_tokens(capture.all_tokens().iter().copied());
+					capture.expand(parser)
 				}
 
 				Ok(())
 			},
-			Self::Paren(_kind, _body) => {
-				todo!()
+			Self::Paren(kind, body) => {
+				let (min, max) = match kind {
+					ParenType::Round => (1, Some(1)),
+					ParenType::Square => (0, Some(1)),
+					ParenType::Curly => (0, None),
+				};
+				let mut submatches = None;
+
+				for atom in &body.0 {
+					if let ReplacementAtom::Capture(name) = atom {
+						if let Some(subm) = matches.get_submatches_with(name) {
+							submatches = Some(subm);
+							break;
+						}
+					}
+				}
+
+				if let Some(submatches) = submatches {
+					if submatches.len() < min || max.map_or(false, |max| max < submatches.len()) {
+						return Err(parser.error(format!("invalid match count (got {}, min={},max={:?})",
+							submatches.len(), min, max).into()))
+					}
+
+					for submatch in submatches {
+						for caps in submatch.iter() {
+							body.replace(caps, parser)?;
+						}
+					}
+
+					Ok(())
+				} else if min == 0 {
+					Ok(()) // do nothing, minimum of zero is ok
+				} else {
+					Err(parser.error(format!("no matches found (todo: source location?)").into()))
+				}
 			},
 		}
 	}

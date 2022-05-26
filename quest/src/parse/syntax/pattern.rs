@@ -442,6 +442,36 @@ fn does_match_named<'a>(
 	}
 }
 
+fn does_match_paren<'a>(
+	min: usize,
+	max: Option<usize>,
+	body: &PatternBody<'a>,
+	matcher: &mut Matcher<'a, '_, '_>,
+	parser: &mut Parser<'a>,
+) -> Result<'a, bool> {
+	let mut submatches = Vec::with_capacity(max.unwrap_or(min));
+
+	loop {
+		let mut subpattern = matcher.subpattern();
+		if !body.does_match(&mut subpattern, parser)? {
+			subpattern.unmatch(parser);
+			break;
+		}
+		submatches.push(subpattern.finish());
+	}
+
+	if submatches.len() < min || max.map_or(false, |max| max < submatches.len()) {
+		for submatch in submatches.into_iter().rev() {
+			parser.untake_tokens(submatch.all_tokens().iter().copied())
+		}
+
+		return Ok(false);
+	}
+
+	matcher.declare_submatches(submatches).and(Ok(true))
+}
+
+
 impl<'a> PatternAtom<'a> {
 	fn does_match(
 		&self,
@@ -463,7 +493,9 @@ impl<'a> PatternAtom<'a> {
 				}
 			},
 			Self::Capture(_, _) => todo!(),
-			Self::Paren(_, _) => todo!(),
+			Self::Paren(ParenType::Round, body) => does_match_paren(1, Some(1), body, matcher, parser),
+			Self::Paren(ParenType::Square, body) => does_match_paren(0, Some(1), body, matcher, parser),
+			Self::Paren(ParenType::Curly, body) => does_match_paren(0, None, body, matcher, parser),
 			Self::Token(token) => {
 				// TODO: we should allow macros to match before we currently match.
 				// but that requires a way for us to keep track of what's been matched yet.

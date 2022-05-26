@@ -78,7 +78,13 @@ impl<'a> Parser<'a> {
 
 	pub fn take(&mut self) -> Result<'a, Option<Token<'a>>> {
 		self.expand_syntax()?;
-		self.take_bypass_syntax()
+		let x = self.take_bypass_syntax();
+		// if let Ok(Some(x)) = x {
+		// 	println!("{:?}", x);
+		// } else {
+		// 	dbg!(&x);
+		// }
+		x
 	}
 
 	pub fn take_bypass_syntax(&mut self) -> Result<'a, Option<Token<'a>>> {
