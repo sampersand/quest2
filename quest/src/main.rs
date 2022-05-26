@@ -45,16 +45,16 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if true {
+	if false {
 		run_code(
 			r##"
-$syntax time { $hr1:int : $min1:int } = { $hr1 : $min1 . 0 } ;
+$syntax time { $hr:int : $min:int } = { $hr : $min . 0 } ;
 $syntax time { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
 
 $syntax { $t:time am } = { $t } ;
 $syntax { $t:time pm } = { ($t + 3600) } ;
 
-print(10 : 30 . 45 pm);
+print(10 : 30 pm);
 
 __EOF__
 # $syntax time { $hr1:int : $min1:int } = { ($hr1 : $min1 . 0) } ;

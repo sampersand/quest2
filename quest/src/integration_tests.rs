@@ -347,14 +347,16 @@ fn reference_syntax_groups() {
 	let result = run_code(
 		r#"
 			$syntax time { $hr:int : $min:int } = { $hr : $min . 0 } ;
-			$syntax time { $hr:int : $min:int . $sec:int } = { ($min*60) + ($hr*3600) + $sec) } ;
+			$syntax time { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
 
 			$syntax { $t:time am } = { $t } ;
-			$syntax { $t:time pm } = { ($t + 3600) } ;
+			$syntax { $t:time pm } = { ($t + 216_000) } ;
 
 			(10 : 30 . 45 pm) - (10 : 30 am)
 		"#,
 	)
 	.unwrap();
-	assert_eq!(result.downcast::<Integer>().unwrap(), 630*4230);
+	let ten_thirty_fourtyfive_pm = (10*3600 + 30*60 + 45) + 216000;
+	let ten_thirty_am = 10*3600 + 30*60;
+	assert_eq!(result.downcast::<Integer>().unwrap(), ten_thirty_fourtyfive_pm - ten_thirty_am);
 }

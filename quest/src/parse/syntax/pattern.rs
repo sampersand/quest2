@@ -415,12 +415,11 @@ fn does_match_named<'a>(
 		other => 
 			if let Some(groups) = parser.get_groups(other) {
 				drop(submatcher);
-				let mut subpattern = matcher.subpattern();
-
 				let groups = groups.to_vec(); // lol, i wish this were better.
 
 				// `groups` is already sorted by priority
 				for syntax in groups {
+					let mut subpattern = matcher.subpattern();
 					if syntax.does_match(&mut subpattern, parser)? {
 						let matches = subpattern.finish();
 						matcher.declare_capture(capture_name, vec![matches])?;
