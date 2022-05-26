@@ -169,14 +169,21 @@ impl<'a> ReplacementAtom<'a> {
 
 impl<'a> Replacement<'a> {
 	pub fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
+		let mut paren = ParenType::Round; // irrelevant, it'll be overwritten
+
 		if parser
-			.take_if_contents_bypass_syntax(TokenContents::LeftParen(ParenType::Curly))?
+			.take_if_bypass_syntax(|token| if let TokenContents::LeftParen(lp) = token.contents {
+				paren = lp;
+				true
+			} else {
+				false
+			})?
 			.is_none()
 		{
 			return Ok(None);
 		}
 
-		let body = ReplacementBody::parse(parser, ParenType::Curly)?;
+		let body = ReplacementBody::parse(parser, paren)?;
 		Ok(Some(Self(body)))
 	}
 }

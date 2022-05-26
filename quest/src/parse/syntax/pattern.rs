@@ -256,14 +256,21 @@ impl<'a> Pattern<'a> {
 	}
 
 	pub fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
+		let mut paren = ParenType::Round; // irrelevant, it'll be overwritten
+
 		if parser
-			.take_if_contents_bypass_syntax(TokenContents::LeftParen(ParenType::Curly))?
+			.take_if_bypass_syntax(|token| if let TokenContents::LeftParen(lp) = token.contents {
+				paren = lp;
+				true
+			} else {
+				false
+			})?
 			.is_none()
 		{
 			return Ok(None);
 		}
 
-		let body = if let Some(body) = PatternBody::parse(parser, ParenType::Curly)? {
+		let body = if let Some(body) = PatternBody::parse(parser, paren)? {
 			body
 		} else {
 			return Err(parser.error("you cannot create empty syntax matches".to_string().into()));

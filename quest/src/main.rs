@@ -50,8 +50,8 @@ fn main() {
 			r##"
 
 $syntax { @ $e:literal } = { List::push(stack, $e); };
-$syntax { $ } = { List::pop(stack); };
-$syntax { . } = { print(List::pop(stack)); };
+$syntax ( $ ) = { List::pop(stack); };
+$syntax [ . ] = { print(List::pop(stack)); };
 $syntax { : } = { a = List::pop(stack); List::push(stack, a); List::push(stack, a); };
 
 stack = [];

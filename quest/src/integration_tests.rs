@@ -360,3 +360,26 @@ fn reference_syntax_groups() {
 	let ten_thirty_am = 10*3600 + 30*60;
 	assert_eq!(result.downcast::<Integer>().unwrap(), ten_thirty_fourtyfive_pm - ten_thirty_am);
 }
+
+#[test]
+fn any_parens_in_syntax() {
+	let result = run_code(
+		r#"
+			$syntax ( a ) = ( 2 );
+			$syntax ( b ) = [ 3 ];
+			$syntax ( c ) = { 5 };
+
+			$syntax [ d ] = ( 7 );
+			$syntax [ e ] = [ 11 ];
+			$syntax [ f ] = { 13 };
+
+			$syntax { g } = ( 17 );
+			$syntax { h } = [ 19 ];
+			$syntax { i } = { 23 };
+
+			a * b * c * d * e * f * g * h * i
+		"#,
+	)
+	.unwrap();
+	assert_eq!(result.downcast::<Integer>().unwrap(), 223092870);
+}
