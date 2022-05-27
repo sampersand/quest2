@@ -87,6 +87,7 @@ define_interned! {
 	clone
 	tap tap_into then and_then or_else or and itself
 
+	if_cascade
 	r#if "if"
 	r#while "while"
 	r#else "else"

@@ -111,7 +111,9 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 			// only look thru keys, subsubmatches dont count for new vars
 			for name in submatch.captures.keys() {
 				if !self.named_capture_defined(name) {
-					self.sequences.entry(name).or_default().push(submatches.clone());
+					if !self.sequences.contains_key(name) {
+						self.sequences.entry(name).or_default().push(submatches.clone());
+					}
 				}
 			}
 		}

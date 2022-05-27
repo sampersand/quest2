@@ -52,6 +52,27 @@ pub mod funcs {
 		}
 	}
 
+	pub fn if_cascade(args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.idx_err_unless(|a| a.positional().len() > 1)?;
+
+		for i in (0..args.len()).step_by(2) {
+			if i == args.len() {
+				return args[i].call(Args::default());
+			}
+
+			if if i == 0 {
+				args[i]
+			} else {
+				args[i].call(Args::default())?
+			}.is_truthy()? {
+				return args[i+1].call(Args::default())
+			}
+		}
+
+		Ok(AnyValue::default())
+	}
+
 	pub fn r#while(args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(2)?;
@@ -78,6 +99,7 @@ impl Singleton for Kernel {
 				Intern::dump => justargs funcs::dump,
 				Intern::exit => justargs funcs::exit,
 				Intern::r#if => justargs funcs::r#if,
+				Intern::if_cascade => justargs funcs::if_cascade,
 				Intern::r#while => justargs funcs::r#while,
 				Intern::Integer => constant ty::Integer::parent(),
 				Intern::List => constant ty::List::parent(),

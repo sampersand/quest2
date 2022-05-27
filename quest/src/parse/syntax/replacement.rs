@@ -252,7 +252,7 @@ impl<'a> ReplacementAtom<'a> {
 					}
 
 					for submatch in submatches {
-						for caps in submatch.iter() {
+						for caps in submatch.iter().rev() {
 							body.replace(caps, parser)?;
 						}
 					}

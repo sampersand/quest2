@@ -383,3 +383,27 @@ fn any_parens_in_syntax() {
 	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), 223092870);
 }
+
+#[test]
+fn repetition_in_macros() {
+	let result = run_code(
+		r#"
+			$syntax {
+				if $cond:group $body:block
+				${ else if $cond1:group $body1:block }
+				$[ else $body2:block ]
+			} = {
+				if_cascade($cond, $body ${, {$cond1}, $body1 } $[, $body2])
+			};
+
+			x = 2;
+			if (x == 0) { 10 }
+			else if (x == 1) { 20 }
+			else if (x == 2) { 30 }
+			else { 40 }
+		"#
+	)
+	.unwrap();
+	assert_eq!(result.downcast::<Integer>().unwrap(), 30);
+
+}
