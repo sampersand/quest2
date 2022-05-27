@@ -45,9 +45,16 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if true {
+	if false {
 		run_code(
 			r##"
+__EOF__
+	; = x 0
+	: W ! ? x 10
+		; O x
+		: = x + x 1
+XDONE
+__EOF__
 $syntax end { end $| END } = { end } ;
 $syntax { begin ${ $! $_:end $x:token} $_:end } = {
 	${print($x);}

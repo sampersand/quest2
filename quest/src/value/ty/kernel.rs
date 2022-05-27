@@ -39,6 +39,14 @@ pub mod funcs {
 		std::process::exit(args[0].convert::<Integer>()? as i32);
 	}
 
+	pub fn abort(args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		eprintln!("{}", args[0].convert::<Gc<Text>>()?.as_ref()?.as_str());
+		std::process::exit(1);
+	}
+
 	pub fn r#if(args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() == 2 || a.positional().len() == 3)?;
@@ -49,6 +57,17 @@ pub mod funcs {
 			if_false.call(Args::default())
 		} else {
 			Ok(AnyValue::default())
+		}
+	}
+
+	pub fn ifl(args: Args<'_>) -> Result<AnyValue> {
+		args.assert_no_keyword()?;
+		args.idx_err_unless(|a| a.positional().len() == 2 || a.positional().len() == 3)?;
+
+		if args[0].is_truthy()? {
+			Ok(args[1])
+		} else {
+			Ok(args.get(2).unwrap_or_default())
 		}
 	}
 
@@ -98,7 +117,9 @@ impl Singleton for Kernel {
 				Intern::print => justargs funcs::print,
 				Intern::dump => justargs funcs::dump,
 				Intern::exit => justargs funcs::exit,
+				Intern::abort => justargs funcs::abort,
 				Intern::r#if => justargs funcs::r#if,
+				Intern::ifl => justargs funcs::ifl,
 				Intern::if_cascade => justargs funcs::if_cascade,
 				Intern::r#while => justargs funcs::r#while,
 				Intern::Integer => constant ty::Integer::parent(),
