@@ -80,18 +80,18 @@ impl<'a> Args<'a> {
 		if self.positional.len() == len {
 			Ok(())
 		} else {
-			Err(Error::Message(format!(
-				"positional argument count mismatch (given {} expected {})",
-				len,
-				self.positional.len()
-			)))
+			Err(Error::PositionalArgumentMismatch {
+				given: len,
+				expected: self.positional.len(),
+			})
 		}
 	}
+
 	pub fn assert_no_keyword(self) -> Result<()> {
 		if self.keyword.is_empty() {
 			Ok(())
 		} else {
-			Err(Error::Message("keyword arguments given when none expected".to_string()))
+			Err(Error::KeywordsGivenWhenNotExpected)
 		}
 	}
 

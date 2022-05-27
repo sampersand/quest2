@@ -19,6 +19,8 @@ pub enum Error {
 		value: AnyValue,
 		from_frame: Option<AnyValue>, // If it's `None`, that means the current frame.
 	},
+	KeywordsGivenWhenNotExpected,
+	PositionalArgumentMismatch { given: usize, expected: usize },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -43,6 +45,10 @@ impl Display for Error {
 			Self::Return { value, from_frame } => {
 				write!(f, "returning value {value:?} from frame {from_frame:?}")
 			},
+			Self::KeywordsGivenWhenNotExpected => write!(f, "keyword arguments given when none expected"),
+			Self::PositionalArgumentMismatch { given, expected } => {
+				write!(f, "positional argument count mismatch (given {given} expected {expected})")
+			}
 		}
 	}
 }

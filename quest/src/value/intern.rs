@@ -87,12 +87,12 @@ define_interned! {
 	clone
 	tap tap_into then and_then or_else or and itself
 
-	if_cascade
+	if_cascade ifl
 	r#if "if"
 	r#while "while"
 	r#else "else"
 	r#return "return"
-	exit
+	exit abort
 
 	r#true "true" r#false "false" null
 	print freeze resume restart dbg

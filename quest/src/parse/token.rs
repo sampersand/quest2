@@ -168,8 +168,9 @@ impl<'a> Token<'a> {
 
 fn is_symbol_char(chr: char) -> bool {
 	// todo: allow for `#`?
+	// todo: do we want to allow for `` ` ``?
 	// NB: I've explicitly excluded `;`, as stuff like `x++;` ends up being parsed as `x` then `++;`.
-	"~!@$%^&*-=+|\\:,<.>/?".contains(chr) || !chr.is_ascii() && !chr.is_alphanumeric()
+	"~!@$%^&*-=+|\\:,<.>`/?".contains(chr) || !chr.is_ascii() && !chr.is_alphanumeric()
 }
 
 fn take_identifier<'a>(stream: &mut Stream<'a>) -> &'a str {

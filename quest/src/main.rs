@@ -45,9 +45,56 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if true {
+	if false {
 		run_code(
 			r##"
+
+import = {};
+fizzbuzz={};
+print = { print(:-1.stack.pop()); };
+$syntax stick { @ $l:literal } = { stack.push($l); };
+$syntax stick { @ $n:ident } = { $n(); };
+
+$syntax comment { @ ( ${$_:comment $| $!\) $_:token } ) } = { };
+$syntax { STICK ${ $!NOSTICK $x:token} NOSTICK } = { stack=[]; ${@ $x} };
+
+STICK
+
+1 2 print
+NOSTICK
+__EOF__
+"prelude.sk" import
+
+"fizzbuzz" {
+	1 swap range {
+		dup [
+			{ 15 % ! } => { pop "FizzBuzz" }
+			{  3 % ! } => { pop "Fizz" }
+			{  5 % ! } => { pop "Buzz" }
+			default  => { ( dont pop ) }
+		] switch println
+	} foreach
+} def
+
+100 fizzbuzz
+NOSTICK
+
+__EOF__
+$syntax time { $hr:int : $min:int } = { $hr : $min . 0 } ;
+$syntax time { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
+
+$syntax { $t:time am } = { $t } ;
+$syntax { $t:time pm } = { ($t + 216_000) } ;
+
+print(10 : 30 . 45 pm)
+
+__EOF__
+	; = x 0
+	: W ! ? x 10
+		; O x
+		: = x + x 1
+XDONE
+__EOF__
 $syntax end { end $| END } = { end } ;
 $syntax { begin ${ $! $_:end $x:token} $_:end } = {
 	${print($x);}

@@ -402,7 +402,7 @@ fn does_match_named<'a>(
 		"stackframe" => single_token_group!(Stackframe(_)),
 		"symbol" => single_token_group!(Symbol(_)),
 		"literal" => {
-			single_token_group!(Integer(_) | Float(_) | Identifier(_) | Text(_) | Stackframe(_))
+			single_token_group!(Integer(_) | Float(_) | Text(_) | Stackframe(_))
 		},
 
 		"tt" => Ok(does_match_named(capture_name, "literal", matcher, parser)?
