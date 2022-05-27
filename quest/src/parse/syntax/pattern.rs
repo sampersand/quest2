@@ -39,6 +39,7 @@ enum PatternKind<'a> {
 enum PatternAtom<'a> {
 	Capture(&'a str, PatternKind<'a>),
 	Paren(ParenType, PatternBody<'a>),
+	Not(Box<Self>),
 	Token(Token<'a>),
 }
 
@@ -159,6 +160,20 @@ impl<'a> PatternAtom<'a> {
 					Ok(true)
 				} else {
 					Err(parser.error(format!("expected syntax body after $`{:?}`", paren).into()))
+				}
+			},
+
+			Some(Token {
+				contents: TokenContents::SyntaxNot(0),
+				..
+			}) => {
+				let mut notseq = Vec::with_capacity(1);
+				if Self::attempt_to_parse(&mut notseq, parser, end)? {
+					debug_assert_eq!(notseq.len(), 1);
+					seq.push(Self::Not(Box::new(notseq.pop().unwrap())));
+					Ok(true)
+				} else {
+					Err(parser.error(format!("expected atom after $!").into()))
 				}
 			},
 
@@ -496,6 +511,15 @@ impl<'a> PatternAtom<'a> {
 			Self::Paren(ParenType::Round, body) => does_match_paren(1, Some(1), body, matcher, parser),
 			Self::Paren(ParenType::Square, body) => does_match_paren(0, Some(1), body, matcher, parser),
 			Self::Paren(ParenType::Curly, body) => does_match_paren(0, None, body, matcher, parser),
+			Self::Not(atom) => {
+				let mut submatcher = matcher.submatcher();
+				if atom.does_match(&mut submatcher, parser)? {
+					submatcher.unmatch(parser);
+					Ok(false)
+				} else {
+					Ok(true)
+				}
+			},
 			Self::Token(token) => {
 				// TODO: we should allow macros to match before we currently match.
 				// but that requires a way for us to keep track of what's been matched yet.

@@ -407,3 +407,18 @@ fn repetition_in_macros() {
 	assert_eq!(result.downcast::<Integer>().unwrap(), 30);
 
 }
+
+#[test]
+fn negative_matches_and_underscore() {
+	let result = run_code(
+		r#"
+			$syntax end { end $| END } = { end } ;
+			$syntax { begin ${ $! $_:end $x:token} $_:end } = {
+				${$x *} 1
+			};
+
+			begin 2 5 7 END
+		"#
+	).unwrap();
+	assert_eq!(result.downcast::<Integer>().unwrap(), 70);
+}

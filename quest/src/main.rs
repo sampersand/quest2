@@ -45,9 +45,16 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if false {
+	if true {
 		run_code(
 			r##"
+$syntax end { end $| END } = { end } ;
+$syntax { begin ${ $! $_:end $x:token} $_:end } = {
+	${print($x);}
+};
+
+begin 1 2 3 END
+__EOF__
 $syntax {
 	object
 		# parents

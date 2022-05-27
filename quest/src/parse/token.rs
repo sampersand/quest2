@@ -85,6 +85,7 @@ pub enum TokenContents<'a> {
 	EscapedRightParen(ParenType),
 
 	SyntaxIdentifier(usize, &'a str),
+	SyntaxNot(usize),
 	SyntaxOr(usize),
 	SyntaxLeftParen(usize, ParenType),
 }
@@ -114,6 +115,7 @@ impl PartialEq for TokenContents<'_> {
 
 			(Self::SyntaxIdentifier(ld, l), Self::SyntaxIdentifier(rd, r)) => ld == rd && l == r,
 			(Self::SyntaxOr(ld), Self::SyntaxOr(rd)) => ld == rd,
+			(Self::SyntaxNot(ld), Self::SyntaxNot(rd)) => ld == rd,
 			(Self::SyntaxLeftParen(ld, l), Self::SyntaxLeftParen(rd, r)) => ld == rd && l == r,
 			_ => false,
 		}
@@ -285,7 +287,11 @@ fn parse_syntax<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
 			stream.take();
 			Ok(TokenContents::SyntaxOr(depth))
 		},
-		Some(c) if c.is_alphanumeric() => {
+		Some('!') => {
+			stream.take();
+			Ok(TokenContents::SyntaxNot(depth))
+		},
+		Some(c) if c.is_alphanumeric() || c == '_' => {
 			Ok(TokenContents::SyntaxIdentifier(depth, take_identifier(stream)))
 		},
 		_ => Ok(TokenContents::Symbol(dollars)),

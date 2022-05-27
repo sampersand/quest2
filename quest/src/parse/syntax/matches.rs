@@ -91,10 +91,9 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 	}
 
 	pub fn declare_capture(&mut self, name: &'tkn str, matches: Vec<Matches<'tkn>>) -> Result<'tkn, ()> {
-		// we can ignore unnamed captures (i think?)
-		/*if name == "_" {
+		if name == "_" {
 			return Ok(());
-		}*/
+		}
 
 		if self.named_defined(name) {
 			return Err(matches[0].all_tokens[0].span.start.error(format!("duplicate syntax variable '${}' encountered", name).into()))
@@ -109,7 +108,11 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 
 		for submatch in submatches.iter() {
 			// only look thru keys, subsubmatches dont count for new vars
-			for name in submatch.captures.keys() {
+			for &name in submatch.captures.keys() {
+				if name == "_" {
+					continue;
+				}
+
 				if !self.named_capture_defined(name) {
 					if !self.sequences.contains_key(name) {
 						self.sequences.entry(name).or_default().push(submatches.clone());
