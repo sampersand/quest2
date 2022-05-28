@@ -19,13 +19,14 @@ quest_type! {
 
 impl Debug for Frame {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "Frame({:p}:{:?})", self, self.0.data().block.loc)
+		write!(f, "Frame({:p}:{:?})", self, self.0.data().inner_block.location)
 	}
 }
 
 #[derive(Debug)]
 pub struct Inner {
-	block: Arc<BlockInner>,
+	block: Gc<Block>,
+	inner_block: Arc<BlockInner>,
 	pos: usize,
 	// note that both of these are actually from the same allocation;
 	// `unnamed_locals` points to the base and `named_locals` is simply an offset.
@@ -43,7 +44,7 @@ fn locals_layout_for(num_of_unnamed_locals: usize, num_named_locals: usize) -> L
 impl Drop for Inner {
 	fn drop(&mut self) {
 		let layout =
-			locals_layout_for(self.block.num_of_unnamed_locals, self.block.named_locals.len());
+			locals_layout_for(self.inner_block.num_of_unnamed_locals, self.inner_block.named_locals.len());
 
 		unsafe {
 			std::alloc::dealloc(self.unnamed_locals.cast::<u8>(), layout);
@@ -55,15 +56,15 @@ impl Drop for Inner {
 struct LocalTarget(isize);
 
 impl Frame {
-	pub fn new(gc_block: Gc<Block>, args: Args) -> Result<Gc<Self>> {
+	pub fn new(block: Gc<Block>, args: Args) -> Result<Gc<Self>> {
 		args.assert_no_keyword()?; // todo: assign keyword arguments
-		let block = gc_block.as_ref()?.inner();
+		let inner_block = block.as_ref()?.inner();
 
-		if block.named_locals.len() < args.positional().len() {
+		if inner_block.named_locals.len() < args.positional().len() {
 			return Err(
 				format!(
 					"argc mismatch, expected at most {}, got {}",
-					block.named_locals.len(),
+					inner_block.named_locals.len(),
 					args.positional().len()
 				)
 				.into(),
@@ -76,19 +77,19 @@ impl Frame {
 		// do we want? Do we want the outside stackframe to be first or last? and in any case,
 		// this is setting the _block_ itself as the parent, which isn't what we want. how do we
 		// want to register the outer block as the parent?
-		// ^^ update: having them like `[gc_block, parent]` means that attribute lookups such as `dbg`
+		// ^^ update: having them like `[block, parent]` means that attribute lookups such as `dbg`
 		// are first found on frame, which is not good.
-		builder.set_parents(List::from_slice(&[Gc::<Self>::parent(), gc_block.to_any()]));
+		builder.set_parents(List::from_slice(&[Gc::<Self>::parent(), block.to_any()]));
 
 		unsafe {
 			let unnamed_locals = crate::alloc_zeroed::<AnyValue>(locals_layout_for(
-				block.num_of_unnamed_locals,
-				block.named_locals.len(),
+				inner_block.num_of_unnamed_locals,
+				inner_block.named_locals.len(),
 			))
 			.as_ptr();
 
 			let named_locals = unnamed_locals
-				.add(block.num_of_unnamed_locals)
+				.add(inner_block.num_of_unnamed_locals)
 				.cast::<Option<AnyValue>>();
 
 			// The scratch register defaults to null.
@@ -96,7 +97,7 @@ impl Frame {
 
 			// copy positional arguments over into the first few named local arguments.
 			let mut start = named_locals;
-			start.add(0).write(Some(gc_block.to_any()));
+			start.add(0).write(Some(block.to_any()));
 			start.add(1).write(Some(args.into_value()));
 			start = start.add(2);
 
@@ -114,6 +115,7 @@ impl Frame {
 
 			std::ptr::addr_of_mut!((*data_ptr).unnamed_locals).write(unnamed_locals);
 			std::ptr::addr_of_mut!((*data_ptr).named_locals).write(named_locals);
+			std::ptr::addr_of_mut!((*data_ptr).inner_block).write(inner_block);
 			std::ptr::addr_of_mut!((*data_ptr).block).write(block);
 			// no need to initialize `pos` as it starts off as zero.
 
@@ -121,7 +123,11 @@ impl Frame {
 		}
 	}
 
-	pub fn with_stackframe<F: FnOnce(&mut Vec<Gc<Self>>) -> T, T>(func: F) -> T {
+	pub fn block(&self) -> Gc<Block> {
+		self.block
+	}
+
+	pub fn with_stackframes<F: FnOnce(&mut Vec<Gc<Self>>) -> T, T>(func: F) -> T {
 		use std::cell::RefCell;
 		thread_local! {
 			static STACKFRAMES: RefCell<Vec<Gc<Frame>>> = RefCell::new(Vec::new());
@@ -143,9 +149,9 @@ impl Frame {
 		let (header, data) = self.0.header_data_mut();
 		// OPTIMIZE: we could use `with_capacity`, but we'd need to move it out of the builder.
 
-		for i in 0..data.block.named_locals.len() {
+		for i in 0..data.inner_block.named_locals.len() {
 			if let Some(value) = unsafe { *data.named_locals.add(i) } {
-				header.set_attr(data.block.named_locals[i].to_any(), value)?;
+				header.set_attr(data.inner_block.named_locals[i].to_any(), value)?;
 			}
 		}
 
@@ -153,7 +159,7 @@ impl Frame {
 	}
 
 	unsafe fn get_unnamed_local(&self, index: usize) -> AnyValue {
-		debug_assert!(index <= self.block.num_of_unnamed_locals);
+		debug_assert!(index <= self.inner_block.num_of_unnamed_locals);
 		debug_assert!(
 			self
 				.unnamed_locals
@@ -177,9 +183,9 @@ impl Frame {
 
 		let index = !index as usize;
 
-		if !self.is_object() {
-			debug_assert!(index <= self.block.named_locals.len());
+		debug_assert!(index <= self.inner_block.named_locals.len());
 
+		if !self.is_object() {
 			// Since we could be trying to access a parent scope's variable, we won't return an error
 			// in the false case.
 			if let Some(value) = unsafe { *self.named_locals.add(index) } {
@@ -187,8 +193,7 @@ impl Frame {
 			}
 		}
 
-		debug_assert!(index <= self.block.named_locals.len());
-		let attr_name = unsafe { *self.block.named_locals.get_unchecked(index) };
+		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
 		self
 			.0
 			.header()
@@ -201,7 +206,7 @@ impl Frame {
 
 		if 0 <= index {
 			let index = index as usize;
-			debug_assert!(index <= self.block.num_of_unnamed_locals);
+			debug_assert!(index <= self.inner_block.num_of_unnamed_locals);
 
 			unsafe {
 				self.unnamed_locals.add(index).write(value);
@@ -211,10 +216,9 @@ impl Frame {
 		}
 
 		let index = !index as usize;
+		debug_assert!(index <= self.inner_block.named_locals.len());
 
 		if !self.is_object() {
-			debug_assert!(index <= self.block.named_locals.len());
-
 			unsafe {
 				self.named_locals.add(index).write(Some(value));
 			}
@@ -222,8 +226,7 @@ impl Frame {
 			return Ok(());
 		}
 
-		debug_assert!(index <= self.block.named_locals.len());
-		let attr_name = unsafe { *self.block.named_locals.get_unchecked(index) };
+		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
 		self.0.header_mut().set_attr(attr_name.to_any(), value)
 	}
 }
@@ -244,15 +247,15 @@ impl DerefMut for Frame {
 
 impl Frame {
 	fn is_done(&self) -> bool {
-		self.pos >= self.block.code.len()
+		self.pos >= self.inner_block.code.len()
 	}
 
 	fn next_byte(&mut self) -> u8 {
-		debug_assert!(self.pos < self.block.code.len());
+		debug_assert!(self.pos < self.inner_block.code.len());
 
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
 		// out of bounds.
-		let byte = unsafe { *self.block.code.get_unchecked(self.pos) };
+		let byte = unsafe { *self.inner_block.code.get_unchecked(self.pos) };
 
 		trace!(target: "frame", byte=%format!("{byte:02x}"), sp=%self.pos, "read byte");
 
@@ -267,7 +270,7 @@ impl Frame {
 		#[allow(clippy::cast_ptr_alignment)]
 		let us = unsafe {
 			self
-				.block
+				.inner_block
 				.code
 				.as_ptr()
 				.add(self.pos)
@@ -387,7 +390,8 @@ impl Gc<Frame> {
 		let mut this = self.as_mut()?;
 
 		let idx = this.next_count();
-		let mut constant = this.block.constants[idx];
+		let mut constant = this.inner_block.constants[idx];
+		let dst = this.next_local_target();
 
 		if let Some(block) = constant.downcast::<Gc<Block>>() {
 			let block = block.deep_clone()?;
@@ -401,9 +405,13 @@ impl Gc<Frame> {
 				.push(self.to_any()); // TODO: what are the implications of `.push` on parent scope vars?
 
 			constant = block.to_any();
+			if dst.0 < 0 {
+				let index = !dst.0 as usize;
+				debug_assert!(index <= this.inner_block.named_locals.len());
+				let name = unsafe { *this.inner_block.named_locals.get_unchecked(index) };
+				block.as_mut().unwrap().set_name(name);
+			}
 		}
-
-		let dst = this.next_local_target();
 
 		debug!(target: "frame", ?dst, ?constant, "constload");
 		this.set_local(dst, constant)?;
@@ -418,7 +426,7 @@ impl Gc<Frame> {
 
 		// todo: optimization for :0
 		drop(this);
-		let frame = Frame::with_stackframe(|frames| {
+		let frame = Frame::with_stackframes(|frames| {
 			if count < 0 {
 				count += frames.len() as isize;
 
@@ -521,7 +529,7 @@ impl Gc<Frame> {
 			}
 		} else {
 			let index = !object_index as usize;
-			let name = this.block.named_locals[index].to_any();
+			let name = this.inner_block.named_locals[index].to_any();
 			let object = this.0.header_mut().get_unbound_attr_mut(name)?;
 
 			if self.to_any().is_identical(*object) {
@@ -730,7 +738,7 @@ impl Gc<Frame> {
 		level="debug",
 		name="call frame",
 		skip(self),
-		fields(src=?self.as_ref()?.block.loc))
+		fields(src=?self.as_ref()?.inner_block.location))
 	]
 
 	pub fn run(self) -> Result<AnyValue> {
@@ -742,7 +750,7 @@ impl Gc<Frame> {
 			return Err(Error::StackframeIsCurrentlyRunning(self.to_any()));
 		}
 
-		Frame::with_stackframe(|sfs| sfs.push(self));
+		Frame::with_stackframes(|sfs| sfs.push(self));
 
 		let result = self.run_inner();
 
@@ -755,7 +763,7 @@ impl Gc<Frame> {
 			unreachable!("unable to set it as not currently running??");
 		}
 
-		Frame::with_stackframe(|sfs| {
+		Frame::with_stackframes(|sfs| {
 			let p = sfs.pop();
 
 			debug_assert!(
@@ -853,7 +861,7 @@ pub mod funcs {
 		builder.push_str("<Frame:");
 		builder.push_str(&format!("{:p}", frame.to_any().bits() as *const u8));
 		builder.push(':');
-		builder.push_str(&frame.as_ref()?.block.loc.to_string());
+		builder.push_str(&frame.as_ref()?.inner_block.location.to_string());
 		builder.push('>');
 
 		Ok(builder.finish().to_any())

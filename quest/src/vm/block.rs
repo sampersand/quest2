@@ -5,6 +5,7 @@ use crate::vm::Args;
 use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
+use std::cell::RefCell;
 
 mod builder;
 pub use builder::{Builder, Local};
@@ -16,23 +17,24 @@ quest_type! {
 
 impl Debug for Block {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "Block({:p}:{:?})", self, self.0.data().loc)
+		write!(f, "Block({:p}:{:?})", self, self.0.data().location)
 	}
 }
 
 #[derive(Debug)]
 pub struct BlockInner {
 	pub(super) code: Vec<u8>,
-	pub(super) loc: SourceLocation,
+	pub(super) location: SourceLocation,
 	pub(super) constants: Vec<AnyValue>,
 	pub(super) num_of_unnamed_locals: usize,
 	pub(super) named_locals: Vec<Gc<Text>>,
+	name: RefCell<Option<Gc<Text>>>,
 }
 
 impl Block {
 	fn _new(
 		code: Vec<u8>,
-		loc: SourceLocation,
+		location: SourceLocation,
 		constants: Vec<AnyValue>,
 		num_of_unnamed_locals: usize,
 		named_locals: Vec<Gc<Text>>,
@@ -40,10 +42,11 @@ impl Block {
 	) -> Gc<Self> {
 		let inner = Arc::new(BlockInner {
 			code,
-			loc,
+			location,
 			constants,
 			num_of_unnamed_locals,
 			named_locals,
+			name: RefCell::new(None)
 		});
 
 		Gc::from_inner(if let Some(parent_scope) = parent_scope {
@@ -55,6 +58,20 @@ impl Block {
 
 	pub(crate) fn inner(&self) -> Arc<BlockInner> {
 		self.0.data().clone()
+	}
+
+	pub fn source_location(&self) -> &SourceLocation {
+		&self.0.data().location
+	}
+
+	pub(super) fn set_name(&mut self, name: Gc<Text>) {
+		let mut refmut = self.0.data().name.borrow_mut();
+		debug_assert!(refmut.is_none(), "somehow assigning a name twice?");
+		refmut.replace(name);
+	}
+
+	pub fn name(&self) -> Option<Gc<Text>> {
+		*self.0.data().name.borrow()
 	}
 }
 
@@ -95,7 +112,7 @@ pub mod funcs {
 		// TODO: maybe cache this in the future?
 		let mut builder = Text::simple_builder();
 		builder.push_str("<Block:");
-		builder.push_str(&blockref.inner().loc.to_string());
+		builder.push_str(&blockref.inner().location.to_string());
 		builder.push('>');
 
 		Ok(builder.finish().to_any())

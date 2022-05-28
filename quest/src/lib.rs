@@ -27,7 +27,7 @@ extern crate assert_matches;
 #[macro_use]
 extern crate qvm_macros;
 
-mod error;
+pub mod error;
 
 #[macro_use]
 pub mod value;

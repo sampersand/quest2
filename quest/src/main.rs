@@ -48,6 +48,21 @@ fn main() {
 	if false {
 		run_code(
 			r##"
+q = {{dump(3)}}();
+foo = () -> {
+	bar = () -> {
+		baz = () -> {
+			q();
+		};
+
+		baz();
+	};
+
+	bar();
+};
+
+foo();
+__EOF__
 fib = n -> {
 	(n <= 1).then(n.return);
 	__block__(n-1) + __block__(n-2)

@@ -1069,7 +1069,7 @@ pub mod funcs {
 
 		let value = args[0];
 		let mut frame =
-			crate::vm::Frame::with_stackframe(|sfs| *sfs.last().expect("returning from nothing?"))
+			crate::vm::Frame::with_stackframes(|sfs| *sfs.last().expect("returning from nothing?"))
 				.to_any();
 
 		frame.set_attr(text.to_any(), value)?;
