@@ -6,8 +6,16 @@ mod stacktrace;
 pub use stacktrace::Stacktrace;
 
 #[derive(Debug)]
+pub struct Error {
+	stacktrace: Stacktrace,
+	kind: ErrorKind
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug)]
 #[non_exhaustive]
-pub enum Error {
+pub enum ErrorKind {
 	AlreadyLocked(AnyValue),
 	ValueFrozen(AnyValue),
 	UnknownAttribute(AnyValue, AnyValue),
@@ -28,40 +36,77 @@ pub enum Error {
 	StackframeIsCurrentlyRunning(AnyValue),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+impl Error {
+	pub fn new(kind: ErrorKind) -> Self {
+		Self {
+			stacktrace: Stacktrace::new().expect("<unable to fetch stacktrace when making error>"),
+			kind
+		}
+	}
+
+	pub fn new_no_stacktrace(kind: ErrorKind) -> Self {
+		Self {
+			stacktrace: Stacktrace::empty(),
+			kind
+		}
+	}
+
+	pub fn kind(&self) -> &ErrorKind {
+		&self.kind
+	}
+
+	pub fn stacktrace(&self) -> &Stacktrace {
+		&self.stacktrace
+	}
+}
 
 impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		match self {
-			Self::UnknownAttribute(value, attr) => {
-				write!(f, "unknown attribute {attr:?} for {value:?}")
+		write!(f, "error: ")?;
+		match &self.kind {
+			ErrorKind::UnknownAttribute(value, attr) => {
+				write!(f, "unknown attribute {attr:?} for {value:?}")?
 			},
-			Self::AlreadyLocked(value) => write!(f, "value {value:p} is already locked"),
-			Self::ValueFrozen(value) => write!(f, "value {value:p} is frozen"),
-			Self::MissingPositionalArgument(arg) => write!(f, "missing positional argument {arg:?}"),
-			Self::MissingKeywordArgument(arg) => write!(f, "missing keyword argument {arg:?}"),
-			Self::ConversionFailed(value, conv) => {
-				write!(f, "conversion {value:?} failed for {conv:?}")
+			ErrorKind::AlreadyLocked(value) => write!(f, "value {value:?} is already locked")?,
+			ErrorKind::ValueFrozen(value) => write!(f, "value {value:?} is frozen")?,
+			ErrorKind::MissingPositionalArgument(arg) => write!(f, "missing positional argument {arg:?}")?,
+			ErrorKind::MissingKeywordArgument(arg) => write!(f, "missing keyword argument {arg:?}")?,
+			ErrorKind::ConversionFailed(value, conv) => {
+				write!(f, "conversion {value:?} failed for {conv:?}")?
 			},
-			Self::InvalidTypeGiven { expected, given } => {
-				write!(f, "invalid type {given:?}, expected {expected:?}")
+			ErrorKind::InvalidTypeGiven { expected, given } => {
+				write!(f, "invalid type {given:?}, expected {expected:?}")?
 			},
-			Self::Message(msg) => f.write_str(msg),
-			Self::Return { value, from_frame } => {
-				write!(f, "returning value {value:?} from frame {from_frame:?}")
+			ErrorKind::Message(msg) => f.write_str(msg)?,
+			ErrorKind::Return { value, from_frame } => {
+				write!(f, "returning value {value:?} from frame {from_frame:?}")?
 			},
-			Self::KeywordsGivenWhenNotExpected => write!(f, "keyword arguments given when none expected"),
-			Self::PositionalArgumentMismatch { given, expected } => {
-				write!(f, "positional argument count mismatch (given {given} expected {expected})")
+			ErrorKind::KeywordsGivenWhenNotExpected => write!(f, "keyword arguments given when none expected")?,
+			ErrorKind::PositionalArgumentMismatch { given, expected } => {
+				write!(f, "positional argument count mismatch (given {given} expected {expected})")?
 			},
-			Self::StackframeIsCurrentlyRunning(frame) => write!(f, "frame {:?} is currently executing", frame),
+			ErrorKind::StackframeIsCurrentlyRunning(frame) => write!(f, "frame {:?} is currently executing", frame)?,
 		}
+
+		write!(f, "\nstacktrace:\n{}", self.stacktrace)
+	}
+}
+
+impl From<String> for ErrorKind {
+	fn from(msg: String) -> Self {
+		Self::Message(msg)
 	}
 }
 
 impl From<String> for Error {
 	fn from(msg: String) -> Self {
-		Self::Message(msg)
+		ErrorKind::from(msg).into()
+	}
+}
+
+impl From<ErrorKind> for Error {
+	fn from(kind: ErrorKind) -> Self {
+		Self::new(kind)
 	}
 }
 

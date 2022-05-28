@@ -1,7 +1,7 @@
 use crate::value::base::{Attribute, Flags};
 use crate::value::ty::List;
 use crate::value::{AnyValue, Gc};
-use crate::{Error, Result};
+use crate::Result;
 use std::fmt::{self, Debug, Formatter};
 
 #[repr(C)]
@@ -176,7 +176,7 @@ impl ParentsGuard<'_> {
 	) -> Result<AnyValue> {
 		let attr = self
 			.get_unbound_attr(attr)?
-			.ok_or_else(|| Error::UnknownAttribute(obj, attr.to_value()))?;
+			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(obj, attr.to_value()))?;
 
 		drop(self);
 

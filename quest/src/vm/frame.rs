@@ -5,7 +5,7 @@ use crate::value::ty::{List, Text};
 use crate::value::{Gc, HasDefaultParent, Intern, ToAny};
 use crate::vm::bytecode::{COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL};
 use crate::vm::{Args, Block};
-use crate::{AnyValue, Error, Result};
+use crate::{AnyValue, Result};
 use std::alloc::Layout;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::MaybeUninit;
@@ -747,7 +747,7 @@ impl Gc<Frame> {
 			.flags()
 			.try_acquire_all_user(FLAG_CURRENTLY_RUNNING)
 		{
-			return Err(Error::StackframeIsCurrentlyRunning(self.to_any()));
+			return Err(crate::error::ErrorKind::StackframeIsCurrentlyRunning(self.to_any()).into());
 		}
 
 		Frame::with_stackframes(|sfs| sfs.push(self));
@@ -772,14 +772,16 @@ impl Gc<Frame> {
 			);
 		});
 
-		match result {
-			Err(Error::Return { value, from_frame })
-				if from_frame.map_or(true, |ff| ff.is_identical(self.to_any())) =>
-			{
-				Ok(value)
-			},
-			Err(other) => Err(other),
-			Ok(_) => self.as_mut().map(|this| unsafe { *this.unnamed_locals }),
+		if let Err(err) = result {
+			if let crate::error::ErrorKind::Return { value, from_frame } = err.kind() {
+				if from_frame.map_or(true, |ff| ff.is_identical(self.to_any())) {
+					return Ok(*value);
+				}
+			}
+
+			Err(err)
+		} else {
+			self.as_mut().map(|this| unsafe { *this.unnamed_locals })
 		}
 	}
 

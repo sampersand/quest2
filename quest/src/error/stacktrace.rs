@@ -6,6 +6,10 @@ use std::fmt::{self, Display, Formatter};
 pub struct Stacktrace(Vec<(SourceLocation, Option<String>)>);
 
 impl Stacktrace {
+	pub fn empty() -> Self {
+		Self(Vec::new())
+	}
+
 	pub fn new() -> Result<Self> {
 		Frame::with_stackframes(|frames| {
 			let mut locations = Vec::with_capacity(frames.len());
@@ -30,11 +34,18 @@ impl Stacktrace {
 
 impl Display for Stacktrace {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		if self.0.is_empty() {
+			write!(f, "<no stacktrace provided>")?;
+			return Ok(());
+		}
+
 		for (i, (location, name)) in self.0.iter().enumerate() {
 			write!(f, "#{} {}", i, location)?;
 
 			if let Some(name) = name {
 				write!(f, " ({})", name)?;
+			} else {
+				write!(f, " (<unknown>)")?;
 			}
 
 			writeln!(f)?;

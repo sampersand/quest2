@@ -112,9 +112,9 @@ impl ListMap {
 
 				if let Some(intern) = InternKey::try_from_repr(unsafe { key.raw_data }) {
 					if intern.is_frozen() {
-						return Err(crate::Error::Message(
+						return Err(crate::error::ErrorKind::Message(
 							"attribute is frozen, cannot set it".to_string(),
-						));
+						).into());
 					}
 				}
 
@@ -144,7 +144,7 @@ impl ListMap {
 
 			if let Some(intern) = InternKey::try_from_repr(unsafe { key.raw_data }) {
 				if intern.is_frozen() {
-					return Err(crate::Error::Message("attribute is frozen, cannot set it".to_string()));
+					return Err(crate::error::ErrorKind::Message("attribute is frozen, cannot set it".to_string()).into());
 				}
 			}
 

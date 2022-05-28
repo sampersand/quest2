@@ -87,10 +87,10 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() <= 1)?;
 
-		Err(crate::Error::Return {
+		Err(crate::Error::new_no_stacktrace(crate::error::ErrorKind::Return {
 			value: obj,
 			from_frame: args.get(0).ok(),
-		})
+		}))
 	}
 
 	pub fn assert(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {

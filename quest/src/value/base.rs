@@ -263,16 +263,16 @@ impl Header {
 	}
 
 	/// Freezes the object, so that any future attempts to call [`Gc::as_mut`] will result in a
-	/// [`Error::ValueFrozen`](crate::Error::ValueFrozen) being returned.
+	/// [`ErrorKind::ValueFrozen`](crate::error::ErrorKind::ValueFrozen) being returned.
 	///
 	/// # Examples
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use quest::{Error, value::ty::Text};
+	/// # use quest::{error::ErrorKind, value::ty::Text};
 	/// let text = Text::from_static_str("Quest is cool");
 	///
 	/// text.as_ref()?.freeze();
-	/// assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
+	/// assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::ValueFrozen(_));
 	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn freeze(&self) {

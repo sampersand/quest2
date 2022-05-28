@@ -1,5 +1,5 @@
 use crate::value::ToAny;
-use crate::{AnyValue, Error, Result};
+use crate::{AnyValue, Result};
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Args<'a> {
@@ -60,7 +60,7 @@ impl<'a> Args<'a> {
 		if func(self) {
 			Ok(self)
 		} else {
-			Err(Error::Message("index error happened".into()))
+			Err(crate::error::ErrorKind::Message("argument count error error happened".into()).into())
 		}
 	}
 
@@ -72,7 +72,7 @@ impl<'a> Args<'a> {
 		if self.positional.is_empty() {
 			Ok(())
 		} else {
-			Err(Error::Message("positional arguments given when none expected".to_string()))
+			Err(crate::error::ErrorKind::Message("positional arguments given when none expected".to_string()).into())
 		}
 	}
 
@@ -80,10 +80,10 @@ impl<'a> Args<'a> {
 		if self.positional.len() == len {
 			Ok(())
 		} else {
-			Err(Error::PositionalArgumentMismatch {
+			Err(crate::error::ErrorKind::PositionalArgumentMismatch {
 				given: len,
 				expected: self.positional.len(),
-			})
+			}.into())
 		}
 	}
 
@@ -91,7 +91,7 @@ impl<'a> Args<'a> {
 		if self.keyword.is_empty() {
 			Ok(())
 		} else {
-			Err(Error::KeywordsGivenWhenNotExpected)
+			Err(crate::error::ErrorKind::KeywordsGivenWhenNotExpected.into())
 		}
 	}
 
@@ -147,7 +147,7 @@ impl ArgIndexer for usize {
 			.positional
 			.get(self)
 			.copied()
-			.ok_or(Error::MissingPositionalArgument(self))
+			.ok_or(crate::error::ErrorKind::MissingPositionalArgument(self).into())
 	}
 
 	fn index(self, args: Args<'_>) -> &AnyValue {
@@ -163,7 +163,7 @@ impl ArgIndexer for &'static str {
 			}
 		}
 
-		Err(Error::MissingKeywordArgument(self))
+		Err(crate::error::ErrorKind::MissingKeywordArgument(self).into())
 	}
 
 	fn index(self, args: Args<'_>) -> &AnyValue {

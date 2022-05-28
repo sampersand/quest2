@@ -2,7 +2,7 @@ use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{AttrConversionDefined, BoundFn, Float, Integer, List, RustFn, Text, Wrap};
 use crate::value::{Convertible, Gc, Intern, ToAny};
 use crate::vm::{Args, Block};
-use crate::{Error, Result};
+use crate::Result;
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
@@ -261,7 +261,7 @@ impl AnyValue {
 
 				Ok(())
 			} else {
-				Err(Error::Message("can only set __parents__ to a List".to_string()))
+				Err(crate::error::ErrorKind::Message("can only set __parents__ to a List".to_string()).into())
 			}
 		} else {
 			unreachable!("unknown special attribute");
@@ -297,7 +297,7 @@ impl AnyValue {
 		self
 			.parents_for()
 			.get_unbound_attr(attr)?
-			.ok_or_else(|| Error::UnknownAttribute(self, attr.to_value()))?
+			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(self, attr.to_value()))?
 			.call(args.with_self(self))
 	}
 
@@ -341,7 +341,7 @@ impl AnyValue {
 			Ok(1)
 		} else {
 			debug_assert!(self.is_a::<RustFn>());
-			Err(Error::ConversionFailed(self, Integer::ATTR_NAME))
+			Err(crate::error::ErrorKind::ConversionFailed(self, Integer::ATTR_NAME).into())
 		}
 	}
 
@@ -360,7 +360,7 @@ impl AnyValue {
 		if let Some(attr) = conv.downcast::<C>() {
 			Ok(attr)
 		} else {
-			Err(Error::ConversionFailed(conv, C::ATTR_NAME))
+			Err(crate::error::ErrorKind::ConversionFailed(conv, C::ATTR_NAME).into())
 		}
 	}
 
@@ -377,10 +377,10 @@ impl AnyValue {
 	pub fn try_downcast<T: Convertible + crate::value::NamedType>(self) -> Result<T> {
 		self
 			.downcast()
-			.ok_or_else(|| crate::Error::InvalidTypeGiven {
+			.ok_or_else(|| crate::error::ErrorKind::InvalidTypeGiven {
 				expected: T::TYPENAME,
 				given: self.typename(),
-			})
+			}.into())
 	}
 
 	pub fn try_hash(self) -> Result<u64> {

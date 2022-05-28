@@ -3,7 +3,7 @@
 use crate::value::base::{Attribute, Base, Flags, Header};
 use crate::value::ty::{List, Wrap};
 use crate::value::{value::Any, AnyValue, Convertible, ToAny, Value};
-use crate::{Error, Result};
+use crate::Result;
 use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
@@ -172,7 +172,7 @@ impl<T: Allocated> Gc<T> {
 	///
 	/// # Errors
 	/// If the contents are already mutably borrowed (via [`Gc::as_mut`]), this will return
-	/// an [`Error::AlreadyLocked`].
+	/// an [`ErrorKind::AlreadyLocked`].
 	///
 	/// # Panics
 	/// This will panic if more than [`MAX_BORROWS`] borrows are currently held.
@@ -189,12 +189,12 @@ impl<T: Allocated> Gc<T> {
 	/// You cannot get an immutable reference when a mutable one exists.
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use quest::{Error, value::ty::Text};
+	/// # use quest::{error::ErrorKind, value::ty::Text};
 	/// let text = Text::from_static_str("what a wonderful day");
 	/// let textmut = text.as_mut()?;
 	///
 	/// // `textmut` is in scope, we cant get a reference.
-	/// assert_matches!(text.as_ref(), Err(Error::AlreadyLocked(_)));
+	/// assert_matches!(text.as_ref().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
 	/// drop(textmut);
 	///
 	/// // now it isn't, so we can get a reference.
@@ -220,7 +220,7 @@ impl<T: Allocated> Gc<T> {
 		{
 			Ok(x) if x == MAX_BORROWS as u32 => panic!("too many immutable borrows"),
 			Ok(_) => Ok(Ref(self)),
-			Err(_) => Err(Error::AlreadyLocked(Value::from(self).any())),
+			Err(_) => Err(crate::error::ErrorKind::AlreadyLocked(Value::from(self).any()).into()),
 		}
 	}
 
@@ -233,7 +233,7 @@ impl<T: Allocated> Gc<T> {
 	/// If the contents are already immutably borrowed (via [`Gc::as_ref`]), this will
 	/// return an [`Error::AlreadyLocked`].
 	///
-	/// If the data has been [frozen](Ref::freeze), this will return a [`Error::ValueFrozen`].
+	/// If the data has been [frozen](Ref::freeze), this will return a [`ErrorKind::ValueFrozen`].
 	///
 	/// # Examples
 	/// Getting a mutable reference when no immutable ones exist.
@@ -249,12 +249,12 @@ impl<T: Allocated> Gc<T> {
 	/// You cannot get a mutable reference when any immutable ones exist.
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use quest::{Error, value::ty::Text};
+	/// # use quest::{error::ErrorKind, value::ty::Text};
 	/// let text = Text::from_static_str("what a wonderful day");
 	/// let textref = text.as_ref()?;
 	///
 	/// // `textref` is in scope, we cant get a reference.
-	/// assert_matches!(text.as_mut(), Err(Error::AlreadyLocked(_)));
+	/// assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
 	/// drop(textref);
 	///
 	/// // now it isn't, so we can get a reference.
@@ -265,7 +265,7 @@ impl<T: Allocated> Gc<T> {
 	/// ```
 	pub fn as_mut(self) -> Result<Mut<T>> {
 		if self.is_frozen() {
-			return Err(Error::ValueFrozen(Value::from(self).any()));
+			return Err(crate::error::ErrorKind::ValueFrozen(Value::from(self).any()).into());
 		}
 
 		if cfg!(feature="unsafe-no-locking") {
@@ -277,7 +277,7 @@ impl<T: Allocated> Gc<T> {
 			.compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed)
 			.is_err()
 		{
-			return Err(Error::AlreadyLocked(Value::from(self).any()));
+			return Err(crate::error::ErrorKind::AlreadyLocked(Value::from(self).any()).into());
 		}
 
 		let mutref = Mut(self);
@@ -285,7 +285,7 @@ impl<T: Allocated> Gc<T> {
 		// We have to check again to see if it's frozen just in case.
 		if self.is_frozen() {
 			// this will drop `mutref` and thus release the mutable ownership.
-			Err(Error::ValueFrozen(Value::from(self).any()))
+			Err(crate::error::ErrorKind::ValueFrozen(Value::from(self).any()).into())
 		} else {
 			Ok(mutref)
 		}
@@ -316,12 +316,12 @@ impl<T: Allocated> Gc<T> {
 	/// # Examples
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use quest::{Error, value::ty::Text};
+	/// # use quest::{error::ErrorKind, value::ty::Text};
 	/// let text = Text::from_static_str("Quest is cool");
 	///
 	/// text.as_ref()?.freeze();
 	/// assert!(text.is_frozen());
-	/// assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
+	/// assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::ValueFrozen(_));
 	/// # quest::Result::<()>::Ok(())
 	/// ```
 	#[must_use]
@@ -545,7 +545,7 @@ impl<T: Allocated> Mut<T> {
 	///
 	/// # Examples
 	/// ```
-	/// # use quest::{Error, value::ty::Text};
+	/// # use quest::value::ty::Text;
 	/// let text = Text::from_static_str("Quest is cool");
 	/// let mut textmut = text.as_mut()?;
 	/// textmut.push('!');
@@ -611,17 +611,17 @@ mod tests {
 		let text = Text::from_static_str("g'day mate");
 
 		let mut1 = text.as_mut().unwrap();
-		assert_matches!(text.as_ref(), Err(Error::AlreadyLocked(_)));
+		assert_matches!(text.as_ref().unwrap_err().kind(), crate::error::ErrorKind::AlreadyLocked(_));
 		drop(mut1);
 
 		let ref1 = text.as_ref().unwrap();
-		assert_matches!(text.as_mut(), Err(Error::AlreadyLocked(_)));
+		assert_matches!(text.as_mut().unwrap_err().kind(), crate::error::ErrorKind::AlreadyLocked(_));
 
 		let ref2 = text.as_ref().unwrap();
-		assert_matches!(text.as_mut(), Err(Error::AlreadyLocked(_)));
+		assert_matches!(text.as_mut().unwrap_err().kind(), crate::error::ErrorKind::AlreadyLocked(_));
 
 		drop(ref1);
-		assert_matches!(text.as_mut(), Err(Error::AlreadyLocked(_)));
+		assert_matches!(text.as_mut().unwrap_err().kind(), crate::error::ErrorKind::AlreadyLocked(_));
 
 		drop(ref2);
 		assert_matches!(text.as_mut(), Ok(_));
@@ -636,7 +636,7 @@ mod tests {
 		assert!(!text.is_frozen());
 
 		text.as_ref().unwrap().freeze();
-		assert_matches!(text.as_mut(), Err(Error::ValueFrozen(_)));
+		assert_matches!(text.as_mut().unwrap_err().kind(), crate::error::ErrorKind::ValueFrozen(_));
 		assert!(text.is_frozen());
 	}
 }

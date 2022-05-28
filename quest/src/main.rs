@@ -46,20 +46,12 @@ fn setup_tracing() {
 fn main() {
 	setup_tracing();
 	if false {
-		run_code(
+		let thingy = run_code(
 			r##"
-q = {{dump(3)}}();
-foo = () -> {
-	bar = () -> {
-		baz = () -> {
-			q();
-		};
-
-		baz();
-	};
-
-	bar();
-};
+foo = { bar() };
+bar = { baz() };
+baz = { quux() };
+quux = { "A".foo };
 
 foo();
 __EOF__
@@ -229,8 +221,10 @@ $syntax { @ ${! $f:int} } = { print(2 ${* $f}) } ;
 
 @ !3 !5 !7
 "##,
-		)
-		.unwrap();
+		);
+		if let Err(err) = thingy {
+			eprintln!("{}", err);
+		}
 		return;
 	}
 
