@@ -45,10 +45,16 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if false {
+	if true {
 		run_code(
 			r##"
+fib = n -> {
+	(n <= 1).then(n.return);
+	__block__(n-1) + __block__(n-2)
+};
 
+print(fib(30))
+__EOF__
 import = {};
 fizzbuzz={};
 print = { print(:-1.stack.pop()); };

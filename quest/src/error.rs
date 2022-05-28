@@ -21,6 +21,7 @@ pub enum Error {
 	},
 	KeywordsGivenWhenNotExpected,
 	PositionalArgumentMismatch { given: usize, expected: usize },
+	StackframeIsCurrentlyRunning(AnyValue),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -48,7 +49,8 @@ impl Display for Error {
 			Self::KeywordsGivenWhenNotExpected => write!(f, "keyword arguments given when none expected"),
 			Self::PositionalArgumentMismatch { given, expected } => {
 				write!(f, "positional argument count mismatch (given {given} expected {expected})")
-			}
+			},
+			Self::StackframeIsCurrentlyRunning(frame) => write!(f, "frame {:?} is currently executing", frame),
 		}
 	}
 }

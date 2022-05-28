@@ -202,6 +202,10 @@ impl<T: Allocated> Gc<T> {
 	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn as_ref(self) -> Result<Ref<T>> {
+		if cfg!(feature="unsafe-no-locking") {
+			return Ok(Ref(self))
+		}
+
 		fn updatefn(x: u32) -> Option<u32> {
 			if x == MUT_BORROW {
 				None
@@ -262,6 +266,10 @@ impl<T: Allocated> Gc<T> {
 	pub fn as_mut(self) -> Result<Mut<T>> {
 		if self.is_frozen() {
 			return Err(Error::ValueFrozen(Value::from(self).any()));
+		}
+
+		if cfg!(feature="unsafe-no-locking") {
+			return Ok(Mut(self))
 		}
 
 		if self

@@ -735,13 +735,14 @@ impl Gc<Frame> {
 		skip(self),
 		fields(src=?self.as_ref()?.block.loc))
 	]
+
 	pub fn run(self) -> Result<AnyValue> {
 		if !self
 			.as_ref()?
 			.flags()
 			.try_acquire_all_user(FLAG_CURRENTLY_RUNNING)
 		{
-			return Err("stackframe is currently running".to_string().into());
+			return Err(Error::StackframeIsCurrentlyRunning(self.to_any()));
 		}
 
 		Frame::with_stackframe(|sfs| sfs.push(self));

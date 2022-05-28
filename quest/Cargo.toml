@@ -24,3 +24,4 @@ tracing-subscriber = "0.3" # ^^^
 assert_matches = "1.5"
 
 [features]
+unsafe-no-locking = []
