@@ -2,7 +2,7 @@ use super::{Frame, SourceLocation};
 use crate::value::ty::{List, Text};
 use crate::value::{base::Base, Gc, HasDefaultParent};
 use crate::vm::Args;
-use crate::{AnyValue, Error, Result};
+use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
@@ -72,7 +72,7 @@ impl Gc<Block> {
 
 		let mut clonedmut = cloned.as_mut().unwrap();
 		for (attr, value) in selfref.attributes()?.iter() {
-			clonedmut.set_attr(attr, value);
+			clonedmut.set_attr(attr, value)?;
 		}
 
 		Ok(cloned)

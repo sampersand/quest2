@@ -1,5 +1,10 @@
 use crate::{value::Intern, AnyValue};
 use std::fmt::{self, Display, Formatter};
+use crate::vm::SourceLocation;
+
+
+#[derive(Debug)]
+pub struct Stacktrace(Vec<SourceLocation>);
 
 #[derive(Debug)]
 #[non_exhaustive]

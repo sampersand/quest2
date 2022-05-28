@@ -7,7 +7,6 @@ use crate::vm::bytecode::{COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIM
 use crate::vm::{Args, Block};
 use crate::{AnyValue, Error, Result};
 use std::alloc::Layout;
-use std::cell::UnsafeCell;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
@@ -111,7 +110,8 @@ impl Frame {
 				args.positional().len(),
 			);
 
-			let mut data_ptr = builder.data_mut();
+			let data_ptr = builder.data_mut();
+
 			std::ptr::addr_of_mut!((*data_ptr).unnamed_locals).write(unnamed_locals);
 			std::ptr::addr_of_mut!((*data_ptr).named_locals).write(named_locals);
 			std::ptr::addr_of_mut!((*data_ptr).block).write(block);
@@ -154,20 +154,17 @@ impl Frame {
 
 	unsafe fn get_unnamed_local(&self, index: usize) -> AnyValue {
 		debug_assert!(index <= self.block.num_of_unnamed_locals);
+		debug_assert!(
+			self
+				.unnamed_locals
+				.add(index)
+				.cast::<Option<AnyValue>>()
+				.read()
+				.is_some(),
+			"reading from an unassigned unnamed local!"
+		);
 
-		unsafe {
-			debug_assert!(
-				self
-					.unnamed_locals
-					.add(index)
-					.cast::<Option<AnyValue>>()
-					.read()
-					.is_some(),
-				"reading from an unassigned unnamed local!"
-			);
-
-			*self.unnamed_locals.add(index)
-		}
+		*self.unnamed_locals.add(index)
 	}
 
 	// this should also be unsafe
@@ -321,7 +318,7 @@ impl Gc<Frame> {
 		let dst = this.next_local_target();
 
 		debug!(target: "frame", ?dst, ?src, "mov");
-		this.set_local(dst, src);
+		this.set_local(dst, src)?;
 
 		Ok(())
 	}
@@ -334,7 +331,7 @@ impl Gc<Frame> {
 		let list = List::with_capacity(amnt);
 		{
 			let mut l = list.as_mut().unwrap();
-			for i in 0..amnt {
+			for _ in 0..amnt {
 				l.push(this.next_local()?);
 			}
 		}
@@ -342,7 +339,7 @@ impl Gc<Frame> {
 		let dst = this.next_local_target();
 
 		debug!(target: "frame", ?dst, ?list, "create_list");
-		this.set_local(dst, list.to_any());
+		this.set_local(dst, list.to_any())?;
 
 		Ok(())
 	}
@@ -374,7 +371,7 @@ impl Gc<Frame> {
 		let result = object.call(Args::new(args, &[]))?;
 
 		debug!(target: "frame", ?dst, ?object, ?args, ?result, "call_simple");
-		self.as_mut()?.set_local(dst, result);
+		self.as_mut()?.set_local(dst, result)?;
 
 		Ok(())
 	}
@@ -409,7 +406,7 @@ impl Gc<Frame> {
 		let dst = this.next_local_target();
 
 		debug!(target: "frame", ?dst, ?constant, "constload");
-		this.set_local(dst, constant);
+		this.set_local(dst, constant)?;
 
 		Ok(())
 	}
@@ -439,7 +436,7 @@ impl Gc<Frame> {
 		frame.as_mut()?.convert_to_object()?;
 
 		debug!(target: "frame", ?dst, ?frame, "stackframe");
-		self.as_mut()?.set_local(dst, frame.to_any());
+		self.as_mut()?.set_local(dst, frame.to_any())?;
 
 		Ok(())
 	}
@@ -456,7 +453,7 @@ impl Gc<Frame> {
 			.ok_or_else(|| format!("unknown attr {attr:?} for {object:?}"))?;
 
 		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "get_attr");
-		self.as_mut()?.set_local(dst, value);
+		self.as_mut()?.set_local(dst, value)?;
 
 		Ok(())
 	}
@@ -473,7 +470,7 @@ impl Gc<Frame> {
 			.ok_or_else(|| format!("unknown attr {attr:?} for {object:?}"))?;
 
 		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "get_unbound_attr");
-		self.as_mut()?.set_local(dst, value);
+		self.as_mut()?.set_local(dst, value)?;
 
 		Ok(())
 	}
@@ -488,7 +485,7 @@ impl Gc<Frame> {
 		let hasit = object.has_attr(attr)?;
 
 		debug!(target: "frame", ?dst, ?object, ?attr, ?hasit, "has_attr");
-		self.as_mut()?.set_local(dst, hasit.to_any());
+		self.as_mut()?.set_local(dst, hasit.to_any())?;
 
 		Ok(())
 	}
@@ -538,7 +535,7 @@ impl Gc<Frame> {
 		};
 
 		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "set_attr");
-		this.set_local(dst, value);
+		this.set_local(dst, value)?;
 
 		Ok(())
 	}
@@ -553,7 +550,7 @@ impl Gc<Frame> {
 		let value = object.del_attr(attr)?;
 
 		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "del_attr");
-		self.as_mut()?.set_local(dst, value.unwrap_or_default());
+		self.as_mut()?.set_local(dst, value.unwrap_or_default())?;
 
 		Ok(())
 	}
@@ -585,7 +582,7 @@ impl Gc<Frame> {
 		let result = object.call_attr(attr, Args::new(args, &[]))?;
 
 		debug!(target: "frame", ?dst, ?object, ?attr, ?args, ?result, "call_attr_simple");
-		self.as_mut()?.set_local(dst, result);
+		self.as_mut()?.set_local(dst, result)?;
 
 		Ok(())
 	}
@@ -600,7 +597,7 @@ impl Gc<Frame> {
 		let result = lhs.call_attr(op, Args::new(&[rhs], &[]))?;
 
 		debug!(target: "frame", ?dst, ?op, ?lhs, ?rhs, ?result, "binary_op");
-		self.as_mut()?.set_local(dst, result);
+		self.as_mut()?.set_local(dst, result)?;
 
 		Ok(())
 	}
@@ -663,7 +660,7 @@ impl Gc<Frame> {
 		let num_args = this.next_count();
 		// todo: optimize me not to use a `Vec`.
 		let mut args = Vec::with_capacity(num_args + 1);
-		for i in 0..num_args {
+		for _ in 0..num_args {
 			args.push(this.next_local()?);
 		}
 		let dst = this.next_local_target();
@@ -672,7 +669,7 @@ impl Gc<Frame> {
 		let result = source.call_attr(Intern::op_index, Args::new(&args, &[]))?;
 
 		debug!(target: "frame", ?dst, ?source, ?args, ?result, "index");
-		self.as_mut()?.set_local(dst, result);
+		self.as_mut()?.set_local(dst, result)?;
 
 		Ok(())
 	}
@@ -686,7 +683,7 @@ impl Gc<Frame> {
 		let result = value.call_attr(Intern::op_not, Args::default())?;
 
 		debug!(target: "frame", ?dst, ?value, ?result, "not");
-		self.as_mut()?.set_local(dst, result);
+		self.as_mut()?.set_local(dst, result)?;
 
 		Ok(())
 	}
@@ -700,7 +697,7 @@ impl Gc<Frame> {
 		let result = value.call_attr(Intern::op_neg, Args::default())?;
 
 		debug!(target: "frame", ?dst, ?value, ?result, "neg");
-		self.as_mut()?.set_local(dst, result);
+		self.as_mut()?.set_local(dst, result)?;
 
 		Ok(())
 	}
@@ -712,7 +709,7 @@ impl Gc<Frame> {
 		let num_args = this.next_count();
 
 		let mut args = Vec::with_capacity(num_args + 1);
-		for i in 0..num_args {
+		for _ in 0..num_args {
 			args.push(this.next_local()?);
 		}
 		let value = this.next_local()?;
@@ -724,7 +721,7 @@ impl Gc<Frame> {
 		let result = source.call_attr(Intern::op_index_assign, Args::new(&args, &[]))?;
 
 		debug!(target: "frame", ?dst, ?source, ?args, ?result, "index_assign");
-		self.as_mut()?.set_local(dst, result);
+		self.as_mut()?.set_local(dst, result)?;
 
 		Ok(())
 	}
@@ -850,7 +847,6 @@ pub mod funcs {
 
 	pub fn dbg(frame: Gc<Frame>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
-		use crate::value::ty::text::SimpleBuilder;
 
 		// TODO: maybe cache this in the future?
 		let mut builder = Text::simple_builder();

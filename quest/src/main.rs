@@ -45,7 +45,7 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if true {
+	if false {
 		run_code(
 			r##"
 fib = n -> {
@@ -53,7 +53,7 @@ fib = n -> {
 	__block__(n-1) + __block__(n-2)
 };
 
-print(fib(30))
+print(fib(10))
 __EOF__
 import = {};
 fizzbuzz={};

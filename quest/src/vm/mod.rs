@@ -1,16 +1,12 @@
-#![allow(unused)]
-
 mod args;
 pub mod block;
 pub mod bytecode;
 mod frame;
-mod stackframe;
 
 pub use args::Args;
 pub use block::Block;
 pub use bytecode::Opcode;
 pub use frame::Frame;
-pub use stackframe::Stackframe;
 
 #[derive(Clone)]
 pub struct SourceLocation {
