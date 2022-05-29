@@ -48,10 +48,46 @@ fn main() {
 	if false {
 		let thingy = run_code(
 			r##"
+t = 1.upto(10).map(x -> { 
+	{ print(x) }; f.x = 99;# spawn(f)
+});
+print(3);
+t.join();
+__EOF__
+$syntax kw { $a:(let $| def $| do) } = { $a } ;
+$syntax { IO.println } = { print };
+$syntax { let $name:ident := ${$!$_:kw $v:token} $k:kw } = { $name = ${$v}; $k };
+$syntax {
+    def $name:ident ${$!:= $args:ident} := ${$!$_:kw $e:token} $k:kw
+} = { $name = (${$args ,}) -> { ${$e} }; $k };
+$syntax { do } = { } ;
+
+let msg := "hii"
+def add x y := x + y
+let test := add(1, 3)
+do IO.println(msg) ;
+
+__EOF__
+$syntax hr_min_sec { $hr:int : $min:int } = { $hr : $min . 0 } ;
+$syntax hr_min_sec { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
+
+$syntax { $time:hr_min_sec am } = { $time } ;
+$syntax { $time:hr_min_sec pm } = { ($time + 216_000) } ;
+
+print(10 : 30 . 45 pm); #=> 253845
+print(10 : 30 am); #=> 37800
+
+__EOF__
+foo = { bar() };
+bar = { unknownattribute };
+
+foo();
+
+__EOF__
 foo = { bar() };
 bar = { baz() };
 baz = { quux() };
-quux = { "A".foo };
+quux = { unknownattribute };
 
 foo();
 __EOF__

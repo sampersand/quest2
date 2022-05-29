@@ -92,7 +92,7 @@ define_interned! {
 	r#while "while"
 	r#else "else"
 	r#return "return"
-	exit abort
+	exit abort spawn join
 
 	r#true "true" r#false "false" null
 	print freeze resume restart dbg

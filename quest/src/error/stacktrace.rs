@@ -12,9 +12,10 @@ impl Stacktrace {
 
 	pub fn new() -> Result<Self> {
 		Frame::with_stackframes(|frames| {
-			let mut locations = Vec::with_capacity(frames.len());
+			let mut locations = Vec::with_capacity(frames.len().saturating_sub(1));
 
-			for frame in frames {
+			// we skip the first one, as it's the outermost one
+			for frame in frames.iter().skip(1) {
 				let block = frame.as_ref()?.block().as_ref()?;
 
 				let source_location = block.source_location().clone();
@@ -40,7 +41,7 @@ impl Display for Stacktrace {
 		}
 
 		for (i, (location, name)) in self.0.iter().enumerate() {
-			write!(f, "#{} {}", i, location)?;
+			write!(f, "#{} {}", i + 1, location)?;
 
 			if let Some(name) = name {
 				write!(f, " ({})", name)?;

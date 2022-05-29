@@ -104,6 +104,55 @@ pub mod funcs {
 
 		Ok(last)
 	}
+
+	// this isn't the actual interface, im just curious how threads will work out
+	pub fn spawn(args: Args<'_>) -> Result<AnyValue> {
+		use std::thread::{self, JoinHandle};
+		use crate::value::base::Base;
+		use crate::value::ty::InstanceOf;
+		use crate::value::ToAny;
+
+		quest_type! {
+			#[derive(NamedType)]
+			pub struct Thread(Option<JoinHandle<Result<AnyValue>>>);
+		}
+
+		#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+		pub struct ThreadClass;
+
+		impl Singleton for ThreadClass {
+			fn instance() -> crate::AnyValue {
+				use once_cell::sync::OnceCell;
+
+				static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+
+				*INSTANCE.get_or_init(|| {
+					create_class! { "Thread", parent Object::instance();
+						Intern::join => method |thread: Gc<Thread>, args: Args<'_>| -> Result<AnyValue> {
+							args.assert_no_arguments()?;
+
+							if let Some(thread) = thread.as_mut()?.0.data_mut().take() {
+								thread.join().expect("couldnt join")
+							} else {
+								Err("unable to join an already join thread".to_string().into())
+							}
+						},
+					}
+				})
+			}
+		}
+
+		impl InstanceOf for Gc<Thread> {
+			type Parent = ThreadClass;
+		}
+
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+		let func = args[0];
+
+		let thread = thread::spawn(move || func.call(Args::default()));
+		Ok(Gc::<Thread>::from_inner(Base::new(Some(thread), Gc::<Thread>::parent())).to_any())
+	}
 }
 
 impl Singleton for Kernel {
@@ -124,10 +173,12 @@ impl Singleton for Kernel {
 				Intern::r#while => justargs funcs::r#while,
 				Intern::Integer => constant ty::Integer::parent(),
 				Intern::List => constant ty::List::parent(),
+				// TODO: Other types
 				Intern::r#true => constant true.to_any(),
 				Intern::r#false => constant false.to_any(),
 				Intern::r#null => constant ty::Null.to_any(),
-				// TODO: Other types
+
+				Intern::spawn => justargs funcs::spawn,
 			}
 		})
 	}
