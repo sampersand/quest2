@@ -32,7 +32,7 @@ sa::assert_eq_size!(Header, [u64; 4]);
 #[repr(C, align(16))]
 pub struct Base<T: 'static> {
 	header: Header,
-	data: UnsafeCell<T>,
+	data: T,
 }
 
 // TODO: are these actually safe? idts, since theyre wrapped in `Gc`
@@ -60,7 +60,7 @@ impl Debug for Header {
 
 impl<T: Debug> Debug for Base<T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		Debug::fmt(&self.data(), f)
+		Debug::fmt(&self.data, f)
 	}
 }
 
@@ -152,23 +152,23 @@ impl<T> Base<T> {
 	}
 
 	pub fn header_mut(&mut self) -> &mut Header {
-		self.header_data_mut().0
+		&mut self.header
 	}
 
 	pub fn header_data_mut(&mut self) -> (&mut Header, &mut T) {
-		(&mut self.header, unsafe { &mut *self.data.get() })
+		(&mut self.header, &mut self.data)
 	}
 
 	pub fn data(&self) -> &T {
-		unsafe { &*self.data.get() }
+		&self.data
 	}
 
 	pub fn data_mut(&mut self) -> &mut T {
-		self.header_data_mut().1
+		&mut self.data
 	}
 
-	pub unsafe fn data_mut_raw<'a>(ptr: *const Self) -> Result<DataMutGuard<'a, T>> {
-		let data_ptr = (*ptr).data.get();
+	pub unsafe fn data_mut_raw<'a>(ptr: *mut Self) -> Result<DataMutGuard<'a, T>> {
+		let data_ptr = &mut (*ptr).data;
 		let flags = &(*ptr).header.flags;
 		let borrows = &(*ptr).header.borrows;
 
@@ -187,7 +187,7 @@ impl<T> Base<T> {
 	}
 
 	pub unsafe fn data_ref_raw<'a>(ptr: *const Self) -> Result<DataRefGuard<'a, T>> {
-		let data_ptr = (*ptr).data.get();
+		let data_ptr = &(*ptr).data;
 		let flags = &(*ptr).header.flags;
 		let borrows = &(*ptr).header.borrows;
 
