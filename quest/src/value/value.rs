@@ -290,7 +290,7 @@ impl AnyValue {
 
 	pub fn call_attr<A: Attribute>(self, attr: A, args: Args<'_>) -> Result<Self> {
 		if self.is_allocated() {
-			return unsafe { self.get_gc_any_unchecked() }.call_attr(attr, args);
+			return unsafe { self.get_gc_any_unchecked() }.as_ref()?.call_attr(attr, args);
 		}
 
 		// OPTIMIZE ME: This is circumventing potential optimizations from `parents_for`?

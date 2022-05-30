@@ -1,6 +1,6 @@
 //! Types related to allocated Quest types.
 
-use crate::value::base::{Attribute, Base, Flags, Header};
+use crate::value::base::{Attribute, Base, Flags, Header, IntoParent, ParentsRef, ParentsMut};
 use crate::value::ty::{List, Wrap};
 use crate::value::{value::Any, AnyValue, Convertible, ToAny, Value};
 use crate::Result;
@@ -352,28 +352,6 @@ impl<T: Allocated> Gc<T> {
 		// for constructing it (via `new`).
 		unsafe { &*self.as_ptr() }.header().borrows()
 	}
-
-	#[allow(clippy::trivially_copy_pass_by_ref)] // by ref is needed for the lifetime (for now...?)
-	fn parents(&self) -> Result<crate::value::base::ParentsGuard<'_>> {
-		unsafe { Header::parents_raw(self.as_ptr().cast::<Header>()) }
-	}
-
-	#[allow(clippy::trivially_copy_pass_by_ref)] // by ref is needed for the lifetime (for now...?)
-	fn attributes(&self) -> Result<crate::value::base::AttributesGuard<'_>> {
-		unsafe { Header::attributes_raw(self.as_ptr().cast::<Header>()) }
-	}
-
-	pub fn call_attr<A: Attribute>(self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
-		// try to get a function directly defined on `self`, which most likely wont exist.
-		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
-		let obj = self.to_any();
-
-		if let Some(func) = self.attributes()?.get_unbound_attr(attr)? {
-			func.call(args.with_self(obj))
-		} else {
-			self.parents()?.call_attr(obj, attr, args)
-		}
-	}
 }
 
 impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
@@ -440,6 +418,18 @@ impl<T: Allocated> Ref<T> {
 		self.0
 	}
 
+	pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
+		// try to get a function directly defined on `self`, which most likely wont exist.
+		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
+		let obj = self.as_gc().to_any();
+
+		if let Some(func) = self.attributes().get_unbound_attr(attr)? {
+			func.call(args.with_self(obj))
+		} else {
+			self.parents().call_attr(obj, attr, args)
+		}
+	}
+
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		self.header().get_unbound_attr(attr, true)
 	}
@@ -453,12 +443,12 @@ impl<T: Allocated> Ref<T> {
 		self.header().freeze();
 	}
 
-	pub fn parents(&self) -> Result<crate::value::base::ParentsGuard> {
+	pub fn parents(&self) -> ParentsRef<'_> {
 		self.header().parents()
 	}
 
-	pub fn attributes(&self) -> Result<crate::value::base::AttributesGuard> {
-		self.header().attributes()
+	pub fn attributes(&self) -> crate::value::base::AttributesGuard {
+		self.header().attributes().unwrap()
 	}
 }
 
@@ -508,20 +498,16 @@ impl<T: Debug + Allocated> Debug for Mut<T> {
 }
 
 impl<T: Allocated> Mut<T> {
-	pub fn parents_list(&mut self) -> Gc<List> {
-		self
-			.header()
-			.parents()
-			.expect("we really shouldnt be using mut for parents")
-			.as_list()
+	pub fn parents_mut(&mut self) -> ParentsMut<'_> {
+		self.header_mut().parents_mut()
 	}
 
-	pub fn set_parents(&mut self, parents_list: Gc<List>) {
-		self
-			.header()
-			.parents()
-			.expect("we really shouldnt be using mut for parents")
-			.set(parents_list);
+	pub fn parents_list(&mut self) -> Gc<List> {
+		self.parents_mut().as_list()
+	}
+
+	pub fn set_parents<P: IntoParent>(&mut self, parents: P) {
+		self.parents_mut().set(parents);
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {

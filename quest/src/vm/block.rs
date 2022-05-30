@@ -84,11 +84,11 @@ impl Gc<Block> {
 		// TODO: optimize me, eg maybe have shared attributes pointer or something
 		let selfref = self.as_ref()?;
 		let inner = selfref.inner().clone();
-		let parents = selfref.parents().unwrap();
+		let parents = selfref.parents();
 		let cloned = Self::from_inner(Base::new(inner, parents));
 
 		let mut clonedmut = cloned.as_mut().unwrap();
-		for (attr, value) in selfref.attributes()?.iter() {
+		for (attr, value) in selfref.attributes().iter() {
 			clonedmut.set_attr(attr, value)?;
 		}
 

@@ -15,20 +15,41 @@ pub(super) union Parents {
 sa::assert_eq_size!(Parents, u64);
 sa::assert_eq_align!(Parents, u64);
 
-pub struct ParentsGuard<'a> {
-	ptr: *mut Parents,
+#[repr(C)]
+pub struct ParentsRef<'a> {
+	parents: &'a Parents,
 	flags: &'a Flags,
 }
 
-impl Drop for ParentsGuard<'_> {
-	fn drop(&mut self) {
-		let remove = self.flags.remove_internal(Flags::LOCK_PARENTS);
-		debug_assert!(remove, "couldn't remove parents lock?");
+#[repr(C)]
+pub struct ParentsMut<'a> {
+	parents: &'a mut Parents,
+	flags:  &'a Flags,
+}
+
+sa::assert_eq_size!(ParentsRef<'_>, ParentsMut<'_>);
+sa::assert_eq_align!(ParentsRef<'_>, ParentsMut<'_>);
+
+impl<'a> std::ops::Deref for ParentsMut<'a> {
+	type Target = ParentsRef<'a>;
+
+	fn deref(&self) -> &Self::Target {
+		unsafe { std::mem::transmute(self) }
+	}
+}
+
+impl Parents {
+	pub(super) unsafe fn guard_ref<'a>(&'a self, flags: &'a Flags) -> ParentsRef<'a> {
+		ParentsRef { parents: self, flags }
+	}
+
+	pub(super) unsafe fn guard_mut<'a>(&'a mut self, flags: &'a Flags) -> ParentsMut<'a> {
+		ParentsMut { parents: self, flags }
 	}
 }
 
 pub unsafe trait IntoParent {
-	fn into_parent(self, guard: &mut ParentsGuard<'_>);
+	fn into_parent(self, guard: &mut ParentsMut<'_>);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -36,131 +57,71 @@ pub struct NoParents;
 
 unsafe impl IntoParent for NoParents {
 	#[inline]
-	fn into_parent(self, guard: &mut ParentsGuard<'_>) {
+	fn into_parent(self, guard: &mut ParentsMut<'_>) {
 		guard.flags.remove_internal(Flags::MULTI_PARENT);
-		unsafe {
-			guard.ptr.write(Parents { none: 0 });
-		}
+		guard.parents.none = 0;
 	}
 }
 
 unsafe impl IntoParent for AnyValue {
 	#[inline]
-	fn into_parent(self, guard: &mut ParentsGuard<'_>) {
+	fn into_parent(self, guard: &mut ParentsMut<'_>) {
 		guard.flags.remove_internal(Flags::MULTI_PARENT);
-		unsafe {
-			guard.ptr.write(Parents { single: self });
-		}
+		guard.parents.single = self;
 	}
 }
 
 unsafe impl IntoParent for Gc<List> {
 	#[inline]
-	fn into_parent(self, guard: &mut ParentsGuard<'_>) {
+	fn into_parent(self, guard: &mut ParentsMut<'_>) {
 		guard.flags.insert_internal(Flags::MULTI_PARENT);
-		unsafe {
-			guard.ptr.write(Parents { list: self });
-		}
+		guard.parents.list = self;
 	}
 }
 
-unsafe impl IntoParent for ParentsGuard<'_> {
-	fn into_parent(self, guard: &mut ParentsGuard<'_>) {
+unsafe impl IntoParent for ParentsRef<'_> {
+	fn into_parent(self, guard: &mut ParentsMut<'_>) {
 		match self.classify() {
 			ParentsKind::None => NoParents.into_parent(guard),
-			ParentsKind::Single(single) => unsafe { *single }.into_parent(guard),
-			ParentsKind::List(list) => unsafe { *list }.as_ref().unwrap().dup().into_parent(guard),
+			ParentsKind::Single(single) => single.into_parent(guard),
+			ParentsKind::List(list) => list.as_ref().unwrap().dup().into_parent(guard),
 		}
 	}
 }
 
 enum ParentsKind {
 	None,
-	Single(*mut AnyValue),
-	List(*mut Gc<List>),
+	Single(AnyValue),
+	List(Gc<List>),
 }
 
-impl<'a> ParentsGuard<'a> {
-	// safety: parents and flags have to correspond
-	pub(super) unsafe fn new(ptr: *mut Parents, flags: &'a Flags) -> Option<Self> {
-		if flags.try_acquire_all_internal(Flags::LOCK_PARENTS) {
-			Some(Self { ptr, flags })
-		} else {
-			None
-		}
-	}
-
-	pub(crate) fn set<I: IntoParent>(&mut self, parent: I) {
-		parent.into_parent(self);
-	}
-
+impl<'a> ParentsRef<'a> {
 	fn classify(&self) -> ParentsKind {
 		unsafe {
-			if (*self.ptr).none == 0 {
+			if self.parents.none == 0 {
 				ParentsKind::None
 			} else if !self.flags.contains(Flags::MULTI_PARENT) {
-				ParentsKind::Single(self.ptr.cast::<AnyValue>())
+				ParentsKind::Single(self.parents.single)
 			} else {
-				ParentsKind::List(self.ptr.cast::<Gc<List>>())
+				ParentsKind::List(self.parents.list)
 			}
 		}
-	}
-}
-
-impl Debug for ParentsGuard<'_> {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		let mut l = f.debug_list();
-		match self.classify() {
-			ParentsKind::None => {},
-			ParentsKind::Single(s) => {
-				l.entry(unsafe { &*s });
-			},
-			ParentsKind::List(s) => {
-				l.entries(
-					unsafe { *s }
-						.as_ref()
-						.expect("asref failed for entries")
-						.as_slice(),
-				);
-			},
-		};
-		l.finish()
-	}
-}
-
-impl ParentsGuard<'_> {
-	/// Converts `self` into a list of parents if it isn't already, returning the list. Modifications
-	/// to the list will modify the the parents.
-	pub fn as_list(&mut self) -> Gc<List> {
-		let list;
-		match self.classify() {
-			ParentsKind::None => {
-				list = List::new();
-				self.set(list);
-			},
-			ParentsKind::Single(singular) => {
-				list = List::from_slice(&[unsafe { *singular }]);
-				self.set(list);
-			},
-			ParentsKind::List(list_) => list = unsafe { *list_ },
-		}
-		list
 	}
 
 	/// Attempts to get the unbound attribute `attr` on `self`.
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		match self.classify() {
 			ParentsKind::None => Ok(None),
-			ParentsKind::Single(single) => unsafe { *single }.get_unbound_attr(attr),
+			ParentsKind::Single(single) => single.get_unbound_attr(attr),
 			ParentsKind::List(list) => {
-				for parent in unsafe { *list }.as_ref()?.as_slice() {
+				for parent in list.as_ref()?.as_slice() {
 					if let Some(value) = parent.get_unbound_attr(attr)? {
 						return Ok(Some(value));
 					}
 				}
 
 				Ok(None)
-			},
+			}
 		}
 	}
 
@@ -181,5 +142,57 @@ impl ParentsGuard<'_> {
 		drop(self);
 
 		attr.call(args.with_self(obj))
+	}
+}
+
+impl ParentsMut<'_> {
+	pub fn set<I: IntoParent>(&mut self, parent: I) {
+		parent.into_parent(self);
+	}
+
+	/// Converts `self` into a list of parents if it isn't already, returning the list. Modifications
+	/// to the list will modify the the parents.
+	pub fn as_list(&mut self) -> Gc<List> {
+		match self.classify() {
+			ParentsKind::None => {
+				let list = List::new();
+				self.set(list);
+				list
+			},
+			ParentsKind::Single(singular) => {
+				let list = List::from_slice(&[singular]);
+				self.set(list);
+				list
+			},
+			ParentsKind::List(list) => list
+		}
+	}
+}
+
+
+impl Debug for ParentsRef<'_> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		let mut l = f.debug_list();
+
+		match self.classify() {
+			ParentsKind::None => {},
+			ParentsKind::Single(s) => { l.entry(&s); },
+			ParentsKind::List(s) => {
+				l.entries(
+					s
+						.as_ref()
+						.expect("asref failed for entries")
+						.as_slice(),
+				);
+			},
+		};
+
+		l.finish()
+	}
+}
+
+impl Debug for ParentsMut<'_> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		<ParentsRef as Debug>::fmt(self, f)
 	}
 }

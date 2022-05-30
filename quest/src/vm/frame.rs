@@ -398,9 +398,8 @@ impl Gc<Frame> {
 			this.convert_to_object()?;
 
 			block
-				.as_ref()?
-				.parents()?
-				.as_list()
+				.as_mut()?
+				.parents_list()
 				.as_mut()?
 				.push(self.to_any()); // TODO: what are the implications of `.push` on parent scope vars?
 

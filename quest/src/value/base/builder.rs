@@ -269,10 +269,8 @@ impl<T> Builder<T> {
 	/// );
 	/// ```
 	pub fn set_parents<P: IntoParent>(&mut self, parent: P) {
-		if let Ok(mut parents) = unsafe { Header::parents_raw(self.header()) } {
-			parents.set(parent);
-		} else {
-			unreachable!("parents shouldn't be locked")
+		unsafe {
+			Header::parents_raw_mut(self.header_mut()).set(parent);
 		}
 	}
 

@@ -15,16 +15,16 @@ pub use attributes::{Attribute, AttributesGuard};
 pub use builder::Builder;
 pub use data::{DataMutGuard, DataRefGuard};
 pub use flags::Flags;
-pub use parents::{IntoParent, NoParents, ParentsGuard};
+pub use parents::{IntoParent, NoParents, ParentsRef, ParentsMut};
 
 #[repr(C)]
 pub struct Header {
-	// Note that the guards on these allow them to be modified even when you have a nonmutable view. (i think.)
-	attributes: UnsafeCell<attributes::Attributes>,
-	parents: UnsafeCell<parents::Parents>,
-	typeid: TypeId,
 	flags: Flags,
 	borrows: AtomicU32,
+	// Note that the guards on these allow them to be modified even when you have a nonmutable view. (i think.)
+	attributes: UnsafeCell<attributes::Attributes>,
+	parents: parents::Parents,
+	typeid: TypeId,
 }
 
 sa::assert_eq_size!(Header, [u64; 4]);
@@ -249,7 +249,7 @@ impl Header {
 	}
 
 	pub fn get_unbound_attr_from_parents<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
-		self.parents()?.get_unbound_attr(attr)
+		self.parents().get_unbound_attr(attr)
 	}
 
 	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut AnyValue> {
@@ -320,20 +320,30 @@ impl Header {
 		self.attributes()?.del_attr(attr)
 	}
 
-	pub fn parents(&self) -> Result<ParentsGuard<'_>> {
+	pub fn parents(&self) -> ParentsRef<'_> {
 		unsafe { Self::parents_raw(self as *const Self) }
+	}
+
+	pub fn parents_mut(&mut self) -> ParentsMut<'_> {
+		unsafe { self.parents.guard_mut(&self.flags) }
 	}
 
 	pub fn attributes(&self) -> Result<AttributesGuard<'_>> {
 		unsafe { Self::attributes_raw(self as *const Self) }
 	}
 
-	pub unsafe fn parents_raw<'a>(ptr: *const Self) -> Result<ParentsGuard<'a>> {
-		let parents_ptr = (*ptr).parents.get();
+	pub unsafe fn parents_raw<'a>(ptr: *const Self) -> ParentsRef<'a> {
+		let parents = &(*ptr).parents;
 		let flags = &(*ptr).flags;
 
-		ParentsGuard::new(parents_ptr, flags)
-			.ok_or_else(|| "parents are already locked".to_string().into())
+		parents.guard_ref(flags)
+	}
+
+	pub unsafe fn parents_raw_mut<'a>(ptr: *mut Self) -> ParentsMut<'a> {
+		let parents = &mut (*ptr).parents;
+		let flags = &(*ptr).flags;
+
+		parents.guard_mut(flags)
 	}
 
 	pub unsafe fn attributes_raw<'a>(ptr: *const Self) -> Result<AttributesGuard<'a>> {

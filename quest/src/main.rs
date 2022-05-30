@@ -45,9 +45,16 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if false {
+	if true {
 		let thingy = run_code(
 			r##"
+fib = n -> {
+	(n <= 1).then(n.return);
+	__block__(n-1) + __block__(n-2)
+};
+
+print(fib(5))
+__EOF__
 t = 1.upto(10).map(x -> { 
 	{ print(x) }; f.x = 99;# spawn(f)
 });
