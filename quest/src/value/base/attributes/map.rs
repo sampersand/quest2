@@ -31,14 +31,14 @@ pub struct Map {
 }
 
 impl Map {
-	pub fn with_capacity(capacity: usize) -> Self {
-		Self {
+	pub fn with_capacity(capacity: usize) -> Box<Self> {
+		Box::new(Self {
 			interned: HashMap::with_capacity(capacity),
 			any: HashMap::new(),
-		}
+		})
 	}
 
-	pub fn from_iter(iter: impl IntoIterator<Item = (AnyValue, AnyValue)>) -> Result<Self> {
+	pub fn from_iter(iter: impl IntoIterator<Item = (AnyValue, AnyValue)>) -> Result<Box<Self>> {
 		let mut map = Self::with_capacity(super::list::MAX_LISTMAP_LEN);
 
 		for (attr, value) in iter {

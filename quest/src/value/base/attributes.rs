@@ -21,174 +21,188 @@ pub union Attributes {
 sa::assert_eq_size!(Attributes, u64);
 sa::assert_eq_align!(Attributes, u64);
 
-pub struct AttributesGuard<'a> {
-	ptr: *mut Attributes,
+#[repr(C)]
+pub struct AttributesRef<'a> {
+	attributes: &'a Attributes,
 	flags: &'a Flags,
 }
 
-impl Drop for AttributesGuard<'_> {
-	fn drop(&mut self) {
-		let remove = self.flags.remove_internal(Flags::LOCK_ATTRIBUTES);
-		debug_assert!(remove, "couldn't remove attributes lock?");
+#[repr(C)]
+pub struct AttributesMut<'a> {
+	attributes: &'a mut Attributes,
+	flags:  &'a Flags,
+}
+
+sa::assert_eq_size!(AttributesRef<'_>, AttributesMut<'_>);
+sa::assert_eq_align!(AttributesRef<'_>, AttributesMut<'_>);
+
+impl<'a> std::ops::Deref for AttributesMut<'a> {
+	type Target = AttributesRef<'a>;
+
+	fn deref(&self) -> &Self::Target {
+		unsafe { std::mem::transmute(self) }
 	}
 }
 
-impl Debug for AttributesGuard<'_> {
+impl Attributes {
+	pub(super) unsafe fn guard_ref<'a>(&'a self, flags: &'a Flags) -> AttributesRef<'a> {
+		AttributesRef { attributes: self, flags }
+	}
+
+	pub(super) unsafe fn guard_mut<'a>(&'a mut self, flags: &'a Flags) -> AttributesMut<'a> {
+		AttributesMut { attributes: self, flags }
+	}
+}
+
+impl Debug for AttributesRef<'_> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		match self.classify() {
-			AttributesKind::None => f.debug_map().finish(),
-			AttributesKind::List(list) => Debug::fmt(unsafe { &*list }, f),
-			AttributesKind::Map(map) => Debug::fmt(unsafe { &*map }, f),
-		}
-	}
-}
-
-enum AttributesKind {
-	None,
-	List(*mut ListMap),
-	Map(*mut Map),
-}
-
-impl<'a> AttributesGuard<'a> {
-	pub(super) unsafe fn new(ptr: *mut Attributes, flags: &'a Flags) -> Option<Self> {
-		if flags.try_acquire_all_internal(Flags::LOCK_ATTRIBUTES) {
-			Some(Self { ptr, flags })
+		if self.is_none() {
+			f.debug_map().finish()
+		} else if self.isnt_map() {
+			Debug::fmt(unsafe { &self.attributes.list }, f)
 		} else {
-			None
+			Debug::fmt(unsafe { &self.attributes.map }, f)
 		}
 	}
+}
 
-	pub fn iter(&self) -> AttributesIter<'a> {
-		AttributesIter(match self.classify() {
-			AttributesKind::None => AttributesIterInner::None,
-			AttributesKind::List(list) => AttributesIterInner::List(unsafe { &*list }.iter()),
-			AttributesKind::Map(map) => AttributesIterInner::Map(unsafe { &*map }.iter()),
+impl Debug for AttributesMut<'_> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		<AttributesRef as Debug>::fmt(self, f)
+	}
+}
+
+impl<'a> AttributesRef<'a> {
+	fn is_none(&self) -> bool {
+		unsafe { self.attributes.none == 0 }
+	}
+
+	fn isnt_map(&self) -> bool {
+		!self.flags.contains(Flags::ATTR_MAP)
+	}
+
+	pub fn iter(&self) -> AttributesIter<'_> {
+		AttributesIter(if self.is_none() {
+			AttributesIterInner::None
+		} else if self.isnt_map() {
+			AttributesIterInner::List(unsafe { &self.attributes.list }.iter())
+		} else {
+			AttributesIterInner::Map(unsafe { &self.attributes.map }.iter())
 		})
 	}
 
-	pub fn allocate(&mut self, capacity: usize) {
-		match capacity {
-			0 => {
-				self.flags.remove_internal(Flags::ATTR_MAP);
-				unsafe {
-					self.ptr.write(Attributes { none: 0 });
-				}
-			},
-			1..=list::MAX_LISTMAP_LEN => {
-				self.flags.remove_internal(Flags::ATTR_MAP);
-				unsafe {
-					self.ptr.write(Attributes {
-						list: ManuallyDrop::new(ListMap::default().into()),
-					});
-				}
-			},
-			other if other < isize::MAX as usize => {
-				self.flags.insert_internal(Flags::ATTR_MAP);
-				unsafe {
-					self.ptr.write(Attributes {
-						map: ManuallyDrop::new(Map::with_capacity(capacity).into()),
-					});
-				}
-			},
-			other => panic!("can only allocate up to isize::MAX ({} is too big)", other),
-		}
-	}
-
-	fn classify(&self) -> AttributesKind {
-		if unsafe { (*self.ptr).none } == 0 {
-			// since we only go to an attr map once we have enough elements, and never go back,
-			// we shouldnt have this ever set here.
-			debug_assert!(!self.flags.contains(Flags::ATTR_MAP));
-
-			AttributesKind::None
-		} else if !self.flags.contains(Flags::ATTR_MAP) {
-			AttributesKind::List(unsafe { &mut **(*self.ptr).list as *mut ListMap })
-		} else {
-			AttributesKind::Map(unsafe { &mut **(*self.ptr).map as *mut Map })
-		}
-	}
-
 	pub fn len(&self) -> usize {
-		match self.classify() {
-			AttributesKind::None => 0,
-			AttributesKind::List(list) => unsafe { &*list }.len(),
-			AttributesKind::Map(map) => unsafe { &*map }.len(),
+		if self.is_none() {
+			0
+		} else if self.isnt_map() {
+			unsafe { &self.attributes.list }.len()
+		} else {
+			unsafe { &self.attributes.map }.len()
 		}
 	}
 
 	pub fn is_empty(&self) -> bool {
-		matches!(self.classify(), AttributesKind::None)
+		self.len() == 0
 	}
 
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
 		debug_assert!(!attr.is_special());
 
-		match self.classify() {
-			AttributesKind::None => Ok(None),
-			AttributesKind::List(list) => unsafe { &*list }.get_unbound_attr(attr),
-			AttributesKind::Map(map) => unsafe { &*map }.get_unbound_attr(attr),
+		if self.is_none() {
+			return Ok(None);
+		}
+
+		if self.isnt_map() {
+			unsafe { &self.attributes.list }.get_unbound_attr(attr)
+		} else {
+			unsafe { &self.attributes.map }.get_unbound_attr(attr)
+		}
+	}
+}
+
+impl<'a> AttributesMut<'a> {
+	pub(crate) fn allocate(&mut self, capacity: usize) {
+		self.flags.remove_internal(Flags::ATTR_MAP);
+
+		if capacity == 0 {
+			self.attributes.none = 0;
+		} else if capacity <= list::MAX_LISTMAP_LEN {
+			self.attributes.list = ManuallyDrop::new(ListMap::new());
+		} else {
+			assert!(capacity <= isize::MAX as usize, "can only allocate up to isize::MAX ({} is too big)", capacity);
+
+			self.flags.insert_internal(Flags::ATTR_MAP);
+			self.attributes.map = ManuallyDrop::new(Map::with_capacity(capacity));
 		}
 	}
 
-	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&'a mut AnyValue> {
+	pub fn get_unbound_attr_mut<A: Attribute>(mut self, attr: A) -> Result<&'a mut AnyValue> {
 		debug_assert!(!attr.is_special());
 
+		// TODO: don't fetch the attr beforehand
 		if self.get_unbound_attr(attr)?.is_none() {
 			self.set_attr(attr, AnyValue::default())?;
 		}
 
-		match self.classify() {
-			AttributesKind::None => unreachable!("we just set it"),
-			AttributesKind::List(list) => unsafe { &mut *list }.get_unbound_attr_mut(attr),
-			AttributesKind::Map(map) => unsafe { &mut *map }.get_unbound_attr_mut(attr),
+		debug_assert!(!self.is_none());
+
+		if self.isnt_map() {
+			unsafe { &mut self.attributes.list }.get_unbound_attr_mut(attr)
+		} else {
+			unsafe { &mut self.attributes.map }.get_unbound_attr_mut(attr)
 		}
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
 		debug_assert!(!attr.is_special());
 
-		match self.classify() {
-			AttributesKind::None => unsafe {
-				self.allocate(1); // we have at least one element
-				return (&mut *(*self.ptr).list).set_attr(attr, value);
-			},
-			AttributesKind::List(list) => unsafe {
-				if (*list).is_full() {
-					list.cast::<Map>().write(Map::from_iter(
-						ManuallyDrop::take(&mut *list.cast::<ManuallyDrop<ListMap>>()).iter(),
-					)?);
-					self.flags.insert_internal(Flags::ATTR_MAP);
-				// we're now a map
-				} else {
-					return (*list).set_attr(attr, value);
-				}
-			},
-			AttributesKind::Map(_) => {},
+		if self.is_none() {
+			debug_assert!(self.isnt_map());
+
+			self.attributes.list = ManuallyDrop::new(ListMap::new());
+			return unsafe { &mut self.attributes.list }.set_attr(attr, value);
 		}
 
-		unsafe { &mut *(*self.ptr).map }.set_attr(attr, value)
+		if self.isnt_map() {
+			let list = unsafe { &mut self.attributes.list };
+			if !list.is_full() {
+				return list.set_attr(attr, value);
+			}
+
+
+			let list = unsafe { ManuallyDrop::take(list) };
+			self.attributes.map = ManuallyDrop::new(Map::from_iter(list.iter())?);
+			self.flags.insert_internal(Flags::ATTR_MAP);
+		}
+
+		unsafe { &mut self.attributes.map }.set_attr(attr, value)
 	}
 
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
 		debug_assert!(!attr.is_special());
 
-		match self.classify() {
-			AttributesKind::None => Ok(None),
-			AttributesKind::List(list) => unsafe { &mut *list }.del_attr(attr),
-			AttributesKind::Map(map) => unsafe { &mut *map }.del_attr(attr),
+		if self.is_none() {
+			Ok(None)
+		} else if self.isnt_map() {
+			unsafe { &mut self.attributes.list }.del_attr(attr)
+		} else {
+			unsafe { &mut self.attributes.map }.del_attr(attr)
 		}
 	}
 
 	pub(crate) unsafe fn drop_internal(&mut self) {
-		match self.classify() {
-			AttributesKind::None => {},
-			AttributesKind::List(list) => ManuallyDrop::<ListMap>::drop(&mut *list.cast()),
-			AttributesKind::Map(map) => ManuallyDrop::<Map>::drop(&mut *map.cast()),
+		if self.is_none() {
+			// we do nothing when dropping empty attributes
+		} else if self.isnt_map() {
+			ManuallyDrop::drop(&mut self.attributes.list)
+		} else {
+			ManuallyDrop::drop(&mut self.attributes.map)
 		}
 	}
 }
 
 pub struct AttributesIter<'a>(AttributesIterInner<'a>);
+
 // we need an inner enum so people cant access the internals whilst the iter is public.
 enum AttributesIterInner<'a> {
 	None,

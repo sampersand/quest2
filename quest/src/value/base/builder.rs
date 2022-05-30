@@ -235,11 +235,7 @@ impl<T> Builder<T> {
 	/// # quest::Result::Ok(())
 	/// ```
 	pub fn allocate_attributes(&mut self, attr_capacity: usize) {
-		if let Ok(mut attrs) = unsafe { Header::attributes_raw(self.header()) } {
-			attrs.allocate(attr_capacity);
-		} else {
-			unreachable!("attributes shouldn't be locked in header")
-		}
+		unsafe { Header::attributes_raw_mut(self.header_mut()) }.allocate(attr_capacity);
 	}
 
 	/// Sets the parents for the base.
@@ -263,7 +259,7 @@ impl<T> Builder<T> {
 	/// assert!(
 	///     base.as_mut().expect("we hold the only reference")
 	///         .header_mut()
-	///         .parents().expect("we hold the only reference")
+	///         .parents_mut()
 	///         .as_list()
 	///         .ptr_eq(parents)
 	/// );

@@ -1,6 +1,6 @@
 //! Types related to allocated Quest types.
 
-use crate::value::base::{Attribute, Base, Flags, Header, IntoParent, ParentsRef, ParentsMut};
+use crate::value::base::{Attribute, Base, Flags, Header, IntoParent, ParentsRef, ParentsMut, AttributesRef, AttributesMut};
 use crate::value::ty::{List, Wrap};
 use crate::value::{value::Any, AnyValue, Convertible, ToAny, Value};
 use crate::Result;
@@ -352,6 +352,26 @@ impl<T: Allocated> Gc<T> {
 		// for constructing it (via `new`).
 		unsafe { &*self.as_ptr() }.header().borrows()
 	}
+
+	pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
+		// try to get a function directly defined on `self`, which most likely wont exist.
+		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
+		let obj = self.to_any();
+		let asref = self.as_ref()?;
+
+		if let Some(func) = asref.attributes().get_unbound_attr(attr)? {
+			drop(asref);
+			return func.call(args.with_self(obj));
+		}
+
+		let attr = asref
+			.parents()
+			.get_unbound_attr(attr)?
+			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(obj, attr.to_value()))?;
+
+		drop(asref);
+		attr.call(args.with_self(obj))
+	}
 }
 
 impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
@@ -447,8 +467,8 @@ impl<T: Allocated> Ref<T> {
 		self.header().parents()
 	}
 
-	pub fn attributes(&self) -> crate::value::base::AttributesGuard {
-		self.header().attributes().unwrap()
+	pub fn attributes(&self) -> AttributesRef<'_> {
+		self.header().attributes()
 	}
 }
 
@@ -500,6 +520,10 @@ impl<T: Debug + Allocated> Debug for Mut<T> {
 impl<T: Allocated> Mut<T> {
 	pub fn parents_mut(&mut self) -> ParentsMut<'_> {
 		self.header_mut().parents_mut()
+	}
+
+	pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
+		self.header_mut().attributes_mut()
 	}
 
 	pub fn parents_list(&mut self) -> Gc<List> {

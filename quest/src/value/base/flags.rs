@@ -28,17 +28,17 @@ impl Flags {
 	pub(crate) const GCMARK: u32 = 1 << 18;
 	pub(crate) const ATTR_MAP: u32 = 1 << 19;
 	pub(crate) const MULTI_PARENT: u32 = 1 << 20;
-	const UNUSEDA: u32 = 1 << 21;
-	pub(crate) const LOCK_ATTRIBUTES: u32 = 1 << 22;
-	const UNUSED8: u32 = 1 << 23;
-	const UNUSED7: u32 = 1 << 24;
-	const UNUSED6: u32 = 1 << 25;
-	const UNUSED5: u32 = 1 << 26;
-	const UNUSED4: u32 = 1 << 27;
-	const UNUSED3: u32 = 1 << 28;
-	const UNUSED2: u32 = 1 << 29;
-	const UNUSED1: u32 = 1 << 30;
-	const UNUSED0: u32 = 1 << 31;
+	const _UNUSED_21: u32 = 1 << 21;
+	const _UNUSED_22: u32 = 1 << 22;
+	const _UNUSED_23: u32 = 1 << 23;
+	const _UNUSED_24: u32 = 1 << 24;
+	const _UNUSED_25: u32 = 1 << 25;
+	const _UNUSED_26: u32 = 1 << 26;
+	const _UNUSED_27: u32 = 1 << 27;
+	const _UNUSED_28: u32 = 1 << 28;
+	const _UNUSED_29: u32 = 1 << 29;
+	const _UNUSED_30: u32 = 1 << 30;
+	const _UNUSED_31: u32 = 1 << 31;
 
 	#[must_use]
 	pub const fn new(flags: u32) -> Self {
@@ -78,23 +78,6 @@ impl Flags {
 		self
 			.0
 			.fetch_or(flag & !Self::USER_FLAGS_MASK, Ordering::SeqCst);
-	}
-
-	// Attempts to acquire a "lock" on a flag mask, such that all the flags are valid
-	// Returns `true` if we could acquire it.
-	pub(crate) fn try_acquire_all_internal(&self, flag: u32) -> bool {
-		debug_assert_eq!(flag & Self::USER_FLAGS_MASK, 0, "attempted to set user flags.");
-
-		self
-			.0
-			.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-				if (value & (flag & !Self::USER_FLAGS_MASK)) == 0 {
-					Some(value | (flag & !Self::USER_FLAGS_MASK))
-				} else {
-					None
-				}
-			})
-			.is_ok()
 	}
 
 	pub fn get(&self) -> u32 {
@@ -164,8 +147,8 @@ impl Debug for Flags {
 			USER0 USER1 USER2 USER3 USER4 USER5 USER6 USER7 USER8 USER9
 			USER10 USER11 USER12 USER13 USER14 USER15
 			FROZEN NOFREE GCMARK ATTR_MAP MULTI_PARENT
-			LOCK_ATTRIBUTES
-			UNUSEDA UNUSED8 UNUSED7 UNUSED6 UNUSED5 UNUSED4 UNUSED3 UNUSED2 UNUSED1 UNUSED0
+			_UNUSED_21 _UNUSED_22 _UNUSED_23 _UNUSED_24 _UNUSED_25 _UNUSED_26 _UNUSED_27
+			_UNUSED_28 _UNUSED_29 _UNUSED_30 _UNUSED_31
 		);
 
 		let _ = is_first;

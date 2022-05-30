@@ -45,7 +45,7 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if true {
+	if false {
 		let thingy = run_code(
 			r##"
 fib = n -> {
@@ -53,7 +53,7 @@ fib = n -> {
 	__block__(n-1) + __block__(n-2)
 };
 
-print(fib(5))
+print(fib(30))
 __EOF__
 t = 1.upto(10).map(x -> { 
 	{ print(x) }; f.x = 99;# spawn(f)

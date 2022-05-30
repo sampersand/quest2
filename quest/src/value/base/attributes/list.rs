@@ -12,7 +12,6 @@ union Key {
 	value: AnyValue,
 }
 
-#[derive(Default)]
 pub(super) struct ListMap {
 	data: [Option<(Key, AnyValue)>; MAX_LISTMAP_LEN],
 }
@@ -67,6 +66,10 @@ impl Iterator for ListMapIter<'_> {
 }
 
 impl ListMap {
+	pub fn new() -> Box<Self> {
+		Box::new(Self { data: [None; MAX_LISTMAP_LEN] })
+	}
+
 	pub fn iter(&self) -> ListMapIter<'_> {
 		ListMapIter(self, 0)
 	}

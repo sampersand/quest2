@@ -1,7 +1,6 @@
 pub use super::HasDefaultParent;
 use crate::value::gc::Gc;
 use std::any::TypeId;
-use std::cell::UnsafeCell;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::atomic::AtomicU32; // pub is deprecated here, just to fix other things.
 
@@ -11,7 +10,7 @@ mod data;
 mod flags;
 mod parents;
 
-pub use attributes::{Attribute, AttributesGuard};
+pub use attributes::{Attribute, AttributesRef, AttributesMut};
 pub use builder::Builder;
 pub use data::{DataMutGuard, DataRefGuard};
 pub use flags::Flags;
@@ -21,8 +20,7 @@ pub use parents::{IntoParent, NoParents, ParentsRef, ParentsMut};
 pub struct Header {
 	flags: Flags,
 	borrows: AtomicU32,
-	// Note that the guards on these allow them to be modified even when you have a nonmutable view. (i think.)
-	attributes: UnsafeCell<attributes::Attributes>,
+	attributes: attributes::Attributes,
 	parents: parents::Parents,
 	typeid: TypeId,
 }
@@ -198,10 +196,8 @@ impl<T> Base<T> {
 
 impl Drop for Header {
 	fn drop(&mut self) {
-		if let Ok(mut attrs) = self.attributes() {
-			unsafe {
-				attrs.drop_internal();
-			}
+		unsafe {
+			self.attributes_mut().drop_internal();
 		}
 	}
 }
@@ -237,7 +233,7 @@ impl Header {
 		attr: A,
 		search_parents: bool,
 	) -> Result<Option<AnyValue>> {
-		if let Some(value) = self.attributes()?.get_unbound_attr(attr)? {
+		if let Some(value) = self.attributes().get_unbound_attr(attr)? {
 			return Ok(Some(value));
 		}
 
@@ -253,7 +249,7 @@ impl Header {
 	}
 
 	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut AnyValue> {
-		self.attributes()?.get_unbound_attr_mut(attr)
+		self.attributes_mut().get_unbound_attr_mut(attr)
 	}
 
 	/// Gets the flags associated with the current object.
@@ -286,11 +282,10 @@ impl Header {
 	/// - The `attribute`s field must have been initialized.
 	/// - The `flags` field must have been initialized.
 	unsafe fn set_attr_raw<A: Attribute>(ptr: *mut Self, attr: A, value: AnyValue) -> Result<()> {
-		let attrs_ptr = (*ptr).attributes.get();
+		let attrs_ptr = &mut (*ptr).attributes;
 		let flags = &(*ptr).flags;
-		AttributesGuard::new(attrs_ptr, flags)
-			.map(|mut attrs| attrs.set_attr(attr, value))
-			.ok_or_else(|| "attributes are already locked".to_string())?
+
+		attrs_ptr.guard_mut(flags).set_attr(attr, value)
 	}
 
 	/// Sets the `self`'s attribute `attr` to `value`.
@@ -303,8 +298,7 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
-		// SAFETY: Since we're already initialized, all the safety concerns are fulfilled.
-		unsafe { Self::set_attr_raw(self as *mut Self, attr, value) }
+		self.attributes_mut().set_attr(attr, value)
 	}
 
 	/// Attempts to delete `self`'s attribute `attr`, returning the old value if it was present.
@@ -317,19 +311,23 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
-		self.attributes()?.del_attr(attr)
+		self.attributes_mut().del_attr(attr)
 	}
 
 	pub fn parents(&self) -> ParentsRef<'_> {
-		unsafe { Self::parents_raw(self as *const Self) }
+		unsafe { self.parents.guard_ref(&self.flags) }
 	}
 
 	pub fn parents_mut(&mut self) -> ParentsMut<'_> {
 		unsafe { self.parents.guard_mut(&self.flags) }
 	}
 
-	pub fn attributes(&self) -> Result<AttributesGuard<'_>> {
-		unsafe { Self::attributes_raw(self as *const Self) }
+	pub fn attributes(&self) -> AttributesRef<'_> {
+		unsafe { self.attributes.guard_ref(&self.flags) }
+	}
+
+	pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
+		unsafe { self.attributes.guard_mut(&self.flags) }
 	}
 
 	pub unsafe fn parents_raw<'a>(ptr: *const Self) -> ParentsRef<'a> {
@@ -346,12 +344,11 @@ impl Header {
 		parents.guard_mut(flags)
 	}
 
-	pub unsafe fn attributes_raw<'a>(ptr: *const Self) -> Result<AttributesGuard<'a>> {
-		let attrs_ptr = (*ptr).attributes.get();
+	pub unsafe fn attributes_raw_mut<'a>(ptr: *mut Self) -> AttributesMut<'a> {
+		let attrs_ptr = &mut (*ptr).attributes;
 		let flags = &(*ptr).flags;
 
-		AttributesGuard::new(attrs_ptr, flags)
-			.ok_or_else(|| "attributes are already locked".to_string().into())
+		attrs_ptr.guard_mut(flags)
 	}
 }
 
