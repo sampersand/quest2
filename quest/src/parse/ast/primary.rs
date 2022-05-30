@@ -90,7 +90,7 @@ impl Compile for Primary<'_> {
 				if let Some(opcode) = crate::vm::Opcode::unary_from_symbol(op) {
 					primary.compile(builder, dst);
 					unsafe {
-						builder.simple_opcode(opcode, &[dst, dst]);
+						builder.simple_opcode(opcode, dst, &[dst]);
 					}
 				} else {
 					let op_local = builder.unnamed_local();
@@ -111,7 +111,8 @@ impl Compile for Primary<'_> {
 				if argument_locals.len() <= crate::vm::bytecode::MAX_ARGUMENTS_FOR_SIMPLE_CALL {
 					builder.call_simple(function_local, &argument_locals, dst);
 				} else {
-					builder.call(/*function_local, &argument_locals, dst*/);
+					todo!();
+					// builder.call(/*function_local, &argument_locals, dst*/);
 				}
 			},
 			Self::Index(source, index) => {

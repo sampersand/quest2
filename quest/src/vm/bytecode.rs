@@ -5,7 +5,6 @@ pub(super) const COUNT_IS_NOT_ONE_BYTE_BUT_USIZE: u8 = i8::MAX as u8;
 #[non_exhaustive]
 #[repr(u8)]
 pub enum Opcode {
-
 	CreateList =       0x00,
 	ConstLoad =        0x01,
 	Stackframe =       0x02,
@@ -15,8 +14,9 @@ pub enum Opcode {
 	Call =           0x21,
 	Not =            0x22,
 	Negate =         0x23,
-	IndexAssign = -0x21i8 as u8,
-	CallSimple = -0x22i8 as u8,
+	Index = -0x21i8 as u8,
+	IndexAssign = -0x22i8 as u8, // the last argument's actually the value to assign
+	CallSimple = -0x23i8 as u8,
 
 	GetAttr =        0x40,
 	GetUnboundAttr = 0x41,
@@ -37,8 +37,7 @@ pub enum Opcode {
 	LessEqual =      0x50,
 	GreaterEqual =   0x51,
 	Compare =        0x52,
-	Index = -0x41i8 as u8,
-	CallAttrSimple = -0x42i8 as u8,
+	CallAttrSimple = -0x41i8 as u8,
 }
 
 impl Opcode {

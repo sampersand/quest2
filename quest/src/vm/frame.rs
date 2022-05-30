@@ -160,7 +160,7 @@ impl Frame {
 	}
 
 	unsafe fn get_unnamed_local(&self, index: usize) -> AnyValue {
-		debug_assert!(index <= self.inner_block.num_of_unnamed_locals);
+		debug_assert!(index <= self.inner_block.num_of_unnamed_locals, "{:?} > {:?}", index, self.inner_block.num_of_unnamed_locals);
 		debug_assert!(
 			self
 				.unnamed_locals
@@ -374,7 +374,58 @@ impl Frame {
 }
 
 impl Gc<Frame> {
-	fn run_inner(mut self) -> Result<()> {
+
+	#[instrument(target="frame",
+		level="debug",
+		name="call frame",
+		skip(self),
+		fields(src=?self.as_ref()?.inner_block.location))
+	]
+	pub fn run(self) -> Result<AnyValue> {
+		if !self
+			.as_ref()?
+			.flags()
+			.try_acquire_all_user(FLAG_CURRENTLY_RUNNING)
+		{
+			return Err(crate::error::ErrorKind::StackframeIsCurrentlyRunning(self.to_any()).into());
+		}
+
+		Frame::with_stackframes(|sfs| sfs.push(self));
+
+		let result = self.run_inner();
+
+		if !self
+			.as_ref()
+			.expect("unable to remove running flag")
+			.flags()
+			.remove_user(FLAG_CURRENTLY_RUNNING)
+		{
+			unreachable!("unable to set it as not currently running??");
+		}
+
+		Frame::with_stackframes(|sfs| {
+			let p = sfs.pop();
+
+			debug_assert!(
+				p.unwrap().ptr_eq(self),
+				"removed invalid value from stackframe? {p:?} <=> {self:?}"
+			);
+		});
+
+		if let Err(err) = result {
+			if let crate::error::ErrorKind::Return { value, from_frame } = err.kind() {
+				if from_frame.map_or(true, |ff| ff.is_identical(self.to_any())) {
+					return Ok(*value);
+				}
+			}
+
+			Err(err)
+		} else {
+			self.as_mut().map(|this| unsafe { *this.unnamed_locals })
+		}
+	}
+
+	fn run_inner(self) -> Result<()> {
 		let mut args = [MaybeUninit::<AnyValue>::uninit(); MAX_ARGUMENTS_FOR_SIMPLE_CALL];
 		let mut this = self.as_mut()?;
 		let mut variable_args_count = MaybeUninit::uninit();
@@ -391,16 +442,23 @@ impl Gc<Frame> {
 		macro_rules! args_slice {
 			(start=$start:expr) => {args_slice!(start=$start, len=variable_args_count.assume_init())};
 			(start=$start:expr, len=$len:expr) => {
-				std::slice::from_raw_parts(args.as_ptr().cast::<AnyValue>().add($start), $len)
+				Args::new(
+					std::slice::from_raw_parts(args.as_ptr().cast::<AnyValue>().add($start), $len),
+					&[])
 			}
 		}
 
-		macro_rules! simple_args_from_slice {
-			($($tt:tt)*) => (Args::new(args_slice!($($tt)*), &[]));
-		}
-
-
 		while let Some(op) = this.next_op()? {
+			if cfg!(debug_assertions) {
+				for i in 0..MAX_ARGUMENTS_FOR_SIMPLE_CALL {
+					args[i] = MaybeUninit::uninit();
+				}
+
+				variable_args_count = MaybeUninit::uninit();
+			}
+
+			let dst = this.next_local_target();
+
 			{
 				let (arity, is_variable) = op.arity_and_is_variable();
 				debug_assert!(arity <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
@@ -410,14 +468,19 @@ impl Gc<Frame> {
 					let local = this.next_local()?;
 
 					unsafe {
-						ptr.write(MaybeUninit::new(local));
+						(*ptr).write(local);
 						ptr = ptr.add(1);
 					}
 				}
 
 				if is_variable {
-					let count = this.next_count();
+					let count = this.next_byte() as usize;
 					variable_args_count.write(count);
+
+					// all things with `is_variable` are <= MAX_ARGUMENTS_FOR_SIMPLE_CALL.
+					debug_assert_ne!(count, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize);
+					debug_assert!((count as u8 as i8) >= 0);
+					debug_assert!(count <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
 					debug_assert!(arity + count <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
 
 					for _ in 0..count {
@@ -454,7 +517,7 @@ impl Gc<Frame> {
 				Opcode::Call => todo!(), //self.op_call(),
 				Opcode::CallSimple => unsafe {
 					without_this! {
-						args[0].assume_init().call(simple_args_from_slice!(start=1))?
+						args[0].assume_init().call(args_slice!(start=1))?
 					}
 				}
 
@@ -555,39 +618,39 @@ impl Gc<Frame> {
 					without_this! {
 						args[0]
 							.assume_init()
-							.call_attr(args[1].assume_init(), simple_args_from_slice!(start=2))?
+							.call_attr(args[1].assume_init(), args_slice!(start=2))?
 					}
 				}
 
 				Opcode::Add => unsafe {
 					without_this!{ 
 						args[0].assume_init()
-							.call_attr(Intern::op_add, simple_args_from_slice!(start=1, len=1))?
+							.call_attr(Intern::op_add, args_slice!(start=1, len=1))?
 					}
 				},
 				Opcode::Subtract => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_sub, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_sub, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::Multiply => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_mul, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_mul, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::Divide => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_div, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_div, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::Modulo => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_mod, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_mod, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::Power => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_pow, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_pow, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::Not => unsafe {
@@ -602,54 +665,53 @@ impl Gc<Frame> {
 				}
 				Opcode::Equal => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_eql, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_eql, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::NotEqual => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_neq, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_neq, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::LessThan => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_lth, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_lth, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::GreaterThan => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_gth, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_gth, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::LessEqual => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_leq, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_leq, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::GreaterEqual => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_geq, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_geq, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::Compare => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_cmp, simple_args_from_slice!(start=1,len=1))?
+						args[0].assume_init().call_attr(Intern::op_cmp, args_slice!(start=1,len=1))?
 					}
 				},
 
 				Opcode::Index => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_index, simple_args_from_slice!(start=1))?
+						args[0].assume_init().call_attr(Intern::op_index, args_slice!(start=1))?
 					}
 				},
 
 				Opcode::IndexAssign => unsafe {
 					without_this!{ 
-						args[0].assume_init().call_attr(Intern::op_index_assign, simple_args_from_slice!(start=1))?
+						args[0].assume_init().call_attr(Intern::op_index_assign, args_slice!(start=1))?
 					}
 				},
 			};
 
-			let dst = this.next_local_target();
 			debug!(target: "frame", ?dst, ?args, ?op, "ran opcode");
 			this.set_local(dst, result)?;
 		}

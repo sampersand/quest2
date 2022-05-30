@@ -102,9 +102,8 @@ impl Builder {
 		});
 
 		unsafe {
-			self.opcode(Opcode::ConstLoad);
+			self.opcode(Opcode::ConstLoad, dst);
 			self.count(index);
-			self.local(dst);
 		}
 	}
 
@@ -128,16 +127,16 @@ impl Builder {
 		});
 
 		unsafe {
-			self.opcode(Opcode::ConstLoad);
+			self.opcode(Opcode::ConstLoad, dst);
 			self.count(index);
-			self.local(dst);
 		}
 	}
 
 	// SAFETY: you gotta make sure the remainder of the code after this is valid.
-	unsafe fn opcode(&mut self, opcode: Opcode) {
+	unsafe fn opcode(&mut self, opcode: Opcode, dst: Local) {
 		debug!(target: "block_builder", idx=self.code.len(), ?opcode, "set byte");
 		self.code.push(opcode as u8);
+		self.local(dst);
 	}
 
 	unsafe fn local(&mut self, local: Local) {
@@ -185,8 +184,8 @@ impl Builder {
 	}
 
 	#[inline]
-	pub unsafe fn simple_opcode(&mut self, op: Opcode, args: &[Local]) {
-		self.opcode(op);
+	pub unsafe fn simple_opcode(&mut self, op: Opcode, dst: Local, args: &[Local]) {
+		self.opcode(op, dst);
 
 		for arg in args {
 			self.local(*arg);
@@ -199,24 +198,23 @@ impl Builder {
 		}
 
 		unsafe {
-			self.simple_opcode(Opcode::Mov, &[from, to]);
+			self.simple_opcode(Opcode::Mov, to, &[from]);
 		}
 	}
 
 	pub fn create_list(&mut self, args: &[Local], dst: Local) {
 		unsafe {
-			self.opcode(Opcode::CreateList);
+			self.opcode(Opcode::CreateList, dst);
 			self.count(args.len());
 			for arg in args {
 				self.local(*arg);
 			}
-			self.local(dst);
 		}
 	}
 
-	pub fn call(&mut self) {
+	pub fn call(&mut self, dst: Local) {
 		unsafe {
-			self.opcode(Opcode::Call);
+			self.opcode(Opcode::Call, dst);
 			todo!();
 		}
 	}
@@ -230,58 +228,56 @@ impl Builder {
 		);
 
 		unsafe {
-			self.opcode(Opcode::CallSimple);
+			self.opcode(Opcode::CallSimple, dst);
 			self.local(what);
 			self.count(args.len());
 			for arg in args {
 				self.local(*arg);
 			}
-			self.local(dst);
 		}
 	}
 
 	pub fn stackframe(&mut self, depth: isize, dst: Local) {
 		unsafe {
-			self.opcode(Opcode::Stackframe);
+			self.opcode(Opcode::Stackframe, dst);
 			self.count(depth as usize);
-			self.local(dst);
 		}
 	}
 
 	pub fn get_unbound_attr(&mut self, obj: Local, attr: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::GetUnboundAttr, &[obj, attr, dst]);
+			self.simple_opcode(Opcode::GetUnboundAttr, dst, &[obj, attr]);
 		}
 	}
 
 	pub fn get_attr(&mut self, obj: Local, attr: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::GetAttr, &[obj, attr, dst]);
+			self.simple_opcode(Opcode::GetAttr, dst, &[obj, attr]);
 		}
 	}
 
 	pub fn has_attr(&mut self, obj: Local, attr: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::HasAttr, &[obj, attr, dst]);
+			self.simple_opcode(Opcode::HasAttr, dst, &[obj, attr]);
 		}
 	}
 
 	pub fn set_attr(&mut self, obj: Local, attr: Local, value: Local, dst: Local) {
 		// NOTE: this puts `obj` last as that allows for optimizations on `attr` and `value` parsing
 		unsafe {
-			self.simple_opcode(Opcode::SetAttr, &[attr, value, obj, dst]);
+			self.simple_opcode(Opcode::SetAttr, dst, &[attr, value, obj]);
 		}
 	}
 
 	pub fn del_attr(&mut self, obj: Local, attr: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::DelAttr, &[obj, attr, dst]);
+			self.simple_opcode(Opcode::DelAttr, dst, &[obj, attr]);
 		}
 	}
 
-	pub fn call_attr(&mut self) {
+	pub fn call_attr(&mut self, dst: Local) {
 		unsafe {
-			self.opcode(Opcode::CallAttr);
+			self.opcode(Opcode::CallAttr, dst);
 		}
 		todo!();
 	}
@@ -295,104 +291,103 @@ impl Builder {
 		);
 
 		unsafe {
-			self.opcode(Opcode::CallAttrSimple);
+			self.opcode(Opcode::CallAttrSimple, dst);
 			self.local(obj);
 			self.local(attr);
 			self.count(args.len());
 			for arg in args {
 				self.local(*arg);
 			}
-			self.local(dst);
 		}
 	}
 
 	pub fn add(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Add, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::Add, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn subtract(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Subtract, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::Subtract, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn multiply(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Multiply, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::Multiply, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn divide(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Divide, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::Divide, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn modulo(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Modulo, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::Modulo, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn power(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Power, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::Power, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn not(&mut self, lhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Not, &[lhs, dst]);
+			self.simple_opcode(Opcode::Not, dst, &[lhs]);
 		}
 	}
 
 	pub fn negate(&mut self, lhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Negate, &[lhs, dst]);
+			self.simple_opcode(Opcode::Negate, dst, &[lhs]);
 		}
 	}
 
 	pub fn equal(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Equal, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::Equal, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn notequal(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::NotEqual, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::NotEqual, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn less_than(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::LessThan, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::LessThan, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn greater_than(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::GreaterThan, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::GreaterThan, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn less_equal(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::LessEqual, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::LessEqual, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn greater_equal(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::GreaterEqual, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::GreaterEqual, dst, &[lhs, rhs]);
 		}
 	}
 
 	pub fn compare(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Compare, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::Compare, dst, &[lhs, rhs]);
 		}
 	}
 
@@ -405,13 +400,12 @@ impl Builder {
 		);
 
 		unsafe {
-			self.opcode(Opcode::Index);
+			self.opcode(Opcode::Index, dst);
 			self.local(source);
 			self.count(index.len());
 			for arg in index {
 				self.local(*arg);
 			}
-			self.local(dst);
 		}
 	}
 
@@ -423,14 +417,13 @@ impl Builder {
 			index.len(),
 		);
 		unsafe {
-			self.opcode(Opcode::IndexAssign);
+			self.opcode(Opcode::IndexAssign, dst);
 			self.local(source);
 			self.count(index.len() + 1);
 			for arg in index {
 				self.local(*arg);
 			}
 			self.local(value);
-			self.local(dst);
 		}
 	}
 }
