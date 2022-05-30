@@ -267,8 +267,9 @@ impl Builder {
 	}
 
 	pub fn set_attr(&mut self, obj: Local, attr: Local, value: Local, dst: Local) {
+		// NOTE: this puts `obj` last as that allows for optimizations on `attr` and `value` parsing
 		unsafe {
-			self.simple_opcode(Opcode::SetAttr, &[obj, attr, value, dst]);
+			self.simple_opcode(Opcode::SetAttr, &[attr, value, obj, dst]);
 		}
 	}
 
@@ -317,9 +318,9 @@ impl Builder {
 		}
 	}
 
-	pub fn multuply(&mut self, lhs: Local, rhs: Local, dst: Local) {
+	pub fn multiply(&mut self, lhs: Local, rhs: Local, dst: Local) {
 		unsafe {
-			self.simple_opcode(Opcode::Multuply, &[lhs, rhs, dst]);
+			self.simple_opcode(Opcode::Multiply, &[lhs, rhs, dst]);
 		}
 	}
 
@@ -396,6 +397,13 @@ impl Builder {
 	}
 
 	pub fn index(&mut self, source: Local, index: &[Local], dst: Local) {
+		assert!(
+			index.len() <= MAX_ARGUMENTS_FOR_SIMPLE_CALL,
+			"too many arguments for index ({} max, got {}), use call_attr instead",
+			MAX_ARGUMENTS_FOR_SIMPLE_CALL,
+			index.len(),
+		);
+
 		unsafe {
 			self.opcode(Opcode::Index);
 			self.local(source);
@@ -408,10 +416,16 @@ impl Builder {
 	}
 
 	pub fn index_assign(&mut self, source: Local, index: &[Local], value: Local, dst: Local) {
+		assert!(
+			index.len() < MAX_ARGUMENTS_FOR_SIMPLE_CALL,
+			"too many arguments for index_assign ({} max, got {}), use call_attr instead",
+			MAX_ARGUMENTS_FOR_SIMPLE_CALL - 1, // `-1` as `value` is the last one
+			index.len(),
+		);
 		unsafe {
 			self.opcode(Opcode::IndexAssign);
 			self.local(source);
-			self.count(index.len());
+			self.count(index.len() + 1);
 			for arg in index {
 				self.local(*arg);
 			}

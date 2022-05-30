@@ -322,531 +322,336 @@ impl Frame {
 	fn next_opcode(&mut self) -> Opcode {
 		let byte = self.next_byte();
 
-		let op = Opcode::from_u8(byte).unwrap_or_else(|| unreachable!("unknown opcode {byte:02x}"));
+		debug_assert!(Opcode::verify_is_valid(byte), "read invalid opcode? {:?}", byte);
+
+		let op = unsafe { std::mem::transmute::<u8, Opcode>(byte) };
+
 		trace!(target: "frame", ?op, "read opcode");
 		op
+	}
+
+	fn next_op(&mut self) -> Result<Option<Opcode>> {
+		if self.is_done() {
+			Ok(None)
+		} else {
+			Ok(Some(self.next_opcode()))
+		}
+	}
+
+	// safety: index has to be in bounds
+	unsafe fn get_constant(&mut self, index: usize) -> Result<AnyValue> {
+		debug_assert!(index <= self.inner_block.constants.len());
+
+		let constant = *self.inner_block.constants.get_unchecked(index);
+		if let Some(block) = constant.downcast::<Gc<Block>>() {
+			self.constant_as_block(block)
+		} else {
+			Ok(constant)
+		}
+	}
+
+	#[inline(never)]
+	fn constant_as_block(&mut self, block: Gc<Block>) -> Result<AnyValue> {
+		let block = block.deep_clone()?;
+		self.convert_to_object()?;
+
+		block
+			.as_mut()?
+			.parents_list()
+			.as_mut()?
+			.push(unsafe { crate::value::Gc::new(self.into()) }.to_any()); // TODO: what are the implications of `.push` on parent scope vars?
+
+		let dst = (0,); // TODO
+		if dst.0 < 0 {
+			let index = !dst.0 as usize;
+			debug_assert!(index <= self.inner_block.named_locals.len());
+			let name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
+			block.as_mut().unwrap().set_name(name);
+		}
+
+		Ok(block.to_any())
 	}
 }
 
 impl Gc<Frame> {
-	fn op_mov(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-
-		let src = this.next_local()?;
-		let dst = this.next_local_target();
-
-		debug!(target: "frame", ?dst, ?src, "mov");
-		this.set_local(dst, src)?;
-
-		Ok(())
-	}
-
-	fn op_create_list(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let amnt = this.next_count();
-
-		// TODO: use simple list builder when we make it
-		let list = List::with_capacity(amnt);
-		{
-			let mut l = list.as_mut().unwrap();
-			for _ in 0..amnt {
-				l.push(this.next_local()?);
-			}
-		}
-
-		let dst = this.next_local_target();
-
-		debug!(target: "frame", ?dst, ?list, "create_list");
-		this.set_local(dst, list.to_any())?;
-
-		Ok(())
-	}
-
-	fn op_call(self) -> Result<()> {
-		let _ = self;
-		todo!()
-	}
-
-	fn op_call_simple(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let object = this.next_local()?;
-		let amnt = this.next_count();
-
-		debug_assert!(amnt <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
-		let mut positional = [MaybeUninit::<AnyValue>::uninit(); MAX_ARGUMENTS_FOR_SIMPLE_CALL];
-		let ptr = positional.as_mut_ptr().cast::<AnyValue>();
-
-		let args = unsafe {
-			for i in 0..amnt {
-				ptr.add(i).write(this.next_local()?);
-			}
-			std::slice::from_raw_parts(ptr, amnt)
-		};
-
-		let dst = this.next_local_target();
-
-		drop(this);
-		let result = object.call(Args::new(args, &[]))?;
-
-		debug!(target: "frame", ?dst, ?object, ?args, ?result, "call_simple");
-		self.as_mut()?.set_local(dst, result)?;
-
-		Ok(())
-	}
-
-	// TODO: we need to make this CoW, as otherwise this happens:
-	// ```
-	// foo = x -> { l = "A"; l.a = x; l };
-	// q = foo(3);
-	// foo(4);
-	// print(q.a); #=> 4
-	// ```
-	fn op_constload(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-
-		let idx = this.next_count();
-		let mut constant = this.inner_block.constants[idx];
-		let dst = this.next_local_target();
-
-		if let Some(block) = constant.downcast::<Gc<Block>>() {
-			let block = block.deep_clone()?;
-			this.convert_to_object()?;
-
-			block
-				.as_mut()?
-				.parents_list()
-				.as_mut()?
-				.push(self.to_any()); // TODO: what are the implications of `.push` on parent scope vars?
-
-			constant = block.to_any();
-			if dst.0 < 0 {
-				let index = !dst.0 as usize;
-				debug_assert!(index <= this.inner_block.named_locals.len());
-				let name = unsafe { *this.inner_block.named_locals.get_unchecked(index) };
-				block.as_mut().unwrap().set_name(name);
-			}
-		}
-
-		debug!(target: "frame", ?dst, ?constant, "constload");
-		this.set_local(dst, constant)?;
-
-		Ok(())
-	}
-
-	fn op_stackframe(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let mut count = this.next_count() as isize;
-		let dst = this.next_local_target();
-
-		// todo: optimization for :0
-		drop(this);
-		let frame = Frame::with_stackframes(|frames| {
-			if count < 0 {
-				count += frames.len() as isize;
-
-				if count < 0 {
-					return Err("todo: out of bounds error".to_string().into());
-				}
-			}
-
-			Result::<_>::Ok(
-				*frames
-					.get(frames.len() - count as usize - 1)
-					.expect("todo: out of bounds error"),
-			)
-		})?;
-		frame.as_mut()?.convert_to_object()?;
-
-		debug!(target: "frame", ?dst, ?frame, "stackframe");
-		self.as_mut()?.set_local(dst, frame.to_any())?;
-
-		Ok(())
-	}
-
-	fn op_get_attr(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let object = this.next_local()?;
-		let attr = this.next_local()?;
-		let dst = this.next_local_target();
-
-		drop(this);
-		let value = object
-			.get_attr(attr)?
-			.ok_or_else(|| format!("unknown attr {attr:?} for {object:?}"))?;
-
-		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "get_attr");
-		self.as_mut()?.set_local(dst, value)?;
-
-		Ok(())
-	}
-
-	fn op_get_unbound_attr(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let object = this.next_local()?;
-		let attr = this.next_local()?;
-		let dst = this.next_local_target();
-
-		drop(this); // as `get_attr` may modify us.
-		let value = object
-			.get_unbound_attr(attr)?
-			.ok_or_else(|| format!("unknown attr {attr:?} for {object:?}"))?;
-
-		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "get_unbound_attr");
-		self.as_mut()?.set_local(dst, value)?;
-
-		Ok(())
-	}
-
-	fn op_has_attr(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let object = this.next_local()?;
-		let attr = this.next_local()?;
-		let dst = this.next_local_target();
-
-		drop(this); // as `has_attr` may modify us.
-		let hasit = object.has_attr(attr)?;
-
-		debug!(target: "frame", ?dst, ?object, ?attr, ?hasit, "has_attr");
-		self.as_mut()?.set_local(dst, hasit.to_any())?;
-
-		Ok(())
-	}
-
-	fn op_set_attr(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let object_index = this.next_count() as isize;
-		let attr = this.next_local()?;
-		let value = this.next_local()?;
-		let dst = this.next_local_target();
-
-		/*
-		Because you can assign indices onto any object, we need to be able to dynamically convert
-		immediates (eg integers, floats, booleans, etc) into a heap-allocated form if we want to
-		assign attributes. This is done by having `AnyValue::set_attr` take a mutable reference to
-		self. However, the only time this is useful is if we're talking about a named attribute---if
-		we're assigning to an unnamed local, that means it'll just get thrown away immediately.
-
-		As such, if it's an unnamed local, we still call the `set_attr`, in case it has a side effect,
-		but we don't actually assign the `object` to anything. On the other hand, we have to box
-		the `object` if it's not already a box.
-		*/
-		let object = if 0 <= object_index {
-			let mut object = unsafe { this.get_unnamed_local(object_index as usize) };
-
-			if self.to_any().is_identical(object) {
-				this.convert_to_object()?;
-				this.set_attr(attr, value)?;
-				self.to_any()
-			} else {
-				object.set_attr(attr, value)?;
-				object
-			}
-		} else {
-			let index = !object_index as usize;
-			let name = this.inner_block.named_locals[index].to_any();
-			let object = this.0.header_mut().get_unbound_attr_mut(name)?;
-
-			if self.to_any().is_identical(*object) {
-				this.convert_to_object()?;
-				this.set_attr(attr, value)?;
-				self.to_any()
-			} else {
-				object.set_attr(attr, value)?;
-				*object
-			}
-		};
-
-		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "set_attr");
-		this.set_local(dst, value)?;
-
-		Ok(())
-	}
-
-	fn op_del_attr(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let object = this.next_local()?;
-		let attr = this.next_local()?;
-		let dst = this.next_local_target();
-
-		drop(this); // as `has_attr` may modify us.
-		let value = object.del_attr(attr)?;
-
-		debug!(target: "frame", ?dst, ?object, ?attr, ?value, "del_attr");
-		self.as_mut()?.set_local(dst, value.unwrap_or_default())?;
-
-		Ok(())
-	}
-
-	fn op_call_attr(self) -> Result<()> {
-		let _ = self;
-		todo!("semantics for complicated callattr");
-	}
-
-	fn op_call_attr_simple(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let object = this.next_local()?;
-		let attr = this.next_local()?;
-		let amnt = this.next_count();
-
-		debug_assert!(amnt <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
-		let mut positional = [MaybeUninit::<AnyValue>::uninit(); MAX_ARGUMENTS_FOR_SIMPLE_CALL];
-		let ptr = positional.as_mut_ptr().cast::<AnyValue>();
-
-		let args = unsafe {
-			for i in 0..amnt {
-				ptr.add(i).write(this.next_local()?);
-			}
-			std::slice::from_raw_parts(ptr, amnt)
-		};
-
-		let dst = this.next_local_target();
-		drop(this);
-		let result = object.call_attr(attr, Args::new(args, &[]))?;
-
-		debug!(target: "frame", ?dst, ?object, ?attr, ?args, ?result, "call_attr_simple");
-		self.as_mut()?.set_local(dst, result)?;
-
-		Ok(())
-	}
-
-	fn run_binary_op(self, op: Intern) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let lhs = this.next_local()?;
-		let rhs = this.next_local()?;
-		let dst = this.next_local_target();
-
-		drop(this);
-		let result = lhs.call_attr(op, Args::new(&[rhs], &[]))?;
-
-		debug!(target: "frame", ?dst, ?op, ?lhs, ?rhs, ?result, "binary_op");
-		self.as_mut()?.set_local(dst, result)?;
-
-		Ok(())
-	}
-
-	fn op_add(self) -> Result<()> {
-		self.run_binary_op(Intern::op_add)
-	}
-
-	fn op_subtract(self) -> Result<()> {
-		self.run_binary_op(Intern::op_sub)
-	}
-
-	fn op_multuply(self) -> Result<()> {
-		self.run_binary_op(Intern::op_mul)
-	}
-
-	fn op_divide(self) -> Result<()> {
-		self.run_binary_op(Intern::op_div)
-	}
-
-	fn op_modulo(self) -> Result<()> {
-		self.run_binary_op(Intern::op_mod)
-	}
-
-	fn op_power(self) -> Result<()> {
-		self.run_binary_op(Intern::op_pow)
-	}
-
-	fn op_equal(self) -> Result<()> {
-		self.run_binary_op(Intern::op_eql)
-	}
-
-	fn op_notequal(self) -> Result<()> {
-		self.run_binary_op(Intern::op_neq)
-	}
-
-	fn op_lessthan(self) -> Result<()> {
-		self.run_binary_op(Intern::op_lth)
-	}
-
-	fn op_greaterthan(self) -> Result<()> {
-		self.run_binary_op(Intern::op_gth)
-	}
-
-	fn op_lessequal(self) -> Result<()> {
-		self.run_binary_op(Intern::op_leq)
-	}
-
-	fn op_greaterequal(self) -> Result<()> {
-		self.run_binary_op(Intern::op_geq)
-	}
-
-	fn op_compare(self) -> Result<()> {
-		self.run_binary_op(Intern::op_cmp)
-	}
-
-	fn op_index(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let source = this.next_local()?;
-		let num_args = this.next_count();
-		// todo: optimize me not to use a `Vec`.
-		let mut args = Vec::with_capacity(num_args + 1);
-		for _ in 0..num_args {
-			args.push(this.next_local()?);
-		}
-		let dst = this.next_local_target();
-
-		drop(this);
-		let result = source.call_attr(Intern::op_index, Args::new(&args, &[]))?;
-
-		debug!(target: "frame", ?dst, ?source, ?args, ?result, "index");
-		self.as_mut()?.set_local(dst, result)?;
-
-		Ok(())
-	}
-
-	fn op_not(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let value = this.next_local()?;
-		let dst = this.next_local_target();
-
-		drop(this);
-		let result = value.call_attr(Intern::op_not, Args::default())?;
-
-		debug!(target: "frame", ?dst, ?value, ?result, "not");
-		self.as_mut()?.set_local(dst, result)?;
-
-		Ok(())
-	}
-
-	fn op_negate(self) -> Result<()> {
-		let mut this = self.as_mut()?;
-		let value = this.next_local()?;
-		let dst = this.next_local_target();
-
-		drop(this);
-		let result = value.call_attr(Intern::op_neg, Args::default())?;
-
-		debug!(target: "frame", ?dst, ?value, ?result, "neg");
-		self.as_mut()?.set_local(dst, result)?;
-
-		Ok(())
-	}
-
-	fn op_indexassign(self) -> Result<()> {
-		// todo: optimize me not to use a `Vec`.
-		let mut this = self.as_mut()?;
-		let source = this.next_local()?;
-		let num_args = this.next_count();
-
-		let mut args = Vec::with_capacity(num_args + 1);
-		for _ in 0..num_args {
-			args.push(this.next_local()?);
-		}
-		let value = this.next_local()?;
-		args.push(value);
-
-		let dst = this.next_local_target();
-
-		drop(this);
-		let result = source.call_attr(Intern::op_index_assign, Args::new(&args, &[]))?;
-
-		debug!(target: "frame", ?dst, ?source, ?args, ?result, "index_assign");
-		self.as_mut()?.set_local(dst, result)?;
-
-		Ok(())
-	}
-
-	#[instrument(target="frame",
-		level="debug",
-		name="call frame",
-		skip(self),
-		fields(src=?self.as_ref()?.inner_block.location))
-	]
-
-	pub fn run(self) -> Result<AnyValue> {
-		if !self
-			.as_ref()?
-			.flags()
-			.try_acquire_all_user(FLAG_CURRENTLY_RUNNING)
-		{
-			return Err(crate::error::ErrorKind::StackframeIsCurrentlyRunning(self.to_any()).into());
-		}
-
-		Frame::with_stackframes(|sfs| sfs.push(self));
-
-		let result = self.run_inner();
-
-		if !self
-			.as_ref()
-			.expect("unable to remove running flag")
-			.flags()
-			.remove_user(FLAG_CURRENTLY_RUNNING)
-		{
-			unreachable!("unable to set it as not currently running??");
-		}
-
-		Frame::with_stackframes(|sfs| {
-			let p = sfs.pop();
-
-			debug_assert!(
-				p.unwrap().ptr_eq(self),
-				"removed invalid value from stackframe? {p:?} <=> {self:?}"
-			);
-		});
-
-		if let Err(err) = result {
-			if let crate::error::ErrorKind::Return { value, from_frame } = err.kind() {
-				if from_frame.map_or(true, |ff| ff.is_identical(self.to_any())) {
-					return Ok(*value);
-				}
-			}
-
-			Err(err)
-		} else {
-			self.as_mut().map(|this| unsafe { *this.unnamed_locals })
-		}
-	}
-
-	fn next_op(&mut self) -> Result<Option<Opcode>> {
-		let mut m = self.as_mut()?;
-		if m.is_done() {
-			Ok(None)
-		} else {
-			Ok(Some(m.next_opcode()))
-		}
-	}
-
 	fn run_inner(mut self) -> Result<()> {
-		while let Some(op) = self.next_op()? {
-			match op {
-				Opcode::CreateList => self.op_create_list(),
-				Opcode::Mov => self.op_mov(),
-				Opcode::Call => self.op_call(),
-				Opcode::CallSimple => self.op_call_simple(),
+		let mut args = [MaybeUninit::<AnyValue>::uninit(); MAX_ARGUMENTS_FOR_SIMPLE_CALL];
+		let mut this = self.as_mut()?;
+		let mut variable_args_count = MaybeUninit::uninit();
 
-				Opcode::ConstLoad => self.op_constload(),
-				Opcode::Stackframe => self.op_stackframe(),
-				Opcode::GetAttr => self.op_get_attr(),
-				Opcode::GetUnboundAttr => self.op_get_unbound_attr(),
-				Opcode::HasAttr => self.op_has_attr(),
-				Opcode::SetAttr => self.op_set_attr(),
-				Opcode::DelAttr => self.op_del_attr(),
-				Opcode::CallAttr => self.op_call_attr(),
-				Opcode::CallAttrSimple => self.op_call_attr_simple(),
+		macro_rules! without_this {
+			($($code:tt)*) => {{
+				drop(this);
+				let x = { $($code)* };
+				this = self.as_mut()?;
+				x
+			}};
+		}
 
-				Opcode::Add => self.op_add(),
-				Opcode::Subtract => self.op_subtract(),
-				Opcode::Multuply => self.op_multuply(),
-				Opcode::Divide => self.op_divide(),
-				Opcode::Modulo => self.op_modulo(),
-				Opcode::Power => self.op_power(),
+		macro_rules! args_slice {
+			(start=$start:expr) => {args_slice!(start=$start, len=variable_args_count.assume_init())};
+			(start=$start:expr, len=$len:expr) => {
+				std::slice::from_raw_parts(args.as_ptr().cast::<AnyValue>().add($start), $len)
+			}
+		}
 
-				Opcode::Not => self.op_not(),
-				Opcode::Negate => self.op_negate(),
-				Opcode::Equal => self.op_equal(),
-				Opcode::NotEqual => self.op_notequal(),
-				Opcode::LessThan => self.op_lessthan(),
-				Opcode::GreaterThan => self.op_greaterthan(),
-				Opcode::LessEqual => self.op_lessequal(),
-				Opcode::GreaterEqual => self.op_greaterequal(),
-				Opcode::Compare => self.op_compare(),
+		macro_rules! simple_args_from_slice {
+			($($tt:tt)*) => (Args::new(args_slice!($($tt)*), &[]));
+		}
 
-				Opcode::Index => self.op_index(),
-				Opcode::IndexAssign => self.op_indexassign(),
-				Opcode::__LAST => unreachable!(),
-			}?;
+
+		while let Some(op) = this.next_op()? {
+			{
+				let (arity, is_variable) = op.arity_and_is_variable();
+				debug_assert!(arity <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
+				let mut ptr = args.as_mut_ptr();
+
+				for _ in 0..arity {
+					let local = this.next_local()?;
+
+					unsafe {
+						ptr.write(MaybeUninit::new(local));
+						ptr = ptr.add(1);
+					}
+				}
+
+				if is_variable {
+					let count = this.next_count();
+					variable_args_count.write(count);
+					debug_assert!(arity + count <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
+
+					for _ in 0..count {
+						let local = this.next_local()?;
+
+						unsafe {
+							ptr.write(MaybeUninit::new(local));
+							ptr = ptr.add(1);
+						}					
+					}
+				}
+			}
+
+			let result = match op {
+				// todo: create list short, do a bitwise copy over to the pointer.
+				Opcode::CreateList | Opcode::CreateListShort => {
+					let amnt = this.next_count();
+
+					// TODO: use simple list builder when we make it
+					let list = List::with_capacity(amnt);
+					{
+						let mut l = list.as_mut().unwrap();
+						for _ in 0..amnt {
+							l.push(this.next_local()?);
+						}
+					}
+
+					list.to_any()
+				},
+
+				Opcode::Mov => unsafe {
+					args[0].assume_init()
+				},
+				Opcode::Call => todo!(), //self.op_call(),
+				Opcode::CallSimple => unsafe {
+					without_this! {
+						args[0].assume_init().call(simple_args_from_slice!(start=1))?
+					}
+				}
+
+				Opcode::ConstLoad => unsafe {
+					let idx = this.next_count();
+					this.get_constant(idx)?
+				},
+				Opcode::Stackframe => {
+					let mut count = this.next_count() as isize;
+
+					// todo: optimization for :0
+					let frame = Frame::with_stackframes(|frames| {
+						if count < 0 {
+							count += frames.len() as isize;
+
+							if count < 0 {
+								return Err("todo: out of bounds error".to_string().into());
+							}
+						}
+
+						Result::<_>::Ok(
+							*frames
+								.get(frames.len() - count as usize - 1)
+								.expect("todo: out of bounds error"),
+						)
+					})?;
+					without_this! {
+						frame.as_mut()?.convert_to_object()?;
+					}
+					frame.to_any()
+				}
+
+				Opcode::GetAttr => unsafe {
+					without_this! {
+						args[0].assume_init().try_get_attr(args[1].assume_init())?
+					}
+				},
+				Opcode::GetUnboundAttr => unsafe {
+					without_this! {
+						args[0].assume_init().try_get_unbound_attr(args[1].assume_init())?
+					}
+				},
+				Opcode::HasAttr => unsafe {
+					without_this! {
+						args[0].assume_init().has_attr(args[1].assume_init())?.to_any()
+					}
+				},
+				Opcode::SetAttr => {
+					let attr = unsafe { args[0].assume_init() };
+					let value = unsafe { args[1].assume_init() };
+					let object_index = this.next_count() as isize;
+
+					/*
+					Because you can assign indices onto any object, we need to be able to dynamically convert
+					immediates (eg integers, floats, booleans, etc) into a heap-allocated form if we want to
+					assign attributes. This is done by having `AnyValue::set_attr` take a mutable reference to
+					self. However, the only time this is useful is if we're talking about a named attribute---if
+					we're assigning to an unnamed local, that means it'll just get thrown away immediately.
+
+					As such, if it's an unnamed local, we still call the `set_attr`, in case it has a side effect,
+					but we don't actually assign the `object` to anything. On the other hand, we have to box
+					the `object` if it's not already a box.
+					*/
+					if 0 <= object_index {
+						let mut object = unsafe { this.get_unnamed_local(object_index as usize) };
+
+						if self.to_any().is_identical(object) {
+							this.convert_to_object()?;
+							this.set_attr(attr, value)?;
+							self.to_any()
+						} else {
+							object.set_attr(attr, value)?;
+							object
+						}
+					} else {
+						let index = !object_index as usize;
+						let name = this.inner_block.named_locals[index].to_any();
+						let object = this.0.header_mut().get_unbound_attr_mut(name)?;
+
+						if self.to_any().is_identical(*object) {
+							this.convert_to_object()?;
+							this.set_attr(attr, value)?;
+							self.to_any()
+						} else {
+							object.set_attr(attr, value)?;
+							*object
+						}
+					}
+				},
+
+				Opcode::DelAttr => unsafe {
+					without_this! {
+						args[0].assume_init().del_attr(args[1].assume_init())?.unwrap_or_default()
+					}
+				},
+				Opcode::CallAttr => todo!(),
+				Opcode::CallAttrSimple => unsafe {
+					without_this! {
+						args[0]
+							.assume_init()
+							.call_attr(args[1].assume_init(), simple_args_from_slice!(start=2))?
+					}
+				}
+
+				Opcode::Add => unsafe {
+					without_this!{ 
+						args[0].assume_init()
+							.call_attr(Intern::op_add, simple_args_from_slice!(start=1, len=1))?
+					}
+				},
+				Opcode::Subtract => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_sub, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+				Opcode::Multiply => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_mul, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+				Opcode::Divide => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_div, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+				Opcode::Modulo => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_mod, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+				Opcode::Power => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_pow, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+				Opcode::Not => unsafe {
+					without_this! {
+						args[0].assume_init().call_attr(Intern::op_not, Args::default())?
+					}
+				},
+				Opcode::Negate => unsafe {
+					without_this! {
+						args[0].assume_init().call_attr(Intern::op_neg, Args::default())?
+					}
+				}
+				Opcode::Equal => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_eql, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+				Opcode::NotEqual => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_neq, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+				Opcode::LessThan => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_lth, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+				Opcode::GreaterThan => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_gth, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+				Opcode::LessEqual => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_leq, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+				Opcode::GreaterEqual => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_geq, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+				Opcode::Compare => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_cmp, simple_args_from_slice!(start=1,len=1))?
+					}
+				},
+
+				Opcode::Index => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_index, simple_args_from_slice!(start=1))?
+					}
+				},
+
+				Opcode::IndexAssign => unsafe {
+					without_this!{ 
+						args[0].assume_init().call_attr(Intern::op_index_assign, simple_args_from_slice!(start=1))?
+					}
+				},
+			};
+
+			let dst = this.next_local_target();
+			debug!(target: "frame", ?dst, ?args, ?op, "ran opcode");
+			this.set_local(dst, result)?;
 		}
 
 		Ok(())

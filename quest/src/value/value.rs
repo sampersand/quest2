@@ -203,6 +203,11 @@ impl AnyValue {
 		self.get_unbound_attr(attr).map(|opt| opt.is_some())
 	}
 
+	pub fn try_get_attr<A: Attribute>(self, attr: A) -> Result<Self> {
+		self.get_attr(attr)?
+			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(self, attr.to_value()).into())
+	}
+
 	pub fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
 		let value = if let Some(value) = self.get_unbound_attr(attr)? {
 			value
@@ -216,6 +221,11 @@ impl AnyValue {
 		} else {
 			Ok(Some(value))
 		}
+	}
+
+	pub fn try_get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Self> {
+		self.get_unbound_attr(attr)?
+			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(self, attr.to_value()).into())
 	}
 
 	pub fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
