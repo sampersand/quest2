@@ -28,6 +28,7 @@ pub struct Inner {
 	block: Gc<Block>,
 	inner_block: Arc<BlockInner>,
 	pos: usize,
+
 	// note that both of these are actually from the same allocation;
 	// `unnamed_locals` points to the base and `named_locals` is simply an offset.
 	unnamed_locals: *mut AnyValue,
@@ -173,8 +174,8 @@ impl Frame {
 		*self.unnamed_locals.add(index)
 	}
 
-	// this should also be unsafe
-	fn get_local(&self, index: LocalTarget) -> Result<AnyValue> {
+	// this should also be unsafe (update: should it be??)
+	 fn get_local(&self, index: LocalTarget) -> Result<AnyValue> {
 		let index = index.0;
 
 		if 0 <= index {
@@ -182,7 +183,6 @@ impl Frame {
 		}
 
 		let index = !index as usize;
-
 		debug_assert!(index <= self.inner_block.named_locals.len());
 
 		if !self.is_object() {
@@ -193,12 +193,22 @@ impl Frame {
 			}
 		}
 
+		self.get_object_local(index)
+	}
+
+	// The vast majority of the time, we're looking for unnamed or named locals, not through parent
+	// attributes.
+	#[inline(never)]
+	fn get_object_local(&self, index: usize) -> Result<AnyValue> {
 		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
 		self
 			.0
 			.header()
 			.get_unbound_attr(attr_name.to_any(), true)?
-			.ok_or_else(|| format!("unknown attribute {attr_name:?}").into())
+			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(
+				unsafe { crate::value::Gc::new(self.into()) }.to_any(),
+				attr_name.to_any()
+			).into())
 	}
 
 	fn set_local(&mut self, index: LocalTarget, value: AnyValue) -> Result<()> {
@@ -226,6 +236,11 @@ impl Frame {
 			return Ok(());
 		}
 
+		self.set_object_local(index, value)
+	}
+
+	#[inline(never)]
+	fn set_object_local(&mut self, index: usize, value: AnyValue) -> Result<()> {
 		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
 		self.0.header_mut().set_attr(attr_name.to_any(), value)
 	}
@@ -250,8 +265,8 @@ impl Frame {
 		self.pos >= self.inner_block.code.len()
 	}
 
-	fn next_byte(&mut self) -> u8 {
-		debug_assert!(self.pos < self.inner_block.code.len());
+	 fn next_byte(&mut self) -> u8 {
+		debug_assert!(!self.is_done());
 
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
 		// out of bounds.
@@ -260,10 +275,10 @@ impl Frame {
 		trace!(target: "frame", byte=%format!("{byte:02x}"), sp=%self.pos, "read byte");
 
 		self.pos += 1;
-		trace!(target: "frame", ?byte, "read byte");
 		byte
 	}
 
+	#[cold]
 	fn next_usize(&mut self) -> usize {
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
 		// out of bounds.

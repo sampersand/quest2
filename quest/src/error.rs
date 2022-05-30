@@ -37,6 +37,8 @@ pub enum ErrorKind {
 }
 
 impl Error {
+	// Creating errors is very much a cold path, as it disrupts all operation fllow.
+	#[cold]
 	pub fn new(kind: ErrorKind) -> Self {
 		Self {
 			stacktrace: Stacktrace::new().expect("<unable to fetch stacktrace when making error>"),
@@ -44,6 +46,7 @@ impl Error {
 		}
 	}
 
+	#[cold]
 	pub fn new_no_stacktrace(kind: ErrorKind) -> Self {
 		Self {
 			stacktrace: Stacktrace::empty(),
