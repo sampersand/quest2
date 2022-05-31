@@ -25,3 +25,4 @@ assert_matches = "1.5"
 
 [features]
 unsafe-no-locking = []
+unsafe-arena-alloc-hack = []

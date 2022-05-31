@@ -70,6 +70,26 @@ pub unsafe fn alloc_zeroed<T>(layout: std::alloc::Layout) -> std::ptr::NonNull<T
 	debug_assert!(std::alloc::Layout::new::<T>().align() <= layout.align());
 	debug_assert!(std::alloc::Layout::new::<T>().size() <= layout.size());
 
+	// This should not be used by anyone. It's just me seeing how fast i can _theroetically_
+	// get quest if i have everything preallocated. (the size is what's required for `fib(30)`)
+	#[cfg(feature="unsafe-arena-alloc-hack")]
+	{
+		static mut PTR: *mut u8 = std::ptr::null_mut();
+
+		if PTR.is_null() {
+			PTR = std::alloc::alloc_zeroed(
+				std::alloc::Layout::from_size_align(1163177848*2, 16).unwrap());
+		}
+
+		let result = PTR;
+		PTR = PTR.add(layout.size());
+		if (PTR as usize) % 16 != 0 {
+			PTR = PTR.add(8);
+		}
+		debug_assert_eq!((PTR as usize) % 16, 0);
+		return std::ptr::NonNull::new_unchecked(result.cast());
+	}
+
 	let ptr = std::alloc::alloc_zeroed(layout).cast::<T>();
 
 	if ptr.is_null() || (ptr as u64 <= 0b111_111) {
