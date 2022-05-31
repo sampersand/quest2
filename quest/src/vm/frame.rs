@@ -209,14 +209,19 @@ impl Frame {
 	#[inline(never)]
 	fn get_object_local(&self, index: usize) -> Result<AnyValue> {
 		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
-		self
-			.0
-			.header()
-			.get_unbound_attr_checked(attr_name.to_any(), &mut Vec::new(), true)?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(
-				unsafe { crate::value::Gc::new(self.into()) }.to_any(),
-				attr_name.to_any()
-			).into())
+
+		if let Some(attr) = self.0.header().get_unbound_attr_checked(attr_name.to_any(), &mut Vec::new(), true)? {
+			return Ok(attr);
+		} else if !self.is_object() {
+			if let Some(attr) = Gc::<Self>::parent().get_unbound_attr(attr_name.to_any())? {
+				return Ok(attr)
+			}
+		}
+
+		Err(crate::error::ErrorKind::UnknownAttribute(
+			unsafe { crate::value::Gc::new(self.into()) }.to_any(),
+			attr_name.to_any()
+		).into())
 	}
 
 	fn set_local(&mut self, index: LocalTarget, value: AnyValue) -> Result<()> {
