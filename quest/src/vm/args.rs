@@ -118,13 +118,22 @@ impl<'a> Args<'a> {
 			.assert_no_keyword()
 			.expect("todo: keyword for argument into value");
 
-		let list = crate::value::ty::List::from_slice(self.positional());
+		let mut builder = crate::value::ty::List::builder();
 
-		if let Some(this) = self.this {
-			list.as_mut().unwrap().unshift(this);
+		let mut len = self.positional.len();
+		if self.this.is_some() {
+			len += 1;
 		}
 
-		list.to_any()
+		unsafe {
+			builder.allocate_buffer(len);
+			if let Some(this) = self.this {
+				builder.list_mut().push(this);
+			}
+
+			builder.list_mut().push_slice_unchecked(self.positional);
+			builder.finish().to_any()
+		}
 	}
 }
 
