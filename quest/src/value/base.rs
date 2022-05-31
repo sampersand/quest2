@@ -228,6 +228,14 @@ impl Header {
 	///
 	/// # Example
 	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
+	pub fn get_unbound_attr<A: Attribute>(
+		&self,
+		attr: A,
+		search_parents: bool,
+	) -> Result<Option<AnyValue>> {
+		self.get_unbound_attr_checked(attr, &mut Vec::new(), search_parents)
+	}
+
 	pub fn get_unbound_attr_checked<A: Attribute>(
 		&self,
 		attr: A,
