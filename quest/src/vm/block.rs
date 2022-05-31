@@ -1,11 +1,11 @@
 use super::{Frame, SourceLocation};
 use crate::value::ty::{List, Text};
-use crate::value::{base::Base, Gc, HasDefaultParent};
+use crate::value::{base::Base, Intern, HasDefaultParent, ToAny};
+use crate::value::gc::{Gc, Allocated};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
-use std::cell::RefCell;
 
 mod builder;
 pub use builder::{Builder, Local};
@@ -28,7 +28,6 @@ pub struct BlockInner {
 	pub(super) constants: Vec<AnyValue>,
 	pub(super) num_of_unnamed_locals: usize,
 	pub(super) named_locals: Vec<Gc<Text>>,
-	name: RefCell<Option<Gc<Text>>>,
 }
 
 impl Block {
@@ -46,7 +45,6 @@ impl Block {
 			constants,
 			num_of_unnamed_locals,
 			named_locals,
-			name: RefCell::new(None)
 		});
 
 		Gc::from_inner(if let Some(parent_scope) = parent_scope {
@@ -64,14 +62,24 @@ impl Block {
 		&self.0.data().location
 	}
 
-	pub(super) fn set_name(&mut self, name: Gc<Text>) {
-		let mut refmut = self.0.data().name.borrow_mut();
-		debug_assert!(refmut.is_none(), "somehow assigning a name twice?");
-		refmut.replace(name);
+	pub(super) fn set_name(&mut self, name: Gc<Text>) -> Result<()> {
+		debug_assert!(
+			self.header()
+				.attributes()
+				.get_unbound_attr(Intern::__name__)
+				.unwrap()
+				.is_none(),
+				"somehow assigning a name twice?"
+		);
+		self.header_mut().set_attr(Intern::__name__, name.to_any())
 	}
 
-	pub fn name(&self) -> Option<Gc<Text>> {
-		*self.0.data().name.borrow()
+	pub fn name(&self) -> Result<Option<Gc<Text>>> {
+		Ok(self.header()
+			.attributes()
+			.get_unbound_attr(Intern::__name__)?
+			.and_then(|x| x.downcast::<Gc<Text>>()))
+
 	}
 }
 

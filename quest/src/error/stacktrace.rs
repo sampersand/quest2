@@ -19,7 +19,7 @@ impl Stacktrace {
 				let block = frame.as_ref()?.block().as_ref()?;
 
 				let source_location = block.source_location().clone();
-				let name = if let Some(name) = block.name() {
+				let name = if let Some(name) = block.name()? {
 					Some(name.as_ref()?.to_string())
 				} else {
 					None

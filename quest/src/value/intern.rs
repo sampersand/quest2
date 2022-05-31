@@ -72,7 +72,7 @@ macro_rules! define_interned {
 
 define_interned! {
 	__parents__
-	__id__
+	__id__ __name__
 	__get_attr__ __get_unbound_attr__ __set_attr__
 	__del_attr__ __has_attr__ __call_attr__
 

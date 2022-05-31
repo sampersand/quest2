@@ -45,7 +45,7 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if false {
+	if true {
 		let thingy = run_code(
 			r##"
 fib = n -> {

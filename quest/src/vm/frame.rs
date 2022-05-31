@@ -212,7 +212,7 @@ impl Frame {
 		self
 			.0
 			.header()
-			.get_unbound_attr_checked(attr_name.to_any(), &mut Vec::new(), true)?
+			.get_unbound_attr_checked(attr_name.to_any(), &mut Vec::new())?
 			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(
 				unsafe { crate::value::Gc::new(self.into()) }.to_any(),
 				attr_name.to_any()
@@ -374,7 +374,7 @@ impl Frame {
 			let index = !dst.0 as usize;
 			debug_assert!(index <= self.inner_block.named_locals.len());
 			let name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
-			block.as_mut().unwrap().set_name(name);
+			block.as_mut().unwrap().set_name(name)?;
 		}
 
 		Ok(block.to_any())

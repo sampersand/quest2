@@ -451,7 +451,7 @@ impl<T: Allocated> Ref<T> {
 	}
 
 	pub fn get_unbound_attr_checked<A: Attribute>(&self, attr: A, checked: &mut Vec<AnyValue>) -> Result<Option<AnyValue>> {
-		self.header().get_unbound_attr_checked(attr, checked, true)
+		self.header().get_unbound_attr_checked(attr, checked)
 	}
 
 	#[must_use]
