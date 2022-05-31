@@ -41,7 +41,7 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 /// assert_eq!(
 ///    "bar",
 ///    baseref.header()
-///        .get_unbound_attr("foo".to_any(), false)?
+///        .get_unbound_attr("foo".to_any())?
 ///        .unwrap()
 ///        .downcast::<Gc<Text>>()
 ///        .unwrap()
@@ -225,7 +225,7 @@ impl<T> Builder<T> {
 	///    "bar",
 	///     base.as_ref().expect("we hold the only reference")
 	///         .header()
-	///         .get_unbound_attr("foo".to_any(), false)?
+	///         .get_unbound_attr("foo".to_any())?
 	///         .unwrap()
 	///         .downcast::<Gc<Text>>()
 	///         .unwrap()

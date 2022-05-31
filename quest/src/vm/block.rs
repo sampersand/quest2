@@ -119,7 +119,12 @@ pub mod funcs {
 
 		// TODO: maybe cache this in the future?
 		let mut builder = Text::simple_builder();
-		builder.push_str("<Block:");
+		builder.push_str("<Block");
+		if let Some(name) = blockref.name()? {
+			builder.push(':');
+			builder.push_str(name.as_ref()?.as_str());
+		}
+		builder.push('@');
 		builder.push_str(&blockref.inner().location.to_string());
 		builder.push('>');
 

@@ -209,14 +209,19 @@ impl Frame {
 	#[inline(never)]
 	fn get_object_local(&self, index: usize) -> Result<AnyValue> {
 		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
-		self
-			.0
-			.header()
-			.get_unbound_attr_checked(attr_name.to_any(), &mut Vec::new())?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(
-				unsafe { crate::value::Gc::new(self.into()) }.to_any(),
-				attr_name.to_any()
-			).into())
+
+		if let Some(attr) = self.0.header().get_unbound_attr_checked(attr_name.to_any(), &mut Vec::new())? {
+			return Ok(attr);
+		} else if !self.is_object() {
+			if let Some(attr) = Gc::<Self>::parent().get_unbound_attr(attr_name.to_any())? {
+				return Ok(attr)
+			}
+		}
+
+		Err(crate::error::ErrorKind::UnknownAttribute(
+			unsafe { crate::value::Gc::new(self.into()) }.to_any(),
+			attr_name.to_any()
+		).into())
 	}
 
 	fn set_local(&mut self, index: LocalTarget, value: AnyValue) -> Result<()> {
@@ -347,19 +352,19 @@ impl Frame {
 	}
 
 	// safety: index has to be in bounds
-	unsafe fn get_constant(&mut self, index: usize) -> Result<AnyValue> {
+	unsafe fn get_constant(&mut self, index: usize, dst: LocalTarget) -> Result<AnyValue> {
 		debug_assert!(index <= self.inner_block.constants.len());
 
 		let constant = *self.inner_block.constants.get_unchecked(index);
 		if let Some(block) = constant.downcast::<Gc<Block>>() {
-			self.constant_as_block(block)
+			self.constant_as_block(block, dst)
 		} else {
 			Ok(constant)
 		}
 	}
 
 	#[inline(never)]
-	fn constant_as_block(&mut self, block: Gc<Block>) -> Result<AnyValue> {
+	fn constant_as_block(&mut self, block: Gc<Block>, dst: LocalTarget) -> Result<AnyValue> {
 		let block = block.deep_clone()?;
 		self.convert_to_object()?;
 
@@ -369,7 +374,6 @@ impl Frame {
 			.as_mut()?
 			.push(unsafe { crate::value::Gc::new(self.into()) }.to_any()); // TODO: what are the implications of `.push` on parent scope vars?
 
-		let dst = (0,); // TODO
 		if dst.0 < 0 {
 			let index = !dst.0 as usize;
 			debug_assert!(index <= self.inner_block.named_locals.len());
@@ -531,7 +535,7 @@ impl Gc<Frame> {
 
 				Opcode::ConstLoad => unsafe {
 					let idx = this.next_count();
-					this.get_constant(idx)?
+					this.get_constant(idx, dst)?
 				},
 				Opcode::Stackframe => {
 					let mut count = this.next_count() as isize;
