@@ -64,7 +64,7 @@ impl<'a> Args<'a> {
 		}
 	}
 
-	pub fn get<T: ArgIndexer>(self, index: T) -> Result<AnyValue> {
+	pub fn get<T: ArgIndexer>(self, index: T) -> Option<AnyValue> {
 		index.get(self)
 	}
 
@@ -137,17 +137,13 @@ impl<A: ArgIndexer> std::ops::Index<A> for Args<'_> {
 }
 
 pub trait ArgIndexer {
-	fn get(self, args: Args<'_>) -> Result<AnyValue>;
+	fn get(self, args: Args<'_>) -> Option<AnyValue>;
 	fn index(self, args: Args<'_>) -> &AnyValue;
 }
 
 impl ArgIndexer for usize {
-	fn get(self, args: Args<'_>) -> Result<AnyValue> {
-		args
-			.positional
-			.get(self)
-			.copied()
-			.ok_or(crate::error::ErrorKind::MissingPositionalArgument(self).into())
+	fn get(self, args: Args<'_>) -> Option<AnyValue> {
+		args.positional.get(self).copied()
 	}
 
 	fn index(self, args: Args<'_>) -> &AnyValue {
@@ -156,14 +152,14 @@ impl ArgIndexer for usize {
 }
 
 impl ArgIndexer for &'static str {
-	fn get(self, args: Args<'_>) -> Result<AnyValue> {
+	fn get(self, args: Args<'_>) -> Option<AnyValue> {
 		for &(kw, val) in args.keyword {
 			if kw == self {
-				return Ok(val);
+				return Some(val);
 			}
 		}
 
-		Err(crate::error::ErrorKind::MissingKeywordArgument(self).into())
+		None
 	}
 
 	fn index(self, args: Args<'_>) -> &AnyValue {

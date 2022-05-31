@@ -53,7 +53,7 @@ pub mod funcs {
 
 		if args[0].is_truthy()? {
 			args[1].call(Args::default())
-		} else if let Ok(if_false) = args.get(2) {
+		} else if let Some(if_false) = args.get(2) {
 			if_false.call(Args::default())
 		} else {
 			Ok(AnyValue::default())

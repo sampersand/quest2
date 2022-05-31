@@ -89,7 +89,7 @@ pub mod funcs {
 
 		Err(crate::Error::new_no_stacktrace(crate::error::ErrorKind::Return {
 			value: obj,
-			from_frame: args.get(0).ok(),
+			from_frame: args.get(0),
 		}))
 	}
 
