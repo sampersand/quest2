@@ -229,13 +229,17 @@ impl AnyValue {
 	}
 
 	pub fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
+		self.get_unbound_attr_checked(attr, &mut Vec::new())
+	}
+
+	pub fn get_unbound_attr_checked<A: Attribute>(self, attr: A, checked: &mut Vec<Self>) -> Result<Option<Self>> {
 		if !self.is_allocated() {
 			return if attr.is_parents() {
 				// TODO: if this is modified, it wont reflect on the integer.
 				// so make `get_unbound_attr` require a reference?
 				Ok(Some(List::from_slice(&[self.parents_for()]).to_any()))
 			} else {
-				self.parents_for().get_unbound_attr(attr)
+				self.parents_for().get_unbound_attr_checked(attr, checked)
 			};
 		}
 
@@ -243,7 +247,7 @@ impl AnyValue {
 
 		// 99% of the time it's not special.
 		if !attr.is_special() {
-			return gc.as_ref()?.get_unbound_attr(attr);
+			return gc.as_ref()?.get_unbound_attr_checked(attr, checked);
 		}
 
 		if attr.is_parents() {

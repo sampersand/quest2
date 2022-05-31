@@ -228,9 +228,10 @@ impl Header {
 	///
 	/// # Example
 	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
-	pub fn get_unbound_attr<A: Attribute>(
+	pub fn get_unbound_attr_checked<A: Attribute>(
 		&self,
 		attr: A,
+		checked: &mut Vec<AnyValue>,
 		search_parents: bool,
 	) -> Result<Option<AnyValue>> {
 		if let Some(value) = self.attributes().get_unbound_attr(attr)? {
@@ -238,14 +239,14 @@ impl Header {
 		}
 
 		if search_parents {
-			self.get_unbound_attr_from_parents(attr)
+			self.get_unbound_attr_checked_from_parents(attr, checked)
 		} else {
 			Ok(None)
 		}
 	}
 
-	pub fn get_unbound_attr_from_parents<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
-		self.parents().get_unbound_attr(attr)
+	pub fn get_unbound_attr_checked_from_parents<A: Attribute>(&self, attr: A, checked: &mut Vec<AnyValue>) -> Result<Option<AnyValue>> {
+		self.parents().get_unbound_attr_checked(attr, checked)
 	}
 
 	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut AnyValue> {

@@ -204,7 +204,7 @@ impl Frame {
 		self
 			.0
 			.header()
-			.get_unbound_attr(attr_name.to_any(), true)?
+			.get_unbound_attr_checked(attr_name.to_any(), &mut Vec::new(), true)?
 			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(
 				unsafe { crate::value::Gc::new(self.into()) }.to_any(),
 				attr_name.to_any()

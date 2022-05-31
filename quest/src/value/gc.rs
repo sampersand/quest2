@@ -366,7 +366,7 @@ impl<T: Allocated> Gc<T> {
 
 		let attr = asref
 			.parents()
-			.get_unbound_attr(attr)?
+			.get_unbound_attr_checked(attr, &mut Vec::new())?
 			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(obj, attr.to_value()))?;
 
 		drop(asref);
@@ -450,8 +450,8 @@ impl<T: Allocated> Ref<T> {
 		}
 	}
 
-	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
-		self.header().get_unbound_attr(attr, true)
+	pub fn get_unbound_attr_checked<A: Attribute>(&self, attr: A, checked: &mut Vec<AnyValue>) -> Result<Option<AnyValue>> {
+		self.header().get_unbound_attr_checked(attr, checked, true)
 	}
 
 	#[must_use]

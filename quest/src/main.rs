@@ -50,10 +50,10 @@ fn main() {
 			r##"
 fib = n -> {
 	(n <= 1).then(n.return);
-	__block__(n-1) + __block__(n-2)
+	fib(n-1) + fib(n-2)
 };
 
-print(fib(20))
+print(fib(30))
 __EOF__
 t = 1.upto(10).map(x -> { 
 	{ print(x) }; f.x = 99;# spawn(f)

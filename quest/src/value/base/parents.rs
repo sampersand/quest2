@@ -109,13 +109,13 @@ impl<'a> ParentsRef<'a> {
 	}
 
 	/// Attempts to get the unbound attribute `attr` on `self`.
-	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr_checked<A: Attribute>(&self, attr: A, checked: &mut Vec<AnyValue>) -> Result<Option<AnyValue>> {
 		match self.classify() {
 			ParentsKind::None => Ok(None),
-			ParentsKind::Single(single) => single.get_unbound_attr(attr),
+			ParentsKind::Single(single) => single.get_unbound_attr_checked(attr, checked),
 			ParentsKind::List(list) => {
 				for parent in list.as_ref()?.as_slice() {
-					if let Some(value) = parent.get_unbound_attr(attr)? {
+					if let Some(value) = parent.get_unbound_attr_checked(attr, checked)? {
 						return Ok(Some(value));
 					}
 				}
@@ -136,7 +136,7 @@ impl<'a> ParentsRef<'a> {
 		args: crate::vm::Args<'_>,
 	) -> Result<AnyValue> {
 		let attr = self
-			.get_unbound_attr(attr)?
+			.get_unbound_attr_checked(attr, &mut Vec::new())?
 			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(obj, attr.to_value()))?;
 
 		drop(self);

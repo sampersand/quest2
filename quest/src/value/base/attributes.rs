@@ -341,7 +341,7 @@ mod tests {
 
 		let value = Value::from(3).any();
 		assert!(textref
-			.get_unbound_attr(value)
+			.get_unbound_attr_checked(value, &mut vec![])
 			.unwrap()
 			.unwrap()
 			.try_eq(value)
@@ -351,7 +351,7 @@ mod tests {
 		for i in 0..=list::MAX_LISTMAP_LEN * 2 {
 			let value = Value::from(i as i64).any();
 			assert!(textref
-				.get_unbound_attr(value)
+				.get_unbound_attr_checked(value, &mut vec![])
 				.unwrap()
 				.unwrap()
 				.try_eq(value)
@@ -364,7 +364,7 @@ mod tests {
 		let text = Text::from_str("hola mundo");
 		const ONE: AnyValue = Value::ONE.any();
 
-		assert_matches!(text.as_ref().unwrap().get_unbound_attr(ONE), Ok(None));
+		assert_matches!(text.as_ref().unwrap().get_unbound_attr_checked(ONE, &mut vec![]), Ok(None));
 		assert_matches!(text.as_mut().unwrap().del_attr(ONE), Ok(None));
 
 		text
@@ -377,7 +377,7 @@ mod tests {
 			text
 				.as_ref()
 				.unwrap()
-				.get_unbound_attr(ONE)
+				.get_unbound_attr_checked(ONE, &mut vec![])
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
@@ -394,7 +394,7 @@ mod tests {
 			text
 				.as_ref()
 				.unwrap()
-				.get_unbound_attr(ONE)
+				.get_unbound_attr_checked(ONE, &mut vec![])
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
@@ -413,7 +413,7 @@ mod tests {
 				.unwrap(),
 			45
 		);
-		assert_matches!(text.as_ref().unwrap().get_unbound_attr(ONE), Ok(None));
+		assert_matches!(text.as_ref().unwrap().get_unbound_attr_checked(ONE, &mut vec![]), Ok(None));
 	}
 
 	// XXX: This test may spuriously fail with the message `Message("parents are already locked")`.
@@ -429,7 +429,7 @@ mod tests {
 		parent.set_attr(ATTR, Value::from(123).any()).unwrap();
 		assert_eq!(
 			parent
-				.get_unbound_attr(ATTR)
+				.get_unbound_attr_checked(ATTR, &mut vec![])
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
@@ -443,7 +443,7 @@ mod tests {
 		child.parents().unwrap().as_mut().unwrap().push(parent);
 		assert_eq!(
 			child
-				.get_unbound_attr(ATTR)
+				.get_unbound_attr_checked(ATTR, &mut vec![])
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
@@ -454,7 +454,7 @@ mod tests {
 		child.set_attr(ATTR, Value::from(456).any()).unwrap();
 		assert_eq!(
 			child
-				.get_unbound_attr(ATTR)
+				.get_unbound_attr_checked(ATTR, &mut vec![])
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
@@ -473,7 +473,7 @@ mod tests {
 		);
 		assert_eq!(
 			child
-				.get_unbound_attr(ATTR)
+				.get_unbound_attr_checked(ATTR, &mut vec![])
 				.unwrap()
 				.unwrap()
 				.downcast::<Integer>()
