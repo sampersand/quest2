@@ -46,7 +46,6 @@ impl Error {
 		}
 	}
 
-	#[cold]
 	pub fn new_no_stacktrace(kind: ErrorKind) -> Self {
 		Self {
 			stacktrace: Stacktrace::empty(),

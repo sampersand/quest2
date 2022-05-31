@@ -46,7 +46,7 @@ impl ConvertTo<Gc<Text>> for Integer {
 	fn convert(&self, args: Args<'_>) -> Result<Gc<Text>> {
 		args.assert_no_positional()?;
 
-		let base = if let Ok(base) = args.get("base") {
+		let base = if let Some(base) = args.get("base") {
 			args.idx_err_unless(|_| args.len() == 1)?;
 			base.to_integer()?
 		} else {

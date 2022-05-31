@@ -53,7 +53,7 @@ fib = n -> {
 	__block__(n-1) + __block__(n-2)
 };
 
-print(fib(30))
+print(fib(20))
 __EOF__
 t = 1.upto(10).map(x -> { 
 	{ print(x) }; f.x = 99;# spawn(f)
