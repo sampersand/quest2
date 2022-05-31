@@ -67,7 +67,7 @@ pub mod funcs {
 	}
 
 	pub fn at_text(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-		obj.call_attr(Intern::at_text, args)
+		obj.call_attr(Intern::dbg, args)
 	}
 
 	pub fn hash(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
