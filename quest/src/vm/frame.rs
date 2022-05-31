@@ -80,7 +80,10 @@ impl Frame {
 		// want to register the outer block as the parent?
 		// ^^ update: having them like `[block, parent]` means that attribute lookups such as `dbg`
 		// are first found on frame, which is not good.
-		builder.set_parents(List::from_slice(&[Gc::<Self>::parent(), block.to_any()]));
+		// update 2: we removed the following, as we simply set the `Gc::parent()` when we convert to
+		// an actual object.
+		// 	builder.set_parents(List::from_slice(&[Gc::<Self>::parent(), block.to_any()]));
+		builder.set_parents(block.to_any());
 
 		unsafe {
 			let unnamed_locals = crate::alloc_zeroed::<AnyValue>(locals_layout_for(
@@ -147,7 +150,12 @@ impl Frame {
 			return Ok(());
 		}
 
+		let block = self.0.data().block.to_any();
 		let (header, data) = self.0.header_data_mut();
+
+		// Once we start referencing the frame as an object, we no longer can longer use the "block is
+		// our only parent" optimization.
+		header.parents_mut().set(List::from_slice(&[Gc::<Self>::parent(), block]));
 		// OPTIMIZE: we could use `with_capacity`, but we'd need to move it out of the builder.
 
 		for i in 0..data.inner_block.named_locals.len() {
