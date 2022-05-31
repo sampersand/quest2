@@ -406,6 +406,7 @@ fn does_match_named<'a>(
 		},
 
 		"tt" => Ok(does_match_named(capture_name, "literal", matcher, parser)?
+			|| does_match_named(capture_name, "ident", matcher, parser)?
 			|| does_match_named(capture_name, "group", matcher, parser)?
 			|| does_match_named(capture_name, "list", matcher, parser)?
 			|| does_match_named(capture_name, "block", matcher, parser)?),
