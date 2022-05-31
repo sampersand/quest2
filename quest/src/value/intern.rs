@@ -22,8 +22,6 @@ macro_rules! define_interned {
 		#[non_exhaustive]
 		pub enum Intern {
 			$($name = offset(__InternHelper::$name as _),)*
-			#[doc(hidden)]
-			__LAST = offset(__InternHelper::__LAST as _),
 		}
 
 		#[allow(non_camel_case_types)]
@@ -31,10 +29,12 @@ macro_rules! define_interned {
 			$($name,)* __LAST
 		}
 
+		const INTERN_LENGTH: usize = __InternHelper::__LAST as usize;
+
 		impl Intern {
 			#[must_use]
 			pub const fn as_str(self) -> &'static str {
-				const STRINGS: [&'static str; Intern::__LAST.as_index()] = [
+				const STRINGS: [&'static str; INTERN_LENGTH] = [
 					$(define_interned!(@ $name $($value)?)),*
 				];
 
@@ -43,7 +43,7 @@ macro_rules! define_interned {
 
 			#[must_use]
 			pub const fn fast_hash(self) -> u64 {
-				const HASHES: [u64; Intern::__LAST.as_index()] = [
+				const HASHES: [u64; INTERN_LENGTH] = [
 					$(crate::value::ty::text::fast_hash(define_interned!(@ $name $($value)?)), )*
 				];
 
@@ -52,18 +52,21 @@ macro_rules! define_interned {
 		}
 
 
-		impl std::str::FromStr for Intern {
-			type Err = ();
+		impl TryFrom<&'_ Text> for Intern {
+			type Error = ();
 
-			fn from_str(s: &str) -> Result<Self, Self::Err> {
-				match s {
-					$(define_interned!(@ $name $($value)?) => Ok(Self::$name),)*
+			#[allow(non_upper_case_globals)]
+			fn try_from(text: &Text) -> Result<Self, Self::Error> {
+				$(
+					const $name: u8 = Intern::$name.fast_hash() as u8;
+				)*
+
+				match text.fast_hash() as u8 {
+					$($name if *text == Intern::$name => Ok(Self::$name),)*
 					_ => Err(())
 				}
 			}
 		}
-
-
 	};
 }
 
@@ -122,7 +125,7 @@ impl Intern {
 
 	pub(crate) const fn try_from_repr(repr: u64) -> Option<Self> {
 		if repr & 0b111_1111 == TAG {
-			debug_assert!(repr <= Self::__LAST as u64);
+			debug_assert!(repr <= offset(INTERN_LENGTH as u64));
 
 			Some(unsafe { std::mem::transmute::<u64, Self>(repr) })
 		} else {
@@ -134,13 +137,11 @@ impl Intern {
 	pub fn as_text(self) -> Gc<Text> {
 		use once_cell::sync::OnceCell;
 
-		const AMNT: usize = Intern::__LAST.as_index() - 1;
-
 		// We only need the const for the `TEXTS` initializer
 		#[allow(clippy::declare_interior_mutable_const)]
 		const BLANK_TEXT: OnceCell<Gc<Text>> = OnceCell::new();
 
-		static TEXTS: [OnceCell<Gc<Text>>; AMNT] = [BLANK_TEXT; AMNT];
+		static TEXTS: [OnceCell<Gc<Text>>; INTERN_LENGTH] = [BLANK_TEXT; INTERN_LENGTH];
 
 		*TEXTS[self.as_index()].get_or_init(|| {
 			let text = Text::from_static_str(self.as_str());

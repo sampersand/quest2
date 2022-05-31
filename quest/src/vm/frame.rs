@@ -462,13 +462,13 @@ impl Gc<Frame> {
 			{
 				let (arity, is_variable) = op.arity_and_is_variable();
 				debug_assert!(arity <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
-				let mut ptr = args.as_mut_ptr();
+				let mut ptr = args.as_mut_ptr().cast::<AnyValue>();
 
 				for _ in 0..arity {
 					let local = this.next_local()?;
 
 					unsafe {
-						(*ptr).write(local);
+						ptr.write(local);
 						ptr = ptr.add(1);
 					}
 				}
@@ -487,7 +487,7 @@ impl Gc<Frame> {
 						let local = this.next_local()?;
 
 						unsafe {
-							ptr.write(MaybeUninit::new(local));
+							ptr.write(local);
 							ptr = ptr.add(1);
 						}					
 					}

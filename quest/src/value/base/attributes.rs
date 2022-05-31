@@ -290,10 +290,8 @@ impl Attribute for AnyValue {
 	}
 
 	fn as_intern(self) -> Result<Option<Intern>> {
-		use std::str::FromStr;
-
 		if let Some(text) = self.downcast::<Gc<Text>>() {
-			Ok(Intern::from_str(text.as_ref()?.as_ref()).ok())
+			Ok(Intern::try_from(&*text.as_ref()?).ok())
 		} else {
 			Ok(None)
 		}
@@ -308,9 +306,11 @@ impl Attribute for AnyValue {
 	}
 
 	fn is_parents(self) -> bool {
-		self
-			.downcast::<Gc<Text>>()
-			.map_or(false, |text| text.as_ref().map_or(false, |r| r.as_str() == "__parents__"))
+		if let Some(text) = self.downcast::<Gc<Text>>() {
+			*text.as_ref().expect("text is locked <todo, return an error>") == Intern::__parents__
+		} else {
+			false
+		}
 	}
 }
 
