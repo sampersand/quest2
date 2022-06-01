@@ -1,13 +1,13 @@
-use crate::parse::ast::{Compile, Group};
-use crate::parse::Parser;
-use crate::vm::{
+use quest::parse::ast::{Compile, Group};
+use quest::parse::Parser;
+use quest::vm::{
 	block::{Builder, Local},
 	Args,
 };
-use crate::{AnyValue, Result};
+use quest::{AnyValue, Result};
 
-use crate::value::ty::{Boolean, Float, Integer, List, Text};
-use crate::value::Gc;
+use quest::value::ty::{Boolean, Float, Integer, List, Text};
+use quest::value::Gc;
 
 pub fn run_code(code: &str) -> Result<AnyValue> {
 	let mut parser = Parser::new(code, None);
@@ -109,7 +109,6 @@ fn fib_pass_function() {
 }
 
 #[test]
-#[ignore] // TODO: remove ignore. doesnt currently work cause blcoks dont inherit from parents.
 fn fib_normal() {
 	let result = run_code(
 		r#"

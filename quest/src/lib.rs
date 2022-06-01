@@ -27,15 +27,10 @@ extern crate assert_matches;
 #[macro_use]
 extern crate qvm_macros;
 
-pub mod error;
-
 #[macro_use]
 pub mod value;
+pub mod error;
 pub mod vm;
-
-#[cfg(test)]
-mod integration_tests;
-
 pub mod parse;
 
 pub use error::{Error, Result};
