@@ -18,7 +18,7 @@ impl Debug for Null {
 }
 
 impl Value<Null> {
-	pub const NULL: Self = unsafe { Self::from_bits_unchecked(0b0001_0100) };
+	pub const NULL: Self = unsafe { Self::from_bits(0b0001_0100) };
 }
 
 impl From<Null> for Value<Null> {
@@ -135,18 +135,19 @@ impl Singleton for NullClass {
 mod tests {
 	use super::*;
 	use crate::value::ty::*;
+	use crate::value::ToValue;
 
 	#[test]
 	fn test_is_a() {
-		assert!(Null::is_a(Value::NULL.any()));
+		assert!(Null::is_a(Value::NULL.to_value()));
 
-		assert!(!Null::is_a(Value::TRUE.any()));
-		assert!(!Null::is_a(Value::FALSE.any()));
-		assert!(!Null::is_a(Value::ZERO.any()));
-		assert!(!Null::is_a(Value::ONE.any()));
-		assert!(!Null::is_a(Value::from(1.0).any()));
-		assert!(!Null::is_a(Value::from("hello").any()));
-		assert!(!Null::is_a(Value::from(RustFn::NOOP).any()));
+		assert!(!Null::is_a(Value::TRUE.to_value()));
+		assert!(!Null::is_a(Value::FALSE.to_value()));
+		assert!(!Null::is_a(Value::ZERO.to_value()));
+		assert!(!Null::is_a(Value::ONE.to_value()));
+		assert!(!Null::is_a(Value::from(1.0).to_value()));
+		assert!(!Null::is_a(Value::from("hello").to_value()));
+		assert!(!Null::is_a(Value::from(RustFn::NOOP).to_value()));
 	}
 
 	#[test]
@@ -160,19 +161,25 @@ mod tests {
 			"null",
 			ConvertTo::<Gc<Text>>::convert(&Null, Args::default()).unwrap().as_ref().unwrap().as_str()
 		);
-		assert!(ConvertTo::<Gc<Text>>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
+		assert!(
+			ConvertTo::<Gc<Text>>::convert(&Null, Args::new(&[Value::TRUE.to_value()], &[])).is_err()
+		);
 	}
 
 	#[test]
 	fn test_convert_to_integer() {
 		assert_eq!(0, ConvertTo::<Integer>::convert(&Null, Args::default()).unwrap());
-		assert!(ConvertTo::<Integer>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
+		assert!(
+			ConvertTo::<Integer>::convert(&Null, Args::new(&[Value::TRUE.to_value()], &[])).is_err()
+		);
 	}
 
 	#[test]
 	fn test_convert_to_float() {
 		assert_eq!(false, ConvertTo::<Boolean>::convert(&Null, Args::default()).unwrap());
-		assert!(ConvertTo::<Boolean>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
+		assert!(
+			ConvertTo::<Boolean>::convert(&Null, Args::new(&[Value::TRUE.to_value()], &[])).is_err()
+		);
 	}
 
 	#[test]
@@ -182,6 +189,8 @@ mod tests {
 			.as_ref()
 			.unwrap()
 			.is_empty());
-		assert!(ConvertTo::<Gc<List>>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
+		assert!(
+			ConvertTo::<Gc<List>>::convert(&Null, Args::new(&[Value::TRUE.to_value()], &[])).is_err()
+		);
 	}
 }

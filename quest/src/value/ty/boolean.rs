@@ -14,8 +14,8 @@ impl crate::value::NamedType for Boolean {
 }
 
 impl Value<Boolean> {
-	pub const FALSE: Self = unsafe { Self::from_bits_unchecked(0b0000_0100) };
-	pub const TRUE: Self = unsafe { Self::from_bits_unchecked(0b0010_0100) };
+	pub const FALSE: Self = unsafe { Self::from_bits(0b0000_0100) };
+	pub const TRUE: Self = unsafe { Self::from_bits(0b0010_0100) };
 }
 
 impl From<Boolean> for Value<Boolean> {
@@ -171,18 +171,19 @@ impl HasDefaultParent for Boolean {
 mod tests {
 	use super::*;
 	use crate::value::ty::*;
+	use crate::ToValue;
 
 	#[test]
 	fn test_is_a() {
-		assert!(Boolean::is_a(Value::FALSE.any()));
-		assert!(Boolean::is_a(Value::TRUE.any()));
+		assert!(Boolean::is_a(Value::FALSE.to_value()));
+		assert!(Boolean::is_a(Value::TRUE.to_value()));
 
-		assert!(!Boolean::is_a(Value::NULL.any()));
-		assert!(!Boolean::is_a(Value::ZERO.any()));
-		assert!(!Boolean::is_a(Value::ONE.any()));
-		assert!(!Boolean::is_a(Value::from(12.0).any()));
-		assert!(!Boolean::is_a(Value::from("hello").any()));
-		assert!(!Boolean::is_a(Value::from(RustFn::NOOP).any()));
+		assert!(!Boolean::is_a(Value::NULL.to_value()));
+		assert!(!Boolean::is_a(Value::ZERO.to_value()));
+		assert!(!Boolean::is_a(Value::ONE.to_value()));
+		assert!(!Boolean::is_a(Value::from(12.0).to_value()));
+		assert!(!Boolean::is_a(Value::from("hello").to_value()));
+		assert!(!Boolean::is_a(Value::from(RustFn::NOOP).to_value()));
 	}
 
 	#[test]
@@ -206,7 +207,9 @@ mod tests {
 				.as_str()
 		);
 
-		assert!(ConvertTo::<Gc<Text>>::convert(&true, Args::new(&[Value::TRUE.any()], &[])).is_err());
+		assert!(
+			ConvertTo::<Gc<Text>>::convert(&true, Args::new(&[Value::TRUE.to_value()], &[])).is_err()
+		);
 	}
 
 	#[test]
@@ -214,7 +217,9 @@ mod tests {
 		assert_eq!(1, ConvertTo::<Integer>::convert(&true, Args::default()).unwrap());
 		assert_eq!(0, ConvertTo::<Integer>::convert(&false, Args::default()).unwrap());
 
-		assert!(ConvertTo::<Integer>::convert(&true, Args::new(&[Value::TRUE.any()], &[])).is_err());
+		assert!(
+			ConvertTo::<Integer>::convert(&true, Args::new(&[Value::TRUE.to_value()], &[])).is_err()
+		);
 	}
 
 	#[test]
@@ -222,6 +227,8 @@ mod tests {
 		assert_eq!(1.0, ConvertTo::<Float>::convert(&true, Args::default()).unwrap());
 		assert_eq!(0.0, ConvertTo::<Float>::convert(&false, Args::default()).unwrap());
 
-		assert!(ConvertTo::<Float>::convert(&true, Args::new(&[Value::TRUE.any()], &[])).is_err());
+		assert!(
+			ConvertTo::<Float>::convert(&true, Args::new(&[Value::TRUE.to_value()], &[])).is_err()
+		);
 	}
 }

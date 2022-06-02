@@ -206,7 +206,7 @@ impl<T: Allocated> Gc<T> {
 	pub fn as_ref(self) -> Result<Ref<T>> {
 		self
 			.as_ref_option()
-			.ok_or_else(|| crate::error::ErrorKind::AlreadyLocked(Value::from(self).any()).into())
+			.ok_or_else(|| crate::error::ErrorKind::AlreadyLocked(Value::from(self).to_value()).into())
 	}
 
 	pub fn as_ref_option(self) -> Option<Ref<T>> {
@@ -270,7 +270,7 @@ impl<T: Allocated> Gc<T> {
 	/// ```
 	pub fn as_mut(self) -> Result<Mut<T>> {
 		if self.is_frozen() {
-			return Err(crate::error::ErrorKind::ValueFrozen(Value::from(self).any()).into());
+			return Err(crate::error::ErrorKind::ValueFrozen(self.to_value()).into());
 		}
 
 		if cfg!(feature = "unsafe-no-locking") {
@@ -282,7 +282,7 @@ impl<T: Allocated> Gc<T> {
 			.compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed)
 			.is_err()
 		{
-			return Err(crate::error::ErrorKind::AlreadyLocked(Value::from(self).any()).into());
+			return Err(crate::error::ErrorKind::AlreadyLocked(self.to_value()).into());
 		}
 
 		let mutref = Mut(self);
@@ -290,7 +290,7 @@ impl<T: Allocated> Gc<T> {
 		// We have to check again to see if it's frozen just in case.
 		if self.is_frozen() {
 			// this will drop `mutref` and thus release the mutable ownership.
-			Err(crate::error::ErrorKind::ValueFrozen(Value::from(self).any()).into())
+			Err(crate::error::ErrorKind::ValueFrozen(self.to_value()).into())
 		} else {
 			Ok(mutref)
 		}
@@ -389,7 +389,7 @@ impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 
 		// SAFETY: The bottom three bits being zero is the definition for `Gc<T>`. We know that the
 		// bottom three bits are zero because `Base<T>` will always be at least 8-aligned.
-		unsafe { Self::from_bits_unchecked(bits) }
+		unsafe { Self::from_bits(bits) }
 	}
 }
 

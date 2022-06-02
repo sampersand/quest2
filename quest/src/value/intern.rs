@@ -159,7 +159,7 @@ impl From<Intern> for Value<Gc<Text>> {
 
 impl ToValue for Intern {
 	fn to_value(self) -> Value {
-		Value::from(self).any()
+		Value::from(self).to_value()
 	}
 }
 

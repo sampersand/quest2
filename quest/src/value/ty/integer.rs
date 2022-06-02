@@ -14,8 +14,8 @@ impl crate::value::NamedType for Integer {
 }
 
 impl Value<Integer> {
-	pub const ZERO: Self = unsafe { Self::from_bits_unchecked(0b0000_0001) };
-	pub const ONE: Self = unsafe { Self::from_bits_unchecked(0b0000_0011) };
+	pub const ZERO: Self = unsafe { Self::from_bits(0b0000_0001) };
+	pub const ONE: Self = unsafe { Self::from_bits(0b0000_0011) };
 }
 
 impl From<Integer> for Value<Integer> {
@@ -23,7 +23,7 @@ impl From<Integer> for Value<Integer> {
 	fn from(integer: Integer) -> Self {
 		let bits = ((integer as u64) << 1) | 1;
 
-		unsafe { Self::from_bits_unchecked(bits) }
+		unsafe { Self::from_bits(bits) }
 	}
 }
 
@@ -235,23 +235,24 @@ impl InstanceOf for Integer {
 mod tests {
 	use super::*;
 	use crate::value::ty::*;
+	use crate::ToValue;
 
 	#[test]
 	fn test_is_a() {
-		assert!(Integer::is_a(Value::from(0).any()));
-		assert!(Integer::is_a(Value::from(1).any()));
-		assert!(Integer::is_a(Value::from(-123).any()));
-		assert!(Integer::is_a(Value::from(14).any()));
-		assert!(Integer::is_a(Value::from(-1).any()));
-		assert!(Integer::is_a(Value::from(MIN).any()));
-		assert!(Integer::is_a(Value::from(MAX).any()));
+		assert!(Integer::is_a(Value::from(0).to_value()));
+		assert!(Integer::is_a(Value::from(1).to_value()));
+		assert!(Integer::is_a(Value::from(-123).to_value()));
+		assert!(Integer::is_a(Value::from(14).to_value()));
+		assert!(Integer::is_a(Value::from(-1).to_value()));
+		assert!(Integer::is_a(Value::from(MIN).to_value()));
+		assert!(Integer::is_a(Value::from(MAX).to_value()));
 
-		assert!(!Integer::is_a(Value::TRUE.any()));
-		assert!(!Integer::is_a(Value::FALSE.any()));
-		assert!(!Boolean::is_a(Value::NULL.any()));
-		assert!(!Integer::is_a(Value::from(1.0).any()));
-		assert!(!Integer::is_a(Value::from("hello").any()));
-		assert!(!Integer::is_a(Value::from(RustFn::NOOP).any()));
+		assert!(!Integer::is_a(Value::TRUE.to_value()));
+		assert!(!Integer::is_a(Value::FALSE.to_value()));
+		assert!(!Boolean::is_a(Value::NULL.to_value()));
+		assert!(!Integer::is_a(Value::from(1.0).to_value()));
+		assert!(!Integer::is_a(Value::from("hello").to_value()));
+		assert!(!Integer::is_a(Value::from(RustFn::NOOP).to_value()));
 	}
 
 	#[test]
@@ -293,34 +294,37 @@ mod tests {
 
 	#[test]
 	fn test_convert_to_text_bad_args_error() {
-		assert!(ConvertTo::<Gc<Text>>::convert(&0, Args::new(&[Value::TRUE.any()], &[])).is_err());
 		assert!(
-			ConvertTo::<Gc<Text>>::convert(&0, Args::new(&[], &[("A", Value::TRUE.any())])).is_err()
+			ConvertTo::<Gc<Text>>::convert(&0, Args::new(&[Value::TRUE.to_value()], &[])).is_err()
+		);
+		assert!(
+			ConvertTo::<Gc<Text>>::convert(&0, Args::new(&[], &[("A", Value::TRUE.to_value())]))
+				.is_err()
 		);
 		assert!(ConvertTo::<Gc<Text>>::convert(
 			&0,
-			Args::new(&[Value::TRUE.any()], &[("A", Value::TRUE.any())])
+			Args::new(&[Value::TRUE.to_value()], &[("A", Value::TRUE.to_value())])
 		)
 		.is_err());
 
 		assert!(ConvertTo::<Gc<Text>>::convert(
 			&0,
-			Args::new(&[Value::TRUE.any()], &[("base", Value::from(2).any())])
+			Args::new(&[Value::TRUE.to_value()], &[("base", Value::from(2).to_value())])
 		)
 		.is_err());
 
 		assert!(ConvertTo::<Gc<Text>>::convert(
 			&0,
 			Args::new(
-				&[Value::TRUE.any()],
-				&[("base", Value::from(2).any()), ("A", Value::TRUE.any())]
+				&[Value::TRUE.to_value()],
+				&[("base", Value::from(2).to_value()), ("A", Value::TRUE.to_value())]
 			)
 		)
 		.is_err());
 
 		assert!(ConvertTo::<Gc<Text>>::convert(
 			&0,
-			Args::new(&[], &[("base", Value::from(2).any()), ("A", Value::TRUE.any())])
+			Args::new(&[], &[("base", Value::from(2).to_value()), ("A", Value::TRUE.to_value())])
 		)
 		.is_err());
 	}
@@ -332,7 +336,7 @@ mod tests {
 			($num:expr, $radix:expr) => {
 				ConvertTo::<Gc<Text>>::convert(
 					&$num,
-					Args::new(&[], &[("base", Value::from($radix as Integer).any())]),
+					Args::new(&[], &[("base", Value::from($radix as Integer).to_value())]),
 				)
 				.unwrap()
 				.as_ref()

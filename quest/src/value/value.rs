@@ -47,7 +47,7 @@ impl<T> Clone for Value<T> {
 
 impl<T> ToValue for Value<T> {
 	fn to_value(self) -> Value {
-		unsafe { std::mem::transmute(self) }
+		self.to_value_const()
 	}
 }
 
@@ -58,35 +58,51 @@ impl<T> Value<T> {
 	///
 	/// # Examples
 	/// ```
-	/// # use quest::Value;
+	/// # use quest::ToValue;
+	/// let bits = 12.to_value().bits();
+	/// assert_eq!(bits, 12.to_value().bits());
+	/// ```
 	#[must_use]
 	pub const fn bits(self) -> u64 {
-		self.raw_bits().get()
+		self.0.get()
 	}
 
+	/// Creates a new [`Value`] from the underlying bits.
+	///
+	/// # Safety
+	/// Calling this function safely requires the following to hold:
+	/// - `bits` are a valid representation of a [`Value`].
+	/// - `bits` are nonzero (no valid [`Value`] representation is zero, anyways).
+	/// - If `bits` correspond to a [`Gc`]-allocated object, the object must not have been
+	///   garbage collected.
+	///
+	/// # Examples
+	/// ```
+	/// # use quest::{Value, ToValue};
+	/// let twelve = 12.to_value();
+	///
+	/// // SAFETY: we know that `bits` corresponds to a valid
+	/// // `Value`, as it came from one.
+	/// let twelve2 = unsafe { Value::<i64>::from_bits(twelve.bits()) };
+	///
+	/// assert!(twelve.is_identical(twelve2));
+	/// ```
 	#[must_use]
-	pub const fn raw_bits(self) -> NonZeroU64 {
-		self.0
+	pub const unsafe fn from_bits(bits: u64) -> Self {
+		debug_assert!(bits != 0); // `debug_assert_ne!(u64, u64)` isn't const-stable
+
+		Self(NonZeroU64::new_unchecked(bits), PhantomData)
 	}
 
+	/// This is identical to [`Value::to_value`], except it's const-usable.
 	#[must_use]
-	pub const unsafe fn from_bits_unchecked(bits: u64) -> Self {
-		Self::from_bits(NonZeroU64::new_unchecked(bits))
-	}
-
-	#[must_use]
-	pub const unsafe fn from_bits(bits: NonZeroU64) -> Self {
-		Self(bits, PhantomData)
-	}
-
-	#[must_use]
-	pub const fn any(self) -> Value {
+	pub const fn to_value_const(self) -> Value {
 		unsafe { std::mem::transmute(self) }
 	}
 
 	#[must_use]
 	pub const fn id(self) -> u64 {
-		self.0.get() // unique id for each object, technically lol
+		self.bits() // unique id for each object, technically lol
 	}
 
 	#[must_use]
@@ -114,7 +130,7 @@ pub struct Any {
 
 impl Default for Value {
 	fn default() -> Self {
-		Value::NULL.any()
+		Value::NULL.to_value()
 	}
 }
 
@@ -171,7 +187,7 @@ impl Value {
 		use crate::value::ty::*;
 
 		fn allocate_thing<T: 'static + HasDefaultParent>(thing: T) -> Value {
-			Value::from(Wrap::new(thing)).any()
+			Value::from(Wrap::new(thing)).to_value()
 		}
 
 		if let Some(i) = self.downcast::<Integer>() {

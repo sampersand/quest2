@@ -72,7 +72,7 @@ impl super::AttrConversionDefined for Gc<Text> {
 // 	($text:expr) => {
 // 		$crate::value::ty::Text($crate::value::base::Base {
 // 			header: $crate::value::base::Header {
-// 				typeid: ::std::any::TypeId::of::<$crate::value::ty::text::Inner>(),
+// 				typeid: ::std::to_value::TypeId::of::<$crate::value::ty::text::Inner>(),
 // 				parents: $crate::value::base::Parents::NONE,
 // 				attributes: $crate::value::base::Attributes::NONE,
 // 				flags: $crate::value::base::Flags::new(0),
@@ -961,7 +961,7 @@ impl From<&'static str> for Value<Gc<Text>> {
 
 impl ToValue for &'static str {
 	fn to_value(self) -> Value {
-		Value::from(self).any()
+		Value::from(self).to_value()
 	}
 }
 
@@ -1114,18 +1114,18 @@ mod tests {
 
 	#[test]
 	fn test_is_a() {
-		assert!(<Gc<Text>>::is_a(Value::from("").any()));
-		assert!(<Gc<Text>>::is_a(Value::from("x").any()));
-		assert!(<Gc<Text>>::is_a(Value::from("yesseriie").any()));
-		assert!(<Gc<Text>>::is_a(Value::from(JABBERWOCKY).any()));
+		assert!(<Gc<Text>>::is_a(Value::from("").to_value()));
+		assert!(<Gc<Text>>::is_a(Value::from("x").to_value()));
+		assert!(<Gc<Text>>::is_a(Value::from("yesseriie").to_value()));
+		assert!(<Gc<Text>>::is_a(Value::from(JABBERWOCKY).to_value()));
 
-		assert!(!<Gc<Text>>::is_a(Value::TRUE.any()));
-		assert!(!<Gc<Text>>::is_a(Value::FALSE.any()));
-		assert!(!<Gc<Text>>::is_a(Value::NULL.any()));
-		assert!(!<Gc<Text>>::is_a(Value::ONE.any()));
-		assert!(!<Gc<Text>>::is_a(Value::ZERO.any()));
-		assert!(!<Gc<Text>>::is_a(Value::from(1.0).any()));
-		assert!(!<Gc<Text>>::is_a(Value::from(RustFn::NOOP).any()));
+		assert!(!<Gc<Text>>::is_a(Value::TRUE.to_value()));
+		assert!(!<Gc<Text>>::is_a(Value::FALSE.to_value()));
+		assert!(!<Gc<Text>>::is_a(Value::NULL.to_value()));
+		assert!(!<Gc<Text>>::is_a(Value::ONE.to_value()));
+		assert!(!<Gc<Text>>::is_a(Value::ZERO.to_value()));
+		assert!(!<Gc<Text>>::is_a(Value::from(1.0).to_value()));
+		assert!(!<Gc<Text>>::is_a(Value::from(RustFn::NOOP).to_value()));
 	}
 
 	#[test]

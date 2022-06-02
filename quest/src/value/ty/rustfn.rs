@@ -102,7 +102,7 @@ impl From<RustFn> for Value<RustFn> {
 
 		debug_assert_eq!(ptr & 0b1111, 0);
 
-		unsafe { Self::from_bits_unchecked(ptr | 0b1000) }
+		unsafe { Self::from_bits(ptr | 0b1000) }
 	}
 }
 
@@ -163,18 +163,19 @@ impl InstanceOf for RustFn {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::ToValue;
 
 	#[test]
 	fn test_is_a() {
-		assert!(RustFn::is_a(Value::from(RustFn::NOOP).any()));
+		assert!(RustFn::is_a(Value::from(RustFn::NOOP).to_value()));
 
-		assert!(!RustFn::is_a(Value::TRUE.any()));
-		assert!(!RustFn::is_a(Value::FALSE.any()));
-		assert!(!RustFn::is_a(Value::NULL.any()));
-		assert!(!RustFn::is_a(Value::ONE.any()));
-		assert!(!RustFn::is_a(Value::ZERO.any()));
-		assert!(!RustFn::is_a(Value::from(1.0).any()));
-		assert!(!RustFn::is_a(Value::from("hello").any()));
+		assert!(!RustFn::is_a(Value::TRUE.to_value()));
+		assert!(!RustFn::is_a(Value::FALSE.to_value()));
+		assert!(!RustFn::is_a(Value::NULL.to_value()));
+		assert!(!RustFn::is_a(Value::ONE.to_value()));
+		assert!(!RustFn::is_a(Value::ZERO.to_value()));
+		assert!(!RustFn::is_a(Value::from(1.0).to_value()));
+		assert!(!RustFn::is_a(Value::from("hello").to_value()));
 	}
 
 	#[test]

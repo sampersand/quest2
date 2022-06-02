@@ -214,7 +214,7 @@ macro_rules! _handle_quest_type_attrs {
 		// 	.expect(concat!("error initializing ", stringify!($ty), " for attr: ", stringify!($name)));
 	};
 	($ty:ty, $builder:expr, $name:expr, func $func:expr) => {
-		$builder.set_attr($name, $crate::Value::from(RustFn_new!($name, justargs $func)).any())
+		$builder.set_attr($name, RustFn_new!($name, justargs $func).to_value())
 			.expect(concat!("error initializing ", stringify!($ty), " for attr: ", stringify!($name)));
 	};
 }
@@ -286,7 +286,7 @@ macro_rules! quest_type_attrs {
 					)?
 				}
 
-				crate::Value::from(parent).any()
+				crate::Value::from(parent).to_value()
 			}
 		}
 	};

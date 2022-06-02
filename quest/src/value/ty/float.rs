@@ -12,7 +12,7 @@ impl From<Float> for Value<Float> {
 	fn from(float: Float) -> Self {
 		let bits = (float.to_bits() & !3) | 2;
 
-		unsafe { Self::from_bits_unchecked(bits) }
+		unsafe { Self::from_bits(bits) }
 	}
 }
 
@@ -86,24 +86,25 @@ pub mod funcs {
 mod tests {
 	use super::*;
 	use crate::value::ty::*;
+	use crate::ToValue;
 
 	#[test]
 	fn test_is_a() {
-		assert!(Float::is_a(Value::from(0.0).any()));
-		assert!(Float::is_a(Value::from(1.0).any()));
-		assert!(Float::is_a(Value::from(-123.456).any()));
-		assert!(Float::is_a(Value::from(14.0).any()));
-		assert!(Float::is_a(Value::from(f64::NAN).any()));
-		assert!(Float::is_a(Value::from(f64::INFINITY).any()));
-		assert!(Float::is_a(Value::from(f64::NEG_INFINITY).any()));
+		assert!(Float::is_a(Value::from(0.0).to_value()));
+		assert!(Float::is_a(Value::from(1.0).to_value()));
+		assert!(Float::is_a(Value::from(-123.456).to_value()));
+		assert!(Float::is_a(Value::from(14.0).to_value()));
+		assert!(Float::is_a(Value::from(f64::NAN).to_value()));
+		assert!(Float::is_a(Value::from(f64::INFINITY).to_value()));
+		assert!(Float::is_a(Value::from(f64::NEG_INFINITY).to_value()));
 
-		assert!(!Float::is_a(Value::TRUE.any()));
-		assert!(!Float::is_a(Value::FALSE.any()));
-		assert!(!Boolean::is_a(Value::NULL.any()));
-		assert!(!Float::is_a(Value::ZERO.any()));
-		assert!(!Float::is_a(Value::ONE.any()));
-		assert!(!Float::is_a(Value::from("hello").any()));
-		assert!(!Float::is_a(Value::from(RustFn::NOOP).any()));
+		assert!(!Float::is_a(Value::TRUE.to_value()));
+		assert!(!Float::is_a(Value::FALSE.to_value()));
+		assert!(!Boolean::is_a(Value::NULL.to_value()));
+		assert!(!Float::is_a(Value::ZERO.to_value()));
+		assert!(!Float::is_a(Value::ONE.to_value()));
+		assert!(!Float::is_a(Value::from("hello").to_value()));
+		assert!(!Float::is_a(Value::from(RustFn::NOOP).to_value()));
 	}
 
 	#[test]

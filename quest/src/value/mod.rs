@@ -40,6 +40,6 @@ pub trait ToValue {
 
 impl<T: Convertible> ToValue for T {
 	fn to_value(self) -> Value {
-		self.into().any()
+		self.into().to_value()
 	}
 }
