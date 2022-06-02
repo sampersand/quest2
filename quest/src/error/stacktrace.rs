@@ -35,7 +35,7 @@ impl Stacktrace {
 		})
 	}
 
-	/// Gets the list of [`Stackframe`s].
+	/// Gets the list of [`Gc<Block>`]s.
 	pub fn blocks(&self) -> &[Gc<Block>] {
 		// todo: get this in const context?
 		&*self.0

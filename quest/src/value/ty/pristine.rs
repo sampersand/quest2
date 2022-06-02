@@ -112,6 +112,6 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok(obj.del_attr(args[0])?.unwrap_or(Value::default()))
+		Ok(obj.del_attr(args[0])?.unwrap_or_default())
 	}
 }

@@ -53,6 +53,10 @@ const fn mask_len(len: usize) -> u32 {
 	(len as u32) << 3
 }
 
+impl super::AttrConversionDefined for Gc<List> {
+	const ATTR_NAME: crate::value::Intern = crate::value::Intern::at_list;
+}
+
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
 	alloc::Layout::array::<Value>(cap).unwrap()
 }
@@ -450,7 +454,7 @@ pub mod funcs {
 		args.assert_positional_len(1)?; // todo: more positional args for slicing
 
 		let listref = list.as_ref()?;
-		let mut index = args[0].convert::<Integer>()?;
+		let mut index = args[0].to_integer()?;
 
 		if index < 0 {
 			index += listref.len() as Integer;
@@ -468,7 +472,7 @@ pub mod funcs {
 		args.assert_positional_len(2)?; // todo: more positional args for slicing
 
 		let mut listmut = list.as_mut()?;
-		let mut index = args[0].convert::<Integer>()?;
+		let mut index = args[0].to_integer()?;
 		let value = args[1];
 
 		if index < 0 {

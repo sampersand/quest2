@@ -1,4 +1,4 @@
-use crate::value::ty::{self, Integer, Singleton, Text};
+use crate::value::ty::{self, Singleton};
 use crate::value::{Gc, HasDefaultParent};
 use crate::vm::Args;
 use crate::{Result, Value};
@@ -15,7 +15,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 
 		for arg in args.positional() {
-			print!("{}", *arg.convert::<Gc<Text>>()?.as_ref()?);
+			print!("{}", *arg.to_text()?.as_ref()?);
 		}
 
 		println!();
@@ -36,14 +36,14 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		std::process::exit(args[0].convert::<Integer>()? as i32);
+		std::process::exit(args[0].to_integer()? as i32);
 	}
 
 	pub fn abort(args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		eprintln!("{}", args[0].convert::<Gc<Text>>()?.as_ref()?.as_str());
+		eprintln!("{}", *args[0].to_text()?.as_ref()?);
 		std::process::exit(1);
 	}
 
@@ -51,7 +51,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() == 2 || a.positional().len() == 3)?;
 
-		if args[0].is_truthy()? {
+		if args[0].is_truthy() {
 			args[1].call(Args::default())
 		} else if let Some(if_false) = args.get(2) {
 			if_false.call(Args::default())
@@ -64,7 +64,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() == 2 || a.positional().len() == 3)?;
 
-		if args[0].is_truthy()? {
+		if args[0].is_truthy() {
 			Ok(args[1])
 		} else {
 			Ok(args.get(2).unwrap_or_default())
@@ -80,7 +80,7 @@ pub mod funcs {
 				return args[i].call(Args::default());
 			}
 
-			if if i == 0 { args[i] } else { args[i].call(Args::default())? }.is_truthy()? {
+			if if i == 0 { args[i] } else { args[i].call(Args::default())? }.is_truthy() {
 				return args[i + 1].call(Args::default());
 			}
 		}
@@ -94,7 +94,7 @@ pub mod funcs {
 
 		let mut last = Value::default();
 
-		while args[0].call(Args::default())?.is_truthy()? {
+		while args[0].call(Args::default())?.is_truthy() {
 			last = args[1].call(Args::default())?;
 		}
 

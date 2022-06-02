@@ -1,5 +1,6 @@
 //! Types related to allocated Quest types.
 
+use crate::error::ErrorKind;
 use crate::value::base::{
 	Attribute, AttributesMut, AttributesRef, Base, Flags, Header, IntoParent, ParentsMut, ParentsRef,
 };
@@ -206,7 +207,7 @@ impl<T: Allocated> Gc<T> {
 	pub fn as_ref(self) -> Result<Ref<T>> {
 		self
 			.as_ref_option()
-			.ok_or_else(|| crate::error::ErrorKind::AlreadyLocked(Value::from(self).to_value()).into())
+			.ok_or_else(|| ErrorKind::AlreadyLocked(Value::from(self).to_value()).into())
 	}
 
 	pub fn as_ref_option(self) -> Option<Ref<T>> {
@@ -236,7 +237,7 @@ impl<T: Allocated> Gc<T> {
 	///
 	/// # Errors
 	/// If the contents are already immutably borrowed (via [`Gc::as_ref`]), this will
-	/// return an [`Error::AlreadyLocked`].
+	/// return an [`ErrorKind::AlreadyLocked`].
 	///
 	/// If the data has been [frozen](Ref::freeze), this will return a [`ErrorKind::ValueFrozen`].
 	///
@@ -270,7 +271,7 @@ impl<T: Allocated> Gc<T> {
 	/// ```
 	pub fn as_mut(self) -> Result<Mut<T>> {
 		if self.is_frozen() {
-			return Err(crate::error::ErrorKind::ValueFrozen(self.to_value()).into());
+			return Err(ErrorKind::ValueFrozen(self.to_value()).into());
 		}
 
 		if cfg!(feature = "unsafe-no-locking") {
@@ -282,7 +283,7 @@ impl<T: Allocated> Gc<T> {
 			.compare_exchange(0, MUT_BORROW, Ordering::Acquire, Ordering::Relaxed)
 			.is_err()
 		{
-			return Err(crate::error::ErrorKind::AlreadyLocked(self.to_value()).into());
+			return Err(ErrorKind::AlreadyLocked(self.to_value()).into());
 		}
 
 		let mutref = Mut(self);
@@ -290,7 +291,7 @@ impl<T: Allocated> Gc<T> {
 		// We have to check again to see if it's frozen just in case.
 		if self.is_frozen() {
 			// this will drop `mutref` and thus release the mutable ownership.
-			Err(crate::error::ErrorKind::ValueFrozen(self.to_value()).into())
+			Err(ErrorKind::ValueFrozen(self.to_value()).into())
 		} else {
 			Ok(mutref)
 		}
@@ -369,10 +370,10 @@ impl<T: Allocated> Gc<T> {
 			return func.call(args.with_this(obj));
 		}
 
-		let attr =
-			asref.parents().get_unbound_attr_checked(attr, &mut Vec::new())?.ok_or_else(|| {
-				crate::error::ErrorKind::UnknownAttribute { object: obj, attribute: attr.to_value() }
-			})?;
+		let attr = asref
+			.parents()
+			.get_unbound_attr_checked(attr, &mut Vec::new())?
+			.ok_or_else(|| ErrorKind::UnknownAttribute { object: obj, attribute: attr.to_value() })?;
 
 		drop(asref);
 		attr.call(args.with_this(obj))
@@ -630,17 +631,17 @@ mod tests {
 		let text = Text::from_static_str("g'day mate");
 
 		let mut1 = text.as_mut().unwrap();
-		assert_matches!(text.as_ref().unwrap_err().kind(), crate::error::ErrorKind::AlreadyLocked(_));
+		assert_matches!(text.as_ref().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
 		drop(mut1);
 
 		let ref1 = text.as_ref().unwrap();
-		assert_matches!(text.as_mut().unwrap_err().kind(), crate::error::ErrorKind::AlreadyLocked(_));
+		assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
 
 		let ref2 = text.as_ref().unwrap();
-		assert_matches!(text.as_mut().unwrap_err().kind(), crate::error::ErrorKind::AlreadyLocked(_));
+		assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
 
 		drop(ref1);
-		assert_matches!(text.as_mut().unwrap_err().kind(), crate::error::ErrorKind::AlreadyLocked(_));
+		assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
 
 		drop(ref2);
 		assert_matches!(text.as_mut(), Ok(_));
@@ -655,7 +656,7 @@ mod tests {
 		assert!(!text.is_frozen());
 
 		text.as_ref().unwrap().freeze();
-		assert_matches!(text.as_mut().unwrap_err().kind(), crate::error::ErrorKind::ValueFrozen(_));
+		assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::ValueFrozen(_));
 		assert!(text.is_frozen());
 	}
 }

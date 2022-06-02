@@ -7,7 +7,7 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 /// The builder used for fine-grained control over making [`Base`]s.
 ///
 /// If you don't need such precise control over [`Base`] creation, consider using [`Base::new`] or
-/// [`Base::with_capacity`] instead.
+/// [`Base::new_with_capacity`] instead.
 ///
 /// # Example
 /// ```
@@ -67,19 +67,21 @@ impl<T> Builder<T> {
 
 	/// Creates a new [`Builder`] from a pointer to a zero-initialized [`Base<T>`].
 	///
-	/// Note that [`allocate`] is preferred if you don't already have an allocated pointer, as it
-	/// will zero allocate for you.
+	/// Note that [`Self::new_zeroed`] is preferred if you don't already have an allocated pointer,
+	/// as it will zero allocate for you.
 	///
 	/// # Safety
 	/// For this function to be safe to use, you must ensure the following invariants hold:
-	/// - `ptr` was allocated via [`quest::alloc_zeroed`].
+	/// - `ptr` was allocated via [`quest::alloc_zeroed`](crate::alloc_zeroed).
 	/// - `ptr` is a properly aligned for `Base<T>`.
 	/// - `ptr` can be written to.
 	///
-	/// *Technically*, `ptr` can be allocated via [`quest::alloc`]/[`quest::realloc`], however
-	/// you would need to zero out the contents first. (At which point, just use
-	/// [`quest::alloc_zeroed`].)
+	/// *Technically*, `ptr` can be allocated via [`quest::alloc`]/[`quest::realloc`], however you
+	/// would need to zero out the contents first. (At which point, just [`quest::alloc_zeroed`].)
 	///
+	/// [`quest::alloc`]: crate::alloc
+	/// [`quest::realloc`]: crate::realloc
+	/// [`quest::alloc_zeroed`]: crate::alloc_zeroed
 	/// # Example
 	/// ```
 	/// # use quest::value::base::{Builder, Base};
@@ -108,8 +110,8 @@ impl<T> Builder<T> {
 
 	/// Creates a new [`Builder`] from a pointer to an uninitialized [`Base<T>`].
 	///
-	/// Note that if `ptr` was allocated via [`quest::alloc_zeroed`], you should use [`new_zeroed`]
-	/// instead, as it won't do unnecessary writes.
+	/// Note that if `ptr` was allocated via [`quest::alloc_zeroed`](crate::alloc_zeroed), you should
+	/// use [`new_zeroed`](Self::new_zeroed) instead, as it won't do unnecessary writes.
 	///
 	/// # Safety
 	/// For this function to be safe to use, you must ensure the following invariants hold:
@@ -117,6 +119,9 @@ impl<T> Builder<T> {
 	/// - `ptr` is a properly aligned for `Base<T>`.
 	/// - `ptr` can be written to.
 	///
+	/// [`quest::alloc`]: crate::alloc
+	/// [`quest::realloc`]: crate::realloc
+	/// [`quest::alloc_zeroed`]: crate::alloc_zeroed
 	/// # Example
 	/// ```
 	/// # use quest::value::base::{Builder, Base};
@@ -272,8 +277,9 @@ impl<T> Builder<T> {
 
 	/// Access the flags in the header.
 	///
-	/// If you simply want to set flags, you can use the [`insert_user_flags`] shorthand. See [`Flags`]
-	/// for more details on custom flags in general.
+	/// If you simply want to set flags, you can use the [`insert_user_flags`](
+	/// Self::insert_user_flags) shorthand. See [`Flags`] for more details on custom flags in
+	/// general.
 	///
 	/// # Examples
 	/// ```
@@ -303,8 +309,8 @@ impl<T> Builder<T> {
 
 	/// Sets flags in the header's [`Flags`].
 	///
-	/// If you want to _access_ the flags, i.e. don't want to set them, then use [`flags`]. See
-	/// [`Flags`] for more details on custom flags in general.
+	/// If you want to _access_ the flags, i.e. don't want to set them, then use [`flags`](
+	/// Self::flags). See [`Flags`] for more details on custom flags in general.
 	///
 	/// # Examples
 	/// ```
@@ -330,7 +336,7 @@ impl<T> Builder<T> {
 	/// Assigns the data for the underlying `Base<T>`.
 	///
 	/// Unless `T` is a ZST (eg `()`), or `self` was zero-allocated and `T` has zero as a valid
-	/// value, this function must be called before [`finish`] is called.
+	/// value, this function must be called before [`finish`](Self::finish) is called.
 	///
 	/// Note that calling this function multiple times in a row will simply overwrite the previous
 	/// value, without running `T`'s destructor.
@@ -377,6 +383,11 @@ impl<T> Builder<T> {
 	///
 	/// # Example
 	/// See [`allocate_attributes`] for examples.
+	///
+	/// [`allocate_attributes`]: Self::allocate_attributes
+	/// [`allocate`]: Self::allocate
+	/// [`new_zeroed`]: Self::new_zeroed
+	/// [`new_uninit`]: Self::new_uninit
 	pub unsafe fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> crate::Result<()> {
 		// SAFETY:
 		// - `flags` is initialized in the constructors (`new_uninit` initializes to zero, and
@@ -510,6 +521,13 @@ impl<T> Builder<T> {
 	///
 	/// # Examples
 	/// See [`new_zeroed`] and [`new_uninit`] for examples.
+	///
+	/// [`new_uninit`]: Self::new_uninit
+	/// [`set_parents`]: Self::set_parents
+	/// [`allocate_attributes`]: Self::allocate_attributes
+	/// [`set_data`]: Self::set_data
+	/// [`new_zeroed`]: Self::new_zeroed
+	/// [`allocate`]: Self::allocate
 	#[must_use]
 	pub unsafe fn finish(self) -> Gc<Base<T>> {
 		// SAFETY: The requirement for `new` was that the pointer was allocated via `crate::alloc` or

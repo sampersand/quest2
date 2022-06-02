@@ -95,7 +95,7 @@ enum ParentsKind {
 	List(Gc<List>),
 }
 
-impl<'a> ParentsRef<'a> {
+impl ParentsRef<'_> {
 	#[cfg(debug_assertions)]
 	pub(crate) fn _is_just_single_and_identical(&self, what: Value) -> bool {
 		if let ParentsKind::Single(single) = self.classify() {

@@ -111,8 +111,8 @@ impl Builder {
 		}
 	}
 
-	/// Equivalent to [`constant`], except there's no need to allocate a [`Gc<Text>`](
-	/// crate::value::ty::Text) if the string already exists.
+	/// Equivalent to [`constant`](Self::constant), except there's no need to allocate a
+	/// [`Gc<Text>`](crate::value::ty::Text) if the string already exists.
 	pub fn str_constant(&mut self, string: &str, dst: Local) {
 		let mut index = None;
 

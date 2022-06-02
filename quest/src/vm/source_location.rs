@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 /// Represents a location in quest source code.
 ///
-/// This is distinct from [`parse::SourceLocation`](crate:parse::SourceLocation) in that the `parse`
+/// This is distinct from [`parse::SourceLocation`](crate::parse::SourceLocation) in that the `parse`
 /// one doesn't own its `file`, whereas this one does. This is because the `parse` one simply uses
 /// a reference, where this one is expected to last (potentially) forever.
 #[derive(Default, Clone, PartialEq, Eq)]
@@ -36,10 +36,6 @@ impl Display for SourceLocation {
 
 impl From<crate::parse::SourceLocation<'_>> for SourceLocation {
 	fn from(inp: crate::parse::SourceLocation<'_>) -> Self {
-		Self {
-			file: inp.filename.map(PathBuf::from),
-			line: inp.line,
-			column: inp.column,
-		}
+		Self { file: inp.filename.map(PathBuf::from), line: inp.line, column: inp.column }
 	}
 }

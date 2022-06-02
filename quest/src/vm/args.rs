@@ -19,7 +19,7 @@ impl<'a> Args<'a> {
 	/// Creates a new [`Args`] with the same positional and keyword arguments as `self`, except with
 	/// the `this` field set to `this`.
 	///
-	/// While it's not invalid to call `with_this` when [`self`] already has a `this`, it is
+	/// While it's not invalid to call `with_this` when `self` already has a `this`, it is
 	/// indicative of a logic bug, and will panic on debug builds.
 	#[must_use]
 	pub const fn with_this(self, this: Value) -> Self {

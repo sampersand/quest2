@@ -1,5 +1,8 @@
+use crate::error::ErrorKind;
 use crate::value::base::{Attribute, HasDefaultParent};
-use crate::value::ty::{AttrConversionDefined, BoundFn, Float, Integer, List, RustFn, Text, Wrap};
+use crate::value::ty::{
+	AttrConversionDefined, Boolean, BoundFn, Float, Integer, List, RustFn, Text, Wrap,
+};
 use crate::value::{Convertible, Gc, Intern, NamedType, ToValue};
 use crate::vm::{Args, Block};
 use crate::Result;
@@ -42,6 +45,12 @@ impl<T> Copy for Value<T> {}
 impl<T> Clone for Value<T> {
 	fn clone(&self) -> Self {
 		*self
+	}
+}
+
+impl Default for Value {
+	fn default() -> Self {
+		Value::NULL.to_value()
 	}
 }
 
@@ -100,59 +109,79 @@ impl<T> Value<T> {
 		unsafe { std::mem::transmute(self) }
 	}
 
+	/// Gets a unique id for this value.
+	///
+	/// Currently, this is identical to [`Value::bits`], but that isn't guaranteed.
+	///
+	/// # Examples
+	/// ```
+	/// # use quest::ToValue;
+	/// let hello = "hello".to_value();
+	/// let hello2 = String::from("hello").to_value();
+	///
+	/// assert_ne!(hello.id(), hello2.id());
+	/// ```
 	#[must_use]
 	pub const fn id(self) -> u64 {
 		self.bits() // unique id for each object, technically lol
 	}
 
+	/// Checks to see whether `self` corresponds to an allocated object.
+	///
+	/// # Examples
+	/// ```
+	/// # use quest::ToValue;
+	/// assert!(!12.to_value().is_allocated());
+	/// assert!(!true.to_value().is_allocated());
+	/// assert!("hello".to_value().is_allocated());
+	/// ```
 	#[must_use]
 	#[allow(clippy::verbose_bit_mask)] // makes more sense this way...
 	pub const fn is_allocated(self) -> bool {
 		self.bits() & 0b1111 == 0
 	}
 
+	/// Checks to see whether `self` is identical to `rhs`, i.e. they are the same object.
+	///
+	/// # Examples
+	/// ```
+	/// # use quest::ToValue;
+	/// let hello = "hello".to_value();
+	/// let hello2 = String::from("hello").to_value();
+	///
+	/// assert!(hello.is_identical(hello));
+	/// assert!(!hello.is_identical(hello2));
+	/// ```
 	#[must_use]
 	pub const fn is_identical<U>(self, rhs: Value<U>) -> bool {
-		self.bits() == rhs.bits()
+		self.id() == rhs.id()
 	}
 }
 
-impl<T: Convertible> Value<T> {
-	#[must_use]
-	pub fn get(self) -> T {
-		T::get(self)
-	}
-}
-
+/// A struct that represents a [`Value`] of any type.
+///
+/// It will never be constructed directly, instead you must try to [`Value::downcast`]/
+/// [`Value::try_downcast`] out of it.
+///
+/// This is created via [`ToValue::to_value`].
 pub struct Any {
 	_priv: (),
 }
 
-impl Default for Value {
-	fn default() -> Self {
-		Value::NULL.to_value()
-	}
-}
-
 impl Value {
-	fn parents_for(self) -> Self {
-		use crate::value::ty::*;
-
-		if self.is_a::<Integer>() {
-			Integer::parent()
-		} else if self.is_a::<Float>() {
-			Float::parent()
-		} else if self.is_a::<Boolean>() {
-			Boolean::parent()
-		} else if self.is_a::<Null>() {
-			Null::parent()
-		} else if self.is_a::<RustFn>() {
-			RustFn::parent()
-		} else {
-			unreachable!("called `parents_for` for an invalid type: {:064b}", self.bits())
-		}
+	/// Gets a debug representation of `self`.
+	pub fn dbg_text(self) -> Result<Gc<Text>> {
+		self.call_attr(Intern::dbg, Args::default())?.try_downcast::<Gc<Text>>()
 	}
 
+	/// Checks to see if `self` is truthy.
+	///
+	/// In Quest, only false and null are falsey.
+	pub fn is_truthy(self) -> bool {
+		self.bits() != Value::NULL.bits() && self.bits() != Value::FALSE.bits()
+	}
+
+	/// Gets the name of this type.
 	#[must_use]
 	pub fn typename(self) -> crate::value::Typename {
 		use crate::value::ty::*;
@@ -175,33 +204,45 @@ impl Value {
 		}
 	}
 
-	pub fn dbg_text(self) -> Result<Gc<Text>> {
-		self.call_attr(Intern::dbg, Args::default())?.try_downcast::<Gc<Text>>()
-	}
-
-	pub fn is_truthy(self) -> Result<bool> {
-		self.to_boolean()
-	}
-
-	fn allocate_self_and_copy_data_over(self) -> Self {
+	// SAFETY: must be called with an unallocated type.
+	unsafe fn parents_for_unallocated(self) -> Self {
 		use crate::value::ty::*;
 
-		fn allocate_thing<T: 'static + HasDefaultParent>(thing: T) -> Value {
-			Value::from(Wrap::new(thing)).to_value()
+		debug_assert!(!self.is_allocated());
+		match () {
+			_ if self.is_a::<Integer>() => Integer::parent(),
+			_ if self.is_a::<Boolean>() => Boolean::parent(),
+			_ if self.is_a::<Float>() => Float::parent(),
+			_ if self.is_a::<Null>() => Null::parent(),
+			_ if self.is_a::<RustFn>() => RustFn::parent(),
+			_ if cfg!(debug_assertions) => unreachable!(
+				"called `parents_for_unallocated` for an invalid type: {:064b}",
+				self.bits()
+			),
+			_ => std::hint::unreachable_unchecked(),
 		}
+	}
+
+	// SAFETY: must be called with an unallocated type.
+	unsafe fn allocate_self_and_copy_data_over(self) -> Self {
+		use crate::value::ty::*;
+
+		debug_assert!(!self.is_allocated());
 
 		if let Some(i) = self.downcast::<Integer>() {
-			allocate_thing(i)
+			Wrap::new(i).to_value()
 		} else if let Some(f) = self.downcast::<Float>() {
-			allocate_thing(f)
+			Wrap::new(f).to_value()
 		} else if let Some(b) = self.downcast::<Boolean>() {
-			allocate_thing(b)
+			Wrap::new(b).to_value()
 		} else if let Some(n) = self.downcast::<Null>() {
-			allocate_thing(n)
+			Wrap::new(n).to_value()
 		} else if let Some(f) = self.downcast::<RustFn>() {
-			allocate_thing(f)
-		} else {
+			Wrap::new(f).to_value()
+		} else if cfg!(debug_assertions) {
 			unreachable!("unrecognized copy type: {:064b}", self.bits())
+		} else {
+			std::hint::unreachable_unchecked()
 		}
 	}
 
@@ -211,6 +252,10 @@ impl Value {
 		Gc::new_unchecked(self.bits() as usize as *mut _)
 	}
 
+	/// Freezes `self`, disallowing further mutable access.
+	///
+	/// # Errors
+	/// Will return an error if `self` is currently mutably borrowed.
 	pub fn freeze(self) -> Result<()> {
 		if self.is_allocated() {
 			unsafe { self.get_gc_any_unchecked() }.as_ref()?.freeze();
@@ -219,17 +264,36 @@ impl Value {
 		Ok(())
 	}
 
+	/// Gets the list of parents associated with `self`
+	///
+	/// This takes a mutable reference in case `self` is not allocated
+	pub fn parents(&mut self) -> Result<Gc<List>> {
+		if !self.is_allocated() {
+			// SAFETY: `self` is unallocated, as we just verified
+			unsafe {
+				*self = self.allocate_self_and_copy_data_over();
+			}
+		}
+
+		Ok(unsafe { self.get_gc_any_unchecked() }.as_mut()?.parents_list())
+	}
+
+	/// Checks to see if `self` has the attribute `attr`.
 	pub fn has_attr<A: Attribute>(self, attr: A) -> Result<bool> {
 		self.get_unbound_attr(attr).map(|opt| opt.is_some())
 	}
 
+	/// Attempts to get the attribute `attr`, returning `Err` if it doesn't exist.
 	pub fn try_get_attr<A: Attribute>(self, attr: A) -> Result<Self> {
 		self.get_attr(attr)?.ok_or_else(|| {
-			crate::error::ErrorKind::UnknownAttribute { object: self, attribute: attr.to_value() }
-				.into()
+			ErrorKind::UnknownAttribute { object: self, attribute: attr.to_value() }.into()
 		})
 	}
 
+	/// Get the attribute `attr`, returning `None` if it doesnt exist.
+	///
+	/// For attributes which have [`Intern::op_call`] defined on them, this will create a new
+	/// [`BoundFn`]. For all other types, it just returns the attribute itself.
 	pub fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
 		let value = if let Some(value) = self.get_unbound_attr(attr)? {
 			value
@@ -237,38 +301,55 @@ impl Value {
 			return Ok(None);
 		};
 
-		// If the value is callable, wrap it in a bound fn.
-		if value.is_a::<RustFn>() || value.has_attr(Intern::op_call)? {
-			Ok(Some(BoundFn::new(self, value).to_value()))
-		} else {
-			Ok(Some(value))
+		let is_callable = value.is_a::<RustFn>()
+			|| value.is_a::<Gc<Block>>()
+			|| value.is_a::<Gc<BoundFn>>()
+			|| value.has_attr(Intern::op_call)?;
+
+		// If the value is callable, wrap it in a bound fn. Short circuit for common ones.
+		if is_callable {
+			return Ok(Some(BoundFn::new(self, value).to_value()));
 		}
+
+		Ok(Some(value))
 	}
 
+	/// Attempts to get the unbound attribute `attr`, returning `Err` if it doesn't exist.
 	pub fn try_get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Self> {
 		self.get_unbound_attr(attr)?.ok_or_else(|| {
-			crate::error::ErrorKind::UnknownAttribute { object: self, attribute: attr.to_value() }
-				.into()
+			ErrorKind::UnknownAttribute { object: self, attribute: attr.to_value() }.into()
 		})
 	}
 
+	/// Get the unbound attribute `attr`, returning `None` if it doesnt exist.
 	pub fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
 		self.get_unbound_attr_checked(attr, &mut Vec::new())
 	}
 
+	/// Get the unbound attribute `attr`, with a list of checked parents, `None` if it doesnt exist.
+	///
+	/// The `checked` parameter allows us to keep track of which parents have already been checked,
+	/// so as to prevent checking the same parents more than once.
 	pub fn get_unbound_attr_checked<A: Attribute>(
 		self,
 		attr: A,
 		checked: &mut Vec<Self>,
 	) -> Result<Option<Self>> {
 		if !self.is_allocated() {
-			return if attr.is_parents() {
+			let parents = unsafe { self.parents_for_unallocated() };
+
+			// 99% of the time it's not special.
+			if !attr.is_special() {
+				return parents.get_unbound_attr_checked(attr, checked);
+			}
+
+			if attr.is_parents() {
 				// TODO: if this is modified, it wont reflect on the integer.
 				// so make `get_unbound_attr` require a reference?
-				Ok(Some(List::from_slice(&[self.parents_for()]).to_value()))
+				return Ok(Some(List::from_slice(&[parents]).to_value()));
 			} else {
-				self.parents_for().get_unbound_attr_checked(attr, checked)
-			};
+				unreachable!("unknown special attribute: {attr:?}");
+			}
 		}
 
 		let gc = unsafe { self.get_gc_any_unchecked() };
@@ -281,13 +362,21 @@ impl Value {
 		if attr.is_parents() {
 			Ok(Some(gc.as_mut()?.parents_list().to_value()))
 		} else {
-			unreachable!("unknown special attribute");
+			unreachable!("unknown special attribute: {attr:?}");
 		}
 	}
 
+	/// Sets the attribute `attr` on `self` to `value`.
+	///
+	/// Note that this takes a mutable reference to `self` in case `self` is not an allocated type:
+	/// If it isn't, `self` will be replaced with an allocated version, with the attribute set on
+	/// that type.
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Self) -> Result<()> {
 		if !self.is_allocated() {
-			*self = self.allocate_self_and_copy_data_over();
+			// SAFETY: `self` is unallocated, as we just verified
+			unsafe {
+				*self = self.allocate_self_and_copy_data_over();
+			}
 		}
 
 		let gc = unsafe { self.get_gc_any_unchecked() };
@@ -303,16 +392,17 @@ impl Value {
 
 				Ok(())
 			} else {
-				Err(
-					crate::error::ErrorKind::Message("can only set __parents__ to a List".to_string())
-						.into(),
-				)
+				Err("can only set __parents__ to a List".to_string().into())
 			}
 		} else {
-			unreachable!("unknown special attribute");
+			unreachable!("unknown special attribute {attr:?}");
 		}
 	}
 
+	/// Deletes the attribute `attr` from `self`, returning whatever was there before.
+	///
+	/// Note that unallocated types don't actually have attributes defined on them, so they always
+	/// will return `Ok(None)`
 	pub fn del_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
 		if self.is_allocated() {
 			unsafe { self.get_gc_any_unchecked() }.as_mut()?.del_attr(attr)
@@ -321,26 +411,26 @@ impl Value {
 		}
 	}
 
-	pub fn parents(&mut self) -> Result<Gc<List>> {
-		if !self.is_allocated() {
-			*self = self.allocate_self_and_copy_data_over();
-		}
-
-		Ok(unsafe { self.get_gc_any_unchecked() }.as_mut()?.parents_list())
-	}
-
+	/// Calls the attribute `attr` on `self` with the given arguments. If the attr doesnt exist,
+	/// it raises an error
 	pub fn call_attr<A: Attribute>(self, attr: A, args: Args<'_>) -> Result<Self> {
 		if self.is_allocated() {
 			return unsafe { self.get_gc_any_unchecked() }.call_attr(attr, args);
 		}
 
-		// OPTIMIZE ME: This is circumventing potential optimizations from `parents_for`?
-		self.parents_for().try_get_unbound_attr(attr)?.call(args.with_this(self))
+		// OPTIMIZE ME: This is circumventing potential optimizations from `parents_for_unallocated`?
+		unsafe { self.parents_for_unallocated() }
+			.try_get_unbound_attr(attr)?
+			.call(args.with_this(self))
 	}
 
-	// there's a potential logic flaw here, as this may actually pass `self`
-	// when calling `Intern::op_call`. todo, check that out.
+	/// Calls `self` with the given `args`.
+	///
+	/// Equivalent to `self.call_attr(Intern::op_call, args)`, except with optimizations for common
+	/// types.
 	pub fn call(self, args: Args<'_>) -> Result<Self> {
+		// there's a potential logic flaw here, as this may actually pass `self`
+		// when calling `Intern::op_call`. todo, check that out.
 		if let Some(rustfn) = self.downcast::<RustFn>() {
 			return rustfn.call(args);
 		}
@@ -356,10 +446,12 @@ impl Value {
 		self.call_attr(Intern::op_call, args)
 	}
 
-	pub fn to_boolean(self) -> Result<bool> {
+	/// Converts `self` to a [`Boolean`], but with optimizations for builtin types.
+	pub fn to_boolean(self) -> Result<Boolean> {
 		Ok(self.bits() != Value::NULL.bits() && self.bits() != Value::FALSE.bits())
 	}
 
+	/// Converts `self` to an [`Integer`], but with some optimizations for builtin types.
 	pub fn to_integer(self) -> Result<Integer> {
 		let bits = self.bits();
 
@@ -378,62 +470,81 @@ impl Value {
 			Ok(1)
 		} else {
 			debug_assert!(self.is_a::<RustFn>());
-			Err(
-				crate::error::ErrorKind::ConversionFailed { object: self, into: Integer::TYPENAME }
-					.into(),
-			)
+			Err(ErrorKind::ConversionFailed { object: self, into: Integer::TYPENAME }.into())
 		}
 	}
 
-	// deprecated
+	/// Converts `self` to a [`Text`], but with some optimizations for builtin types.
 	pub fn to_text(self) -> Result<Gc<Text>> {
+		// TODO: optimize
 		self.convert::<Gc<Text>>()
 	}
 
+	/// Converts `self` to a [`List`], but with some optimizations for builtin types.
+	pub fn to_list(self) -> Result<Gc<List>> {
+		// TODO: optimize
+		self.convert::<Gc<List>>()
+	}
+
+	/// Converts `self` to a given type with the conversion defined.
+	///
+	/// Note that if you're converting to an [`Integer`], [`Text`], [`Boolean`], or [`List`],
+	/// the [`to_integer`], [`to_text`], [`to_boolean`], and [`to_list`] methods do additional logic
+	/// for known types.
+	///
+	/// [`to_integer`]: Self::to_integer
+	/// [`to_text`]: Self::to_text
+	/// [`to_boolean`]: Self::to_boolean
+	/// [`to_list`]: Self::to_list
 	pub fn convert<C: NamedType + AttrConversionDefined + Convertible>(self) -> Result<C> {
 		if let Some(this) = self.downcast::<C>() {
 			return Ok(this);
 		}
 
-		let conv = self.call_attr(C::ATTR_NAME, Args::default())?;
+		let convert = self.call_attr(C::ATTR_NAME, Args::default())?;
 
-		if let Some(attr) = conv.downcast::<C>() {
-			Ok(attr)
-		} else {
-			Err(crate::error::ErrorKind::ConversionFailed { object: conv, into: C::TYPENAME }.into())
-		}
+		convert
+			.downcast::<C>()
+			.ok_or_else(|| ErrorKind::ConversionFailed { object: convert, into: C::TYPENAME }.into())
 	}
 
+	/// Checks to see if `self` is a `T`.
 	#[must_use]
 	pub fn is_a<T: Convertible>(self) -> bool {
 		T::is_a(self)
 	}
 
+	/// Converts `self` to `T`, if `self` is a `T`.
 	#[must_use]
 	pub fn downcast<T: Convertible>(self) -> Option<T> {
 		T::downcast(self).map(T::get)
 	}
 
+	/// Attempts to [`downcast`](Self::downcast) `self` to a `T`, returning an `Err` if it cant.
 	pub fn try_downcast<T: Convertible + NamedType>(self) -> Result<T> {
 		self.downcast().ok_or_else(|| {
-			crate::error::ErrorKind::InvalidTypeGiven { expected: T::TYPENAME, given: self.typename() }
-				.into()
+			ErrorKind::InvalidTypeGiven { expected: T::TYPENAME, given: self.typename() }.into()
 		})
 	}
 
+	/// Attempts to hash `self`, returning an `Err` if unable to.
 	pub fn try_hash(self) -> Result<u64> {
 		if self.is_allocated() {
 			if let Some(text) = self.downcast::<Gc<Text>>() {
 				Ok(text.as_ref()?.fast_hash())
 			} else {
-				// self.call_attr(Intern::hash, Args::default())?;
-				todo!()
+				self
+					.call_attr(Intern::hash, Args::default())?
+					.try_downcast::<Integer>()
+					.map(|n| n as u64)
 			}
 		} else {
-			Ok(self.bits()) // this can also be modified, but that's a future thing
+			// this can also be modified, but that's a future thing
+			Ok(self.bits())
 		}
 	}
 
+	/// Attempts to comapre `self` and `rhs`, returning an `Err` if unable to.
 	pub fn try_eq(self, rhs: Self) -> Result<bool> {
 		if self.is_identical(rhs) {
 			return Ok(true);
@@ -443,7 +554,7 @@ impl Value {
 			if let (Some(lhs), Some(rhs)) = (self.downcast::<Gc<Text>>(), rhs.downcast::<Gc<Text>>()) {
 				Ok(*lhs.as_ref()? == *rhs.as_ref()?)
 			} else {
-				self.call_attr(Intern::op_eql, Args::new(&[rhs], &[]))?.convert()
+				self.call_attr(Intern::op_eql, Args::new(&[rhs], &[]))?.try_downcast()
 			}
 		} else {
 			Ok(false)

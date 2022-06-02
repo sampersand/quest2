@@ -8,16 +8,17 @@
 /// (For opcodes that expect more than `MAX_ARGUMENTS_FOR_SIMPLE_CALL`, they're positive).
 ///
 /// All opcodes take a destination operand as their first argument, including ones that don't
-/// _really_ need a destination (eg [`SetAttr`]).
+/// _really_ need a destination (eg [`IndexAssign`](Self::IndexAssign)).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 #[repr(u8)]
 pub enum Opcode {
 	/// `CreateList(dst, count, ...)` Create a list of size `count` of trailing locals and stores it
-	/// into `dst`. (For short lists, use [`CreateListShort`], as it uses an internal buffer).
+	/// into `dst`. (For short lists, use [`CreateListShort`](Self::CreateListShort), as it uses an
+	/// internal buffer).
 	CreateList = 0x00,
 	/// `CreateListShort(dst, count, ...)` Create a list of size `count` of trailing locals and
-	/// stores it into `dst`. (For longer lists, use [`CreateList`])
+	/// stores it into `dst`. (For longer lists, use [`CreateList`](Self::CreateList))
 	CreateListShort = -0x01i8 as u8,
 	/// `ConstLoad(dst, count)` Loads the constant at `count` into `dst`.
 	ConstLoad = 0x01,

@@ -46,16 +46,12 @@ fn main() {
 	if true {
 		let thingy = run_code(
 			r##"
-x = "A";
-x.y = 3;
-print(x.y);
-__EOF__
 fib = n -> {
 	(n <= 1).then(n.return);
 	__block__(n-1) + __block__(n-2)
 };
 
-print(fib(10))
+print(fib(20))
 __EOF__
 t = 1.upto(10).map(x -> { 
 	{ print(x) }; f.x = 99;# spawn(f)

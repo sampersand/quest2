@@ -32,7 +32,7 @@ quest_type! {
 	///
 	/// # `Gc<Text>`
 	/// Note that you can never construct a `Text` by-value; it must always be wrapped in a [`Gc`].
-	/// This is to make it compatible with other [`Allocated`](crate::value::Base::Allocated). As
+	/// This is to make it compatible with other [`Allocated`](crate::value::gc::Allocated). As
 	/// such, you'll need to go through [`Gc::as_ref`] or [`Gc::as_mut`] if you want to access the
 	/// methods defined on `Text`.
 	///
@@ -258,7 +258,7 @@ impl Text {
 	/// Creates a new, empty [`Text`].
 	///
 	/// If you have an idea of the required capacity, consider calling [`Text::with_capacity`] or
-	/// [`Text::SimpleBuilder`] instead.. For finer-tuned construction, see [`Text::builder`].
+	/// [`Text::simple_builder`] instead.. For finer-tuned construction, see [`Text::builder`].
 	///
 	/// Note that this will still allocate memory for the underlying [`Text`] object, but it won't
 	/// allocate a separate buffer.

@@ -56,7 +56,7 @@ pub mod funcs {
 	pub fn not(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok((!obj.is_truthy()?).to_value())
+		Ok((!obj.is_truthy()).to_value())
 	}
 
 	pub fn at_bool(_obj: Value, args: Args<'_>) -> Result<Value> {
@@ -111,7 +111,7 @@ pub mod funcs {
 	pub fn then(obj: Value, args: Args<'_>) -> Result<Value> {
 		let (func, args) = args.split_first()?;
 
-		if obj.is_truthy()? {
+		if obj.is_truthy() {
 			func.call(args)
 		} else {
 			Ok(obj)
@@ -121,7 +121,7 @@ pub mod funcs {
 	pub fn and_then(obj: Value, args: Args<'_>) -> Result<Value> {
 		let (func, args) = args.split_first()?;
 
-		if obj.is_truthy()? {
+		if obj.is_truthy() {
 			func.call(args.with_this(obj))
 		} else {
 			Ok(obj)
@@ -131,7 +131,7 @@ pub mod funcs {
 	pub fn r#else(obj: Value, args: Args<'_>) -> Result<Value> {
 		let (func, args) = args.split_first()?;
 
-		if obj.is_truthy()? {
+		if obj.is_truthy() {
 			Ok(obj)
 		} else {
 			func.call(args)
@@ -141,7 +141,7 @@ pub mod funcs {
 	pub fn or_else(obj: Value, args: Args<'_>) -> Result<Value> {
 		let (func, args) = args.split_first()?;
 
-		if obj.is_truthy()? {
+		if obj.is_truthy() {
 			Ok(obj)
 		} else {
 			func.call(args.with_this(obj))
@@ -152,7 +152,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		if obj.is_truthy()? {
+		if obj.is_truthy() {
 			Ok(obj)
 		} else {
 			Ok(args[0])
@@ -163,7 +163,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		if obj.is_truthy()? {
+		if obj.is_truthy() {
 			Ok(args[0])
 		} else {
 			Ok(obj)

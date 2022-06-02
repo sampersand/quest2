@@ -103,6 +103,7 @@ impl Block {
 
 	/// Deep clones `self`, returning a completely independent copy, and adding `frame` as a parent
 	pub fn deep_clone_from(&self, parent_scope: Gc<Frame>) -> Result<Gc<Self>> {
+		#[cfg(debug_assertions)] // needed otherwise `_is_just_single_and_identical` isnt defined?
 		debug_assert!(self.header().parents()._is_just_single_and_identical(Gc::<Self>::parent()));
 
 		// TODO: optimize me, eg maybe have shared attributes pointer or something
@@ -123,7 +124,7 @@ impl Block {
 impl Gc<Block> {
 	/// Executes the block.
 	///
-	/// This is a convenience wrapper around [`Frame::new`] and [`Frame::run`].
+	/// This is a convenience wrapper around [`Frame::new`] and [`Gc<Frame>::run`].
 	pub fn run(self, args: Args<'_>) -> Result<Value> {
 		Frame::new(self, args)?.run()
 	}
