@@ -1,5 +1,5 @@
 use super::Block;
-use crate::value::ToAny;
+use crate::value::ToValue;
 use crate::value::{ty::Text, Gc, Value};
 use crate::vm::{
 	Opcode, SourceLocation, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL,
@@ -130,7 +130,7 @@ impl Builder {
 			let idx = self.constants.len();
 			trace!(target: "block_builder", ?idx, ?string, "created str constant");
 
-			self.constants.push(Text::from_str(string).to_any());
+			self.constants.push(Text::from_str(string).to_value());
 			idx
 		});
 

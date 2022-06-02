@@ -1,7 +1,7 @@
 use crate::value::ty::{Boolean, ConvertTo, Float, InstanceOf, Integer, List, Singleton, Text};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
-use crate::{Result, ToAny, Value};
+use crate::{Result, ToValue, Value};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -81,23 +81,23 @@ pub mod funcs {
 	use super::*;
 
 	pub fn at_text(null: Null, args: Args<'_>) -> Result<Value> {
-		ConvertTo::<Gc<Text>>::convert(&null, args).map(ToAny::to_any)
+		ConvertTo::<Gc<Text>>::convert(&null, args).map(ToValue::to_value)
 	}
 
 	pub fn at_int(null: Null, args: Args<'_>) -> Result<Value> {
-		ConvertTo::<Integer>::convert(&null, args).map(ToAny::to_any)
+		ConvertTo::<Integer>::convert(&null, args).map(ToValue::to_value)
 	}
 
 	pub fn at_float(null: Null, args: Args<'_>) -> Result<Value> {
-		ConvertTo::<Float>::convert(&null, args).map(ToAny::to_any)
+		ConvertTo::<Float>::convert(&null, args).map(ToValue::to_value)
 	}
 
 	pub fn at_list(null: Null, args: Args<'_>) -> Result<Value> {
-		ConvertTo::<Gc<List>>::convert(&null, args).map(ToAny::to_any)
+		ConvertTo::<Gc<List>>::convert(&null, args).map(ToValue::to_value)
 	}
 
 	pub fn at_bool(null: Null, args: Args<'_>) -> Result<Value> {
-		ConvertTo::<Boolean>::convert(&null, args).map(ToAny::to_any)
+		ConvertTo::<Boolean>::convert(&null, args).map(ToValue::to_value)
 	}
 
 	pub fn dbg(null: Null, args: Args<'_>) -> Result<Value> {

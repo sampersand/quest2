@@ -65,11 +65,11 @@ impl ConvertTo<Float> for Boolean {
 pub mod funcs {
 	use super::*;
 
-	use crate::value::ToAny;
+	use crate::value::ToValue;
 
 	pub fn then(boolean: bool, args: Args<'_>) -> Result<Value> {
 		if !boolean {
-			return Ok(boolean.to_any());
+			return Ok(boolean.to_value());
 		}
 
 		let (func, args) = args.split_first()?;
@@ -78,16 +78,16 @@ pub mod funcs {
 
 	pub fn and_then(boolean: bool, args: Args<'_>) -> Result<Value> {
 		if !boolean {
-			return Ok(boolean.to_any());
+			return Ok(boolean.to_value());
 		}
 
 		let (func, args) = args.split_first()?;
-		func.call(args.with_this(boolean.to_any()))
+		func.call(args.with_this(boolean.to_value()))
 	}
 
 	pub fn r#else(boolean: bool, args: Args<'_>) -> Result<Value> {
 		if boolean {
-			return Ok(boolean.to_any());
+			return Ok(boolean.to_value());
 		}
 
 		let (func, args) = args.split_first()?;
@@ -96,11 +96,11 @@ pub mod funcs {
 
 	pub fn or_else(boolean: bool, args: Args<'_>) -> Result<Value> {
 		if boolean {
-			return Ok(boolean.to_any());
+			return Ok(boolean.to_value());
 		}
 
 		let (func, args) = args.split_first()?;
-		func.call(args.with_this(boolean.to_any()))
+		func.call(args.with_this(boolean.to_value()))
 	}
 
 	pub fn or(boolean: bool, args: Args<'_>) -> Result<Value> {
@@ -108,7 +108,7 @@ pub mod funcs {
 		args.assert_positional_len(1)?;
 
 		if boolean {
-			return Ok(boolean.to_any());
+			return Ok(boolean.to_value());
 		}
 
 		Ok(args[0])
@@ -119,7 +119,7 @@ pub mod funcs {
 		args.assert_positional_len(1)?;
 
 		if !boolean {
-			return Ok(boolean.to_any());
+			return Ok(boolean.to_value());
 		}
 
 		Ok(args[0])
@@ -128,7 +128,7 @@ pub mod funcs {
 	pub fn at_text(boolean: bool, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 
-		ConvertTo::<Gc<Text>>::convert(&boolean, args).map(ToAny::to_any)
+		ConvertTo::<Gc<Text>>::convert(&boolean, args).map(ToValue::to_value)
 	}
 
 	pub fn dbg(boolean: bool, args: Args<'_>) -> Result<Value> {

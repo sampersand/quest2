@@ -1,7 +1,7 @@
 use crate::value::ty::{ConvertTo, InstanceOf, Singleton, Text};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
-use crate::{Result, ToAny, Value};
+use crate::{Result, ToValue, Value};
 
 pub type Float = f64;
 
@@ -74,7 +74,7 @@ pub mod funcs {
 	use super::*;
 
 	pub fn at_text(float: Float, args: Args<'_>) -> Result<Value> {
-		ConvertTo::<Gc<Text>>::convert(&float, args).map(ToAny::to_any)
+		ConvertTo::<Gc<Text>>::convert(&float, args).map(ToValue::to_value)
 	}
 
 	pub fn dbg(float: Float, args: Args<'_>) -> Result<Value> {

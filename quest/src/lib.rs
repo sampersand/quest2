@@ -34,7 +34,7 @@ pub mod parse;
 pub mod vm;
 
 pub use error::{Error, Result};
-pub use value::{ToAny, Value};
+pub use value::{ToValue, Value};
 
 #[cfg(miri)]
 extern "Rust" {

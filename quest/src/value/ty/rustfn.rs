@@ -118,7 +118,7 @@ unsafe impl Convertible for RustFn {
 
 pub mod funcs {
 	use super::*;
-	use crate::value::ToAny;
+	use crate::value::ToValue;
 
 	pub fn call(func: RustFn, args: Args<'_>) -> Result<Value> {
 		func.call(args)
@@ -134,7 +134,7 @@ pub mod funcs {
 		builder.push_str(func.name());
 		builder.push('>');
 
-		Ok(builder.finish().to_any())
+		Ok(builder.finish().to_value())
 	}
 }
 

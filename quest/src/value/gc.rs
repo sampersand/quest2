@@ -5,7 +5,7 @@ use crate::value::base::{
 };
 use crate::value::ty::{List, Wrap};
 use crate::value::{value::Any, Convertible};
-use crate::{Result, ToAny, Value};
+use crate::{Result, ToValue, Value};
 use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
@@ -361,7 +361,7 @@ impl<T: Allocated> Gc<T> {
 	pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<Value> {
 		// try to get a function directly defined on `self`, which most likely wont exist.
 		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
-		let obj = self.to_any();
+		let obj = self.to_value();
 		let asref = self.as_ref()?;
 
 		if let Some(func) = asref.attributes().get_unbound_attr(attr)? {
@@ -446,7 +446,7 @@ impl<T: Allocated> Ref<T> {
 	pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<Value> {
 		// try to get a function directly defined on `self`, which most likely wont exist.
 		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
-		let obj = self.as_gc().to_any();
+		let obj = self.as_gc().to_value();
 
 		if let Some(func) = self.attributes().get_unbound_attr(attr)? {
 			func.call(args.with_this(obj))

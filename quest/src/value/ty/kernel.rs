@@ -105,7 +105,7 @@ pub mod funcs {
 	pub fn spawn(args: Args<'_>) -> Result<Value> {
 		use crate::value::base::Base;
 		use crate::value::ty::InstanceOf;
-		use crate::value::ToAny;
+		use crate::value::ToValue;
 		use std::thread::{self, JoinHandle};
 
 		quest_type! {
@@ -147,7 +147,7 @@ pub mod funcs {
 		let func = args[0];
 
 		let thread = thread::spawn(move || func.call(Args::default()));
-		Ok(Gc::<Thread>::from_inner(Base::new(Some(thread), Gc::<Thread>::parent())).to_any())
+		Ok(Gc::<Thread>::from_inner(Base::new(Some(thread), Gc::<Thread>::parent())).to_value())
 	}
 }
 
@@ -170,9 +170,9 @@ impl Singleton for Kernel {
 				Intern::Integer => constant ty::Integer::parent(),
 				Intern::List => constant ty::List::parent(),
 				// TODO: Other types
-				Intern::r#true => constant true.to_any(),
-				Intern::r#false => constant false.to_any(),
-				Intern::r#null => constant ty::Null.to_any(),
+				Intern::r#true => constant true.to_value(),
+				Intern::r#false => constant false.to_value(),
+				Intern::r#null => constant ty::Null.to_value(),
 
 				Intern::spawn => justargs funcs::spawn,
 			}

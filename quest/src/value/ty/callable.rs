@@ -1,4 +1,4 @@
-use crate::value::{Gc, ToAny};
+use crate::value::{Gc, ToValue};
 use crate::vm::Args;
 use crate::{Result, Value};
 
@@ -19,14 +19,14 @@ impl Callable {
 				// "whatever" => Gc::<Callable>::qs_ignore
 			}
 			.unwrap()
-			.to_any()
+			.to_value()
 		})
 	}
 }
 
 impl Gc<Callable> {
 	pub fn qs_ignore(args: Args<'_>) -> Result<Value> {
-		let _ = true.to_any();
+		let _ = true.to_value();
 		let _ = args;
 		todo!()
 	}

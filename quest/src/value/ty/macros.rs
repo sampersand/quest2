@@ -26,10 +26,10 @@ macro_rules! _length_of {
 #[macro_export]
 macro_rules! create_class {
 	(@$_attr:expr, constant, $value:expr) => ($value);
-	(@$attr:expr, $kind:ident, $value:expr) => ($crate::RustFn_new!($attr, $kind $value).to_any());
+	(@$attr:expr, $kind:ident, $value:expr) => ($crate::RustFn_new!($attr, $kind $value).to_value());
 	($name:expr $(, parent $parent:expr)?; $($attr:expr => $kind:ident $value:expr),* $(,)?) => {(|| -> $crate::Result<$crate::Value> {
 		#[allow(unused_imports)]
-		use $crate::value::{ToAny, Intern};
+		use $crate::value::{ToValue, Intern};
 
 		#[allow(unused_mut)]
 		let mut builder = $crate::value::ty::Class::builder($name, $crate::_length_of!($($attr)*));
@@ -41,7 +41,7 @@ macro_rules! create_class {
 
 		$(builder.set_attr($attr, create_class!(@$attr, $kind, $value))?;)*
 
-		Ok(builder.finish().to_any())
+		Ok(builder.finish().to_value())
 	})().expect(concat!("Class creation for '", $name, "' failed!"))}
 }
 
@@ -96,7 +96,7 @@ macro_rules! new_quest_scope {
 				use $crate::value::Intern;
 
 				$(
-					builder.set_attr($attr, RustFn_new!($attr, justargs $value).to_any())?;
+					builder.set_attr($attr, RustFn_new!($attr, justargs $value).to_value())?;
 				)*
 			}
 
@@ -120,7 +120,7 @@ macro_rules! singleton_object {
 			#[must_use]
 			pub fn instance() -> $crate::Value {
 				use ::once_cell::sync::OnceCell;
-				use $crate::value::ToAny;
+				use $crate::value::ToValue;
 
 				static INSTANCE: OnceCell<$crate::Value> = OnceCell::new();
 
@@ -131,7 +131,7 @@ macro_rules! singleton_object {
 					$(@parent $parent;)?
 					$(@parents [$($parents),*];)?
 					$($attr => $value),*
-				}.unwrap().to_any()});
+				}.unwrap().to_value()});
 
 				if is_first_init {
 					$(
@@ -233,7 +233,7 @@ macro_rules! quest_type_attrs {
 		impl $crate::value::base::HasDefaultParent for $type {
 			fn parent() -> $crate::Value {
 				#[allow(unused_imports)]
-				use $crate::value::{ToAny, gc::Allocated};
+				use $crate::value::{ToValue, gc::Allocated};
 				static PARENT: ::once_cell::sync::OnceCell<$crate::value::gc::Gc<$crate::value::ty::Scope>>
 					= ::once_cell::sync::OnceCell::new();
 

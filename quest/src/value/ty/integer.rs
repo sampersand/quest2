@@ -1,7 +1,7 @@
 use crate::value::ty::{ConvertTo, Float, InstanceOf, List, Singleton, Text};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
-use crate::{Result, ToAny, Value};
+use crate::{Result, ToValue, Value};
 
 pub type Integer = i64;
 
@@ -78,21 +78,21 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int + args[0].try_downcast::<Integer>()?).to_any())
+		Ok((int + args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn sub(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int - args[0].try_downcast::<Integer>()?).to_any())
+		Ok((int - args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn mul(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int * args[0].try_downcast::<Integer>()?).to_any())
+		Ok((int * args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn div(int: Integer, args: Args<'_>) -> Result<Value> {
@@ -104,7 +104,7 @@ pub mod funcs {
 		if denom == 0 {
 			Err("division by zero".to_string().into())
 		} else {
-			Ok((int / denom).to_any())
+			Ok((int / denom).to_value())
 		}
 	}
 
@@ -118,7 +118,7 @@ pub mod funcs {
 		if denom == 0 {
 			Err("modulo by zero".to_string().into())
 		} else {
-			Ok((int % denom).to_any())
+			Ok((int % denom).to_value())
 		}
 	}
 
@@ -128,11 +128,11 @@ pub mod funcs {
 
 		#[allow(clippy::cast_precision_loss)] // Eh, maybe in the future i should fix this?
 		if let Some(float) = args[0].downcast::<Float>() {
-			Ok(((int as Float).powf(float)).to_any())
+			Ok(((int as Float).powf(float)).to_value())
 		} else {
 			let exp = args[0].try_downcast::<Integer>()?;
 
-			Ok(int.pow(exp.try_into().expect("todo: exception for not valid number")).to_any())
+			Ok(int.pow(exp.try_into().expect("todo: exception for not valid number")).to_value())
 		}
 	}
 
@@ -140,24 +140,24 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int < args[0].try_downcast::<Integer>()?).to_any())
+		Ok((int < args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn leq(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok((int <= args[0].try_downcast::<Integer>()?).to_any())
+		Ok((int <= args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn neg(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok((-int).to_any())
+		Ok((-int).to_value())
 	}
 
 	pub fn at_text(int: Integer, args: Args<'_>) -> Result<Value> {
-		ConvertTo::<Gc<Text>>::convert(&int, args).map(ToAny::to_any)
+		ConvertTo::<Gc<Text>>::convert(&int, args).map(ToValue::to_value)
 	}
 
 	pub fn dbg(int: Integer, args: Args<'_>) -> Result<Value> {
@@ -169,7 +169,7 @@ pub mod funcs {
 	// 		dbg_int(int, args)
 	// 	} else if val.is_identical(Integer::parent()) {
 	// 		args.assert_no_arguments()?;
-	// 		Ok(Text::from_string(format!("")).to_any())
+	// 		Ok(Text::from_string(format!("")).to_value())
 	// 	}
 	// }
 
@@ -181,17 +181,17 @@ pub mod funcs {
 		let max = args[0].try_downcast::<Integer>()?;
 
 		if max <= int {
-			return Ok(List::new().to_any());
+			return Ok(List::new().to_value());
 		}
 
 		let list = List::with_capacity((max - int) as usize);
 		let mut listmut = list.as_mut().unwrap();
 
 		for i in int..=max {
-			listmut.push(i.to_any());
+			listmut.push(i.to_value());
 		}
 
-		Ok(list.to_any())
+		Ok(list.to_value())
 	}
 }
 

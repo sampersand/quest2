@@ -6,7 +6,7 @@ use crate::value::gc::{Allocated, Gc};
 use crate::value::ty::List;
 use crate::value::Intern;
 use crate::vm::Args;
-use crate::{Result, ToAny, Value};
+use crate::{Result, ToValue, Value};
 use std::alloc;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -959,15 +959,15 @@ impl From<&'static str> for Value<Gc<Text>> {
 	}
 }
 
-impl ToAny for &'static str {
-	fn to_any(self) -> Value {
+impl ToValue for &'static str {
+	fn to_value(self) -> Value {
 		Value::from(self).any()
 	}
 }
 
-impl ToAny for String {
-	fn to_any(self) -> Value {
-		Gc::<Text>::from(self).to_any()
+impl ToValue for String {
+	fn to_value(self) -> Value {
+		Gc::<Text>::from(self).to_value()
 	}
 }
 
@@ -1029,7 +1029,7 @@ pub mod funcs {
 
 		text.as_mut()?.push_str(rhs.as_ref()?.as_str());
 
-		Ok(text.to_any())
+		Ok(text.to_value())
 	}
 
 	pub fn add(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
@@ -1042,7 +1042,7 @@ pub mod funcs {
 		let text = text.as_ref()?.dup();
 		text.as_mut().unwrap().push_str(rhs.as_ref()?.as_str());
 
-		Ok(text.to_any())
+		Ok(text.to_value())
 	}
 
 	pub fn eql(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
@@ -1050,15 +1050,15 @@ pub mod funcs {
 		args.assert_positional_len(1)?;
 
 		if let Some(rhs) = args[0].downcast::<Gc<Text>>() {
-			Ok((*text.as_ref()? == *rhs.as_ref()?).to_any())
+			Ok((*text.as_ref()? == *rhs.as_ref()?).to_value())
 		} else {
-			Ok(false.to_any())
+			Ok(false.to_value())
 		}
 	}
 
 	pub fn len(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
-		Ok((text.as_ref()?.len() as i64).to_any())
+		Ok((text.as_ref()?.len() as i64).to_value())
 	}
 
 	pub fn assign(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
@@ -1068,9 +1068,9 @@ pub mod funcs {
 		let value = args[0];
 		let mut frame =
 			crate::vm::Frame::with_stackframes(|sfs| *sfs.last().expect("returning from nothing?"))
-				.to_any();
+				.to_value();
 
-		frame.set_attr(text.to_any(), value)?;
+		frame.set_attr(text.to_value(), value)?;
 
 		Ok(value)
 	}
@@ -1078,7 +1078,7 @@ pub mod funcs {
 	pub fn dbg(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok(Text::from_string(format!("{:?}", text.as_ref()?.as_str())).to_any())
+		Ok(Text::from_string(format!("{:?}", text.as_ref()?.as_str())).to_value())
 	}
 }
 

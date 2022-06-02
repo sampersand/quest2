@@ -1,4 +1,4 @@
-use crate::value::{base::Base, Gc, Intern, ToAny};
+use crate::value::{base::Base, Gc, Intern, ToValue};
 use crate::vm::Args;
 use crate::{Result, Value};
 
@@ -22,7 +22,7 @@ impl Pristine {
 					builder
 						.set_attr(
 							Intern::__get_attr__,
-							RustFn_new!("__get_attr__", function funcs::__get_attr__).to_any(),
+							RustFn_new!("__get_attr__", function funcs::__get_attr__).to_value(),
 						)
 						.unwrap();
 
@@ -30,35 +30,35 @@ impl Pristine {
 						.set_attr(
 							Intern::__get_unbound_attr__,
 							RustFn_new!("__get_unbound_attr__", function funcs::__get_unbound_attr__)
-								.to_any(),
+								.to_value(),
 						)
 						.unwrap();
 
 					builder
 						.set_attr(
 							Intern::__set_attr__,
-							RustFn_new!("__set_attr__", function funcs::__set_attr__).to_any(),
+							RustFn_new!("__set_attr__", function funcs::__set_attr__).to_value(),
 						)
 						.unwrap();
 
 					builder
 						.set_attr(
 							Intern::__del_attr__,
-							RustFn_new!("__del_attr__", function funcs::__del_attr__).to_any(),
+							RustFn_new!("__del_attr__", function funcs::__del_attr__).to_value(),
 						)
 						.unwrap();
 
 					builder
 						.set_attr(
 							Intern::__has_attr__,
-							RustFn_new!("__has_attr__", function funcs::__has_attr__).to_any(),
+							RustFn_new!("__has_attr__", function funcs::__has_attr__).to_value(),
 						)
 						.unwrap();
 
 					builder
 						.set_attr(
 							Intern::__call_attr__,
-							RustFn_new!("__call_attr__", function funcs::__call_attr__).to_any(),
+							RustFn_new!("__call_attr__", function funcs::__call_attr__).to_value(),
 						)
 						.unwrap();
 
@@ -66,7 +66,7 @@ impl Pristine {
 					Gc::from_inner(builder.finish())
 				}
 			})
-			.to_any()
+			.to_value()
 	}
 }
 
@@ -78,7 +78,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		Ok(obj.has_attr(args[0])?.to_any())
+		Ok(obj.has_attr(args[0])?.to_value())
 	}
 
 	pub fn __get_attr__(obj: Value, args: Args<'_>) -> Result<Value> {

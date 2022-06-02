@@ -2,7 +2,7 @@ use super::{Compile, Group};
 use crate::parse::token::{ParenType, TokenContents};
 use crate::parse::{Parser, Result};
 use crate::value::ty::{Float, Integer, Text};
-use crate::value::{Gc, ToAny};
+use crate::value::{Gc, ToValue};
 use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
@@ -36,7 +36,7 @@ impl<'a> Atom<'a> {
 			_ => {
 				parser.untake(token);
 				Ok(None)
-			},
+			}
 		}
 	}
 }
@@ -44,14 +44,14 @@ impl<'a> Atom<'a> {
 impl Compile for Atom<'_> {
 	fn compile(&self, builder: &mut Builder, dst: Local) {
 		match self {
-			Self::Integer(integer) => builder.constant((*integer).to_any(), dst),
-			Self::Float(float) => builder.constant((*float).to_any(), dst),
-			Self::Text(text) => builder.constant((*text).to_any(), dst),
+			Self::Integer(integer) => builder.constant((*integer).to_value(), dst),
+			Self::Float(float) => builder.constant((*float).to_value(), dst),
+			Self::Text(text) => builder.constant((*text).to_value(), dst),
 			Self::Group(group) => group.compile(builder, dst),
 			Self::Identifier(identifier) => {
 				let local = builder.named_local(identifier);
 				builder.mov(local, dst);
-			},
+			}
 			Self::Stackframe(stackframe) => builder.stackframe(*stackframe, dst),
 		}
 	}

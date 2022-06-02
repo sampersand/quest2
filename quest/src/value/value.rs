@@ -1,6 +1,6 @@
 use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{AttrConversionDefined, BoundFn, Float, Integer, List, RustFn, Text, Wrap};
-use crate::value::{Convertible, Gc, Intern, NamedType, ToAny};
+use crate::value::{Convertible, Gc, Intern, NamedType, ToValue};
 use crate::vm::{Args, Block};
 use crate::Result;
 use std::fmt::{self, Debug, Formatter};
@@ -45,32 +45,40 @@ impl<T> Clone for Value<T> {
 	}
 }
 
+impl<T> ToValue for Value<T> {
+	fn to_value(self) -> Value {
+		unsafe { std::mem::transmute(self) }
+	}
+}
+
 impl<T> Value<T> {
-	#[inline]
+	/// Gets the underlying bits associated with this value.
+	///
+	/// If two [`Value`]s have the same bits, they're identical.
+	///
+	/// # Examples
+	/// ```
+	/// # use quest::Value;
 	#[must_use]
 	pub const fn bits(self) -> u64 {
-		self.0.get()
+		self.raw_bits().get()
 	}
 
-	#[inline]
 	#[must_use]
 	pub const fn raw_bits(self) -> NonZeroU64 {
 		self.0
 	}
 
-	#[inline]
 	#[must_use]
 	pub const unsafe fn from_bits_unchecked(bits: u64) -> Self {
 		Self::from_bits(NonZeroU64::new_unchecked(bits))
 	}
 
-	#[inline]
 	#[must_use]
 	pub const unsafe fn from_bits(bits: NonZeroU64) -> Self {
 		Self(bits, PhantomData)
 	}
 
-	#[inline]
 	#[must_use]
 	pub const fn any(self) -> Value {
 		unsafe { std::mem::transmute(self) }
@@ -87,7 +95,6 @@ impl<T> Value<T> {
 		self.bits() & 0b1111 == 0
 	}
 
-	#[inline]
 	#[must_use]
 	pub const fn is_identical<U>(self, rhs: Value<U>) -> bool {
 		self.bits() == rhs.bits()
@@ -216,7 +223,7 @@ impl Value {
 
 		// If the value is callable, wrap it in a bound fn.
 		if value.is_a::<RustFn>() || value.has_attr(Intern::op_call)? {
-			Ok(Some(BoundFn::new(self, value).to_any()))
+			Ok(Some(BoundFn::new(self, value).to_value()))
 		} else {
 			Ok(Some(value))
 		}
@@ -242,7 +249,7 @@ impl Value {
 			return if attr.is_parents() {
 				// TODO: if this is modified, it wont reflect on the integer.
 				// so make `get_unbound_attr` require a reference?
-				Ok(Some(List::from_slice(&[self.parents_for()]).to_any()))
+				Ok(Some(List::from_slice(&[self.parents_for()]).to_value()))
 			} else {
 				self.parents_for().get_unbound_attr_checked(attr, checked)
 			};
@@ -256,7 +263,7 @@ impl Value {
 		}
 
 		if attr.is_parents() {
-			Ok(Some(gc.as_mut()?.parents_list().to_any()))
+			Ok(Some(gc.as_mut()?.parents_list().to_value()))
 		} else {
 			unreachable!("unknown special attribute");
 		}
@@ -514,7 +521,7 @@ mod tests {
 
 	macro_rules! value {
 		($lit:literal) => {
-			$lit.to_any()
+			$lit.to_value()
 		};
 		($name:expr) => {
 			$name

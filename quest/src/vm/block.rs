@@ -3,7 +3,7 @@
 use super::{Frame, SourceLocation};
 use crate::value::gc::{Allocated, Gc};
 use crate::value::ty::{List, Text};
-use crate::value::{base::Base, HasDefaultParent, Intern, ToAny};
+use crate::value::{base::Base, HasDefaultParent, Intern, ToValue};
 use crate::vm::Args;
 use crate::{Result, Value};
 use std::fmt::{self, Debug, Display, Formatter};
@@ -63,7 +63,7 @@ impl Block {
 			self.header().attributes().get_unbound_attr(Intern::__name__).unwrap().is_none(),
 			"somehow assigning a name twice?"
 		);
-		self.header_mut().set_attr(Intern::__name__, name.to_any())
+		self.header_mut().set_attr(Intern::__name__, name.to_value())
 	}
 
 	/// Fetches the name associated with this block, if it exists.
@@ -107,7 +107,7 @@ impl Block {
 
 		// TODO: optimize me, eg maybe have shared attributes pointer or something
 		let inner = self.inner();
-		let parents = List::from_slice(&[Gc::<Self>::parent(), parent_scope.to_any()]);
+		let parents = List::from_slice(&[Gc::<Self>::parent(), parent_scope.to_value()]);
 		// this
 		let cloned = Gc::<Self>::from_inner(Base::new(inner, parents));
 
@@ -132,7 +132,7 @@ impl Gc<Block> {
 /// Quest functions defined for [`Block`].
 pub mod funcs {
 	use super::*;
-	use crate::value::ToAny;
+	use crate::value::ToValue;
 
 	/// Calls `block` with the given `args`.
 	pub fn call(block: Gc<Block>, args: Args<'_>) -> Result<Value> {
@@ -156,7 +156,7 @@ pub mod funcs {
 		builder.push_str(&blockref.inner().location.to_string());
 		builder.push('>');
 
-		Ok(builder.finish().to_any())
+		Ok(builder.finish().to_value())
 	}
 }
 

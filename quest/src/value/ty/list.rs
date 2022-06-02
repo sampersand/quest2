@@ -436,13 +436,13 @@ impl From<&'_ [Value]> for crate::Value<Gc<List>> {
 pub mod funcs {
 	use super::*;
 	use crate::value::ty::{Integer, Text};
-	use crate::value::ToAny;
+	use crate::value::ToValue;
 	use crate::{vm::Args, Result};
 
 	pub fn len(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok((list.as_ref()?.len() as Integer).to_any())
+		Ok((list.as_ref()?.len() as Integer).to_value())
 	}
 
 	pub fn index(list: Gc<List>, args: Args<'_>) -> Result<Value> {
@@ -492,7 +492,7 @@ pub mod funcs {
 
 		list.as_mut()?.push(args[0]);
 
-		Ok(list.to_any())
+		Ok(list.to_value())
 	}
 
 	pub fn pop(list: Gc<List>, args: Args<'_>) -> Result<Value> {
@@ -513,7 +513,7 @@ pub mod funcs {
 
 		list.as_mut()?.unshift(args[0]);
 
-		Ok(list.to_any())
+		Ok(list.to_value())
 	}
 
 	pub fn at_text(list: Gc<List>, args: Args<'_>) -> Result<Value> {
@@ -564,7 +564,7 @@ pub mod funcs {
 
 		let mut builder = Text::simple_builder();
 		at_text_recursive(list, &mut builder, &mut Vec::new())?;
-		Ok(builder.finish().to_any())
+		Ok(builder.finish().to_value())
 	}
 
 	pub fn dbg(list: Gc<List>, args: Args<'_>) -> Result<Value> {
@@ -584,7 +584,7 @@ pub mod funcs {
 			newmut.push(func.call(Args::new(&[*ele], &[]))?);
 		}
 
-		Ok(new.to_any())
+		Ok(new.to_value())
 	}
 
 	pub fn each(list: Gc<List>, args: Args<'_>) -> Result<Value> {
@@ -596,7 +596,7 @@ pub mod funcs {
 			func.call(Args::new(&[*ele], &[]))?;
 		}
 
-		Ok(list.to_any())
+		Ok(list.to_value())
 	}
 }
 

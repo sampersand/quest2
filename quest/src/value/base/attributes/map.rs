@@ -1,6 +1,6 @@
 use super::Attribute;
-use crate::value::{Intern, ToAny};
-use crate::{Result, Value};
+use crate::value::Intern;
+use crate::{Result, ToValue, Value};
 use hashbrown::hash_map::{Iter as HashBrownIter, RawEntryMut};
 use hashbrown::HashMap;
 
@@ -53,7 +53,7 @@ impl Iterator for MapIter<'_> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if let Some((&key, &value)) = self.0.next() {
-			Some((key.to_any(), value))
+			Some((key.to_value(), value))
 		} else if let Some((&key, &value)) = self.1.next() {
 			Some((key, value))
 		} else {

@@ -1,4 +1,4 @@
-use crate::value::ToAny;
+use crate::value::ToValue;
 use crate::{Result, Value};
 
 /// Arguments passed to native Quest functions.
@@ -152,7 +152,7 @@ impl<'a> Args<'a> {
 			}
 
 			builder.list_mut().push_slice_unchecked(self.positional);
-			builder.finish().to_any()
+			builder.finish().to_value()
 		}
 	}
 }

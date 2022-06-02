@@ -1,5 +1,5 @@
 use super::{Attribute, InternKey};
-use crate::value::ToAny;
+use crate::value::ToValue;
 use crate::{Result, Value};
 use std::fmt::{self, Debug, Formatter};
 
@@ -56,7 +56,7 @@ impl Iterator for ListMapIter<'_> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if let Some((k, v)) = self.0.data.get(self.1).copied().flatten() {
-			let k = if_intern!(k, |intern| intern.as_text().to_any(), |value| value);
+			let k = if_intern!(k, |intern| intern.as_text().to_value(), |value| value);
 			self.1 += 1;
 			Some((k, v))
 		} else {

@@ -1,5 +1,5 @@
 use crate::value::ty::Text;
-use crate::value::{base::Flags, Gc, Intern, ToAny};
+use crate::value::{base::Flags, Gc, Intern, ToValue};
 use crate::{Result, Value};
 use std::fmt::{self, Debug, Formatter};
 use std::mem::ManuallyDrop;
@@ -224,14 +224,13 @@ impl Iterator for AttributesIter<'_> {
 	}
 }
 
-pub trait Attribute: Copy + Debug {
+pub trait Attribute: Copy + Debug + ToValue {
 	fn try_eq_value(self, rhs: Value) -> Result<bool>;
 	fn try_eq_intern(self, rhs: Intern) -> Result<bool>;
 
 	fn as_intern(self) -> Result<Option<Intern>>;
 
 	fn try_hash(self) -> Result<u64>;
-	fn to_value(self) -> Value;
 	fn to_repr(self) -> u64;
 
 	fn is_parents(self) -> bool;
@@ -261,10 +260,6 @@ impl Attribute for crate::value::Intern {
 		Ok(Some(self))
 	}
 
-	fn to_value(self) -> Value {
-		self.as_text().to_any()
-	}
-
 	fn to_repr(self) -> u64 {
 		self as u64
 	}
@@ -283,7 +278,7 @@ impl Attribute for Value {
 		if let Some(text) = self.downcast::<Gc<Text>>() {
 			Ok(*text.as_ref()? == rhs)
 		} else {
-			self.try_eq(rhs.as_text().to_any())
+			self.try_eq(rhs.as_text().to_value())
 		}
 	}
 
@@ -297,10 +292,6 @@ impl Attribute for Value {
 		} else {
 			Ok(None)
 		}
-	}
-
-	fn to_value(self) -> Value {
-		self
 	}
 
 	fn to_repr(self) -> u64 {

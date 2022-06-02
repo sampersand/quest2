@@ -1,4 +1,4 @@
-use crate::value::{Gc, ToAny};
+use crate::value::{Gc, ToValue};
 use crate::Value;
 use std::fmt::{self, Debug, Formatter};
 
@@ -74,7 +74,7 @@ impl Gc<BoundFn> {
 		builder.push_str(selfref.object().dbg_text()?.as_ref()?.as_str());
 		builder.push('>');
 
-		Ok(builder.finish().to_any())
+		Ok(builder.finish().to_value())
 	}
 }
 

@@ -2,7 +2,7 @@
 
 use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
-use crate::value::{Gc, HasDefaultParent, Intern, ToAny};
+use crate::value::{Gc, HasDefaultParent, Intern, ToValue};
 use crate::vm::block::BlockInner;
 use crate::vm::{
 	Args, Block, Opcode, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL,
@@ -92,8 +92,8 @@ impl Frame {
 		// are first found on frame, which is not good.
 		// update 2: we removed the following, as we simply set the `Gc::parent()` when we convert to
 		// an actual object.
-		// 	builder.set_parents(List::from_slice(&[Gc::<Self>::parent(), block.to_any()]));
-		builder.set_parents(block.to_any());
+		// 	builder.set_parents(List::from_slice(&[Gc::<Self>::parent(), block.to_value()]));
+		builder.set_parents(block.to_value());
 
 		unsafe {
 			let unnamed_locals = crate::alloc_zeroed::<Value>(locals_layout_for(
@@ -110,7 +110,7 @@ impl Frame {
 
 			// copy positional arguments over into the first few named local arguments.
 			let mut start = named_locals;
-			start.add(0).write(Some(block.to_any()));
+			start.add(0).write(Some(block.to_value()));
 			start.add(1).write(Some(args.into_value()));
 			start = start.add(2);
 
@@ -166,7 +166,7 @@ impl Frame {
 			return Ok(());
 		}
 
-		let block = self.0.data().block.to_any();
+		let block = self.0.data().block.to_value();
 		let (header, data) = self.0.header_data_mut();
 
 		// Once we start referencing the frame as an object, we no longer can longer use the "block is
@@ -176,7 +176,7 @@ impl Frame {
 
 		for i in 0..data.inner_block.named_locals.len() {
 			if let Some(value) = unsafe { *data.named_locals.add(i) } {
-				header.set_attr(data.inner_block.named_locals[i].to_any(), value)?;
+				header.set_attr(data.inner_block.named_locals[i].to_value(), value)?;
 			}
 		}
 
@@ -227,19 +227,19 @@ impl Frame {
 		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
 
 		if let Some(attr) =
-			self.0.header().get_unbound_attr_checked(attr_name.to_any(), &mut Vec::new())?
+			self.0.header().get_unbound_attr_checked(attr_name.to_value(), &mut Vec::new())?
 		{
 			return Ok(attr);
 		} else if !self.is_object() {
-			if let Some(attr) = Gc::<Self>::parent().get_unbound_attr(attr_name.to_any())? {
+			if let Some(attr) = Gc::<Self>::parent().get_unbound_attr(attr_name.to_value())? {
 				return Ok(attr);
 			}
 		}
 
 		Err(
 			crate::error::ErrorKind::UnknownAttribute {
-				object: unsafe { crate::value::Gc::new(self.into()) }.to_any(),
-				attribute: attr_name.to_any(),
+				object: unsafe { crate::value::Gc::new(self.into()) }.to_value(),
+				attribute: attr_name.to_value(),
 			}
 			.into(),
 		)
@@ -276,7 +276,7 @@ impl Frame {
 	#[inline(never)]
 	fn set_object_local(&mut self, index: usize, value: Value) -> Result<()> {
 		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
-		self.0.header_mut().set_attr(attr_name.to_any(), value)
+		self.0.header_mut().set_attr(attr_name.to_value(), value)
 	}
 }
 
@@ -391,7 +391,7 @@ impl Frame {
 			block.as_mut().unwrap().set_name(name)?;
 		}
 
-		Ok(block.to_any())
+		Ok(block.to_value())
 	}
 }
 
@@ -432,7 +432,7 @@ impl Gc<Frame> {
 
 		if let Err(err) = result {
 			if let crate::error::ErrorKind::Return { value, from_frame } = err.kind() {
-				if from_frame.map_or(true, |ff| ff.is_identical(self.to_any())) {
+				if from_frame.map_or(true, |ff| ff.is_identical(self.to_value())) {
 					return Ok(*value);
 				}
 			}
@@ -530,7 +530,7 @@ impl Gc<Frame> {
 						}
 					}
 
-					list.to_any()
+					list.to_value()
 				}
 
 				Opcode::Mov => unsafe { args[0].assume_init() },
@@ -567,7 +567,7 @@ impl Gc<Frame> {
 					without_this! {
 						frame.as_mut()?.convert_to_object()?;
 					}
-					frame.to_any()
+					frame.to_value()
 				}
 
 				Opcode::GetAttr => unsafe {
@@ -582,7 +582,7 @@ impl Gc<Frame> {
 				},
 				Opcode::HasAttr => unsafe {
 					without_this! {
-						args[0].assume_init().has_attr(args[1].assume_init())?.to_any()
+						args[0].assume_init().has_attr(args[1].assume_init())?.to_value()
 					}
 				},
 				Opcode::SetAttr => {
@@ -604,23 +604,23 @@ impl Gc<Frame> {
 					if 0 <= object_index {
 						let mut object = unsafe { this.get_unnamed_local(object_index as usize) };
 
-						if self.to_any().is_identical(object) {
+						if self.to_value().is_identical(object) {
 							this.convert_to_object()?;
 							this.set_attr(attr, value)?;
-							self.to_any()
+							self.to_value()
 						} else {
 							object.set_attr(attr, value)?;
 							object
 						}
 					} else {
 						let index = !object_index as usize;
-						let name = this.inner_block.named_locals[index].to_any();
+						let name = this.inner_block.named_locals[index].to_value();
 						let object = this.0.header_mut().get_unbound_attr_mut(name)?;
 
-						if self.to_any().is_identical(*object) {
+						if self.to_value().is_identical(*object) {
 							this.convert_to_object()?;
 							this.set_attr(attr, value)?;
-							self.to_any()
+							self.to_value()
 						} else {
 							object.set_attr(attr, value)?;
 							*object
@@ -767,12 +767,12 @@ pub mod funcs {
 		// TODO: maybe cache this in the future?
 		let mut builder = Text::simple_builder();
 		builder.push_str("<Frame:");
-		builder.push_str(&format!("{:p}", frame.to_any().bits() as *const u8));
+		builder.push_str(&format!("{:p}", frame.to_value().bits() as *const u8));
 		builder.push(':');
 		builder.push_str(&frame.as_ref()?.inner_block.location.to_string());
 		builder.push('>');
 
-		Ok(builder.finish().to_any())
+		Ok(builder.finish().to_value())
 	}
 }
 
@@ -801,10 +801,10 @@ mod tests {
 			let tmp3 = builder.unnamed_local();
 			let ret = builder.unnamed_local();
 
-			builder.constant(1.to_any(), one);
+			builder.constant(1.to_value(), one);
 			builder.less_equal(n, one, tmp);
-			builder.constant("then".to_any(), tmp2);
-			builder.constant("return".to_any(), ret);
+			builder.constant("then".to_value(), tmp2);
+			builder.constant("return".to_value(), ret);
 			builder.get_attr(n, ret, tmp3);
 			builder.call_attr_simple(tmp, tmp2, &[tmp3], tmp);
 			builder.subtract(n, one, n);
@@ -817,9 +817,9 @@ mod tests {
 			builder.build()
 		};
 
-		fib.as_mut().unwrap().set_attr("fib".to_any(), fib.to_any()).unwrap();
+		fib.as_mut().unwrap().set_attr("fib".to_value(), fib.to_value()).unwrap();
 
-		let result = fib.run(Args::new(&[15.to_any()], &[])).unwrap();
+		let result = fib.run(Args::new(&[15.to_value()], &[])).unwrap();
 
 		assert_eq!(result.downcast::<crate::value::ty::Integer>(), Some(610));
 	}

@@ -1,6 +1,6 @@
 use crate::value::ty::Text;
 use crate::value::Gc;
-use crate::{ToAny, Value};
+use crate::{ToValue, Value};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
@@ -157,8 +157,8 @@ impl From<Intern> for Value<Gc<Text>> {
 	}
 }
 
-impl ToAny for Intern {
-	fn to_any(self) -> Value {
+impl ToValue for Intern {
+	fn to_value(self) -> Value {
 		Value::from(self).any()
 	}
 }

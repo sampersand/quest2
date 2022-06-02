@@ -1,7 +1,7 @@
 use super::{Compile, Group};
 use crate::parse::token::{ParenType, TokenContents};
 use crate::parse::{Parser, Result};
-use crate::value::ToAny;
+use crate::value::ToValue;
 use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
@@ -39,10 +39,7 @@ impl<'a> BlockArgs<'a> {
 				_ => unreachable!(),
 			};
 
-			if parser
-				.take_if_contents(TokenContents::Symbol("->"))?
-				.is_some()
-			{
+			if parser.take_if_contents(TokenContents::Symbol("->"))?.is_some() {
 				return Ok(Some(Self { args: vec![ident] }));
 			}
 
@@ -73,10 +70,7 @@ impl<'a> BlockArgs<'a> {
 		}
 
 		if let Some(token) = parser.take_if_contents(TokenContents::RightParen(ParenType::Round))? {
-			if parser
-				.take_if_contents(TokenContents::Symbol("->"))?
-				.is_some()
-			{
+			if parser.take_if_contents(TokenContents::Symbol("->"))?.is_some() {
 				let mut args = Vec::with_capacity(arg_tokens.len());
 				for token in arg_tokens {
 					if let TokenContents::Identifier(name) = token.contents {
@@ -115,6 +109,6 @@ impl Compile for Block<'_> {
 		let span = debug_span!(target: "block_builder", "new block", src=?crate::vm::SourceLocation::from(self.body.start));
 		span.in_scope(|| self.body.compile(&mut inner_builder, scratch));
 		let block = inner_builder.build();
-		builder.constant(block.to_any(), dst);
+		builder.constant(block.to_value(), dst);
 	}
 }

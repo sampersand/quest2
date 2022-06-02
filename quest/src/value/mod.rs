@@ -34,12 +34,12 @@ pub unsafe trait Convertible: Into<Value<Self>> {
 	fn get(value: Value<Self>) -> Self;
 }
 
-pub trait ToAny {
-	fn to_any(self) -> Value;
+pub trait ToValue {
+	fn to_value(self) -> Value;
 }
 
-impl<T: Convertible> ToAny for T {
-	fn to_any(self) -> Value {
+impl<T: Convertible> ToValue for T {
+	fn to_value(self) -> Value {
 		self.into().any()
 	}
 }
