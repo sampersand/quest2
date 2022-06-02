@@ -4,8 +4,8 @@ use crate::value::base::{
 	Attribute, AttributesMut, AttributesRef, Base, Flags, Header, IntoParent, ParentsMut, ParentsRef,
 };
 use crate::value::ty::{List, Wrap};
-use crate::value::{value::Any, AnyValue, Convertible, ToAny, Value};
-use crate::Result;
+use crate::value::{value::Any, Convertible};
+use crate::{Result, ToAny, Value};
 use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
@@ -222,10 +222,7 @@ impl<T: Allocated> Gc<T> {
 			}
 		}
 
-		match self
-			.borrows()
-			.fetch_update(Ordering::Acquire, Ordering::Relaxed, updatefn)
-		{
+		match self.borrows().fetch_update(Ordering::Acquire, Ordering::Relaxed, updatefn) {
 			Ok(x) if x == MAX_BORROWS as u32 => panic!("too many immutable borrows"),
 			Ok(_) => Some(Ref(self)),
 			Err(_) => None,
@@ -361,7 +358,7 @@ impl<T: Allocated> Gc<T> {
 		unsafe { &*self.as_ptr() }.header().borrows()
 	}
 
-	pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
+	pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<Value> {
 		// try to get a function directly defined on `self`, which most likely wont exist.
 		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
 		let obj = self.to_any();
@@ -372,12 +369,9 @@ impl<T: Allocated> Gc<T> {
 			return func.call(args.with_this(obj));
 		}
 
-		let attr = asref
-			.parents()
-			.get_unbound_attr_checked(attr, &mut Vec::new())?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute {
-				object: obj,
-				attribute: attr.to_value(),
+		let attr =
+			asref.parents().get_unbound_attr_checked(attr, &mut Vec::new())?.ok_or_else(|| {
+				crate::error::ErrorKind::UnknownAttribute { object: obj, attribute: attr.to_value() }
 			})?;
 
 		drop(asref);
@@ -399,11 +393,11 @@ impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 	}
 }
 
-// SAFETY: We correctly implemented `is_a` to only return true if the `AnyValue` is a `Gc<T>`.
+// SAFETY: We correctly implemented `is_a` to only return true if the `Value` is a `Gc<T>`.
 // Additionally, `get` will always return a valid `Gc<T>` for any `Value<Gc<T>>`.
 unsafe impl<T: Allocated> Convertible for Gc<T> {
 	#[inline]
-	fn is_a(value: AnyValue) -> bool {
+	fn is_a(value: Value) -> bool {
 		// If the `value` isn't allocated, it's not a `Gc`.
 		if !value.is_allocated() {
 			return false;
@@ -449,7 +443,7 @@ impl<T: Allocated> Ref<T> {
 		self.0
 	}
 
-	pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<AnyValue> {
+	pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<Value> {
 		// try to get a function directly defined on `self`, which most likely wont exist.
 		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
 		let obj = self.as_gc().to_any();
@@ -464,8 +458,8 @@ impl<T: Allocated> Ref<T> {
 	pub fn get_unbound_attr_checked<A: Attribute>(
 		&self,
 		attr: A,
-		checked: &mut Vec<AnyValue>,
-	) -> Result<Option<AnyValue>> {
+		checked: &mut Vec<Value>,
+	) -> Result<Option<Value>> {
 		self.header().get_unbound_attr_checked(attr, checked)
 	}
 
@@ -549,11 +543,11 @@ impl<T: Allocated> Mut<T> {
 		self.parents_mut().set(parents);
 	}
 
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
 		self.header_mut().set_attr(attr, value)
 	}
 
-	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
 		self.header_mut().del_attr(attr)
 	}
 }

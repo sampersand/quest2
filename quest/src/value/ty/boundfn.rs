@@ -1,5 +1,5 @@
 use crate::value::{Gc, ToAny};
-use crate::AnyValue;
+use crate::Value;
 use std::fmt::{self, Debug, Formatter};
 
 quest_type! {
@@ -26,33 +26,33 @@ impl Debug for BoundFn {
 #[derive(Debug)]
 #[doc(hidden)]
 pub struct Inner {
-	object: AnyValue,
-	function: AnyValue,
+	object: Value,
+	function: Value,
 }
 
 impl BoundFn {
 	#[must_use]
-	pub fn new(object: AnyValue, function: AnyValue) -> Gc<Self> {
+	pub fn new(object: Value, function: Value) -> Gc<Self> {
 		use crate::value::base::{Base, HasDefaultParent};
 
 		Gc::from_inner(Base::new(Inner { object, function }, Gc::<Self>::parent()))
 	}
 
-	pub fn object(&self) -> AnyValue {
+	pub fn object(&self) -> Value {
 		self.0.data().object
 	}
 
-	pub fn function(&self) -> AnyValue {
+	pub fn function(&self) -> Value {
 		self.0.data().function
 	}
 
-	pub fn call(&self, args: crate::vm::Args<'_>) -> crate::Result<AnyValue> {
+	pub fn call(&self, args: crate::vm::Args<'_>) -> crate::Result<Value> {
 		self.function().call(args.with_this(self.object()))
 	}
 }
 
 impl Gc<BoundFn> {
-	pub fn qs_call(self, args: crate::vm::Args<'_>) -> crate::Result<AnyValue> {
+	pub fn qs_call(self, args: crate::vm::Args<'_>) -> crate::Result<Value> {
 		let (func, obj) = {
 			let selfref = self.as_ref()?;
 			(selfref.function(), selfref.object())
@@ -61,7 +61,7 @@ impl Gc<BoundFn> {
 		func.call(args.with_this(obj))
 	}
 
-	pub fn dbg(self, args: crate::vm::Args<'_>) -> crate::Result<AnyValue> {
+	pub fn dbg(self, args: crate::vm::Args<'_>) -> crate::Result<Value> {
 		args.assert_no_arguments()?;
 
 		let selfref = self.as_ref()?;

@@ -1,6 +1,6 @@
 use crate::value::{Intern, ToAny};
 use crate::vm::Args;
-use crate::{AnyValue, Result};
+use crate::{Result, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Object;
@@ -11,10 +11,10 @@ impl crate::value::NamedType for Object {
 
 impl Object {
 	#[must_use]
-	pub fn instance() -> AnyValue {
-		use ::once_cell::sync::OnceCell;
+	pub fn instance() -> Value {
+		use once_cell::sync::OnceCell;
 
-		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+		static INSTANCE: OnceCell<crate::Value> = OnceCell::new();
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Object", parent Pristine::instance();
@@ -42,77 +42,73 @@ impl Object {
 pub mod funcs {
 	use super::*;
 
-	pub fn eql(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn eql(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok((obj.id() == args[0].id()).to_any())
 	}
 
-	pub fn neq(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
-		obj.call_attr(Intern::op_eql, args)?
-			.call_attr(Intern::op_not, Args::default())
+	pub fn neq(obj: Value, args: Args<'_>) -> Result<Value> {
+		obj.call_attr(Intern::op_eql, args)?.call_attr(Intern::op_not, Args::default())
 	}
 
-	pub fn not(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn not(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		Ok((!obj.is_truthy()?).to_any())
 	}
 
-	pub fn at_bool(_obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn at_bool(_obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		Ok(true.to_any())
 	}
 
-	pub fn at_text(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn at_text(obj: Value, args: Args<'_>) -> Result<Value> {
 		obj.call_attr(Intern::dbg, args)
 	}
 
-	pub fn hash(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn hash(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		Ok((obj.bits() as crate::value::ty::Integer).to_any())
 	}
 
-	pub fn clone(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn clone(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		let _ = obj;
 		todo!("clone")
 	}
 
-	pub fn r#return(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn r#return(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() <= 1)?;
 
 		Err(crate::Error::new(
-			crate::error::ErrorKind::Return {
-				value: obj,
-				from_frame: args.get(0),
-			},
+			crate::error::ErrorKind::Return { value: obj, from_frame: args.get(0) },
 			crate::error::Stacktrace::empty(),
 		))
 	}
 
-	pub fn assert(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn assert(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		let _ = obj;
 		todo!("assert")
 	}
 
-	pub fn tap(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn tap(obj: Value, args: Args<'_>) -> Result<Value> {
 		tap_into(obj, args).and(Ok(obj))
 	}
 
-	pub fn tap_into(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn tap_into(obj: Value, args: Args<'_>) -> Result<Value> {
 		let (func, args) = args.split_first()?;
 		func.call(args.with_this(obj))
 	}
 
-	pub fn then(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn then(obj: Value, args: Args<'_>) -> Result<Value> {
 		let (func, args) = args.split_first()?;
 
 		if obj.is_truthy()? {
@@ -122,7 +118,7 @@ pub mod funcs {
 		}
 	}
 
-	pub fn and_then(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn and_then(obj: Value, args: Args<'_>) -> Result<Value> {
 		let (func, args) = args.split_first()?;
 
 		if obj.is_truthy()? {
@@ -132,7 +128,7 @@ pub mod funcs {
 		}
 	}
 
-	pub fn r#else(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn r#else(obj: Value, args: Args<'_>) -> Result<Value> {
 		let (func, args) = args.split_first()?;
 
 		if obj.is_truthy()? {
@@ -142,7 +138,7 @@ pub mod funcs {
 		}
 	}
 
-	pub fn or_else(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn or_else(obj: Value, args: Args<'_>) -> Result<Value> {
 		let (func, args) = args.split_first()?;
 
 		if obj.is_truthy()? {
@@ -152,7 +148,7 @@ pub mod funcs {
 		}
 	}
 
-	pub fn or(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn or(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -163,7 +159,7 @@ pub mod funcs {
 		}
 	}
 
-	pub fn and(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn and(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -174,20 +170,20 @@ pub mod funcs {
 		}
 	}
 
-	pub fn itself(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn itself(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		let _ = obj;
 		todo!("itself (probs implemented via bound function)")
 	}
 
-	pub fn print(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn print(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		crate::value::ty::kernel::funcs::print(Args::new(&[obj], &[])).and(Ok(obj))
 	}
 
-	pub fn freeze(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn freeze(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		obj.freeze()?;
@@ -195,7 +191,7 @@ pub mod funcs {
 		Ok(obj)
 	}
 
-	pub fn dbg(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn dbg(obj: Value, args: Args<'_>) -> Result<Value> {
 		use crate::value::ty::text::SimpleBuilder;
 
 		args.assert_no_arguments()?;

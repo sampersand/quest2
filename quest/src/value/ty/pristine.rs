@@ -1,6 +1,6 @@
 use crate::value::{base::Base, Gc, Intern, ToAny};
 use crate::vm::Args;
-use crate::{AnyValue, Result};
+use crate::{Result, Value};
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -9,7 +9,7 @@ quest_type! {
 
 impl Pristine {
 	#[must_use]
-	pub fn instance() -> AnyValue {
+	pub fn instance() -> Value {
 		static INSTANCE: once_cell::sync::OnceCell<Gc<Pristine>> = once_cell::sync::OnceCell::new();
 
 		INSTANCE
@@ -74,33 +74,33 @@ impl Pristine {
 pub mod funcs {
 	use super::*;
 
-	pub fn __has_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn __has_attr__(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok(obj.has_attr(args[0])?.to_any())
 	}
 
-	pub fn __get_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn __get_attr__(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		obj.try_get_attr(args[0])
 	}
 
-	pub fn __get_unbound_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn __get_unbound_attr__(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		obj.try_get_unbound_attr(args[0])
 	}
 
-	pub fn __call_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn __call_attr__(obj: Value, args: Args<'_>) -> Result<Value> {
 		let (attr, args) = args.split_first()?;
 		obj.call_attr(attr, args)
 	}
 
-	pub fn __set_attr__(mut obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn __set_attr__(mut obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(2)?;
 
@@ -108,7 +108,7 @@ pub mod funcs {
 		Ok(obj)
 	}
 
-	pub fn __del_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	pub fn __del_attr__(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 

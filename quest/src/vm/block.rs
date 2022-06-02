@@ -5,7 +5,7 @@ use crate::value::gc::{Allocated, Gc};
 use crate::value::ty::{List, Text};
 use crate::value::{base::Base, HasDefaultParent, Intern, ToAny};
 use crate::vm::Args;
-use crate::{AnyValue, Result};
+use crate::{Result, Value};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
 
@@ -29,7 +29,7 @@ impl Debug for Block {
 pub struct BlockInner {
 	pub(super) code: Vec<u8>,
 	pub(super) location: SourceLocation,
-	pub(super) constants: Vec<AnyValue>,
+	pub(super) constants: Vec<Value>,
 	pub(super) num_of_unnamed_locals: usize,
 	pub(super) named_locals: Vec<Gc<Text>>,
 }
@@ -38,17 +38,12 @@ impl Block {
 	fn _new(
 		code: Vec<u8>,
 		location: SourceLocation,
-		constants: Vec<AnyValue>,
+		constants: Vec<Value>,
 		num_of_unnamed_locals: usize,
 		named_locals: Vec<Gc<Text>>,
 	) -> Gc<Self> {
-		let inner = Arc::new(BlockInner {
-			code,
-			location,
-			constants,
-			num_of_unnamed_locals,
-			named_locals,
-		});
+		let inner =
+			Arc::new(BlockInner { code, location, constants, num_of_unnamed_locals, named_locals });
 
 		Gc::from_inner(Base::new(inner, Gc::<Self>::parent()))
 	}
@@ -65,12 +60,7 @@ impl Block {
 	/// Sets the name associated with this block.
 	pub fn set_name(&mut self, name: Gc<Text>) -> Result<()> {
 		debug_assert!(
-			self
-				.header()
-				.attributes()
-				.get_unbound_attr(Intern::__name__)
-				.unwrap()
-				.is_none(),
+			self.header().attributes().get_unbound_attr(Intern::__name__).unwrap().is_none(),
 			"somehow assigning a name twice?"
 		);
 		self.header_mut().set_attr(Intern::__name__, name.to_any())
@@ -106,21 +96,14 @@ impl Block {
 		}
 
 		let source_location = self.source_location();
-		let name = if let Some(name) = self.name()? {
-			Some(name.as_ref()?)
-		} else {
-			None
-		};
+		let name = if let Some(name) = self.name()? { Some(name.as_ref()?) } else { None };
 
 		Ok(BlockDisplay(source_location, name))
 	}
 
 	/// Deep clones `self`, returning a completely independent copy, and adding `frame` as a parent
 	pub fn deep_clone_from(&self, parent_scope: Gc<Frame>) -> Result<Gc<Self>> {
-		debug_assert!(self
-			.header()
-			.parents()
-			._is_just_single_and_identical(Gc::<Self>::parent()));
+		debug_assert!(self.header().parents()._is_just_single_and_identical(Gc::<Self>::parent()));
 
 		// TODO: optimize me, eg maybe have shared attributes pointer or something
 		let inner = self.inner();
@@ -141,7 +124,7 @@ impl Gc<Block> {
 	/// Executes the block.
 	///
 	/// This is a convenience wrapper around [`Frame::new`] and [`Frame::run`].
-	pub fn run(self, args: Args<'_>) -> Result<AnyValue> {
+	pub fn run(self, args: Args<'_>) -> Result<Value> {
 		Frame::new(self, args)?.run()
 	}
 }
@@ -152,12 +135,12 @@ pub mod funcs {
 	use crate::value::ToAny;
 
 	/// Calls `block` with the given `args`.
-	pub fn call(block: Gc<Block>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn call(block: Gc<Block>, args: Args<'_>) -> Result<Value> {
 		block.run(args)
 	}
 
 	/// Returns a debug representation of `block`.
-	pub fn dbg(block: Gc<Block>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn dbg(block: Gc<Block>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 
 		let blockref = block.as_ref()?;

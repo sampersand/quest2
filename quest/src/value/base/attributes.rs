@@ -1,6 +1,6 @@
 use crate::value::ty::Text;
 use crate::value::{base::Flags, Gc, Intern, ToAny};
-use crate::{AnyValue, Result};
+use crate::{Result, Value};
 use std::fmt::{self, Debug, Formatter};
 use std::mem::ManuallyDrop;
 
@@ -46,17 +46,11 @@ impl<'a> std::ops::Deref for AttributesMut<'a> {
 
 impl Attributes {
 	pub(super) unsafe fn guard_ref<'a>(&'a self, flags: &'a Flags) -> AttributesRef<'a> {
-		AttributesRef {
-			attributes: self,
-			flags,
-		}
+		AttributesRef { attributes: self, flags }
 	}
 
 	pub(super) unsafe fn guard_mut<'a>(&'a mut self, flags: &'a Flags) -> AttributesMut<'a> {
-		AttributesMut {
-			attributes: self,
-			flags,
-		}
+		AttributesMut { attributes: self, flags }
 	}
 }
 
@@ -111,7 +105,7 @@ impl<'a> AttributesRef<'a> {
 		self.len() == 0
 	}
 
-	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
 		debug_assert!(!attr.is_special());
 
 		if self.is_none() {
@@ -145,12 +139,12 @@ impl<'a> AttributesMut<'a> {
 		}
 	}
 
-	pub fn get_unbound_attr_mut<A: Attribute>(mut self, attr: A) -> Result<&'a mut AnyValue> {
+	pub fn get_unbound_attr_mut<A: Attribute>(mut self, attr: A) -> Result<&'a mut Value> {
 		debug_assert!(!attr.is_special());
 
 		// TODO: don't fetch the attr beforehand
 		if self.get_unbound_attr(attr)?.is_none() {
-			self.set_attr(attr, AnyValue::default())?;
+			self.set_attr(attr, Value::default())?;
 		}
 
 		debug_assert!(!self.is_none());
@@ -162,7 +156,7 @@ impl<'a> AttributesMut<'a> {
 		}
 	}
 
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
 		debug_assert!(!attr.is_special());
 
 		if self.is_none() {
@@ -186,7 +180,7 @@ impl<'a> AttributesMut<'a> {
 		unsafe { &mut self.attributes.map }.set_attr(attr, value)
 	}
 
-	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
 		debug_assert!(!attr.is_special());
 
 		if self.is_none() {
@@ -219,7 +213,7 @@ enum AttributesIterInner<'a> {
 }
 
 impl Iterator for AttributesIter<'_> {
-	type Item = (AnyValue, AnyValue);
+	type Item = (Value, Value);
 
 	fn next(&mut self) -> Option<Self::Item> {
 		match &mut self.0 {
@@ -231,13 +225,13 @@ impl Iterator for AttributesIter<'_> {
 }
 
 pub trait Attribute: Copy + Debug {
-	fn try_eq_value(self, rhs: AnyValue) -> Result<bool>;
+	fn try_eq_value(self, rhs: Value) -> Result<bool>;
 	fn try_eq_intern(self, rhs: Intern) -> Result<bool>;
 
 	fn as_intern(self) -> Result<Option<Intern>>;
 
 	fn try_hash(self) -> Result<u64>;
-	fn to_value(self) -> AnyValue;
+	fn to_value(self) -> Value;
 	fn to_repr(self) -> u64;
 
 	fn is_parents(self) -> bool;
@@ -247,7 +241,7 @@ pub trait Attribute: Copy + Debug {
 }
 
 impl Attribute for crate::value::Intern {
-	fn try_eq_value(self, rhs: AnyValue) -> Result<bool> {
+	fn try_eq_value(self, rhs: Value) -> Result<bool> {
 		if let Some(text) = rhs.downcast::<Gc<Text>>() {
 			Ok(&*self == text.as_ref()?.as_str())
 		} else {
@@ -267,7 +261,7 @@ impl Attribute for crate::value::Intern {
 		Ok(Some(self))
 	}
 
-	fn to_value(self) -> AnyValue {
+	fn to_value(self) -> Value {
 		self.as_text().to_any()
 	}
 
@@ -280,8 +274,8 @@ impl Attribute for crate::value::Intern {
 	}
 }
 
-impl Attribute for AnyValue {
-	fn try_eq_value(self, rhs: AnyValue) -> Result<bool> {
+impl Attribute for Value {
+	fn try_eq_value(self, rhs: Value) -> Result<bool> {
 		Self::try_eq(self, rhs)
 	}
 
@@ -305,7 +299,7 @@ impl Attribute for AnyValue {
 		}
 	}
 
-	fn to_value(self) -> AnyValue {
+	fn to_value(self) -> Value {
 		self
 	}
 
@@ -315,10 +309,7 @@ impl Attribute for AnyValue {
 
 	fn is_parents(self) -> bool {
 		if let Some(text) = self.downcast::<Gc<Text>>() {
-			*text
-				.as_ref()
-				.expect("text is locked <todo, return an error>")
-				== Intern::__parents__
+			*text.as_ref().expect("text is locked <todo, return an error>") == Intern::__parents__
 		} else {
 			false
 		}
@@ -373,22 +364,12 @@ mod tests {
 	#[test]
 	fn attributes_work() {
 		let text = Text::from_str("hola mundo");
-		const ONE: AnyValue = Value::ONE.any();
+		const ONE: Value = Value::ONE.any();
 
-		assert_matches!(
-			text
-				.as_ref()
-				.unwrap()
-				.get_unbound_attr_checked(ONE, &mut vec![]),
-			Ok(None)
-		);
+		assert_matches!(text.as_ref().unwrap().get_unbound_attr_checked(ONE, &mut vec![]), Ok(None));
 		assert_matches!(text.as_mut().unwrap().del_attr(ONE), Ok(None));
 
-		text
-			.as_mut()
-			.unwrap()
-			.set_attr(ONE, Value::from(23).any())
-			.unwrap();
+		text.as_mut().unwrap().set_attr(ONE, Value::from(23).any()).unwrap();
 
 		assert_eq!(
 			text
@@ -402,11 +383,7 @@ mod tests {
 			23
 		);
 
-		text
-			.as_mut()
-			.unwrap()
-			.set_attr(ONE, Value::from(45).any())
-			.unwrap();
+		text.as_mut().unwrap().set_attr(ONE, Value::from(45).any()).unwrap();
 		assert_eq!(
 			text
 				.as_ref()
@@ -420,23 +397,10 @@ mod tests {
 		);
 
 		assert_eq!(
-			text
-				.as_mut()
-				.unwrap()
-				.del_attr(ONE)
-				.unwrap()
-				.unwrap()
-				.downcast::<Integer>()
-				.unwrap(),
+			text.as_mut().unwrap().del_attr(ONE).unwrap().unwrap().downcast::<Integer>().unwrap(),
 			45
 		);
-		assert_matches!(
-			text
-				.as_ref()
-				.unwrap()
-				.get_unbound_attr_checked(ONE, &mut vec![]),
-			Ok(None)
-		);
+		assert_matches!(text.as_ref().unwrap().get_unbound_attr_checked(ONE, &mut vec![]), Ok(None));
 	}
 
 	// XXX: This test may spuriously fail with the message `Message("parents are already locked")`.
@@ -446,7 +410,7 @@ mod tests {
 	// an issue.
 	#[test]
 	fn parents_work() {
-		const ATTR: AnyValue = Value::TRUE.any();
+		const ATTR: Value = Value::TRUE.any();
 
 		let mut parent = Value::from("hello, world").any();
 		parent.set_attr(ATTR, Value::from(123).any()).unwrap();
@@ -485,15 +449,7 @@ mod tests {
 			456
 		);
 
-		assert_eq!(
-			child
-				.del_attr(ATTR)
-				.unwrap()
-				.unwrap()
-				.downcast::<Integer>()
-				.unwrap(),
-			456
-		);
+		assert_eq!(child.del_attr(ATTR).unwrap().unwrap().downcast::<Integer>().unwrap(), 456);
 		assert_eq!(
 			child
 				.get_unbound_attr_checked(ATTR, &mut vec![])

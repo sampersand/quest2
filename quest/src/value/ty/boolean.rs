@@ -1,7 +1,7 @@
 use crate::value::ty::{ConvertTo, Float, Integer, Text};
-use crate::value::{AnyValue, Convertible, Gc, HasDefaultParent, Value};
+use crate::value::{Convertible, Gc, HasDefaultParent};
 use crate::vm::Args;
-use crate::Result;
+use crate::{Result, Value};
 
 pub type Boolean = bool;
 
@@ -29,7 +29,7 @@ impl From<Boolean> for Value<Boolean> {
 }
 
 unsafe impl Convertible for Boolean {
-	fn is_a(value: AnyValue) -> bool {
+	fn is_a(value: Value) -> bool {
 		value.bits() == Value::TRUE.bits() || value.bits() == Value::FALSE.bits()
 	}
 
@@ -67,7 +67,7 @@ pub mod funcs {
 
 	use crate::value::ToAny;
 
-	pub fn then(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+	pub fn then(boolean: bool, args: Args<'_>) -> Result<Value> {
 		if !boolean {
 			return Ok(boolean.to_any());
 		}
@@ -76,7 +76,7 @@ pub mod funcs {
 		func.call(args)
 	}
 
-	pub fn and_then(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+	pub fn and_then(boolean: bool, args: Args<'_>) -> Result<Value> {
 		if !boolean {
 			return Ok(boolean.to_any());
 		}
@@ -85,7 +85,7 @@ pub mod funcs {
 		func.call(args.with_this(boolean.to_any()))
 	}
 
-	pub fn r#else(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+	pub fn r#else(boolean: bool, args: Args<'_>) -> Result<Value> {
 		if boolean {
 			return Ok(boolean.to_any());
 		}
@@ -94,7 +94,7 @@ pub mod funcs {
 		func.call(args)
 	}
 
-	pub fn or_else(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+	pub fn or_else(boolean: bool, args: Args<'_>) -> Result<Value> {
 		if boolean {
 			return Ok(boolean.to_any());
 		}
@@ -103,7 +103,7 @@ pub mod funcs {
 		func.call(args.with_this(boolean.to_any()))
 	}
 
-	pub fn or(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+	pub fn or(boolean: bool, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -114,7 +114,7 @@ pub mod funcs {
 		Ok(args[0])
 	}
 
-	pub fn and(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+	pub fn and(boolean: bool, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -125,22 +125,22 @@ pub mod funcs {
 		Ok(args[0])
 	}
 
-	pub fn at_text(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+	pub fn at_text(boolean: bool, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 
 		ConvertTo::<Gc<Text>>::convert(&boolean, args).map(ToAny::to_any)
 	}
 
-	pub fn dbg(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
+	pub fn dbg(boolean: bool, args: Args<'_>) -> Result<Value> {
 		at_text(boolean, args)
 	}
 }
 
 impl HasDefaultParent for Boolean {
-	fn parent() -> AnyValue {
+	fn parent() -> Value {
 		use once_cell::sync::OnceCell;
 
-		static INSTANCE: OnceCell<AnyValue> = OnceCell::new();
+		static INSTANCE: OnceCell<Value> = OnceCell::new();
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Boolean", parent Object::instance();
@@ -195,11 +195,7 @@ mod tests {
 	fn test_convert_to_text() {
 		assert_eq!(
 			"true",
-			ConvertTo::<Gc<Text>>::convert(&true, Args::default())
-				.unwrap()
-				.as_ref()
-				.unwrap()
-				.as_str()
+			ConvertTo::<Gc<Text>>::convert(&true, Args::default()).unwrap().as_ref().unwrap().as_str()
 		);
 		assert_eq!(
 			"false",

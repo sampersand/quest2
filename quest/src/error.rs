@@ -1,4 +1,4 @@
-use crate::AnyValue;
+use crate::Value;
 use std::fmt::{self, Display, Formatter};
 
 mod stacktrace;
@@ -25,29 +25,20 @@ pub enum ErrorKind {
 	/// This means either [`Gc::as_ref`](crate::value::Gc::as_ref) was called while the value is
 	/// mutably borrowed, or [`Gc::as_mut`](crate::value::Gc::as_mut) was called when the value was
 	/// either mutably or immutably borrowed.
-	AlreadyLocked(AnyValue),
+	AlreadyLocked(Value),
 
 	/// Mutable access on a [frozen value](crate::Value::freeze) was attempted.
-	ValueFrozen(AnyValue),
+	ValueFrozen(Value),
 
 	/// Attempted access of the unknown attribute `attribute` on `object`.
-	UnknownAttribute {
-		object: AnyValue,
-		attribute: AnyValue,
-	},
+	UnknownAttribute { object: Value, attribute: Value },
 
 	/// An `expected` type was required but a `given` was given.
-	InvalidTypeGiven {
-		expected: crate::value::Typename,
-		given: crate::value::Typename,
-	},
+	InvalidTypeGiven { expected: crate::value::Typename, given: crate::value::Typename },
 
 	/// The conversion function of `object` for type `into` was called, but the result wasn't
 	/// something of type `into`.
-	ConversionFailed {
-		object: AnyValue,
-		into: crate::value::Typename,
-	},
+	ConversionFailed { object: Value, into: crate::value::Typename },
 
 	/// For when i haven't made an actual error
 	Message(String),
@@ -56,9 +47,9 @@ pub enum ErrorKind {
 	/// with them.
 	Return {
 		/// The value to return
-		value: AnyValue,
+		value: Value,
 		/// The frame to return from, or `None` for the current frame.
-		from_frame: Option<AnyValue>,
+		from_frame: Option<Value>,
 	},
 
 	/// A function expected no keyword arguments but they were given.
@@ -103,28 +94,28 @@ impl Display for ErrorKind {
 		match self {
 			Self::UnknownAttribute { object, attribute } => {
 				write!(f, "unknown attribute {attribute:?} for {object:?}")
-			},
+			}
 			Self::AlreadyLocked(value) => write!(f, "value {value:?} is already locked"),
 			Self::ValueFrozen(value) => write!(f, "value {value:?} is frozen"),
 			Self::ConversionFailed { object, into } => {
 				write!(f, "conversion {object:?} failed for {into:?}")
-			},
+			}
 			Self::InvalidTypeGiven { expected, given } => {
 				write!(f, "invalid type {given:?}, expected {expected:?}")
-			},
+			}
 			Self::Message(msg) => f.write_str(msg),
 			Self::Return { value, from_frame } => {
 				write!(f, "returning value {value:?} from frame {from_frame:?}")
-			},
+			}
 			Self::KeywordsGivenWhenNotExpected => {
 				write!(f, "keyword arguments given when none expected")
-			},
+			}
 			Self::PositionalArgumentMismatch { given, expected } => {
 				write!(f, "positional argument count mismatch (given {given} expected {expected})")
-			},
+			}
 			Self::StackframeIsCurrentlyRunning(frame) => {
 				write!(f, "frame {frame:?} is currently executing")
-			},
+			}
 		}
 	}
 }

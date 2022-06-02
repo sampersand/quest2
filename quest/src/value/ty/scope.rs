@@ -1,6 +1,6 @@
 use crate::value::base::{Attribute, Builder as BaseBuilder};
 use crate::value::Gc;
-use crate::{AnyValue, Result};
+use crate::{Result, Value};
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -24,7 +24,7 @@ impl Builder {
 		Self(builder)
 	}
 
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
 		unsafe { self.0.set_attr(attr, value) }
 	}
 
@@ -43,7 +43,7 @@ impl Builder {
 
 impl crate::value::gc::Mut<Scope> {
 	#[doc(hidden)]
-	pub unsafe fn _set_parent_to(&mut self, parent: AnyValue) {
+	pub unsafe fn _set_parent_to(&mut self, parent: Value) {
 		use crate::value::gc::Allocated;
 
 		self.header_mut().parents_mut().set(parent);

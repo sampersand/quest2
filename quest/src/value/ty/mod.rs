@@ -52,7 +52,7 @@ impl<T: Clone> ConvertTo<T> for T {
 }
 
 pub trait Singleton: Sized {
-	fn instance() -> crate::AnyValue;
+	fn instance() -> crate::Value;
 }
 
 pub trait InstanceOf {
@@ -60,7 +60,7 @@ pub trait InstanceOf {
 }
 
 impl<T: InstanceOf> crate::value::base::HasDefaultParent for T {
-	fn parent() -> crate::AnyValue {
+	fn parent() -> crate::Value {
 		T::Parent::instance()
 	}
 }

@@ -1,10 +1,10 @@
 use crate::value::ty::{InstanceOf, Singleton};
-use crate::value::{AnyValue, Convertible, Value};
+use crate::value::Convertible;
 use crate::vm::Args;
-use crate::Result;
+use crate::{Result, Value};
 use std::fmt::{self, Debug, Formatter};
 
-pub type Function = for<'a> fn(Args<'a>) -> Result<AnyValue>;
+pub type Function = for<'a> fn(Args<'a>) -> Result<Value>;
 
 #[repr(transparent)]
 #[derive(Clone, Copy)]
@@ -20,13 +20,13 @@ pub struct Inner {
 #[macro_export]
 macro_rules! RustFn_new {
 	($name:expr, method $func:expr) => {
-		RustFn_new!($name, function |obj: $crate::AnyValue, args: $crate::vm::Args<'_>| -> $crate::Result<$crate::AnyValue> {
+		RustFn_new!($name, function |obj: $crate::Value, args: $crate::vm::Args<'_>| -> $crate::Result<$crate::Value> {
 			$func(obj.try_downcast()?, args)
 		})
 	};
 
 	($name:expr, function $func:expr) => {
-		RustFn_new!($name, justargs |args: crate::vm::Args<'_>| -> $crate::Result<$crate::AnyValue> {
+		RustFn_new!($name, justargs |args: crate::vm::Args<'_>| -> $crate::Result<$crate::Value> {
 			let (this, args) = args.split_first()?;
 			($func)(this, args)
 		})
@@ -74,7 +74,7 @@ impl RustFn {
 	}
 
 	#[inline]
-	pub fn call(self, args: Args<'_>) -> Result<AnyValue> {
+	pub fn call(self, args: Args<'_>) -> Result<Value> {
 		(self.0.func)(args)
 	}
 }
@@ -87,7 +87,7 @@ impl PartialEq for RustFn {
 }
 
 impl RustFn {
-	pub const NOOP: Self = RustFn_new!("noop", justargs | _ | Ok(AnyValue::default()));
+	pub const NOOP: Self = RustFn_new!("noop", justargs | _ | Ok(Value::default()));
 }
 
 impl Debug for RustFn {
@@ -107,7 +107,7 @@ impl From<RustFn> for Value<RustFn> {
 }
 
 unsafe impl Convertible for RustFn {
-	fn is_a(value: AnyValue) -> bool {
+	fn is_a(value: Value) -> bool {
 		value.bits() & 0b1111 == 0b1000 && value.bits() > 0b1111
 	}
 
@@ -120,11 +120,11 @@ pub mod funcs {
 	use super::*;
 	use crate::value::ToAny;
 
-	pub fn call(func: RustFn, args: Args<'_>) -> Result<AnyValue> {
+	pub fn call(func: RustFn, args: Args<'_>) -> Result<Value> {
 		func.call(args)
 	}
 
-	pub fn dbg(func: RustFn, args: Args<'_>) -> Result<AnyValue> {
+	pub fn dbg(func: RustFn, args: Args<'_>) -> Result<Value> {
 		use crate::value::ty::text::SimpleBuilder;
 
 		args.assert_no_arguments()?;
@@ -142,10 +142,10 @@ pub mod funcs {
 pub struct RustFnClass;
 
 impl Singleton for RustFnClass {
-	fn instance() -> crate::AnyValue {
+	fn instance() -> crate::Value {
 		use once_cell::sync::OnceCell;
 
-		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+		static INSTANCE: OnceCell<crate::Value> = OnceCell::new();
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "RustFn", parent Callable::instance();

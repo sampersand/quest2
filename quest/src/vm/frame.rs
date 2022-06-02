@@ -7,7 +7,7 @@ use crate::vm::block::BlockInner;
 use crate::vm::{
 	Args, Block, Opcode, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL,
 };
-use crate::{AnyValue, Result};
+use crate::{Result, Value};
 use std::alloc::Layout;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::MaybeUninit;
@@ -35,8 +35,8 @@ pub struct Inner {
 
 	// note that both of these are actually from the same allocation;
 	// `unnamed_locals` points to the base and `named_locals` is simply an offset.
-	unnamed_locals: *mut AnyValue,
-	named_locals: *mut Option<AnyValue>,
+	unnamed_locals: *mut Value,
+	named_locals: *mut Option<Value>,
 }
 
 unsafe impl Send for Inner {}
@@ -46,7 +46,7 @@ const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
 const FLAG_IS_OBJECT: u32 = Flags::USER1;
 
 fn locals_layout_for(num_of_unnamed_locals: usize, num_named_locals: usize) -> Layout {
-	Layout::array::<Option<AnyValue>>(num_of_unnamed_locals + num_named_locals).unwrap()
+	Layout::array::<Option<Value>>(num_of_unnamed_locals + num_named_locals).unwrap()
 }
 
 impl Drop for Inner {
@@ -96,17 +96,17 @@ impl Frame {
 		builder.set_parents(block.to_any());
 
 		unsafe {
-			let unnamed_locals = crate::alloc_zeroed::<AnyValue>(locals_layout_for(
+			let unnamed_locals = crate::alloc_zeroed::<Value>(locals_layout_for(
 				inner_block.num_of_unnamed_locals,
 				inner_block.named_locals.len(),
 			))
 			.as_ptr();
 
 			let named_locals =
-				unnamed_locals.add(inner_block.num_of_unnamed_locals).cast::<Option<AnyValue>>();
+				unnamed_locals.add(inner_block.num_of_unnamed_locals).cast::<Option<Value>>();
 
 			// The scratch register defaults to null.
-			unnamed_locals.write(AnyValue::default());
+			unnamed_locals.write(Value::default());
 
 			// copy positional arguments over into the first few named local arguments.
 			let mut start = named_locals;
@@ -120,7 +120,7 @@ impl Frame {
 			}
 
 			start.copy_from_nonoverlapping(
-				args.positional().as_ptr().cast::<Option<AnyValue>>(),
+				args.positional().as_ptr().cast::<Option<Value>>(),
 				args.positional().len(),
 			);
 
@@ -183,7 +183,7 @@ impl Frame {
 		Ok(())
 	}
 
-	unsafe fn get_unnamed_local(&self, index: usize) -> AnyValue {
+	unsafe fn get_unnamed_local(&self, index: usize) -> Value {
 		debug_assert!(
 			index <= self.inner_block.num_of_unnamed_locals,
 			"{:?} > {:?}",
@@ -191,7 +191,7 @@ impl Frame {
 			self.inner_block.num_of_unnamed_locals
 		);
 		debug_assert!(
-			self.unnamed_locals.add(index).cast::<Option<AnyValue>>().read().is_some(),
+			self.unnamed_locals.add(index).cast::<Option<Value>>().read().is_some(),
 			"reading from an unassigned unnamed local!"
 		);
 
@@ -199,7 +199,7 @@ impl Frame {
 	}
 
 	// this should also be unsafe (update: should it be??)
-	fn get_local(&self, index: LocalTarget) -> Result<AnyValue> {
+	fn get_local(&self, index: LocalTarget) -> Result<Value> {
 		let index = index.0;
 
 		if 0 <= index {
@@ -223,7 +223,7 @@ impl Frame {
 	// The vast majority of the time, we're looking for unnamed or named locals, not through parent
 	// attributes.
 	#[inline(never)]
-	fn get_object_local(&self, index: usize) -> Result<AnyValue> {
+	fn get_object_local(&self, index: usize) -> Result<Value> {
 		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
 
 		if let Some(attr) =
@@ -245,7 +245,7 @@ impl Frame {
 		)
 	}
 
-	fn set_local(&mut self, index: LocalTarget, value: AnyValue) -> Result<()> {
+	fn set_local(&mut self, index: LocalTarget, value: Value) -> Result<()> {
 		let index = index.0;
 
 		if 0 <= index {
@@ -274,7 +274,7 @@ impl Frame {
 	}
 
 	#[inline(never)]
-	fn set_object_local(&mut self, index: usize, value: AnyValue) -> Result<()> {
+	fn set_object_local(&mut self, index: usize, value: Value) -> Result<()> {
 		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
 		self.0.header_mut().set_attr(attr_name.to_any(), value)
 	}
@@ -324,7 +324,7 @@ impl Frame {
 		us
 	}
 
-	fn next_local(&mut self) -> Result<AnyValue> {
+	fn next_local(&mut self) -> Result<Value> {
 		let index = self.next_local_target();
 		let value = self.get_local(index)?;
 
@@ -365,7 +365,7 @@ impl Frame {
 	}
 
 	// safety: index has to be in bounds
-	unsafe fn get_constant(&mut self, index: usize, dst: LocalTarget) -> Result<AnyValue> {
+	unsafe fn get_constant(&mut self, index: usize, dst: LocalTarget) -> Result<Value> {
 		debug_assert!(index <= self.inner_block.constants.len());
 
 		let constant = *self.inner_block.constants.get_unchecked(index);
@@ -377,7 +377,7 @@ impl Frame {
 	}
 
 	#[inline(never)]
-	fn constant_as_block(&mut self, block: Gc<Block>, dst: LocalTarget) -> Result<AnyValue> {
+	fn constant_as_block(&mut self, block: Gc<Block>, dst: LocalTarget) -> Result<Value> {
 		self.convert_to_object()?;
 
 		let parent = unsafe { crate::value::Gc::new(self.into()) };
@@ -403,7 +403,7 @@ impl Gc<Frame> {
 		skip(self),
 		fields(src=?self.as_ref()?.inner_block.location))
 	]
-	pub fn run(self) -> Result<AnyValue> {
+	pub fn run(self) -> Result<Value> {
 		if !self.as_ref()?.flags().try_acquire_all_user(FLAG_CURRENTLY_RUNNING) {
 			return Err(crate::error::ErrorKind::StackframeIsCurrentlyRunning(self).into());
 		}
@@ -444,7 +444,7 @@ impl Gc<Frame> {
 	}
 
 	fn run_inner(self) -> Result<()> {
-		let mut args = [MaybeUninit::<AnyValue>::uninit(); MAX_ARGUMENTS_FOR_SIMPLE_CALL];
+		let mut args = [MaybeUninit::<Value>::uninit(); MAX_ARGUMENTS_FOR_SIMPLE_CALL];
 		let mut this = self.as_mut()?;
 		let mut variable_args_count = MaybeUninit::uninit();
 
@@ -463,7 +463,7 @@ impl Gc<Frame> {
 			};
 			(start=$start:expr, len=$len:expr) => {
 				Args::new(
-					std::slice::from_raw_parts(args.as_ptr().cast::<AnyValue>().add($start), $len),
+					std::slice::from_raw_parts(args.as_ptr().cast::<Value>().add($start), $len),
 					&[],
 				)
 			};
@@ -484,7 +484,7 @@ impl Gc<Frame> {
 				let arity = op.arity();
 				let is_variable_simple = op.is_variable_simple();
 				debug_assert!(arity <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
-				let mut ptr = args.as_mut_ptr().cast::<AnyValue>();
+				let mut ptr = args.as_mut_ptr().cast::<Value>();
 
 				for _ in 0..arity {
 					let local = this.next_local()?;
@@ -593,7 +593,7 @@ impl Gc<Frame> {
 					/*
 					Because you can assign indices onto any object, we need to be able to dynamically convert
 					immediates (eg integers, floats, booleans, etc) into a heap-allocated form if we want to
-					assign attributes. This is done by having `AnyValue::set_attr` take a mutable reference to
+					assign attributes. This is done by having `Value::set_attr` take a mutable reference to
 					self. However, the only time this is useful is if we're talking about a named attribute---if
 					we're assigning to an unnamed local, that means it'll just get thrown away immediately.
 
@@ -745,7 +745,7 @@ pub mod funcs {
 	use super::*;
 
 	/// Resumes the `frame`. Note that if it's already running, an error will be returned.
-	pub fn resume(frame: Gc<Frame>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn resume(frame: Gc<Frame>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		frame.run()
@@ -753,7 +753,7 @@ pub mod funcs {
 
 	/// Restarts `frame` from the beginning. Note that if it's already running, an error will be
 	/// returned.
-	pub fn restart(frame: Gc<Frame>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn restart(frame: Gc<Frame>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 		frame.as_mut()?.pos = 0;
 
@@ -761,7 +761,7 @@ pub mod funcs {
 	}
 
 	/// Returns a debug representation of `frame`.
-	pub fn dbg(frame: Gc<Frame>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn dbg(frame: Gc<Frame>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		// TODO: maybe cache this in the future?

@@ -1,7 +1,7 @@
 use crate::value::base::{Attribute, Base, Builder as BaseBuilder};
 use crate::value::ty::Pristine;
 use crate::value::Gc;
-use crate::{AnyValue, Result};
+use crate::{Result, Value};
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -17,20 +17,15 @@ pub struct Inner {
 pub struct Builder(BaseBuilder<Inner>);
 
 impl Builder {
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
-		unsafe { &mut *self.0.as_ptr().as_ptr() }
-			.header_mut()
-			.set_attr(attr, value)
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
+		unsafe { &mut *self.0.as_ptr().as_ptr() }.header_mut().set_attr(attr, value)
 	}
 
-	pub fn parent(&mut self, parent: AnyValue) {
-		unsafe { &mut *self.0.as_ptr().as_ptr() }
-			.header_mut()
-			.parents_mut()
-			.set(parent);
+	pub fn parent(&mut self, parent: Value) {
+		unsafe { &mut *self.0.as_ptr().as_ptr() }.header_mut().parents_mut().set(parent);
 	}
 
-	// pub fn function(&mut self, name: &'static str, value: fn(AnyValue, Args<'_>) -> Result<AnyValue>) {
+	// pub fn function(&mut self, name: &'static str, value: fn(Value, Args<'_>) -> Result<Value>) {
 	// 	self.set_attr(name, RustFn_new!(name, value))
 	// }
 	#[must_use]

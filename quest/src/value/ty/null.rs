@@ -1,7 +1,7 @@
 use crate::value::ty::{Boolean, ConvertTo, Float, InstanceOf, Integer, List, Singleton, Text};
-use crate::value::{AnyValue, Convertible, Gc, ToAny, Value};
+use crate::value::{Convertible, Gc};
 use crate::vm::Args;
-use crate::Result;
+use crate::{Result, ToAny, Value};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -28,7 +28,7 @@ impl From<Null> for Value<Null> {
 }
 
 unsafe impl Convertible for Null {
-	fn is_a(value: AnyValue) -> bool {
+	fn is_a(value: Value) -> bool {
 		value.bits() == Value::NULL.bits()
 	}
 
@@ -80,27 +80,27 @@ impl ConvertTo<Gc<List>> for Null {
 pub mod funcs {
 	use super::*;
 
-	pub fn at_text(null: Null, args: Args<'_>) -> Result<AnyValue> {
+	pub fn at_text(null: Null, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Gc<Text>>::convert(&null, args).map(ToAny::to_any)
 	}
 
-	pub fn at_int(null: Null, args: Args<'_>) -> Result<AnyValue> {
+	pub fn at_int(null: Null, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Integer>::convert(&null, args).map(ToAny::to_any)
 	}
 
-	pub fn at_float(null: Null, args: Args<'_>) -> Result<AnyValue> {
+	pub fn at_float(null: Null, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Float>::convert(&null, args).map(ToAny::to_any)
 	}
 
-	pub fn at_list(null: Null, args: Args<'_>) -> Result<AnyValue> {
+	pub fn at_list(null: Null, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Gc<List>>::convert(&null, args).map(ToAny::to_any)
 	}
 
-	pub fn at_bool(null: Null, args: Args<'_>) -> Result<AnyValue> {
+	pub fn at_bool(null: Null, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Boolean>::convert(&null, args).map(ToAny::to_any)
 	}
 
-	pub fn dbg(null: Null, args: Args<'_>) -> Result<AnyValue> {
+	pub fn dbg(null: Null, args: Args<'_>) -> Result<Value> {
 		at_text(null, args)
 	}
 }
@@ -113,10 +113,10 @@ impl InstanceOf for Null {
 pub struct NullClass;
 
 impl Singleton for NullClass {
-	fn instance() -> crate::AnyValue {
+	fn instance() -> crate::Value {
 		use once_cell::sync::OnceCell;
 
-		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+		static INSTANCE: OnceCell<crate::Value> = OnceCell::new();
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Null", parent Object::instance();
@@ -158,11 +158,7 @@ mod tests {
 	fn test_convert_to_text() {
 		assert_eq!(
 			"null",
-			ConvertTo::<Gc<Text>>::convert(&Null, Args::default())
-				.unwrap()
-				.as_ref()
-				.unwrap()
-				.as_str()
+			ConvertTo::<Gc<Text>>::convert(&Null, Args::default()).unwrap().as_ref().unwrap().as_str()
 		);
 		assert!(ConvertTo::<Gc<Text>>::convert(&Null, Args::new(&[Value::TRUE.any()], &[])).is_err());
 	}

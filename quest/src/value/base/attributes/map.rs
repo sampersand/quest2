@@ -1,6 +1,6 @@
 use super::Attribute;
 use crate::value::{Intern, ToAny};
-use crate::{AnyValue, Result};
+use crate::{Result, Value};
 use hashbrown::hash_map::{Iter as HashBrownIter, RawEntryMut};
 use hashbrown::HashMap;
 
@@ -26,19 +26,16 @@ lookup a `Text` dynamically, you must also check the `Intern`s.
 
 #[derive(Debug, Default)]
 pub struct Map {
-	interned: HashMap<Intern, AnyValue>,
-	any: HashMap<AnyValue, AnyValue>,
+	interned: HashMap<Intern, Value>,
+	any: HashMap<Value, Value>,
 }
 
 impl Map {
 	pub fn with_capacity(capacity: usize) -> Box<Self> {
-		Box::new(Self {
-			interned: HashMap::with_capacity(capacity),
-			any: HashMap::new(),
-		})
+		Box::new(Self { interned: HashMap::with_capacity(capacity), any: HashMap::new() })
 	}
 
-	pub fn from_iter(iter: impl IntoIterator<Item = (AnyValue, AnyValue)>) -> Result<Box<Self>> {
+	pub fn from_iter(iter: impl IntoIterator<Item = (Value, Value)>) -> Result<Box<Self>> {
 		let mut map = Self::with_capacity(super::list::MAX_LISTMAP_LEN);
 
 		for (attr, value) in iter {
@@ -49,10 +46,10 @@ impl Map {
 	}
 }
 
-pub struct MapIter<'a>(HashBrownIter<'a, Intern, AnyValue>, HashBrownIter<'a, AnyValue, AnyValue>);
+pub struct MapIter<'a>(HashBrownIter<'a, Intern, Value>, HashBrownIter<'a, Value, Value>);
 
 impl Iterator for MapIter<'_> {
-	type Item = (AnyValue, AnyValue);
+	type Item = (Value, Value);
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if let Some((&key, &value)) = self.0.next() {
@@ -74,7 +71,7 @@ impl Map {
 		self.interned.len() + self.any.len()
 	}
 
-	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
 		debug_assert!(!attr.is_special());
 
 		if let Some(intern) = attr.as_intern()? {
@@ -84,33 +81,30 @@ impl Map {
 		}
 	}
 
-	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut AnyValue> {
+	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
 		let _ = self;
 		let _ = attr;
 		todo!("get unbound attr mut for maps");
 		// debug_assert!(!attr.is_special());
 	}
 
-	fn get_unbound_any_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+	fn get_unbound_any_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
-		let res = self
-			.any
-			.raw_entry()
-			.from_hash(hash, |&k| match attr.try_eq_value(k) {
-				Ok(val) => val,
-				Err(err) => {
-					eq_err = Err(err);
-					true
-				},
-			});
+		let res = self.any.raw_entry().from_hash(hash, |&k| match attr.try_eq_value(k) {
+			Ok(val) => val,
+			Err(err) => {
+				eq_err = Err(err);
+				true
+			}
+		});
 		eq_err?;
 
 		Ok(res.map(|(_key, &val)| val))
 	}
 
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
 		debug_assert!(!attr.is_special());
 
 		if let Some(intern) = attr.as_intern()? {
@@ -122,38 +116,34 @@ impl Map {
 		}
 	}
 
-	fn set_any_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
+	fn set_any_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
-		let res = self
-			.any
-			.raw_entry_mut()
-			.from_hash(hash, |&k| match attr.try_eq_value(k) {
-				Ok(val) => val,
-				Err(err) => {
-					eq_err = Err(err);
-					true
-				},
-			});
+		let res = self.any.raw_entry_mut().from_hash(hash, |&k| match attr.try_eq_value(k) {
+			Ok(val) => val,
+			Err(err) => {
+				eq_err = Err(err);
+				true
+			}
+		});
 		eq_err?;
 
 		match res {
 			RawEntryMut::Occupied(mut occ) => {
 				occ.insert(value);
-			},
+			}
 			RawEntryMut::Vacant(vac) => {
 				vac.insert_with_hasher(hash, attr.to_value(), value, |k| {
-					k.try_hash()
-						.expect("if the first hash doesn't fail, subsequent ones shouldn't")
+					k.try_hash().expect("if the first hash doesn't fail, subsequent ones shouldn't")
 				});
-			},
+			}
 		}
 
 		Ok(())
 	}
 
-	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
 		debug_assert!(!attr.is_special());
 
 		if let Some(_intern) = attr.as_intern()? {
@@ -165,20 +155,17 @@ impl Map {
 		}
 	}
 
-	fn del_any_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
+	fn del_any_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
 		let hash = attr.try_hash()?;
 		let mut eq_err: Result<()> = Ok(());
 
-		let res = self
-			.any
-			.raw_entry_mut()
-			.from_hash(hash, |&k| match attr.try_eq_value(k) {
-				Ok(val) => val,
-				Err(err) => {
-					eq_err = Err(err);
-					true
-				},
-			});
+		let res = self.any.raw_entry_mut().from_hash(hash, |&k| match attr.try_eq_value(k) {
+			Ok(val) => val,
+			Err(err) => {
+				eq_err = Err(err);
+				true
+			}
+		});
 		eq_err?;
 
 		if let RawEntryMut::Occupied(occ) = res {

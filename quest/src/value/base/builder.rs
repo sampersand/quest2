@@ -1,6 +1,6 @@
 use super::{Attribute, Base, Flags, Header, IntoParent};
 use crate::value::gc::Gc;
-use crate::AnyValue;
+use crate::Value;
 use std::any::TypeId;
 use std::ptr::{addr_of, addr_of_mut, NonNull};
 
@@ -377,7 +377,7 @@ impl<T> Builder<T> {
 	///
 	/// # Example
 	/// See [`allocate_attributes`] for examples.
-	pub unsafe fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> crate::Result<()> {
+	pub unsafe fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> crate::Result<()> {
 		// SAFETY:
 		// - `flags` is initialized in the constructors (`new_uninit` initializes to zero, and
 		//   `new_zeroed` starts off with it at zero). The caller

@@ -1,6 +1,6 @@
 use crate::value::{Gc, ToAny};
 use crate::vm::Args;
-use crate::{AnyValue, Result};
+use crate::{Result, Value};
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -9,10 +9,10 @@ quest_type! {
 
 impl Callable {
 	#[must_use]
-	pub fn instance() -> AnyValue {
+	pub fn instance() -> Value {
 		use once_cell::sync::OnceCell;
 
-		static INSTANCE: OnceCell<AnyValue> = OnceCell::new();
+		static INSTANCE: OnceCell<Value> = OnceCell::new();
 
 		*INSTANCE.get_or_init(|| {
 			new_quest_scope! {
@@ -25,7 +25,7 @@ impl Callable {
 }
 
 impl Gc<Callable> {
-	pub fn qs_ignore(args: Args<'_>) -> Result<AnyValue> {
+	pub fn qs_ignore(args: Args<'_>) -> Result<Value> {
 		let _ = true.to_any();
 		let _ = args;
 		todo!()

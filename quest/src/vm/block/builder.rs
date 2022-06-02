@@ -1,6 +1,6 @@
 use super::Block;
 use crate::value::ToAny;
-use crate::value::{ty::Text, AnyValue, Gc};
+use crate::value::{ty::Text, Gc, Value};
 use crate::vm::{
 	Opcode, SourceLocation, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL,
 };
@@ -11,7 +11,7 @@ use crate::vm::{
 pub struct Builder {
 	source_location: SourceLocation,
 	code: Vec<u8>,
-	constants: Vec<AnyValue>,
+	constants: Vec<Value>,
 	num_of_unnamed_locals: usize,
 	named_locals: Vec<Gc<Text>>,
 }
@@ -38,10 +38,8 @@ impl Builder {
 	pub fn new(source_location: SourceLocation) -> Self {
 		// These are present in every block
 		// OPTIMIZE: maybe make these things once and freeze them?
-		let named_locals = vec![
-			Text::from_static_str("__block__"),
-			Text::from_static_str("__args__"),
-		];
+		let named_locals =
+			vec![Text::from_static_str("__block__"), Text::from_static_str("__args__")];
 
 		Self {
 			source_location,
@@ -88,7 +86,7 @@ impl Builder {
 	}
 
 	/// Loads the constant `value` into `dst`.
-	pub fn constant(&mut self, value: AnyValue, dst: Local) {
+	pub fn constant(&mut self, value: Value, dst: Local) {
 		let mut index = None;
 
 		for (idx, constant) in self.constants.iter().enumerate() {
@@ -155,26 +153,26 @@ impl Builder {
 			Local::Scratch => {
 				debug!(target: "block_builder", idx=self.code.len(), local=%"0 (scratch)", "set byte");
 				self.code.push(0);
-			},
+			}
 			Local::Unnamed(n) if n < COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize => {
 				debug!(target: "block_builder", idx=self.code.len(), local=%n, "set byte");
 				self.code.push(n as u8);
-			},
+			}
 			Local::Unnamed(n) => {
 				debug!(target: "block_builder", idx=self.code.len(), local=?n, "set bytes");
 				self.code.push(COUNT_IS_NOT_ONE_BYTE_BUT_USIZE);
 				self.code.extend(n.to_ne_bytes());
-			},
+			}
 			// todo, im not sure if this is 100% correct, math-wise
 			Local::Named(n) if n < COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize => {
 				debug!(target: "block_builder", idx=self.code.len(), local=?n, updated=?(!(n as i8) as u8), "set byte");
 				self.code.push(!(n as i8) as u8);
-			},
+			}
 			Local::Named(n) => {
 				debug!(target: "block_builder", idx=self.code.len(), local=?n, updated=?((!n as isize) as usize), "set bytes");
 				self.code.push(COUNT_IS_NOT_ONE_BYTE_BUT_USIZE);
 				self.code.extend((!(n as isize)).to_ne_bytes());
-			},
+			}
 		}
 	}
 

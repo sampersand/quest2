@@ -10,14 +10,12 @@ use quest::value::*;
 use quest::vm::*;
 use quest::Result;
 
-fn run_code(code: &str) -> Result<AnyValue> {
+fn run_code(code: &str) -> Result<Value> {
 	let mut parser = Parser::new(code, None);
 	let mut builder = quest::vm::block::Builder::new(Default::default());
 	let scratch = quest::vm::block::Local::Scratch;
 
-	ast::Group::parse_all(&mut parser)
-		.expect("bad parse")
-		.compile(&mut builder, scratch);
+	ast::Group::parse_all(&mut parser).expect("bad parse").compile(&mut builder, scratch);
 
 	builder.build().run(Default::default())
 }
@@ -279,11 +277,11 @@ $syntax { @ ${! $f:int} } = { print(2 ${* $f}) } ;
 		Err(err) => {
 			eprintln!("error: {err:#}");
 			std::process::exit(0)
-		},
+		}
 		Ok(num) => {
 			if let Some(exit_code) = num.downcast::<i64>() {
 				std::process::exit(exit_code as i32)
 			}
-		},
+		}
 	}
 }

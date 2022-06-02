@@ -1,7 +1,7 @@
 use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 use crate::value::ty::{InstanceOf, Singleton};
-use crate::AnyValue;
+use crate::Value;
 use std::alloc;
 use std::fmt::{self, Debug, Formatter};
 
@@ -26,17 +26,16 @@ pub union Inner {
 struct AllocatedList {
 	len: usize,
 	cap: usize,
-	ptr: *mut AnyValue,
+	ptr: *mut Value,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct EmbeddedList {
-	buf: [AnyValue; MAX_EMBEDDED_LEN],
+	buf: [Value; MAX_EMBEDDED_LEN],
 }
 
-const MAX_EMBEDDED_LEN: usize =
-	std::mem::size_of::<AllocatedList>() / std::mem::size_of::<AnyValue>();
+const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedList>() / std::mem::size_of::<Value>();
 const FLAG_EMBEDDED: u32 = Flags::USER0;
 const FLAG_SHARED: u32 = Flags::USER1;
 const FLAG_NOFREE: u32 = Flags::USER2;
@@ -55,7 +54,7 @@ const fn mask_len(len: usize) -> u32 {
 }
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
-	alloc::Layout::array::<AnyValue>(cap).unwrap()
+	alloc::Layout::array::<Value>(cap).unwrap()
 }
 
 impl List {
@@ -87,7 +86,7 @@ impl List {
 	}
 
 	#[must_use]
-	pub fn from_slice(inp: &[AnyValue]) -> Gc<Self> {
+	pub fn from_slice(inp: &[Value]) -> Gc<Self> {
 		let mut builder = Self::builder();
 
 		unsafe {
@@ -98,14 +97,14 @@ impl List {
 	}
 
 	#[must_use]
-	pub fn from_static_slice(inp: &'static [AnyValue]) -> Gc<Self> {
+	pub fn from_static_slice(inp: &'static [Value]) -> Gc<Self> {
 		let mut builder = Self::builder();
 		builder.insert_flags(FLAG_NOFREE | FLAG_SHARED);
 
 		unsafe {
 			let mut alloc = &mut builder.inner_mut().alloc;
 
-			alloc.ptr = inp.as_ptr() as *mut AnyValue;
+			alloc.ptr = inp.as_ptr() as *mut Value;
 			alloc.len = inp.len();
 			alloc.cap = alloc.len;
 
@@ -164,7 +163,7 @@ impl List {
 		}
 	}
 
-	pub fn as_ptr(&self) -> *const AnyValue {
+	pub fn as_ptr(&self) -> *const Value {
 		if self.is_embedded() {
 			unsafe { &self.inner().embed.buf }.as_ptr()
 		} else {
@@ -173,7 +172,7 @@ impl List {
 	}
 
 	#[inline]
-	pub fn as_slice(&self) -> &[AnyValue] {
+	pub fn as_slice(&self) -> &[Value] {
 		unsafe { std::slice::from_raw_parts(self.as_ptr(), self.len()) }
 	}
 
@@ -202,10 +201,7 @@ impl List {
 	}
 
 	#[must_use]
-	pub fn substr<I: std::slice::SliceIndex<[AnyValue], Output = [AnyValue]>>(
-		&self,
-		idx: I,
-	) -> Gc<Self> {
+	pub fn substr<I: std::slice::SliceIndex<[Value], Output = [Value]>>(&self, idx: I) -> Gc<Self> {
 		let slice = &self.as_slice()[idx];
 
 		unsafe {
@@ -214,7 +210,7 @@ impl List {
 			let mut builder = Self::builder();
 			builder.insert_flags(FLAG_SHARED);
 			builder.inner_mut().alloc = AllocatedList {
-				ptr: slice.as_ptr() as *mut AnyValue,
+				ptr: slice.as_ptr() as *mut Value,
 				len: slice.len(),
 				cap: slice.len(), // capacity = length
 			};
@@ -235,7 +231,7 @@ impl List {
 		self.flags().remove_user(FLAG_NOFREE | FLAG_SHARED);
 	}
 
-	pub unsafe fn as_mut_ptr(&mut self) -> *mut AnyValue {
+	pub unsafe fn as_mut_ptr(&mut self) -> *mut Value {
 		if self.is_embedded() {
 			return self.inner_mut().embed.buf.as_mut_ptr();
 		}
@@ -250,7 +246,7 @@ impl List {
 		self.inner_mut().alloc.ptr
 	}
 
-	pub fn as_mut_slice(&mut self) -> &mut [AnyValue] {
+	pub fn as_mut_slice(&mut self) -> &mut [Value] {
 		unsafe { std::slice::from_raw_parts_mut(self.as_mut_ptr(), self.len()) }
 	}
 
@@ -267,11 +263,7 @@ impl List {
 			let ptr = crate::alloc(layout).as_ptr();
 			std::ptr::copy(self.inner().embed.buf.as_ptr(), ptr, len);
 
-			self.inner_mut().alloc = AllocatedList {
-				len,
-				cap: new_cap,
-				ptr,
-			};
+			self.inner_mut().alloc = AllocatedList { len, cap: new_cap, ptr };
 
 			self.flags().remove_user(FLAG_EMBEDDED | EMBED_LENMASK);
 		}
@@ -304,7 +296,7 @@ impl List {
 			alloc.ptr = crate::realloc(
 				alloc.ptr.cast::<u8>(),
 				alloc_ptr_layout(alloc.cap),
-				new_cap * std::mem::size_of::<AnyValue>(),
+				new_cap * std::mem::size_of::<Value>(),
 			)
 			.as_ptr();
 
@@ -312,45 +304,41 @@ impl List {
 		}
 	}
 
-	fn mut_end_ptr(&mut self) -> *mut AnyValue {
+	fn mut_end_ptr(&mut self) -> *mut Value {
 		unsafe { self.as_mut_ptr().add(self.len()) }
 	}
 
-	pub fn shift(&mut self) -> Option<AnyValue> {
+	pub fn shift(&mut self) -> Option<Value> {
 		let ret = self.as_slice().first().copied();
 
 		if ret.is_some() {
 			unsafe {
 				self.set_len(self.len() - 1);
-				self
-					.as_mut_ptr()
-					.copy_from(self.as_mut_ptr().add(1), self.len());
+				self.as_mut_ptr().copy_from(self.as_mut_ptr().add(1), self.len());
 			}
 		}
 
 		ret
 	}
 
-	pub fn unshift(&mut self, ele: AnyValue) {
+	pub fn unshift(&mut self, ele: Value) {
 		if self.capacity() <= self.len() + 1 {
 			self.allocate_more(1);
 		}
 
 		unsafe {
-			self
-				.as_mut_ptr()
-				.copy_to(self.as_mut_ptr().add(1), self.len());
+			self.as_mut_ptr().copy_to(self.as_mut_ptr().add(1), self.len());
 			self.as_mut_ptr().write(ele);
 			self.set_len(self.len() + 1);
 		}
 	}
 
-	pub fn push(&mut self, ele: AnyValue) {
+	pub fn push(&mut self, ele: Value) {
 		// OPTIMIZE: you can make this work better for single values.
 		self.push_slice(std::slice::from_ref(&ele));
 	}
 
-	pub fn pop(&mut self) -> Option<AnyValue> {
+	pub fn pop(&mut self) -> Option<Value> {
 		let ret = self.as_slice().last().copied();
 
 		if ret.is_some() {
@@ -362,7 +350,7 @@ impl List {
 		ret
 	}
 
-	pub fn push_slice(&mut self, slice: &[AnyValue]) {
+	pub fn push_slice(&mut self, slice: &[Value]) {
 		if self.capacity() <= self.len() + slice.len() {
 			self.allocate_more(slice.len());
 		}
@@ -372,7 +360,7 @@ impl List {
 		}
 	}
 
-	pub unsafe fn push_slice_unchecked(&mut self, slice: &[AnyValue]) {
+	pub unsafe fn push_slice_unchecked(&mut self, slice: &[Value]) {
 		debug_assert!(self.capacity() >= self.len() + slice.len());
 
 		std::ptr::copy(slice.as_ptr(), self.mut_end_ptr(), slice.len());
@@ -386,14 +374,14 @@ impl Default for Gc<List> {
 	}
 }
 
-impl AsRef<[AnyValue]> for List {
-	fn as_ref(&self) -> &[AnyValue] {
+impl AsRef<[Value]> for List {
+	fn as_ref(&self) -> &[Value] {
 		self.as_slice()
 	}
 }
 
-impl AsMut<[AnyValue]> for List {
-	fn as_mut(&mut self) -> &mut [AnyValue] {
+impl AsMut<[Value]> for List {
+	fn as_mut(&mut self) -> &mut [Value] {
 		self.as_mut_slice()
 	}
 }
@@ -433,14 +421,14 @@ impl Debug for List {
 	}
 }
 
-impl From<&'_ [AnyValue]> for Gc<List> {
-	fn from(string: &[AnyValue]) -> Self {
+impl From<&'_ [Value]> for Gc<List> {
+	fn from(string: &[Value]) -> Self {
 		List::from_slice(string)
 	}
 }
 
-impl From<&'_ [AnyValue]> for crate::Value<Gc<List>> {
-	fn from(text: &[AnyValue]) -> Self {
+impl From<&'_ [Value]> for crate::Value<Gc<List>> {
+	fn from(text: &[Value]) -> Self {
 		List::from_slice(text).into()
 	}
 }
@@ -451,13 +439,13 @@ pub mod funcs {
 	use crate::value::ToAny;
 	use crate::{vm::Args, Result};
 
-	pub fn len(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn len(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		Ok((list.as_ref()?.len() as Integer).to_any())
 	}
 
-	pub fn index(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn index(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?; // todo: more positional args for slicing
 
@@ -472,13 +460,10 @@ pub mod funcs {
 			}
 		}
 
-		Ok(*listref
-			.as_slice()
-			.get(index as usize)
-			.expect("todo: error for out of bounds"))
+		Ok(*listref.as_slice().get(index as usize).expect("todo: error for out of bounds"))
 	}
 
-	pub fn index_assign(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn index_assign(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(2)?; // todo: more positional args for slicing
 
@@ -501,7 +486,7 @@ pub mod funcs {
 		Ok(value)
 	}
 
-	pub fn push(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn push(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -510,19 +495,19 @@ pub mod funcs {
 		Ok(list.to_any())
 	}
 
-	pub fn pop(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn pop(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		Ok(list.as_mut()?.pop().unwrap_or_default())
 	}
 
-	pub fn shift(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn shift(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		Ok(list.as_mut()?.shift().unwrap_or_default())
 	}
 
-	pub fn unshift(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn unshift(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?; // todo: more positional args for slicing
 
@@ -531,11 +516,11 @@ pub mod funcs {
 		Ok(list.to_any())
 	}
 
-	pub fn at_text(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn at_text(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		use crate::value::ty::text::SimpleBuilder;
 
 		fn at_text_maybe_list(
-			value: AnyValue,
+			value: Value,
 			builder: &mut SimpleBuilder,
 			visited: &mut Vec<Gc<List>>,
 		) -> Result<()> {
@@ -582,11 +567,11 @@ pub mod funcs {
 		Ok(builder.finish().to_any())
 	}
 
-	pub fn dbg(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn dbg(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		at_text(list, args)
 	}
 
-	pub fn map(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn map(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 		let func = args[0];
@@ -602,7 +587,7 @@ pub mod funcs {
 		Ok(new.to_any())
 	}
 
-	pub fn each(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn each(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 		let func = args[0];
@@ -619,10 +604,10 @@ pub mod funcs {
 pub struct ListClass;
 
 impl Singleton for ListClass {
-	fn instance() -> crate::AnyValue {
+	fn instance() -> crate::Value {
 		use once_cell::sync::OnceCell;
 
-		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+		static INSTANCE: OnceCell<crate::Value> = OnceCell::new();
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "List", parent Object::instance();

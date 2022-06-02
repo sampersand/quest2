@@ -4,9 +4,9 @@ use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 #[allow(unused)]
 use crate::value::ty::List;
-use crate::value::{Intern, ToAny};
+use crate::value::Intern;
 use crate::vm::Args;
-use crate::{AnyValue, Result, Value};
+use crate::{Result, ToAny, Value};
 use std::alloc;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -766,12 +766,7 @@ impl Text {
 			let ptr = crate::alloc(layout).as_ptr();
 			std::ptr::copy(self.inner().embed.buf.as_ptr(), ptr, len);
 
-			self.inner_mut().alloc = AllocatedText {
-				hash,
-				len,
-				cap: new_cap,
-				ptr,
-			};
+			self.inner_mut().alloc = AllocatedText { hash, len, cap: new_cap, ptr };
 
 			self.flags().remove_user(FLAG_EMBEDDED | EMBED_LENMASK);
 		}
@@ -844,9 +839,7 @@ impl Text {
 			self.capacity()
 		);
 
-		self
-			.mut_end_ptr()
-			.copy_from_nonoverlapping(string.as_ptr(), string.len());
+		self.mut_end_ptr().copy_from_nonoverlapping(string.as_ptr(), string.len());
 
 		self.set_len(self.len() + string.len());
 	}
@@ -967,13 +960,13 @@ impl From<&'static str> for Value<Gc<Text>> {
 }
 
 impl ToAny for &'static str {
-	fn to_any(self) -> AnyValue {
+	fn to_any(self) -> Value {
 		Value::from(self).any()
 	}
 }
 
 impl ToAny for String {
-	fn to_any(self) -> AnyValue {
+	fn to_any(self) -> Value {
 		Gc::<Text>::from(self).to_any()
 	}
 }
@@ -1024,7 +1017,7 @@ impl PartialOrd<str> for Text {
 pub mod funcs {
 	use super::*;
 
-	pub fn concat(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn concat(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -1039,7 +1032,7 @@ pub mod funcs {
 		Ok(text.to_any())
 	}
 
-	pub fn add(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn add(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -1052,7 +1045,7 @@ pub mod funcs {
 		Ok(text.to_any())
 	}
 
-	pub fn eql(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn eql(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -1063,12 +1056,12 @@ pub mod funcs {
 		}
 	}
 
-	pub fn len(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn len(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 		Ok((text.as_ref()?.len() as i64).to_any())
 	}
 
-	pub fn assign(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn assign(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -1082,7 +1075,7 @@ pub mod funcs {
 		Ok(value)
 	}
 
-	pub fn dbg(text: Gc<Text>, args: Args<'_>) -> Result<AnyValue> {
+	pub fn dbg(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		Ok(Text::from_string(format!("{:?}", text.as_ref()?.as_str())).to_any())

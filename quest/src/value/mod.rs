@@ -8,10 +8,10 @@ mod value;
 
 pub use gc::Gc;
 pub use intern::Intern;
-pub use value::{AnyValue, Value};
+pub use value::Value;
 
 pub trait HasDefaultParent {
-	fn parent() -> AnyValue;
+	fn parent() -> Value;
 }
 
 pub type Typename = &'static str;
@@ -20,10 +20,10 @@ pub trait NamedType {
 }
 
 pub unsafe trait Convertible: Into<Value<Self>> {
-	fn is_a(value: AnyValue) -> bool;
+	fn is_a(value: Value) -> bool;
 
 	#[must_use]
-	fn downcast(value: AnyValue) -> Option<Value<Self>> {
+	fn downcast(value: Value) -> Option<Value<Self>> {
 		if Self::is_a(value) {
 			Some(unsafe { std::mem::transmute(value) })
 		} else {
@@ -35,11 +35,11 @@ pub unsafe trait Convertible: Into<Value<Self>> {
 }
 
 pub trait ToAny {
-	fn to_any(self) -> AnyValue;
+	fn to_any(self) -> Value;
 }
 
 impl<T: Convertible> ToAny for T {
-	fn to_any(self) -> AnyValue {
+	fn to_any(self) -> Value {
 		self.into().any()
 	}
 }

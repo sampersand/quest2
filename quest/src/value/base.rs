@@ -138,7 +138,7 @@ impl<T> Base<T> {
 		unsafe { builder.finish() }
 	}
 
-	pub unsafe fn allocate_with_parent(attr_capacity: usize, parent: AnyValue) -> Builder<T> {
+	pub unsafe fn allocate_with_parent(attr_capacity: usize, parent: Value) -> Builder<T> {
 		let mut b = Builder::allocate();
 		b.allocate_attributes(attr_capacity);
 		b.set_parents(parent);
@@ -172,11 +172,7 @@ impl<T> Base<T> {
 
 		// TODO: you can currently make something froze whilst it's mutably borrowed, fix it.
 		if flags.contains(Flags::FROZEN) {
-			return Err(
-				"todo: how do we want to return an error here"
-					.to_string()
-					.into(),
-			);
+			return Err("todo: how do we want to return an error here".to_string().into());
 			// return Err(Error::ValueFrozen(Gc::new(ptr).any()));
 		}
 
@@ -208,7 +204,7 @@ impl<T> Drop for Base<T> {
 	}
 }
 
-use crate::{value::AnyValue, Result};
+use crate::{value::Value, Result};
 
 impl Header {
 	pub(crate) fn borrows(&self) -> &AtomicU32 {
@@ -222,21 +218,21 @@ impl Header {
 	/// does not exist within our immediate attributes.
 	///
 	/// # Errors
-	/// If the [`try_hash`](AnyValue::try_hash) or [`try_eq`](AnyValue::try_eq) functions on `attr`
+	/// If the [`try_hash`](Value::try_hash) or [`try_eq`](Value::try_eq) functions on `attr`
 	/// return an error, that will be propagated upwards. Additionally, if the parents of `self`
 	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
 	///
 	/// # Example
 	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
-	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
 		self.get_unbound_attr_checked(attr, &mut Vec::new())
 	}
 
 	pub fn get_unbound_attr_checked<A: Attribute>(
 		&self,
 		attr: A,
-		checked: &mut Vec<AnyValue>,
-	) -> Result<Option<AnyValue>> {
+		checked: &mut Vec<Value>,
+	) -> Result<Option<Value>> {
 		if let Some(value) = self.attributes().get_unbound_attr(attr)? {
 			Ok(Some(value))
 		} else {
@@ -244,7 +240,7 @@ impl Header {
 		}
 	}
 
-	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut AnyValue> {
+	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
 		self.attributes_mut().get_unbound_attr_mut(attr)
 	}
 
@@ -277,7 +273,7 @@ impl Header {
 	/// - `ptr` must be a valid pointer to a `Self` for read & writes
 	/// - The `attribute`s field must have been initialized.
 	/// - The `flags` field must have been initialized.
-	unsafe fn set_attr_raw<A: Attribute>(ptr: *mut Self, attr: A, value: AnyValue) -> Result<()> {
+	unsafe fn set_attr_raw<A: Attribute>(ptr: *mut Self, attr: A, value: Value) -> Result<()> {
 		let attrs_ptr = &mut (*ptr).attributes;
 		let flags = &(*ptr).flags;
 
@@ -287,26 +283,26 @@ impl Header {
 	/// Sets the `self`'s attribute `attr` to `value`.
 	///
 	/// # Errors
-	/// If the [`try_hash`](AnyValue::try_hash) or [`try_eq`](AnyValue::try_eq) functions on `attr`
+	/// If the [`try_hash`](Value::try_hash) or [`try_eq`](Value::try_eq) functions on `attr`
 	/// return an error, that will be propagated upwards. Additionally, if the parents of `self`
 	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
 	///
 	/// # Example
 	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
 		self.attributes_mut().set_attr(attr, value)
 	}
 
 	/// Attempts to delete `self`'s attribute `attr`, returning the old value if it was present.
 	///
 	/// # Errors
-	/// If the [`try_hash`](AnyValue::try_hash) or [`try_eq`](AnyValue::try_eq) functions on `attr`
+	/// If the [`try_hash`](Value::try_hash) or [`try_eq`](Value::try_eq) functions on `attr`
 	/// return an error, that will be propagated upwards. Additionally, if the parents of `self`
 	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
 	///
 	/// # Example
 	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
-	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
 		self.attributes_mut().del_attr(attr)
 	}
 

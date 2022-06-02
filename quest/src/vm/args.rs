@@ -1,23 +1,19 @@
 use crate::value::ToAny;
-use crate::{AnyValue, Result};
+use crate::{Result, Value};
 
 /// Arguments passed to native Quest functions.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Args<'a> {
-	positional: &'a [AnyValue],
-	keyword: &'a [(&'a str, AnyValue)],
-	this: Option<AnyValue>,
+	positional: &'a [Value],
+	keyword: &'a [(&'a str, Value)],
+	this: Option<Value>,
 }
 
 impl<'a> Args<'a> {
 	/// Creates a new [`Args`] with the given positional and keyword arguments
 	#[must_use]
-	pub const fn new(positional: &'a [AnyValue], keyword: &'a [(&'a str, AnyValue)]) -> Self {
-		Self {
-			positional,
-			keyword,
-			this: None,
-		}
+	pub const fn new(positional: &'a [Value], keyword: &'a [(&'a str, Value)]) -> Self {
+		Self { positional, keyword, this: None }
 	}
 
 	/// Creates a new [`Args`] with the same positional and keyword arguments as `self`, except with
@@ -26,33 +22,30 @@ impl<'a> Args<'a> {
 	/// While it's not invalid to call `with_this` when [`self`] already has a `this`, it is
 	/// indicative of a logic bug, and will panic on debug builds.
 	#[must_use]
-	pub const fn with_this(self, this: AnyValue) -> Self {
+	pub const fn with_this(self, this: Value) -> Self {
 		debug_assert!(
 			self.this.is_none(),
 			"todo: is this even possible? and if so, how should it work"
 		);
 
-		Self {
-			this: Some(this),
-			..self
-		}
+		Self { this: Some(this), ..self }
 	}
 
 	/// Returns this `this` associated with `self`, if any.
 	#[must_use]
-	pub const fn this(self) -> Option<AnyValue> {
+	pub const fn this(self) -> Option<Value> {
 		self.this
 	}
 
 	/// Returns the list of positional arguments.
 	#[must_use]
-	pub const fn positional(self) -> &'a [AnyValue] {
+	pub const fn positional(self) -> &'a [Value] {
 		self.positional
 	}
 
 	/// Returns the list of keyword arguments.
 	#[must_use]
-	pub const fn keyword(self) -> &'a [(&'a str, AnyValue)] {
+	pub const fn keyword(self) -> &'a [(&'a str, Value)] {
 		self.keyword
 	}
 
@@ -79,7 +72,7 @@ impl<'a> Args<'a> {
 	}
 
 	/// Fetches the argument specified by `index`, returning `None` if it isn't defined.
-	pub fn get<T: ArgIndexer>(self, index: T) -> Option<AnyValue> {
+	pub fn get<T: ArgIndexer>(self, index: T) -> Option<Value> {
 		index.get(self)
 	}
 
@@ -130,7 +123,7 @@ impl<'a> Args<'a> {
 	}
 
 	/// Returns the first argument (or `this` if it's supplied) and the rest of them.
-	pub fn split_first(mut self) -> Result<(AnyValue, Self)> {
+	pub fn split_first(mut self) -> Result<(Value, Self)> {
 		if let Some(this) = self.this.take() {
 			return Ok((this, self));
 		}
@@ -142,10 +135,8 @@ impl<'a> Args<'a> {
 
 	/// Converts `self` into a value.
 	#[must_use]
-	pub fn into_value(self) -> AnyValue {
-		self
-			.assert_no_keyword()
-			.expect("todo: keyword for argument into value");
+	pub fn into_value(self) -> Value {
+		self.assert_no_keyword().expect("todo: keyword for argument into value");
 
 		let mut builder = crate::value::ty::List::builder();
 
@@ -167,7 +158,7 @@ impl<'a> Args<'a> {
 }
 
 impl<A: ArgIndexer> std::ops::Index<A> for Args<'_> {
-	type Output = AnyValue;
+	type Output = Value;
 
 	fn index(&self, idx: A) -> &Self::Output {
 		idx.index(*self)
@@ -177,24 +168,24 @@ impl<A: ArgIndexer> std::ops::Index<A> for Args<'_> {
 /// A helper trait to allow indexing into [`Args`] with different types.
 pub trait ArgIndexer {
 	/// Try to fetch `self` from `args`.
-	fn get(self, args: Args<'_>) -> Option<AnyValue>;
+	fn get(self, args: Args<'_>) -> Option<Value>;
 
 	/// Fetches `self` from `args`, `panic!`ing if it doesn't exist in `args`.
-	fn index(self, args: Args<'_>) -> &AnyValue;
+	fn index(self, args: Args<'_>) -> &Value;
 }
 
 impl ArgIndexer for usize {
-	fn get(self, args: Args<'_>) -> Option<AnyValue> {
+	fn get(self, args: Args<'_>) -> Option<Value> {
 		args.positional.get(self).copied()
 	}
 
-	fn index(self, args: Args<'_>) -> &AnyValue {
+	fn index(self, args: Args<'_>) -> &Value {
 		&args.positional[self]
 	}
 }
 
 impl ArgIndexer for &'static str {
-	fn get(self, args: Args<'_>) -> Option<AnyValue> {
+	fn get(self, args: Args<'_>) -> Option<Value> {
 		for &(kw, val) in args.keyword {
 			if kw == self {
 				return Some(val);
@@ -204,7 +195,7 @@ impl ArgIndexer for &'static str {
 		None
 	}
 
-	fn index(self, args: Args<'_>) -> &AnyValue {
+	fn index(self, args: Args<'_>) -> &Value {
 		for (kw, val) in args.keyword {
 			if *kw == self {
 				return val;

@@ -1,6 +1,6 @@
 use super::{Attribute, InternKey};
 use crate::value::ToAny;
-use crate::{AnyValue, Result};
+use crate::{Result, Value};
 use std::fmt::{self, Debug, Formatter};
 
 pub const MAX_LISTMAP_LEN: usize = 8;
@@ -9,11 +9,11 @@ union Key {
 	raw_data: u64,
 	#[allow(dead_code)] // never explicitly read, it's read via `Intern::try_from_repr`.
 	intern: InternKey,
-	value: AnyValue,
+	value: Value,
 }
 
 pub(super) struct ListMap {
-	data: [Option<(Key, AnyValue)>; MAX_LISTMAP_LEN],
+	data: [Option<(Key, Value)>; MAX_LISTMAP_LEN],
 }
 
 macro_rules! if_intern {
@@ -52,7 +52,7 @@ impl Key {
 pub struct ListMapIter<'a>(&'a ListMap, usize);
 
 impl Iterator for ListMapIter<'_> {
-	type Item = (AnyValue, AnyValue);
+	type Item = (Value, Value);
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if let Some((k, v)) = self.0.data.get(self.1).copied().flatten() {
@@ -67,9 +67,7 @@ impl Iterator for ListMapIter<'_> {
 
 impl ListMap {
 	pub fn new() -> Box<Self> {
-		Box::new(Self {
-			data: [None; MAX_LISTMAP_LEN],
-		})
+		Box::new(Self { data: [None; MAX_LISTMAP_LEN] })
 	}
 
 	pub fn iter(&self) -> ListMapIter<'_> {
@@ -84,7 +82,7 @@ impl ListMap {
 		self.data.iter().take_while(|v| v.is_some()).count()
 	}
 
-	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
 		for (key, value) in self.data.iter().map_while(|o| *o) {
 			if key.is_eql(attr)? {
 				return Ok(Some(value));
@@ -94,7 +92,7 @@ impl ListMap {
 		Ok(None)
 	}
 
-	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut AnyValue> {
+	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
 		for thing in &mut self.data {
 			if let Some((key, value)) = thing {
 				if key.is_eql(attr)? {
@@ -108,7 +106,7 @@ impl ListMap {
 		panic!("get_unbound_attr_mut called with an unknown attribute");
 	}
 
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, new_value: AnyValue) -> Result<()> {
+	pub fn set_attr<A: Attribute>(&mut self, attr: A, new_value: Value) -> Result<()> {
 		for (idx, entry) in self.data.iter_mut().enumerate() {
 			if let Some((key, value)) = entry {
 				if !key.is_eql(attr)? {
@@ -128,12 +126,7 @@ impl ListMap {
 
 				*value = new_value;
 			} else {
-				self.data[idx] = Some((
-					Key {
-						raw_data: attr.to_repr(),
-					},
-					new_value,
-				));
+				self.data[idx] = Some((Key { raw_data: attr.to_repr() }, new_value));
 			}
 
 			return Ok(());
@@ -142,7 +135,7 @@ impl ListMap {
 		unreachable!("`set_attr` called when maxlen already reached?");
 	}
 
-	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<AnyValue>> {
+	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
 		// this isn't terribly efficient, but then again most people aren't going to be
 		// deleting things often, so it's alright.
 		for (idx, (key, value)) in self.data.iter_mut().map_while(|opt| *opt).enumerate() {

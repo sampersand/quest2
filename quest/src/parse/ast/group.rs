@@ -81,30 +81,20 @@ impl<'a> Group<'a> {
 			);
 		}
 
-		Ok(Self {
-			start,
-			statements,
-			end_in_semicolon,
-		})
+		Ok(Self { start, statements, end_in_semicolon })
 	}
 
 	pub fn parse(parser: &mut Parser<'a>, paren: ParenType) -> Result<'a, Option<Self>> {
 		let start = parser.location();
 
-		if parser
-			.take_if_contents(TokenContents::LeftParen(paren))?
-			.is_none()
-		{
+		if parser.take_if_contents(TokenContents::LeftParen(paren))?.is_none() {
 			return Ok(None);
 		};
 
 		let mut statements = Vec::new();
 		let mut end_in_semicolon = false;
 
-		while parser
-			.take_if_contents(TokenContents::RightParen(paren))?
-			.is_none()
-		{
+		while parser.take_if_contents(TokenContents::RightParen(paren))?.is_none() {
 			if parser.is_eof()? {
 				return Err(
 					start.error(ErrorKind::Message(format!("missing closing {paren:?} paren"))),
@@ -130,10 +120,7 @@ impl<'a> Group<'a> {
 			}
 
 			end_in_semicolon = false;
-			if parser
-				.take_if_contents(TokenContents::RightParen(paren))?
-				.is_none()
-			{
+			if parser.take_if_contents(TokenContents::RightParen(paren))?.is_none() {
 				let token = parser.peek()?;
 				return Err(
 					parser.error(ErrorKind::Message(format!("unknown token after expr: {token:?}"))),
@@ -142,11 +129,7 @@ impl<'a> Group<'a> {
 			break;
 		}
 
-		Ok(Some(Self {
-			start,
-			statements,
-			end_in_semicolon,
-		}))
+		Ok(Some(Self { start, statements, end_in_semicolon }))
 	}
 }
 
@@ -164,7 +147,7 @@ impl Compile for Statement<'_> {
 				}
 
 				builder.create_list(&locals, dst);
-			},
+			}
 		}
 	}
 }
@@ -176,7 +159,7 @@ impl Compile for Group<'_> {
 		}
 
 		if self.end_in_semicolon {
-			builder.constant(crate::AnyValue::default(), dst);
+			builder.constant(crate::Value::default(), dst);
 		}
 	}
 }

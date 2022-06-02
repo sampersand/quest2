@@ -1,7 +1,7 @@
 use crate::value::ty::{ConvertTo, InstanceOf, Singleton, Text};
-use crate::value::{AnyValue, Convertible, Gc, ToAny, Value};
+use crate::value::{Convertible, Gc};
 use crate::vm::Args;
-use crate::Result;
+use crate::{Result, ToAny, Value};
 
 pub type Float = f64;
 
@@ -22,7 +22,7 @@ impl crate::value::NamedType for Float {
 
 unsafe impl Convertible for Float {
 	#[inline]
-	fn is_a(value: AnyValue) -> bool {
+	fn is_a(value: Value) -> bool {
 		(value.bits() & 0b011) == 0b010
 	}
 
@@ -43,10 +43,10 @@ impl ConvertTo<Gc<Text>> for Float {
 pub struct FloatClass;
 
 impl Singleton for FloatClass {
-	fn instance() -> crate::AnyValue {
+	fn instance() -> crate::Value {
 		use once_cell::sync::OnceCell;
 
-		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+		static INSTANCE: OnceCell<crate::Value> = OnceCell::new();
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Float", parent Object::instance();
@@ -73,11 +73,11 @@ impl InstanceOf for Float {
 pub mod funcs {
 	use super::*;
 
-	pub fn at_text(float: Float, args: Args<'_>) -> Result<AnyValue> {
+	pub fn at_text(float: Float, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Gc<Text>>::convert(&float, args).map(ToAny::to_any)
 	}
 
-	pub fn dbg(float: Float, args: Args<'_>) -> Result<AnyValue> {
+	pub fn dbg(float: Float, args: Args<'_>) -> Result<Value> {
 		at_text(float, args)
 	}
 }

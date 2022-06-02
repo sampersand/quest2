@@ -1,7 +1,7 @@
 use crate::value::ty::{ConvertTo, Float, InstanceOf, List, Singleton, Text};
-use crate::value::{AnyValue, Convertible, Gc, ToAny, Value};
+use crate::value::{Convertible, Gc};
 use crate::vm::Args;
-use crate::Result;
+use crate::{Result, ToAny, Value};
 
 pub type Integer = i64;
 
@@ -29,7 +29,7 @@ impl From<Integer> for Value<Integer> {
 
 unsafe impl Convertible for Integer {
 	#[inline]
-	fn is_a(value: AnyValue) -> bool {
+	fn is_a(value: Value) -> bool {
 		(value.bits() & 1) == 1
 	}
 
@@ -74,28 +74,28 @@ impl ConvertTo<Float> for Integer {
 pub mod funcs {
 	use super::*;
 
-	pub fn add(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn add(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok((int + args[0].try_downcast::<Integer>()?).to_any())
 	}
 
-	pub fn sub(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn sub(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok((int - args[0].try_downcast::<Integer>()?).to_any())
 	}
 
-	pub fn mul(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn mul(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok((int * args[0].try_downcast::<Integer>()?).to_any())
 	}
 
-	pub fn div(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn div(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -109,7 +109,7 @@ pub mod funcs {
 	}
 
 	// TODO: verify it's actually modulus
-	pub fn r#mod(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn r#mod(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -122,7 +122,7 @@ pub mod funcs {
 		}
 	}
 
-	pub fn pow(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn pow(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -132,44 +132,39 @@ pub mod funcs {
 		} else {
 			let exp = args[0].try_downcast::<Integer>()?;
 
-			Ok(int
-				.pow(
-					exp.try_into()
-						.expect("todo: exception for not valid number"),
-				)
-				.to_any())
+			Ok(int.pow(exp.try_into().expect("todo: exception for not valid number")).to_any())
 		}
 	}
 
-	pub fn lth(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn lth(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok((int < args[0].try_downcast::<Integer>()?).to_any())
 	}
 
-	pub fn leq(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn leq(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok((int <= args[0].try_downcast::<Integer>()?).to_any())
 	}
 
-	pub fn neg(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn neg(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		Ok((-int).to_any())
 	}
 
-	pub fn at_text(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn at_text(int: Integer, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Gc<Text>>::convert(&int, args).map(ToAny::to_any)
 	}
 
-	pub fn dbg(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn dbg(int: Integer, args: Args<'_>) -> Result<Value> {
 		at_text(int, args)
 	}
 
-	// pub fn dbg(val: AnyValue, args: Args<'_>) -> Result<AnyValue> {
+	// pub fn dbg(val: Value, args: Args<'_>) -> Result<Value> {
 	// 	if let Some(int) = val.downcast::<Integer>() {
 	// 		dbg_int(int, args)
 	// 	} else if val.is_identical(Integer::parent()) {
@@ -179,7 +174,7 @@ pub mod funcs {
 	// }
 
 	// TODO: in the future, return an enumerable
-	pub fn upto(int: Integer, args: Args<'_>) -> Result<AnyValue> {
+	pub fn upto(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -201,17 +196,17 @@ pub mod funcs {
 }
 
 // impl crate::value::base::HasDefaultParent for Integer {
-// 	fn parent() -> AnyValue {}
+// 	fn parent() -> Value {}
 // }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct IntegerClass;
 
 impl Singleton for IntegerClass {
-	fn instance() -> crate::AnyValue {
+	fn instance() -> crate::Value {
 		use once_cell::sync::OnceCell;
 
-		static INSTANCE: OnceCell<crate::AnyValue> = OnceCell::new();
+		static INSTANCE: OnceCell<crate::Value> = OnceCell::new();
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Integer", parent Object::instance();

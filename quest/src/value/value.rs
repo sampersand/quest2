@@ -18,7 +18,7 @@ XXX...XXXX XX10 = f62
 000...0010 0100 = true
 XXX...X1Y0 0100 = undefined, `Y` is used to indicate frozen in InternKey.
 
-Note that the `XXX...X100 0100` variant is used to make it so a union between `AnyValue` and
+Note that the `XXX...X100 0100` variant is used to make it so a union between `Value` and
 `Intern` will be unambiguously one type or the other.
 
 NOTE: Technically, the first page can be allocated in some architectures
@@ -27,15 +27,15 @@ However, those are microkernels so I dont really care. No relevant OS will
 map the first page to userspace.
 */
 #[repr(transparent)]
-pub struct Value<T>(NonZeroU64, PhantomData<T>);
+pub struct Value<T = Any>(NonZeroU64, PhantomData<T>);
 
-sa::assert_eq_size!(Value<i64>, Value<[u64; 64]>, AnyValue);
-sa::assert_eq_align!(Value<i64>, Value<[u64; 64]>, AnyValue);
+sa::assert_eq_size!(Value<i64>, Value<[u64; 64]>, Value);
+sa::assert_eq_align!(Value<i64>, Value<[u64; 64]>, Value);
 
-sa::assert_eq_size!(AnyValue, u64, *const (), Option<AnyValue>);
-sa::assert_eq_align!(AnyValue, u64, *const (), Option<AnyValue>);
+sa::assert_eq_size!(Value, u64, *const (), Option<Value>);
+sa::assert_eq_align!(Value, u64, *const (), Option<Value>);
 
-sa::assert_not_impl_any!(AnyValue: Drop);
+sa::assert_not_impl_any!(Value: Drop);
 sa::assert_not_impl_any!(Value<i64>: Drop);
 
 impl<T> Copy for Value<T> {}
@@ -72,7 +72,7 @@ impl<T> Value<T> {
 
 	#[inline]
 	#[must_use]
-	pub const fn any(self) -> AnyValue {
+	pub const fn any(self) -> Value {
 		unsafe { std::mem::transmute(self) }
 	}
 
@@ -104,15 +104,14 @@ impl<T: Convertible> Value<T> {
 pub struct Any {
 	_priv: (),
 }
-pub type AnyValue = Value<Any>;
 
-impl Default for AnyValue {
+impl Default for Value {
 	fn default() -> Self {
 		Value::NULL.any()
 	}
 }
 
-impl AnyValue {
+impl Value {
 	fn parents_for(self) -> Self {
 		use crate::value::ty::*;
 
@@ -154,9 +153,7 @@ impl AnyValue {
 	}
 
 	pub fn dbg_text(self) -> Result<Gc<Text>> {
-		self
-			.call_attr(Intern::dbg, Args::default())?
-			.try_downcast::<Gc<Text>>()
+		self.call_attr(Intern::dbg, Args::default())?.try_downcast::<Gc<Text>>()
 	}
 
 	pub fn is_truthy(self) -> Result<bool> {
@@ -166,7 +163,7 @@ impl AnyValue {
 	fn allocate_self_and_copy_data_over(self) -> Self {
 		use crate::value::ty::*;
 
-		fn allocate_thing<T: 'static + HasDefaultParent>(thing: T) -> AnyValue {
+		fn allocate_thing<T: 'static + HasDefaultParent>(thing: T) -> Value {
 			Value::from(Wrap::new(thing)).any()
 		}
 
@@ -205,11 +202,8 @@ impl AnyValue {
 
 	pub fn try_get_attr<A: Attribute>(self, attr: A) -> Result<Self> {
 		self.get_attr(attr)?.ok_or_else(|| {
-			crate::error::ErrorKind::UnknownAttribute {
-				object: self,
-				attribute: attr.to_value(),
-			}
-			.into()
+			crate::error::ErrorKind::UnknownAttribute { object: self, attribute: attr.to_value() }
+				.into()
 		})
 	}
 
@@ -230,11 +224,8 @@ impl AnyValue {
 
 	pub fn try_get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Self> {
 		self.get_unbound_attr(attr)?.ok_or_else(|| {
-			crate::error::ErrorKind::UnknownAttribute {
-				object: self,
-				attribute: attr.to_value(),
-			}
-			.into()
+			crate::error::ErrorKind::UnknownAttribute { object: self, attribute: attr.to_value() }
+				.into()
 		})
 	}
 
@@ -301,9 +292,7 @@ impl AnyValue {
 
 	pub fn del_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
 		if self.is_allocated() {
-			unsafe { self.get_gc_any_unchecked() }
-				.as_mut()?
-				.del_attr(attr)
+			unsafe { self.get_gc_any_unchecked() }.as_mut()?.del_attr(attr)
 		} else {
 			Ok(None) // we don't delete from unallocated things.
 		}
@@ -314,9 +303,7 @@ impl AnyValue {
 			*self = self.allocate_self_and_copy_data_over();
 		}
 
-		Ok(unsafe { self.get_gc_any_unchecked() }
-			.as_mut()?
-			.parents_list())
+		Ok(unsafe { self.get_gc_any_unchecked() }.as_mut()?.parents_list())
 	}
 
 	pub fn call_attr<A: Attribute>(self, attr: A, args: Args<'_>) -> Result<Self> {
@@ -325,10 +312,7 @@ impl AnyValue {
 		}
 
 		// OPTIMIZE ME: This is circumventing potential optimizations from `parents_for`?
-		self
-			.parents_for()
-			.try_get_unbound_attr(attr)?
-			.call(args.with_this(self))
+		self.parents_for().try_get_unbound_attr(attr)?.call(args.with_this(self))
 	}
 
 	// there's a potential logic flaw here, as this may actually pass `self`
@@ -372,11 +356,8 @@ impl AnyValue {
 		} else {
 			debug_assert!(self.is_a::<RustFn>());
 			Err(
-				crate::error::ErrorKind::ConversionFailed {
-					object: self,
-					into: Integer::TYPENAME,
-				}
-				.into(),
+				crate::error::ErrorKind::ConversionFailed { object: self, into: Integer::TYPENAME }
+					.into(),
 			)
 		}
 	}
@@ -396,13 +377,7 @@ impl AnyValue {
 		if let Some(attr) = conv.downcast::<C>() {
 			Ok(attr)
 		} else {
-			Err(
-				crate::error::ErrorKind::ConversionFailed {
-					object: conv,
-					into: C::TYPENAME,
-				}
-				.into(),
-			)
+			Err(crate::error::ErrorKind::ConversionFailed { object: conv, into: C::TYPENAME }.into())
 		}
 	}
 
@@ -418,11 +393,8 @@ impl AnyValue {
 
 	pub fn try_downcast<T: Convertible + NamedType>(self) -> Result<T> {
 		self.downcast().ok_or_else(|| {
-			crate::error::ErrorKind::InvalidTypeGiven {
-				expected: T::TYPENAME,
-				given: self.typename(),
-			}
-			.into()
+			crate::error::ErrorKind::InvalidTypeGiven { expected: T::TYPENAME, given: self.typename() }
+				.into()
 		})
 	}
 
@@ -448,9 +420,7 @@ impl AnyValue {
 			if let (Some(lhs), Some(rhs)) = (self.downcast::<Gc<Text>>(), rhs.downcast::<Gc<Text>>()) {
 				Ok(*lhs.as_ref()? == *rhs.as_ref()?)
 			} else {
-				self
-					.call_attr(Intern::op_eql, Args::new(&[rhs], &[]))?
-					.convert()
+				self.call_attr(Intern::op_eql, Args::new(&[rhs], &[]))?.convert()
 			}
 		} else {
 			Ok(false)
@@ -468,7 +438,7 @@ impl<T: Convertible + Debug> Debug for Value<T> {
 	}
 }
 
-impl Debug for AnyValue {
+impl Debug for Value {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		use crate::value::ty::*;
 
@@ -564,12 +534,7 @@ mod tests {
 
 		assert_eq!(
 			"Hello, world!",
-			greeting
-				.downcast::<Gc<Text>>()
-				.unwrap()
-				.as_ref()
-				.unwrap()
-				.as_str()
+			greeting.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str()
 		);
 	}
 
@@ -581,12 +546,7 @@ mod tests {
 
 		assert_eq!(
 			"Hello, world!Hello, world!",
-			greeting
-				.downcast::<Gc<Text>>()
-				.unwrap()
-				.as_ref()
-				.unwrap()
-				.as_str()
+			greeting.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str()
 		);
 
 		assert!(greeting
@@ -599,23 +559,10 @@ mod tests {
 		let twelve = value!(12);
 		assert_eq!(
 			17,
-			five
-				.call_attr(Intern::op_add, args![twelve])
-				.unwrap()
-				.downcast::<Integer>()
-				.unwrap()
+			five.call_attr(Intern::op_add, args![twelve]).unwrap().downcast::<Integer>().unwrap()
 		);
 
-		let ff = value!(255)
-			.call_attr(Intern::at_text, args!["base" => 16])
-			.unwrap();
-		assert_eq!(
-			"ff",
-			ff.downcast::<Gc<Text>>()
-				.unwrap()
-				.as_ref()
-				.unwrap()
-				.as_str()
-		);
+		let ff = value!(255).call_attr(Intern::at_text, args!["base" => 16]).unwrap();
+		assert_eq!("ff", ff.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str());
 	}
 }

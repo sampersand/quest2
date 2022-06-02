@@ -27,7 +27,7 @@ macro_rules! _length_of {
 macro_rules! create_class {
 	(@$_attr:expr, constant, $value:expr) => ($value);
 	(@$attr:expr, $kind:ident, $value:expr) => ($crate::RustFn_new!($attr, $kind $value).to_any());
-	($name:expr $(, parent $parent:expr)?; $($attr:expr => $kind:ident $value:expr),* $(,)?) => {(|| -> $crate::Result<$crate::AnyValue> {
+	($name:expr $(, parent $parent:expr)?; $($attr:expr => $kind:ident $value:expr),* $(,)?) => {(|| -> $crate::Result<$crate::Value> {
 		#[allow(unused_imports)]
 		use $crate::value::{ToAny, Intern};
 
@@ -74,7 +74,7 @@ macro_rules! new_quest_scope {
 				#[allow(unused_macros)]
 				macro_rules! method {
 					($fn:ident) => (method!($($child)?, $fn));
-					($type:ty, $fn:ident) => (func!(|this: AnyValue, args| {
+					($type:ty, $fn:ident) => (func!(|this: Value, args| {
 						let this = this.downcast::<$type>()
 							.ok_or_else(|| $crate::error::ErrorKind::InvalidTypeGiven {
 								expected: <$type as $crate::value::NamedType>::TYPENAME,
@@ -118,11 +118,11 @@ macro_rules! singleton_object {
 	) => {
 		impl<$($gens),*> $type {
 			#[must_use]
-			pub fn instance() -> $crate::AnyValue {
+			pub fn instance() -> $crate::Value {
 				use ::once_cell::sync::OnceCell;
 				use $crate::value::ToAny;
 
-				static INSTANCE: OnceCell<$crate::AnyValue> = OnceCell::new();
+				static INSTANCE: OnceCell<$crate::Value> = OnceCell::new();
 
 				let mut is_first_init = false;
 
@@ -151,7 +151,7 @@ macro_rules! singleton_object {
 		}
 		$(
 			impl $crate::value::base::HasDefaultParent for $child {
-				fn parent() -> $crate::AnyValue {
+				fn parent() -> $crate::Value {
 					<$type>::instance()
 				}
 			}
@@ -231,7 +231,7 @@ macro_rules! quest_type_attrs {
 		$(,)?
 	) => {
 		impl $crate::value::base::HasDefaultParent for $type {
-			fn parent() -> $crate::AnyValue {
+			fn parent() -> $crate::Value {
 				#[allow(unused_imports)]
 				use $crate::value::{ToAny, gc::Allocated};
 				static PARENT: ::once_cell::sync::OnceCell<$crate::value::gc::Gc<$crate::value::ty::Scope>>
@@ -254,7 +254,7 @@ macro_rules! quest_type_attrs {
 				if is_first_init {
 					#[allow(unused_macros)]
 					macro_rules! method {
-						($fn:expr) => (func!(|this: AnyValue, args| {
+						($fn:expr) => (func!(|this: Value, args| {
 							let this = this.downcast::<$type>()
 								.ok_or_else(|| $crate::Error::InvalidTypeGiven {
 									expected: <$type as $crate::value::NamedType>::TYPENAME,

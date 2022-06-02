@@ -1,6 +1,6 @@
 use crate::value::base::{Attribute, Flags};
 use crate::value::ty::List;
-use crate::value::{AnyValue, Gc};
+use crate::value::{Gc, Value};
 use crate::Result;
 use std::fmt::{self, Debug, Formatter};
 
@@ -8,7 +8,7 @@ use std::fmt::{self, Debug, Formatter};
 #[derive(Clone, Copy)]
 pub(super) union Parents {
 	none: u64, // will be zero
-	single: AnyValue,
+	single: Value,
 	list: Gc<List>,
 }
 
@@ -40,17 +40,11 @@ impl<'a> std::ops::Deref for ParentsMut<'a> {
 
 impl Parents {
 	pub(super) unsafe fn guard_ref<'a>(&'a self, flags: &'a Flags) -> ParentsRef<'a> {
-		ParentsRef {
-			parents: self,
-			flags,
-		}
+		ParentsRef { parents: self, flags }
 	}
 
 	pub(super) unsafe fn guard_mut<'a>(&'a mut self, flags: &'a Flags) -> ParentsMut<'a> {
-		ParentsMut {
-			parents: self,
-			flags,
-		}
+		ParentsMut { parents: self, flags }
 	}
 }
 
@@ -69,7 +63,7 @@ unsafe impl IntoParent for NoParents {
 	}
 }
 
-unsafe impl IntoParent for AnyValue {
+unsafe impl IntoParent for Value {
 	#[inline]
 	fn into_parent(self, guard: &mut ParentsMut<'_>) {
 		guard.flags.remove_internal(Flags::MULTI_PARENT);
@@ -97,13 +91,13 @@ unsafe impl IntoParent for ParentsRef<'_> {
 
 enum ParentsKind {
 	None,
-	Single(AnyValue),
+	Single(Value),
 	List(Gc<List>),
 }
 
 impl<'a> ParentsRef<'a> {
 	#[cfg(debug_assertions)]
-	pub(crate) fn _is_just_single_and_identical(&self, what: AnyValue) -> bool {
+	pub(crate) fn _is_just_single_and_identical(&self, what: Value) -> bool {
 		if let ParentsKind::Single(single) = self.classify() {
 			single.is_identical(what)
 		} else {
@@ -127,8 +121,8 @@ impl<'a> ParentsRef<'a> {
 	pub fn get_unbound_attr_checked<A: Attribute>(
 		&self,
 		attr: A,
-		checked: &mut Vec<AnyValue>,
-	) -> Result<Option<AnyValue>> {
+		checked: &mut Vec<Value>,
+	) -> Result<Option<Value>> {
 		match self.classify() {
 			ParentsKind::None => Ok(None),
 			ParentsKind::Single(single) => single.get_unbound_attr_checked(attr, checked),
@@ -140,7 +134,7 @@ impl<'a> ParentsRef<'a> {
 				}
 
 				Ok(None)
-			},
+			}
 		}
 	}
 
@@ -150,16 +144,13 @@ impl<'a> ParentsRef<'a> {
 	// TODO: we should take by-reference, but this solves an issue with gc until we make gc only for body.
 	pub fn call_attr<A: Attribute>(
 		self,
-		obj: AnyValue,
+		obj: Value,
 		attr: A,
 		args: crate::vm::Args<'_>,
-	) -> Result<AnyValue> {
-		let attr = self
-			.get_unbound_attr_checked(attr, &mut Vec::new())?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute {
-				object: obj,
-				attribute: attr.to_value(),
-			})?;
+	) -> Result<Value> {
+		let attr = self.get_unbound_attr_checked(attr, &mut Vec::new())?.ok_or_else(|| {
+			crate::error::ErrorKind::UnknownAttribute { object: obj, attribute: attr.to_value() }
+		})?;
 
 		drop(self);
 
@@ -180,12 +171,12 @@ impl ParentsMut<'_> {
 				let list = List::new();
 				self.set(list);
 				list
-			},
+			}
 			ParentsKind::Single(singular) => {
 				let list = List::from_slice(&[singular]);
 				self.set(list);
 				list
-			},
+			}
 			ParentsKind::List(list) => list,
 		}
 	}
@@ -196,13 +187,13 @@ impl Debug for ParentsRef<'_> {
 		let mut l = f.debug_list();
 
 		match self.classify() {
-			ParentsKind::None => {},
+			ParentsKind::None => {}
 			ParentsKind::Single(s) => {
 				l.entry(&s);
-			},
+			}
 			ParentsKind::List(s) => {
 				l.entries(s.as_ref().expect("asref failed for entries").as_slice());
-			},
+			}
 		};
 
 		l.finish()

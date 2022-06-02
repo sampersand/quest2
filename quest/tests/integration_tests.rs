@@ -4,18 +4,16 @@ use quest::vm::{
 	block::{Builder, Local},
 	Args,
 };
-use quest::{AnyValue, Result};
+use quest::{Result, Value};
 
 use quest::value::ty::{Boolean, Float, Integer, List, Text};
 use quest::value::Gc;
 
-pub fn run_code(code: &str) -> Result<AnyValue> {
+pub fn run_code(code: &str) -> Result<Value> {
 	let mut parser = Parser::new(code, None);
 	let mut builder = Builder::default();
 
-	Group::parse_all(&mut parser)
-		.expect("bad parse")
-		.compile(&mut builder, Local::Scratch);
+	Group::parse_all(&mut parser).expect("bad parse").compile(&mut builder, Local::Scratch);
 
 	builder.build().run(Args::default())
 }
@@ -196,12 +194,7 @@ fn basic_stackframe_continuation() {
 	.unwrap();
 
 	assert_eq!(
-		result
-			.downcast::<Gc<Text>>()
-			.unwrap()
-			.as_ref()
-			.unwrap()
-			.as_str(),
+		result.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str(),
 		"X:XX:XXX:XXXX"
 	);
 }
