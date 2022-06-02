@@ -85,16 +85,14 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		obj.get_attr(args[0])?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(obj, args[0]).into())
+		obj.try_get_attr(args[0])
 	}
 
 	pub fn __get_unbound_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		obj.get_unbound_attr(args[0])?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(obj, args[0]).into())
+		obj.try_get_unbound_attr(args[0])
 	}
 
 	pub fn __call_attr__(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {

@@ -137,7 +137,10 @@ impl<'a> ParentsRef<'a> {
 	) -> Result<AnyValue> {
 		let attr = self
 			.get_unbound_attr_checked(attr, &mut Vec::new())?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(obj, attr.to_value()))?;
+			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute {
+				object: obj,
+				attribute: attr.to_value()
+			})?;
 
 		drop(self);
 

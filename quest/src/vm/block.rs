@@ -4,7 +4,7 @@ use crate::value::{base::Base, Intern, HasDefaultParent, ToAny};
 use crate::value::gc::{Gc, Allocated};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
 
 mod builder;
@@ -80,6 +80,33 @@ impl Block {
 			.get_unbound_attr(Intern::__name__)?
 			.and_then(|x| x.downcast::<Gc<Text>>()))
 
+	}
+
+	pub fn display(&self) -> Result<impl Display + '_> {
+		struct BlockDisplay<'a>(&'a SourceLocation, Option<crate::value::gc::Ref<Text>>);
+
+		impl Display for BlockDisplay<'_> {
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+				write!(f, "{} ", self.0)?;
+
+				if let Some(ref textref) = self.1 {
+					Display::fmt(&**textref, f)?;
+				} else {
+					f.write_str("<unnamed>")?;
+				}
+
+				Ok(())
+			}
+		}
+
+		let source_location = self.source_location();
+		let name = if let Some(name) = self.name()? {
+			Some(name.as_ref()?)
+		} else {
+			None
+		};
+
+		Ok(BlockDisplay(source_location, name))
 	}
 }
 

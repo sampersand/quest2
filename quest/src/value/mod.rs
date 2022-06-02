@@ -14,8 +14,9 @@ pub trait HasDefaultParent {
 	fn parent() -> AnyValue;
 }
 
+pub type Typename = &'static str;
 pub trait NamedType {
-	const TYPENAME: &'static str;
+	const TYPENAME: Typename;
 }
 
 pub unsafe trait Convertible: Into<Value<Self>> {

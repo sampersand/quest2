@@ -10,7 +10,7 @@ impl super::AttrConversionDefined for Boolean {
 }
 
 impl crate::value::NamedType for Boolean {
-	const TYPENAME: &'static str = "Boolean";
+	const TYPENAME: crate::value::Typename = "Boolean";
 }
 
 impl Value<Boolean> {

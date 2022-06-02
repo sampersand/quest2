@@ -8,7 +8,7 @@ use std::fmt::{self, Debug, Formatter};
 pub struct Null;
 
 impl crate::value::NamedType for Null {
-	const TYPENAME: &'static str = "Null";
+	const TYPENAME: crate::value::Typename = "Null";
 }
 
 impl Debug for Null {

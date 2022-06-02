@@ -35,6 +35,9 @@ pub struct Inner {
 	named_locals: *mut Option<AnyValue>,
 }
 
+unsafe impl Send for Frame {}
+unsafe impl Sync for Frame {}
+
 const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
 const FLAG_IS_OBJECT: u32 = Flags::USER1;
 
@@ -218,10 +221,10 @@ impl Frame {
 			}
 		}
 
-		Err(crate::error::ErrorKind::UnknownAttribute(
-			unsafe { crate::value::Gc::new(self.into()) }.to_any(),
-			attr_name.to_any()
-		).into())
+		Err(crate::error::ErrorKind::UnknownAttribute {
+			object: unsafe { crate::value::Gc::new(self.into()) }.to_any(),
+			attribute: attr_name.to_any()
+		}.into())
 	}
 
 	fn set_local(&mut self, index: LocalTarget, value: AnyValue) -> Result<()> {
@@ -386,7 +389,6 @@ impl Frame {
 }
 
 impl Gc<Frame> {
-
 	#[instrument(target="frame",
 		level="debug",
 		name="call frame",
@@ -399,7 +401,7 @@ impl Gc<Frame> {
 			.flags()
 			.try_acquire_all_user(FLAG_CURRENTLY_RUNNING)
 		{
-			return Err(crate::error::ErrorKind::StackframeIsCurrentlyRunning(self.to_any()).into());
+			return Err(crate::error::ErrorKind::StackframeIsCurrentlyRunning(self).into());
 		}
 
 		Frame::with_stackframes(|sfs| sfs.push(self));

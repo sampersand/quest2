@@ -14,7 +14,7 @@ fn expand_named_type(input: DeriveInput) -> TokenStream {
 
 	quote! {
 		impl crate::value::NamedType for crate::value::Gc<#name> {
-			const TYPENAME: &'static str = stringify!(#name);
+			const TYPENAME: crate::value::Typename = stringify!(#name);
 		}
 	}
 }

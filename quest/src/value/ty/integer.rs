@@ -10,7 +10,7 @@ pub const MAX: Integer = (u64::MAX >> 2) as Integer;
 pub const MIN: Integer = !MAX;
 
 impl crate::value::NamedType for Integer {
-	const TYPENAME: &'static str = "Integer";
+	const TYPENAME: crate::value::Typename = "Integer";
 }
 
 impl Value<Integer> {

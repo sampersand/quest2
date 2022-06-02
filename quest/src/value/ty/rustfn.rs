@@ -53,7 +53,7 @@ macro_rules! RustFn_new {
 }
 
 impl crate::value::NamedType for RustFn {
-	const TYPENAME: &'static str = "RustFn";
+	const TYPENAME: crate::value::Typename = "RustFn";
 }
 
 impl RustFn {

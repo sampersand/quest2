@@ -17,7 +17,7 @@ impl From<Float> for Value<Float> {
 }
 
 impl crate::value::NamedType for Float {
-	const TYPENAME: &'static str = "Float";
+	const TYPENAME: crate::value::Typename = "Float";
 }
 
 unsafe impl Convertible for Float {

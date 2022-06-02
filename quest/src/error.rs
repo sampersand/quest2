@@ -1,96 +1,127 @@
-use crate::{value::Intern, AnyValue};
+use crate::AnyValue;
 use std::fmt::{self, Display, Formatter};
 
 mod stacktrace;
-
 pub use stacktrace::Stacktrace;
 
+/// An error type that contains both a [`Stacktrace`] and an [`ErrorKind`]
 #[derive(Debug)]
+#[must_use]
 pub struct Error {
 	stacktrace: Stacktrace,
 	kind: ErrorKind
 }
 
+/// Type alias for [`Error`].
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Possible errors that can be thrown during execution within Quest.
 #[derive(Debug)]
+#[must_use]
 #[non_exhaustive]
 pub enum ErrorKind {
+	/// The value's rwlock is already acquired.
+	///
+	/// This means either [`Gc::as_ref`](crate::value::Gc::as_ref) was called while the value is
+	/// mutably borrowed, or [`Gc::as_mut`](crate::value::Gc::as_mut) was called when the value was
+	/// either mutably or immutably borrowed.
 	AlreadyLocked(AnyValue),
+
+	/// Mutable access on a [frozen value](crate::Value::freeze) was attempted.
 	ValueFrozen(AnyValue),
-	UnknownAttribute(AnyValue, AnyValue),
-	MissingPositionalArgument(usize),
-	MissingKeywordArgument(&'static str),
+
+	/// Attempted access of the unknown attribute `attribute` on `object`.
+	UnknownAttribute {
+		object: AnyValue,
+		attribute: AnyValue
+	},
+
+	/// An `expected` type was required but a `given` was given.
 	InvalidTypeGiven {
-		expected: &'static str,
-		given: &'static str,
+		expected: crate::value::Typename,
+		given: crate::value::Typename,
 	},
-	ConversionFailed(AnyValue, Intern),
+
+	/// The conversion function of `object` for type `into` was called, but the result wasn't
+	/// something of type `into`.
+	ConversionFailed {
+		object: AnyValue,
+		into: crate::value::Typename
+	},
+
+	/// For when i haven't made an actual error
 	Message(String),
+
+	/// Returns in quest are actually "Errors", although they don't have a stacktrace associated
+	/// with them.
 	Return {
+		/// The value to return
 		value: AnyValue,
-		from_frame: Option<AnyValue>, // If it's `None`, that means the current frame.
+		/// The frame to return from, or `None` for the current frame.
+		from_frame: Option<AnyValue>,
 	},
+
+	/// A function expected no keyword arguments but they were given.
 	KeywordsGivenWhenNotExpected,
+
+	/// A function was given the wrong amount of arguments.
 	PositionalArgumentMismatch { given: usize, expected: usize },
-	StackframeIsCurrentlyRunning(AnyValue),
+
+	/// Attempted execution of a currently-running stackframe.
+	StackframeIsCurrentlyRunning(crate::value::Gc<crate::vm::Frame>),
 }
 
 impl Error {
-	// Creating errors is very much a cold path, as it disrupts all operation fllow.
-	#[cold]
-	pub fn new(kind: ErrorKind) -> Self {
-		Self {
-			stacktrace: Stacktrace::new().expect("<unable to fetch stacktrace when making error>"),
-			kind
-		}
+	/// Creates a new [`Error`] with the given stacktrace.
+	pub const fn new(kind: ErrorKind, stacktrace: Stacktrace) -> Self {
+		Self { kind, stacktrace }
 	}
 
-	pub fn new_no_stacktrace(kind: ErrorKind) -> Self {
-		Self {
-			stacktrace: Stacktrace::empty(),
-			kind
-		}
-	}
-
-	pub fn kind(&self) -> &ErrorKind {
+	/// Gets the kind of error `self` is.
+	pub const fn kind(&self) -> &ErrorKind {
 		&self.kind
 	}
 
-	pub fn stacktrace(&self) -> &Stacktrace {
+	/// Gets the stacktrace associated with `self`.
+	pub const fn stacktrace(&self) -> &Stacktrace {
 		&self.stacktrace
 	}
 }
 
 impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "error: ")?;
-		match &self.kind {
-			ErrorKind::UnknownAttribute(value, attr) => {
-				write!(f, "unknown attribute {attr:?} for {value:?}")?
-			},
-			ErrorKind::AlreadyLocked(value) => write!(f, "value {value:?} is already locked")?,
-			ErrorKind::ValueFrozen(value) => write!(f, "value {value:?} is frozen")?,
-			ErrorKind::MissingPositionalArgument(arg) => write!(f, "missing positional argument {arg:?}")?,
-			ErrorKind::MissingKeywordArgument(arg) => write!(f, "missing keyword argument {arg:?}")?,
-			ErrorKind::ConversionFailed(value, conv) => {
-				write!(f, "conversion {value:?} failed for {conv:?}")?
-			},
-			ErrorKind::InvalidTypeGiven { expected, given } => {
-				write!(f, "invalid type {given:?}, expected {expected:?}")?
-			},
-			ErrorKind::Message(msg) => f.write_str(msg)?,
-			ErrorKind::Return { value, from_frame } => {
-				write!(f, "returning value {value:?} from frame {from_frame:?}")?
-			},
-			ErrorKind::KeywordsGivenWhenNotExpected => write!(f, "keyword arguments given when none expected")?,
-			ErrorKind::PositionalArgumentMismatch { given, expected } => {
-				write!(f, "positional argument count mismatch (given {given} expected {expected})")?
-			},
-			ErrorKind::StackframeIsCurrentlyRunning(frame) => write!(f, "frame {:?} is currently executing", frame)?,
+		if f.alternate() {
+			write!(f, "error: {}\nstacktrace:\n{}", self.kind, self.stacktrace)
+		} else {
+			Display::fmt(self.kind(), f)
 		}
+	}
+}
 
-		write!(f, "\nstacktrace:\n{}", self.stacktrace)
+impl Display for ErrorKind {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		match self {
+			Self::UnknownAttribute { object, attribute } => {
+				write!(f, "unknown attribute {attribute:?} for {object:?}")
+			},
+			Self::AlreadyLocked(value) => write!(f, "value {value:?} is already locked"),
+			Self::ValueFrozen(value) => write!(f, "value {value:?} is frozen"),
+			Self::ConversionFailed { object, into } => {
+				write!(f, "conversion {object:?} failed for {into:?}")
+			},
+			Self::InvalidTypeGiven { expected, given } => {
+				write!(f, "invalid type {given:?}, expected {expected:?}")
+			},
+			Self::Message(msg) => f.write_str(msg),
+			Self::Return { value, from_frame } => {
+				write!(f, "returning value {value:?} from frame {from_frame:?}")
+			},
+			Self::KeywordsGivenWhenNotExpected => write!(f, "keyword arguments given when none expected"),
+			Self::PositionalArgumentMismatch { given, expected } => {
+				write!(f, "positional argument count mismatch (given {given} expected {expected})")
+			},
+			Self::StackframeIsCurrentlyRunning(frame) => write!(f, "frame {:?} is currently executing", frame),
+		}
 	}
 }
 
@@ -108,7 +139,7 @@ impl From<String> for Error {
 
 impl From<ErrorKind> for Error {
 	fn from(kind: ErrorKind) -> Self {
-		Self::new(kind)
+		Self::new(kind, Stacktrace::current())
 	}
 }
 

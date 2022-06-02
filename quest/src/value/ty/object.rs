@@ -6,7 +6,7 @@ use crate::{AnyValue, Result};
 pub struct Object;
 
 impl crate::value::NamedType for Object {
-	const TYPENAME: &'static str = "Object";
+	const TYPENAME: crate::value::Typename = "Object";
 }
 
 impl Object {
@@ -87,10 +87,13 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() <= 1)?;
 
-		Err(crate::Error::new_no_stacktrace(crate::error::ErrorKind::Return {
-			value: obj,
-			from_frame: args.get(0),
-		}))
+		Err(crate::Error::new(
+			crate::error::ErrorKind::Return {
+				value: obj,
+				from_frame: args.get(0),
+			},
+			crate::error::Stacktrace::empty()
+		))
 	}
 
 	pub fn assert(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {

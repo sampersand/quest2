@@ -1,6 +1,6 @@
 use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{AttrConversionDefined, BoundFn, Float, Integer, List, RustFn, Text, Wrap};
-use crate::value::{Convertible, Gc, Intern, ToAny};
+use crate::value::{Convertible, Gc, Intern, ToAny, NamedType};
 use crate::vm::{Args, Block};
 use crate::Result;
 use std::fmt::{self, Debug, Formatter};
@@ -132,22 +132,22 @@ impl AnyValue {
 	}
 
 	#[must_use]
-	pub fn typename(self) -> &'static str {
+	pub fn typename(self) -> crate::value::Typename {
 		use crate::value::ty::*;
 
 		match () {
-			_ if self.is_a::<Integer>() || self.is_a::<Gc<Wrap<Integer>>>() => "Integer",
-			_ if self.is_a::<Float>() || self.is_a::<Gc<Wrap<Float>>>() => "Float",
-			_ if self.is_a::<Boolean>() || self.is_a::<Gc<Wrap<Boolean>>>() => "Boolean",
-			_ if self.is_a::<Null>() || self.is_a::<Gc<Wrap<Null>>>() => "Null",
-			_ if self.is_a::<RustFn>() || self.is_a::<Gc<Wrap<RustFn>>>() => "RustFn",
-			_ if self.is_a::<Gc<Text>>() => "Text",
-			_ if self.is_a::<Gc<List>>() => "List",
-			_ if self.is_a::<Gc<Class>>() => "Class",
-			_ if self.is_a::<Gc<Scope>>() => "Scope",
-			_ if self.is_a::<Gc<BoundFn>>() => "BoundFn",
-			_ if self.is_a::<Gc<crate::vm::Block>>() => "Block",
-			_ if self.is_a::<Gc<crate::vm::Frame>>() => "Frame",
+			_ if self.is_a::<Integer>() || self.is_a::<Gc<Wrap<Integer>>>() => Integer::TYPENAME,
+			_ if self.is_a::<Float>() || self.is_a::<Gc<Wrap<Float>>>() => Float::TYPENAME,
+			_ if self.is_a::<Boolean>() || self.is_a::<Gc<Wrap<Boolean>>>() => Boolean::TYPENAME,
+			_ if self.is_a::<Null>() || self.is_a::<Gc<Wrap<Null>>>() => Null::TYPENAME,
+			_ if self.is_a::<RustFn>() || self.is_a::<Gc<Wrap<RustFn>>>() => RustFn::TYPENAME,
+			_ if self.is_a::<Gc<Text>>() => Gc::<Text>::TYPENAME,
+			_ if self.is_a::<Gc<List>>() => Gc::<List>::TYPENAME,
+			_ if self.is_a::<Gc<Class>>() => Gc::<Class>::TYPENAME,
+			_ if self.is_a::<Gc<Scope>>() => Gc::<Scope>::TYPENAME,
+			_ if self.is_a::<Gc<BoundFn>>() => Gc::<BoundFn>::TYPENAME,
+			_ if self.is_a::<Gc<crate::vm::Block>>() => Gc::<crate::vm::Block>::TYPENAME,
+			_ if self.is_a::<Gc<crate::vm::Frame>>() => Gc::<crate::vm::Frame>::TYPENAME,
 			_ if cfg!(debug_assertions) => panic!("todo: typename for {:?}", self),
 			_ => "(Unknown)",
 		}
@@ -205,7 +205,10 @@ impl AnyValue {
 
 	pub fn try_get_attr<A: Attribute>(self, attr: A) -> Result<Self> {
 		self.get_attr(attr)?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(self, attr.to_value()).into())
+			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute {
+				object: self,
+				attribute: attr.to_value()
+			}.into())
 	}
 
 	pub fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
@@ -225,7 +228,10 @@ impl AnyValue {
 
 	pub fn try_get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Self> {
 		self.get_unbound_attr(attr)?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(self, attr.to_value()).into())
+			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute {
+				object: self,
+				attribute: attr.to_value()
+			}.into())
 	}
 
 	pub fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
@@ -310,8 +316,7 @@ impl AnyValue {
 		// OPTIMIZE ME: This is circumventing potential optimizations from `parents_for`?
 		self
 			.parents_for()
-			.get_unbound_attr(attr)?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(self, attr.to_value()))?
+			.try_get_unbound_attr(attr)?
 			.call(args.with_self(self))
 	}
 
@@ -355,7 +360,10 @@ impl AnyValue {
 			Ok(1)
 		} else {
 			debug_assert!(self.is_a::<RustFn>());
-			Err(crate::error::ErrorKind::ConversionFailed(self, Integer::ATTR_NAME).into())
+			Err(crate::error::ErrorKind::ConversionFailed {
+				object: self,
+				into: Integer::TYPENAME
+			}.into())
 		}
 	}
 
@@ -364,7 +372,7 @@ impl AnyValue {
 		self.convert::<Gc<Text>>()
 	}
 
-	pub fn convert<C: AttrConversionDefined + Convertible>(self) -> Result<C> {
+	pub fn convert<C: NamedType + AttrConversionDefined + Convertible>(self) -> Result<C> {
 		if let Some(this) = self.downcast::<C>() {
 			return Ok(this);
 		}
@@ -374,7 +382,10 @@ impl AnyValue {
 		if let Some(attr) = conv.downcast::<C>() {
 			Ok(attr)
 		} else {
-			Err(crate::error::ErrorKind::ConversionFailed(conv, C::ATTR_NAME).into())
+			Err(crate::error::ErrorKind::ConversionFailed {
+				object: conv,
+				into: C::TYPENAME
+			}.into())
 		}
 	}
 
@@ -388,7 +399,7 @@ impl AnyValue {
 		T::downcast(self).map(T::get)
 	}
 
-	pub fn try_downcast<T: Convertible + crate::value::NamedType>(self) -> Result<T> {
+	pub fn try_downcast<T: Convertible + NamedType>(self) -> Result<T> {
 		self
 			.downcast()
 			.ok_or_else(|| crate::error::ErrorKind::InvalidTypeGiven {

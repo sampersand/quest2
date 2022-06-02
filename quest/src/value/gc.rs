@@ -202,8 +202,13 @@ impl<T: Allocated> Gc<T> {
 	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn as_ref(self) -> Result<Ref<T>> {
+		self.as_ref_option().ok_or_else(||
+			crate::error::ErrorKind::AlreadyLocked(Value::from(self).any()).into())
+	}
+
+	pub fn as_ref_option(self) -> Option<Ref<T>> {
 		if cfg!(feature="unsafe-no-locking") {
-			return Ok(Ref(self))
+			return Some(Ref(self));
 		}
 
 		fn updatefn(x: u32) -> Option<u32> {
@@ -219,8 +224,8 @@ impl<T: Allocated> Gc<T> {
 			.fetch_update(Ordering::Acquire, Ordering::Relaxed, updatefn)
 		{
 			Ok(x) if x == MAX_BORROWS as u32 => panic!("too many immutable borrows"),
-			Ok(_) => Ok(Ref(self)),
-			Err(_) => Err(crate::error::ErrorKind::AlreadyLocked(Value::from(self).any()).into()),
+			Ok(_) => Some(Ref(self)),
+			Err(_) => None,
 		}
 	}
 
@@ -367,7 +372,10 @@ impl<T: Allocated> Gc<T> {
 		let attr = asref
 			.parents()
 			.get_unbound_attr_checked(attr, &mut Vec::new())?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute(obj, attr.to_value()))?;
+			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute {
+				object: obj,
+				attribute: attr.to_value()
+			})?;
 
 		drop(asref);
 		attr.call(args.with_self(obj))
