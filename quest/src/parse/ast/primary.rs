@@ -108,7 +108,7 @@ impl Compile for Primary<'_> {
 					argument.compile(builder, local);
 					argument_locals.push(local);
 				}
-				if argument_locals.len() <= crate::vm::bytecode::MAX_ARGUMENTS_FOR_SIMPLE_CALL {
+				if argument_locals.len() <= crate::vm::MAX_ARGUMENTS_FOR_SIMPLE_CALL {
 					builder.call_simple(function_local, &argument_locals, dst);
 				} else {
 					todo!();

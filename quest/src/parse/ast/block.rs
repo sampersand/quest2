@@ -103,7 +103,7 @@ impl Compile for Block<'_> {
 	fn compile(&self, builder: &mut Builder, dst: Local) {
 		let location = crate::vm::SourceLocation::from(self.body.start);
 
-		let mut inner_builder = Builder::new(location, None);
+		let mut inner_builder = Builder::new(location);
 		let scratch = Local::Scratch;
 
 		if let Some(args) = &self.args {

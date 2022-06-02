@@ -96,6 +96,15 @@ enum ParentsKind {
 }
 
 impl<'a> ParentsRef<'a> {
+	#[cfg(debug_assertions)]
+	pub(crate) fn _is_just_single_and_identical(&self, what: AnyValue) -> bool {
+		if let ParentsKind::Single(single) = self.classify() {
+			single.is_identical(what)
+		} else {
+			false
+		}
+	}
+
 	fn classify(&self) -> ParentsKind {
 		unsafe {
 			if self.parents.none == 0 {

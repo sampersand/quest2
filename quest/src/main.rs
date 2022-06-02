@@ -12,7 +12,7 @@ use quest::Result;
 
 fn run_code(code: &str) -> Result<AnyValue> {
 	let mut parser = Parser::new(code, None);
-	let mut builder = quest::vm::block::Builder::new(Default::default(), None);
+	let mut builder = quest::vm::block::Builder::new(Default::default());
 	let scratch = quest::vm::block::Local::Scratch;
 
 	ast::Group::parse_all(&mut parser)
@@ -48,12 +48,16 @@ fn main() {
 	if true {
 		let thingy = run_code(
 			r##"
+x = "A";
+x.y = 3;
+print(x.y);
+__EOF__
 fib = n -> {
 	(n <= 1).then(n.return);
 	__block__(n-1) + __block__(n-2)
 };
 
-print(fib(30))
+print(fib(10))
 __EOF__
 t = 1.upto(10).map(x -> { 
 	{ print(x) }; f.x = 99;# spawn(f)

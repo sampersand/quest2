@@ -1,10 +1,9 @@
-use super::block::BlockInner;
-use super::bytecode::Opcode;
 use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
 use crate::value::{Gc, HasDefaultParent, Intern, ToAny};
-use crate::vm::bytecode::{COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL};
-use crate::vm::{Args, Block};
+use crate::vm::bytecode::Opcode;
+use crate::vm::block::BlockInner;
+use crate::vm::{Args, Block, MAX_ARGUMENTS_FOR_SIMPLE_CALL, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE};
 use crate::{AnyValue, Result};
 use std::alloc::Layout;
 use std::fmt::{self, Debug, Formatter};
@@ -368,15 +367,12 @@ impl Frame {
 
 	#[inline(never)]
 	fn constant_as_block(&mut self, block: Gc<Block>, dst: LocalTarget) -> Result<AnyValue> {
-		let block = block.deep_clone()?;
 		self.convert_to_object()?;
 
-		block
-			.as_mut()?
-			.parents_list()
-			.as_mut()?
-			.push(unsafe { crate::value::Gc::new(self.into()) }.to_any()); // TODO: what are the implications of `.push` on parent scope vars?
+		let parent = unsafe { crate::value::Gc::new(self.into()) };
+		let block = block.as_ref()?.deep_clone_from(parent)?;
 
+		// TODO: maybe pass name to `deep_clone_from` too?
 		if dst.0 < 0 {
 			let index = !dst.0 as usize;
 			debug_assert!(index <= self.inner_block.named_locals.len());
@@ -474,7 +470,8 @@ impl Gc<Frame> {
 			let dst = this.next_local_target();
 
 			{
-				let (arity, is_variable) = op.arity_and_is_variable();
+				let arity = op.arity();
+				let is_variable_simple = op.is_variable_simple();
 				debug_assert!(arity <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
 				let mut ptr = args.as_mut_ptr().cast::<AnyValue>();
 
@@ -487,7 +484,7 @@ impl Gc<Frame> {
 					}
 				}
 
-				if is_variable {
+				if is_variable_simple {
 					let count = this.next_byte() as usize;
 					variable_args_count.write(count);
 
