@@ -173,7 +173,7 @@ impl<'a> PatternAtom<'a> {
 					seq.push(Self::Not(Box::new(notseq.pop().unwrap())));
 					Ok(true)
 				} else {
-					Err(parser.error(format!("expected atom after $!").into()))
+					Err(parser.error("expected atom after $!".to_string().into()))
 				}
 			},
 
@@ -315,7 +315,7 @@ impl<'a> PatternBody<'a> {
 }
 
 impl<'a> PatternSequence<'a> {
-	fn does_match<'v>(&self, matcher: &mut Matcher<'a, '_, '_>, parser: &mut Parser<'a>) -> Result<'a, bool> {
+	fn does_match(&self, matcher: &mut Matcher<'a, '_, '_>, parser: &mut Parser<'a>) -> Result<'a, bool> {
 		let mut submatcher = matcher.submatcher();
 
 		for atom in &self.0 {
@@ -451,7 +451,7 @@ fn does_match_named<'a>(
 				}
 
 				// TODO: should we unmatch the submatches?
-				return Ok(false);
+				Ok(false)
 			} else {
 				Err(parser.error(format!("unknown capture type {other}").into()))
 			},

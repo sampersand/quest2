@@ -261,7 +261,7 @@ impl<'a> ReplacementAtom<'a> {
 				} else if min == 0 {
 					Ok(()) // do nothing, minimum of zero is ok
 				} else {
-					Err(parser.error(format!("no matches found (todo: source location?)").into()))
+					Err(parser.error("no matches found (todo: source location?)".to_string().into()))
 				}
 			},
 		}

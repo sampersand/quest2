@@ -22,7 +22,7 @@ impl<T> Deref for Shared<'_, T> {
 
 	fn deref(&self) -> &Self::Target {
 		match self {
-			Self::Owned(owned) => &owned,
+			Self::Owned(owned) => owned,
 			Self::Borrowed(borrowed) => borrowed,
 		}
 	}
@@ -113,10 +113,8 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 					continue;
 				}
 
-				if !self.named_capture_defined(name) {
-					if !self.sequences.contains_key(name) {
-						self.sequences.entry(name).or_default().push(submatches.clone());
-					}
+				if !self.named_capture_defined(name) && !self.sequences.contains_key(name) {
+					self.sequences.entry(name).or_default().push(submatches.clone());
 				}
 			}
 		}
@@ -135,7 +133,7 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 	}
 
 	pub fn finish(self) -> Matches<'tkn> {
-		let all_tokens = self.all_tokens[self.start_index..].iter().copied().collect::<Vec<_>>();
+		let all_tokens = self.all_tokens[self.start_index..].to_vec();
 
 		Matches {
 			all_tokens,

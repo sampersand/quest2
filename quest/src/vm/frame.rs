@@ -37,8 +37,8 @@ pub struct Inner {
 	named_locals: *mut Option<AnyValue>,
 }
 
-unsafe impl Send for Frame {}
-unsafe impl Sync for Frame {}
+unsafe impl Send for Inner {}
+unsafe impl Sync for Inner {}
 
 const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
 const FLAG_IS_OBJECT: u32 = Flags::USER1;
@@ -140,7 +140,7 @@ impl Frame {
 
 	/// Provides access to the stackframe.
 	pub fn with_stackframes<F: FnOnce(&[Gc<Self>]) -> T, T>(func: F) -> T {
-		Self::with_stackframes_mut(|sf| func(&sf))
+		Self::with_stackframes_mut(|sf| func(sf))
 	}
 
 	/// Provides mutable access to the stackframe.
@@ -472,8 +472,8 @@ impl Gc<Frame> {
 
 		while let Some(op) = this.next_op()? {
 			if cfg!(debug_assertions) {
-				for i in 0..MAX_ARGUMENTS_FOR_SIMPLE_CALL {
-					args[i] = MaybeUninit::uninit();
+				for position in args.iter_mut().take(MAX_ARGUMENTS_FOR_SIMPLE_CALL) {
+					*position = MaybeUninit::uninit();
 				}
 
 				variable_args_count = MaybeUninit::uninit();

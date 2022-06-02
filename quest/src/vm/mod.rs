@@ -1,8 +1,8 @@
 //! Types relating to Quest's virtual machine.
 pub mod block;
+pub mod frame;
 mod args;
 mod opcode;
-pub mod frame;
 mod source_location;
 
 pub use args::Args;

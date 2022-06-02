@@ -535,7 +535,7 @@ pub mod funcs {
 			if let Some(list) = value.downcast::<Gc<List>>() {
 				at_text_recursive(list, builder, visited)
 			} else {
-				builder.push_str(&value.dbg_text()?.as_ref()?.as_str());
+				builder.push_str(value.dbg_text()?.as_ref()?.as_str());
 				Ok(())
 			}
 		}

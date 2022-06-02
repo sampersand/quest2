@@ -119,7 +119,7 @@ impl Block {
 		debug_assert!(self.header().parents()._is_just_single_and_identical(Gc::<Self>::parent()));
 
 		// TODO: optimize me, eg maybe have shared attributes pointer or something
-		let inner = self.inner().clone();
+		let inner = self.inner();
 		let parents = List::from_slice(&[Gc::<Self>::parent(), parent_scope.to_any()]);
 		// this
 		let cloned = Gc::<Self>::from_inner(Base::new(inner, parents));

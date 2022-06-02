@@ -69,9 +69,9 @@ impl Gc<BoundFn> {
 		let mut builder = crate::value::ty::Text::simple_builder();
 
 		builder.push_str("<BoundFn:");
-		builder.push_str(&selfref.function().dbg_text()?.as_ref()?.as_str());
+		builder.push_str(selfref.function().dbg_text()?.as_ref()?.as_str());
 		builder.push(':');
-		builder.push_str(&selfref.object().dbg_text()?.as_ref()?.as_str());
+		builder.push_str(selfref.object().dbg_text()?.as_ref()?.as_str());
 		builder.push('>');
 
 		Ok(builder.finish().to_any())

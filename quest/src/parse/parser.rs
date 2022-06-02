@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
 	}
 
 	pub fn error(&self, kind: ErrorKind) -> Error<'a> {
-		self.stream.error(kind.into())
+		self.stream.error(kind)
 	}
 
 	#[must_use]
@@ -78,13 +78,7 @@ impl<'a> Parser<'a> {
 
 	pub fn take(&mut self) -> Result<'a, Option<Token<'a>>> {
 		self.expand_syntax()?;
-		let x = self.take_bypass_syntax();
-		// if let Ok(Some(x)) = x {
-		// 	println!("{:?}", x);
-		// } else {
-		// 	dbg!(&x);
-		// }
-		x
+		self.take_bypass_syntax()
 	}
 
 	pub fn take_bypass_syntax(&mut self) -> Result<'a, Option<Token<'a>>> {
