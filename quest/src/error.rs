@@ -9,7 +9,7 @@ pub use stacktrace::Stacktrace;
 #[must_use]
 pub struct Error {
 	stacktrace: Stacktrace,
-	kind: ErrorKind
+	kind: ErrorKind,
 }
 
 /// Type alias for [`Error`].
@@ -33,7 +33,7 @@ pub enum ErrorKind {
 	/// Attempted access of the unknown attribute `attribute` on `object`.
 	UnknownAttribute {
 		object: AnyValue,
-		attribute: AnyValue
+		attribute: AnyValue,
 	},
 
 	/// An `expected` type was required but a `given` was given.
@@ -46,7 +46,7 @@ pub enum ErrorKind {
 	/// something of type `into`.
 	ConversionFailed {
 		object: AnyValue,
-		into: crate::value::Typename
+		into: crate::value::Typename,
 	},
 
 	/// For when i haven't made an actual error
@@ -116,11 +116,15 @@ impl Display for ErrorKind {
 			Self::Return { value, from_frame } => {
 				write!(f, "returning value {value:?} from frame {from_frame:?}")
 			},
-			Self::KeywordsGivenWhenNotExpected => write!(f, "keyword arguments given when none expected"),
+			Self::KeywordsGivenWhenNotExpected => {
+				write!(f, "keyword arguments given when none expected")
+			},
 			Self::PositionalArgumentMismatch { given, expected } => {
 				write!(f, "positional argument count mismatch (given {given} expected {expected})")
 			},
-			Self::StackframeIsCurrentlyRunning(frame) => write!(f, "frame {:?} is currently executing", frame),
+			Self::StackframeIsCurrentlyRunning(frame) => {
+				write!(f, "frame {frame:?} is currently executing")
+			},
 		}
 	}
 }

@@ -30,7 +30,7 @@ pub struct AttributesRef<'a> {
 #[repr(C)]
 pub struct AttributesMut<'a> {
 	attributes: &'a mut Attributes,
-	flags:  &'a Flags,
+	flags: &'a Flags,
 }
 
 sa::assert_eq_size!(AttributesRef<'_>, AttributesMut<'_>);
@@ -46,11 +46,17 @@ impl<'a> std::ops::Deref for AttributesMut<'a> {
 
 impl Attributes {
 	pub(super) unsafe fn guard_ref<'a>(&'a self, flags: &'a Flags) -> AttributesRef<'a> {
-		AttributesRef { attributes: self, flags }
+		AttributesRef {
+			attributes: self,
+			flags,
+		}
 	}
 
 	pub(super) unsafe fn guard_mut<'a>(&'a mut self, flags: &'a Flags) -> AttributesMut<'a> {
-		AttributesMut { attributes: self, flags }
+		AttributesMut {
+			attributes: self,
+			flags,
+		}
 	}
 }
 
@@ -129,7 +135,10 @@ impl<'a> AttributesMut<'a> {
 		} else if capacity <= list::MAX_LISTMAP_LEN {
 			self.attributes.list = ManuallyDrop::new(ListMap::new());
 		} else {
-			assert!(capacity <= isize::MAX as usize, "can only allocate up to isize::MAX ({capacity} is too big)");
+			assert!(
+				capacity <= isize::MAX as usize,
+				"can only allocate up to isize::MAX ({capacity} is too big)"
+			);
 
 			self.flags.insert_internal(Flags::ATTR_MAP);
 			self.attributes.map = ManuallyDrop::new(Map::with_capacity(capacity));
@@ -168,7 +177,6 @@ impl<'a> AttributesMut<'a> {
 			if !list.is_full() {
 				return list.set_attr(attr, value);
 			}
-
 
 			let list = unsafe { ManuallyDrop::take(list) };
 			self.attributes.map = ManuallyDrop::new(Map::from_iter(list.iter())?);
@@ -307,7 +315,10 @@ impl Attribute for AnyValue {
 
 	fn is_parents(self) -> bool {
 		if let Some(text) = self.downcast::<Gc<Text>>() {
-			*text.as_ref().expect("text is locked <todo, return an error>") == Intern::__parents__
+			*text
+				.as_ref()
+				.expect("text is locked <todo, return an error>")
+				== Intern::__parents__
 		} else {
 			false
 		}
@@ -364,7 +375,13 @@ mod tests {
 		let text = Text::from_str("hola mundo");
 		const ONE: AnyValue = Value::ONE.any();
 
-		assert_matches!(text.as_ref().unwrap().get_unbound_attr_checked(ONE, &mut vec![]), Ok(None));
+		assert_matches!(
+			text
+				.as_ref()
+				.unwrap()
+				.get_unbound_attr_checked(ONE, &mut vec![]),
+			Ok(None)
+		);
 		assert_matches!(text.as_mut().unwrap().del_attr(ONE), Ok(None));
 
 		text
@@ -413,7 +430,13 @@ mod tests {
 				.unwrap(),
 			45
 		);
-		assert_matches!(text.as_ref().unwrap().get_unbound_attr_checked(ONE, &mut vec![]), Ok(None));
+		assert_matches!(
+			text
+				.as_ref()
+				.unwrap()
+				.get_unbound_attr_checked(ONE, &mut vec![]),
+			Ok(None)
+		);
 	}
 
 	// XXX: This test may spuriously fail with the message `Message("parents are already locked")`.

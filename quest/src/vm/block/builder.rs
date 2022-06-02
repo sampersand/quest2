@@ -1,7 +1,9 @@
 use super::Block;
 use crate::value::ToAny;
 use crate::value::{ty::Text, AnyValue, Gc};
-use crate::vm::{MAX_ARGUMENTS_FOR_SIMPLE_CALL, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, Opcode, SourceLocation};
+use crate::vm::{
+	Opcode, SourceLocation, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL,
+};
 
 /// A builder for [`Block`].
 #[derive(Debug, Clone)]
@@ -110,7 +112,6 @@ impl Builder {
 			self.count(index);
 		}
 	}
-
 
 	/// Equivalent to [`constant`], except there's no need to allocate a [`Gc<Text>`](
 	/// crate::value::ty::Text) if the string already exists.

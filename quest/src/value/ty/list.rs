@@ -1,6 +1,6 @@
-use crate::value::ty::{Singleton, InstanceOf};
 use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
+use crate::value::ty::{InstanceOf, Singleton};
 use crate::AnyValue;
 use std::alloc;
 use std::fmt::{self, Debug, Formatter};
@@ -322,13 +322,14 @@ impl List {
 		if ret.is_some() {
 			unsafe {
 				self.set_len(self.len() - 1);
-				self.as_mut_ptr().copy_from(self.as_mut_ptr().add(1), self.len());
+				self
+					.as_mut_ptr()
+					.copy_from(self.as_mut_ptr().add(1), self.len());
 			}
 		}
 
 		ret
 	}
-
 
 	pub fn unshift(&mut self, ele: AnyValue) {
 		if self.capacity() <= self.len() + 1 {
@@ -353,7 +354,9 @@ impl List {
 		let ret = self.as_slice().last().copied();
 
 		if ret.is_some() {
-			unsafe { self.set_len(self.len() - 1); }
+			unsafe {
+				self.set_len(self.len() - 1);
+			}
 		}
 
 		ret
@@ -531,7 +534,11 @@ pub mod funcs {
 	pub fn at_text(list: Gc<List>, args: Args<'_>) -> Result<AnyValue> {
 		use crate::value::ty::text::SimpleBuilder;
 
-		fn at_text_maybe_list(value: AnyValue, builder: &mut SimpleBuilder, visited: &mut Vec<Gc<List>>) -> Result<()> {
+		fn at_text_maybe_list(
+			value: AnyValue,
+			builder: &mut SimpleBuilder,
+			visited: &mut Vec<Gc<List>>,
+		) -> Result<()> {
 			if let Some(list) = value.downcast::<Gc<List>>() {
 				at_text_recursive(list, builder, visited)
 			} else {
@@ -540,10 +547,14 @@ pub mod funcs {
 			}
 		}
 
-		fn at_text_recursive(list: Gc<List>, builder: &mut SimpleBuilder, visited: &mut Vec<Gc<List>>) -> Result<()> {
+		fn at_text_recursive(
+			list: Gc<List>,
+			builder: &mut SimpleBuilder,
+			visited: &mut Vec<Gc<List>>,
+		) -> Result<()> {
 			if visited.iter().any(|&ac| list.ptr_eq(ac)) {
 				builder.push_str("[...]");
-				return Ok(())
+				return Ok(());
 			}
 
 			builder.push('[');
@@ -603,7 +614,6 @@ pub mod funcs {
 		Ok(list.to_any())
 	}
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct ListClass;

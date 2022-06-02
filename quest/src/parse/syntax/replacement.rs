@@ -140,22 +140,24 @@ impl<'a> ReplacementAtom<'a> {
 				Ok(false)
 			},
 
-			Some(
-				Token {
-					contents: TokenContents::EscapedLeftParen(paren),
-					span
-				},
-			) => {
-				seq.push(Self::Token(Token { contents: TokenContents::LeftParen(paren), span }));
+			Some(Token {
+				contents: TokenContents::EscapedLeftParen(paren),
+				span,
+			}) => {
+				seq.push(Self::Token(Token {
+					contents: TokenContents::LeftParen(paren),
+					span,
+				}));
 				Ok(true)
 			},
-			Some(
-				Token {
-					contents: TokenContents::EscapedRightParen(paren),
-					span
-				},
-			) => {
-				seq.push(Self::Token(Token { contents: TokenContents::RightParen(paren), span }));
+			Some(Token {
+				contents: TokenContents::EscapedRightParen(paren),
+				span,
+			}) => {
+				seq.push(Self::Token(Token {
+					contents: TokenContents::RightParen(paren),
+					span,
+				}));
 				Ok(true)
 			},
 			Some(token) => {
@@ -172,11 +174,13 @@ impl<'a> Replacement<'a> {
 		let mut paren = ParenType::Round; // irrelevant, it'll be overwritten
 
 		if parser
-			.take_if_bypass_syntax(|token| if let TokenContents::LeftParen(lp) = token.contents {
-				paren = lp;
-				true
-			} else {
-				false
+			.take_if_bypass_syntax(|token| {
+				if let TokenContents::LeftParen(lp) = token.contents {
+					paren = lp;
+					true
+				} else {
+					false
+				}
 			})?
 			.is_none()
 		{
@@ -189,11 +193,7 @@ impl<'a> Replacement<'a> {
 }
 
 impl<'a> Replacement<'a> {
-	pub fn replace(
-		&self,
-		matches: Matches<'a>,
-		parser: &mut Parser<'a>,
-	) -> Result<'a, ()> {
+	pub fn replace(&self, matches: Matches<'a>, parser: &mut Parser<'a>) -> Result<'a, ()> {
 		self.0.replace(&matches, parser)
 	}
 }
@@ -247,8 +247,15 @@ impl<'a> ReplacementAtom<'a> {
 
 				if let Some(submatches) = submatches {
 					if submatches.len() < min || max.map_or(false, |max| max < submatches.len()) {
-						return Err(parser.error(format!("invalid match count (got {}, min={min},max={max:?})",
-							submatches.len()).into()))
+						return Err(
+							parser.error(
+								format!(
+									"invalid match count (got {}, min={min},max={max:?})",
+									submatches.len()
+								)
+								.into(),
+							),
+						);
 					}
 
 					for submatch in submatches {
@@ -261,7 +268,13 @@ impl<'a> ReplacementAtom<'a> {
 				} else if min == 0 {
 					Ok(()) // do nothing, minimum of zero is ok
 				} else {
-					Err(parser.error("no matches found (todo: source location?)".to_string().into()))
+					Err(
+						parser.error(
+							"no matches found (todo: source location?)"
+								.to_string()
+								.into(),
+						),
+					)
 				}
 			},
 		}

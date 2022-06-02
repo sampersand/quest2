@@ -84,8 +84,10 @@ pub mod funcs {
 				args[i]
 			} else {
 				args[i].call(Args::default())?
-			}.is_truthy()? {
-				return args[i+1].call(Args::default())
+			}
+			.is_truthy()?
+			{
+				return args[i + 1].call(Args::default());
 			}
 		}
 
@@ -107,10 +109,10 @@ pub mod funcs {
 
 	// this isn't the actual interface, im just curious how threads will work out
 	pub fn spawn(args: Args<'_>) -> Result<AnyValue> {
-		use std::thread::{self, JoinHandle};
 		use crate::value::base::Base;
 		use crate::value::ty::InstanceOf;
 		use crate::value::ToAny;
+		use std::thread::{self, JoinHandle};
 
 		quest_type! {
 			#[derive(NamedType)]

@@ -92,7 +92,7 @@ pub mod funcs {
 				value: obj,
 				from_frame: args.get(0),
 			},
-			crate::error::Stacktrace::empty()
+			crate::error::Stacktrace::empty(),
 		))
 	}
 

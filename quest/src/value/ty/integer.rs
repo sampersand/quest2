@@ -1,4 +1,4 @@
-use crate::value::ty::{ConvertTo, Float, InstanceOf, Singleton, Text, List};
+use crate::value::ty::{ConvertTo, Float, InstanceOf, List, Singleton, Text};
 use crate::value::{AnyValue, Convertible, Gc, ToAny, Value};
 use crate::vm::Args;
 use crate::Result;
@@ -177,7 +177,6 @@ pub mod funcs {
 	// 		Ok(Text::from_string(format!("")).to_any())
 	// 	}
 	// }
-
 
 	// TODO: in the future, return an enumerable
 	pub fn upto(int: Integer, args: Args<'_>) -> Result<AnyValue> {

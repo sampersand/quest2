@@ -30,8 +30,8 @@ extern crate qvm_macros;
 #[macro_use]
 pub mod value;
 pub mod error;
-pub mod vm;
 pub mod parse;
+pub mod vm;
 
 pub use error::{Error, Result};
 pub use value::{AnyValue, Value};
@@ -67,13 +67,14 @@ pub unsafe fn alloc_zeroed<T>(layout: std::alloc::Layout) -> std::ptr::NonNull<T
 
 	// This should not be used by anyone. It's just me seeing how fast i can _theroetically_
 	// get quest if i have everything preallocated. (the size is what's required for `fib(30)`)
-	#[cfg(feature="unsafe-arena-alloc-hack")]
+	#[cfg(feature = "unsafe-arena-alloc-hack")]
 	{
 		static mut PTR: *mut u8 = std::ptr::null_mut();
 
 		if PTR.is_null() {
 			PTR = std::alloc::alloc_zeroed(
-				std::alloc::Layout::from_size_align(1163177848*2, 16).unwrap());
+				std::alloc::Layout::from_size_align(1163177848 * 2, 16).unwrap(),
+			);
 		}
 
 		let result = PTR;

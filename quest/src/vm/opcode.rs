@@ -14,7 +14,7 @@
 #[repr(u8)]
 pub enum Opcode {
 	/// `CreateList(dst, count, ...)` Create a list of size `count` of trailing locals and stores it
-	/// into `dst`. (For short lists, use [`CreateListShort`], as it uses an internal buffer). 
+	/// into `dst`. (For short lists, use [`CreateListShort`], as it uses an internal buffer).
 	CreateList = 0x00,
 	/// `CreateListShort(dst, count, ...)` Create a list of size `count` of trailing locals and
 	/// stores it into `dst`. (For longer lists, use [`CreateList`])

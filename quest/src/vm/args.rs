@@ -27,7 +27,10 @@ impl<'a> Args<'a> {
 	/// indicative of a logic bug, and will panic on debug builds.
 	#[must_use]
 	pub const fn with_this(self, this: AnyValue) -> Self {
-		debug_assert!(self.this.is_none(), "todo: is this even possible? and if so, how should it work");
+		debug_assert!(
+			self.this.is_none(),
+			"todo: is this even possible? and if so, how should it work"
+		);
 
 		Self {
 			this: Some(this),
@@ -85,7 +88,12 @@ impl<'a> Args<'a> {
 		if self.positional.is_empty() {
 			Ok(())
 		} else {
-			Err(crate::error::ErrorKind::Message("positional arguments given when none expected".to_string()).into())
+			Err(
+				crate::error::ErrorKind::Message(
+					"positional arguments given when none expected".to_string(),
+				)
+				.into(),
+			)
 		}
 	}
 
@@ -94,10 +102,13 @@ impl<'a> Args<'a> {
 		if self.positional.len() == len {
 			Ok(())
 		} else {
-			Err(crate::error::ErrorKind::PositionalArgumentMismatch {
-				given: len,
-				expected: self.positional.len(),
-			}.into())
+			Err(
+				crate::error::ErrorKind::PositionalArgumentMismatch {
+					given: len,
+					expected: self.positional.len(),
+				}
+				.into(),
+			)
 		}
 	}
 
@@ -167,7 +178,7 @@ impl<A: ArgIndexer> std::ops::Index<A> for Args<'_> {
 pub trait ArgIndexer {
 	/// Try to fetch `self` from `args`.
 	fn get(self, args: Args<'_>) -> Option<AnyValue>;
-	
+
 	/// Fetches `self` from `args`, `panic!`ing if it doesn't exist in `args`.
 	fn index(self, args: Args<'_>) -> &AnyValue;
 }

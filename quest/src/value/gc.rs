@@ -1,6 +1,8 @@
 //! Types related to allocated Quest types.
 
-use crate::value::base::{Attribute, Base, Flags, Header, IntoParent, ParentsRef, ParentsMut, AttributesRef, AttributesMut};
+use crate::value::base::{
+	Attribute, AttributesMut, AttributesRef, Base, Flags, Header, IntoParent, ParentsMut, ParentsRef,
+};
 use crate::value::ty::{List, Wrap};
 use crate::value::{value::Any, AnyValue, Convertible, ToAny, Value};
 use crate::Result;
@@ -202,12 +204,13 @@ impl<T: Allocated> Gc<T> {
 	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn as_ref(self) -> Result<Ref<T>> {
-		self.as_ref_option().ok_or_else(||
-			crate::error::ErrorKind::AlreadyLocked(Value::from(self).any()).into())
+		self
+			.as_ref_option()
+			.ok_or_else(|| crate::error::ErrorKind::AlreadyLocked(Value::from(self).any()).into())
 	}
 
 	pub fn as_ref_option(self) -> Option<Ref<T>> {
-		if cfg!(feature="unsafe-no-locking") {
+		if cfg!(feature = "unsafe-no-locking") {
 			return Some(Ref(self));
 		}
 
@@ -273,8 +276,8 @@ impl<T: Allocated> Gc<T> {
 			return Err(crate::error::ErrorKind::ValueFrozen(Value::from(self).any()).into());
 		}
 
-		if cfg!(feature="unsafe-no-locking") {
-			return Ok(Mut(self))
+		if cfg!(feature = "unsafe-no-locking") {
+			return Ok(Mut(self));
 		}
 
 		if self
@@ -374,7 +377,7 @@ impl<T: Allocated> Gc<T> {
 			.get_unbound_attr_checked(attr, &mut Vec::new())?
 			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute {
 				object: obj,
-				attribute: attr.to_value()
+				attribute: attr.to_value(),
 			})?;
 
 		drop(asref);
@@ -458,7 +461,11 @@ impl<T: Allocated> Ref<T> {
 		}
 	}
 
-	pub fn get_unbound_attr_checked<A: Attribute>(&self, attr: A, checked: &mut Vec<AnyValue>) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr_checked<A: Attribute>(
+		&self,
+		attr: A,
+		checked: &mut Vec<AnyValue>,
+	) -> Result<Option<AnyValue>> {
 		self.header().get_unbound_attr_checked(attr, checked)
 	}
 

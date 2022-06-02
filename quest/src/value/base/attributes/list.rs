@@ -67,7 +67,9 @@ impl Iterator for ListMapIter<'_> {
 
 impl ListMap {
 	pub fn new() -> Box<Self> {
-		Box::new(Self { data: [None; MAX_LISTMAP_LEN] })
+		Box::new(Self {
+			data: [None; MAX_LISTMAP_LEN],
+		})
 	}
 
 	pub fn iter(&self) -> ListMapIter<'_> {
@@ -115,9 +117,12 @@ impl ListMap {
 
 				if let Some(intern) = InternKey::try_from_repr(unsafe { key.raw_data }) {
 					if intern.is_frozen() {
-						return Err(crate::error::ErrorKind::Message(
-							"attribute is frozen, cannot set it".to_string(),
-						).into());
+						return Err(
+							crate::error::ErrorKind::Message(
+								"attribute is frozen, cannot set it".to_string(),
+							)
+							.into(),
+						);
 					}
 				}
 
@@ -147,7 +152,12 @@ impl ListMap {
 
 			if let Some(intern) = InternKey::try_from_repr(unsafe { key.raw_data }) {
 				if intern.is_frozen() {
-					return Err(crate::error::ErrorKind::Message("attribute is frozen, cannot set it".to_string()).into());
+					return Err(
+						crate::error::ErrorKind::Message(
+							"attribute is frozen, cannot set it".to_string(),
+						)
+						.into(),
+					);
 				}
 			}
 

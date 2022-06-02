@@ -5,7 +5,7 @@ mod matches;
 mod pattern;
 mod replacement;
 
-use matches::{Matches, Matcher};
+use matches::{Matcher, Matches};
 use pattern::Pattern;
 use replacement::Replacement;
 
@@ -48,7 +48,9 @@ impl<'a> Syntax<'a> {
 			None => return Ok(None),
 		}
 
-		let nomatch = parser.take_if_contents_bypass_syntax(TokenContents::Symbol("!"))?.is_some();
+		let nomatch = parser
+			.take_if_contents_bypass_syntax(TokenContents::Symbol("!"))?
+			.is_some();
 
 		let group = match parser.take()? {
 			Some(Token {
@@ -118,7 +120,11 @@ impl<'a> Syntax<'a> {
 	// 	Ok(true)
 	// }
 
-	fn does_match(&self, matcher: &mut Matcher<'a, '_, '_>, parser: &mut Parser<'a>) -> Result<'a, bool> {
+	fn does_match(
+		&self,
+		matcher: &mut Matcher<'a, '_, '_>,
+		parser: &mut Parser<'a>,
+	) -> Result<'a, bool> {
 		self.pattern.does_match(matcher, parser)
 	}
 

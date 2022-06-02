@@ -10,11 +10,11 @@ mod data;
 mod flags;
 mod parents;
 
-pub use attributes::{Attribute, AttributesRef, AttributesMut};
+pub use attributes::{Attribute, AttributesMut, AttributesRef};
 pub use builder::Builder;
 pub use data::{DataMutGuard, DataRefGuard};
 pub use flags::Flags;
-pub use parents::{IntoParent, NoParents, ParentsRef, ParentsMut};
+pub use parents::{IntoParent, NoParents, ParentsMut, ParentsRef};
 
 #[repr(C)]
 pub struct Header {
@@ -232,7 +232,11 @@ impl Header {
 		self.get_unbound_attr_checked(attr, &mut Vec::new())
 	}
 
-	pub fn get_unbound_attr_checked<A: Attribute>(&self, attr: A, checked: &mut Vec<AnyValue>) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr_checked<A: Attribute>(
+		&self,
+		attr: A,
+		checked: &mut Vec<AnyValue>,
+	) -> Result<Option<AnyValue>> {
 		if let Some(value) = self.attributes().get_unbound_attr(attr)? {
 			Ok(Some(value))
 		} else {

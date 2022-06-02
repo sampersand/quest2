@@ -1,9 +1,9 @@
 use super::{Error, ErrorKind, Result, Stream, Token};
 use crate::parse::syntax::{Syntax, MIN_PRIORITY};
 use crate::parse::token::TokenContents;
+use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Parser<'a> {

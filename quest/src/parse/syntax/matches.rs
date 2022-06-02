@@ -1,5 +1,5 @@
+use crate::parse::{Parser, Result, Token};
 use hashbrown::HashMap;
-use crate::parse::{Token, Parser, Result};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
@@ -14,7 +14,7 @@ pub struct Matcher<'tkn, 'vec, 'caps> {
 #[derive(Debug)]
 enum Shared<'caps, T> {
 	Owned(T),
-	Borrowed(&'caps mut T)
+	Borrowed(&'caps mut T),
 }
 
 impl<T> Deref for Shared<'_, T> {
@@ -80,8 +80,9 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 
 	fn named_defined(&self, name: &str) -> bool {
 		if self.named_capture_defined(name) {
-			return true
+			return true;
 		}
+
 		for (key, caps) in &*self.sequences {
 			if *key == name || caps.iter().any(|cap| cap.iter().any(|c| c.named_defined(name))) {
 				return true;
@@ -90,13 +91,22 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 		false
 	}
 
-	pub fn declare_capture(&mut self, name: &'tkn str, matches: Vec<Matches<'tkn>>) -> Result<'tkn, ()> {
+	pub fn declare_capture(
+		&mut self,
+		name: &'tkn str,
+		matches: Vec<Matches<'tkn>>,
+	) -> Result<'tkn, ()> {
 		if name == "_" {
 			return Ok(());
 		}
 
 		if self.named_defined(name) {
-			return Err(matches[0].all_tokens[0].span.start.error(format!("duplicate syntax variable '${name}' encountered").into()))
+			return Err(
+				matches[0].all_tokens[0]
+					.span
+					.start
+					.error(format!("duplicate syntax variable '${name}' encountered").into()),
+			);
 		}
 
 		self.captures.insert(name, matches);
@@ -144,19 +154,17 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 			sequences: match self.sequences {
 				Shared::Owned(owned) => owned,
 				Shared::Borrowed(_borrowed) => Default::default(),
-			}
+			},
 		}
 	}
 }
-
 
 #[derive(Debug, Default)]
 pub struct Matches<'tkn> {
 	all_tokens: Vec<Token<'tkn>>,
 	captures: HashMap<&'tkn str, Vec<Matches<'tkn>>>,
-	sequences: HashMap<&'tkn str, Vec<Rc<Vec<Matches<'tkn>>>>>
+	sequences: HashMap<&'tkn str, Vec<Rc<Vec<Matches<'tkn>>>>>,
 }
-
 
 impl<'tkn> Matches<'tkn> {
 	fn named_defined(&self, _name: &str) -> bool {

@@ -1,6 +1,6 @@
 use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{AttrConversionDefined, BoundFn, Float, Integer, List, RustFn, Text, Wrap};
-use crate::value::{Convertible, Gc, Intern, ToAny, NamedType};
+use crate::value::{Convertible, Gc, Intern, NamedType, ToAny};
 use crate::vm::{Args, Block};
 use crate::Result;
 use std::fmt::{self, Debug, Formatter};
@@ -204,11 +204,13 @@ impl AnyValue {
 	}
 
 	pub fn try_get_attr<A: Attribute>(self, attr: A) -> Result<Self> {
-		self.get_attr(attr)?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute {
+		self.get_attr(attr)?.ok_or_else(|| {
+			crate::error::ErrorKind::UnknownAttribute {
 				object: self,
-				attribute: attr.to_value()
-			}.into())
+				attribute: attr.to_value(),
+			}
+			.into()
+		})
 	}
 
 	pub fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
@@ -227,18 +229,24 @@ impl AnyValue {
 	}
 
 	pub fn try_get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Self> {
-		self.get_unbound_attr(attr)?
-			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute {
+		self.get_unbound_attr(attr)?.ok_or_else(|| {
+			crate::error::ErrorKind::UnknownAttribute {
 				object: self,
-				attribute: attr.to_value()
-			}.into())
+				attribute: attr.to_value(),
+			}
+			.into()
+		})
 	}
 
 	pub fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
 		self.get_unbound_attr_checked(attr, &mut Vec::new())
 	}
 
-	pub fn get_unbound_attr_checked<A: Attribute>(self, attr: A, checked: &mut Vec<Self>) -> Result<Option<Self>> {
+	pub fn get_unbound_attr_checked<A: Attribute>(
+		self,
+		attr: A,
+		checked: &mut Vec<Self>,
+	) -> Result<Option<Self>> {
 		if !self.is_allocated() {
 			return if attr.is_parents() {
 				// TODO: if this is modified, it wont reflect on the integer.
@@ -281,7 +289,10 @@ impl AnyValue {
 
 				Ok(())
 			} else {
-				Err(crate::error::ErrorKind::Message("can only set __parents__ to a List".to_string()).into())
+				Err(
+					crate::error::ErrorKind::Message("can only set __parents__ to a List".to_string())
+						.into(),
+				)
 			}
 		} else {
 			unreachable!("unknown special attribute");
@@ -360,10 +371,13 @@ impl AnyValue {
 			Ok(1)
 		} else {
 			debug_assert!(self.is_a::<RustFn>());
-			Err(crate::error::ErrorKind::ConversionFailed {
-				object: self,
-				into: Integer::TYPENAME
-			}.into())
+			Err(
+				crate::error::ErrorKind::ConversionFailed {
+					object: self,
+					into: Integer::TYPENAME,
+				}
+				.into(),
+			)
 		}
 	}
 
@@ -382,10 +396,13 @@ impl AnyValue {
 		if let Some(attr) = conv.downcast::<C>() {
 			Ok(attr)
 		} else {
-			Err(crate::error::ErrorKind::ConversionFailed {
-				object: conv,
-				into: C::TYPENAME
-			}.into())
+			Err(
+				crate::error::ErrorKind::ConversionFailed {
+					object: conv,
+					into: C::TYPENAME,
+				}
+				.into(),
+			)
 		}
 	}
 
@@ -400,12 +417,13 @@ impl AnyValue {
 	}
 
 	pub fn try_downcast<T: Convertible + NamedType>(self) -> Result<T> {
-		self
-			.downcast()
-			.ok_or_else(|| crate::error::ErrorKind::InvalidTypeGiven {
+		self.downcast().ok_or_else(|| {
+			crate::error::ErrorKind::InvalidTypeGiven {
 				expected: T::TYPENAME,
 				given: self.typename(),
-			}.into())
+			}
+			.into()
+		})
 	}
 
 	pub fn try_hash(self) -> Result<u64> {

@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use std::fmt::{self, Debug, Display, Formatter};
+use std::path::PathBuf;
 
 /// Represents a location in quest source code.
 ///

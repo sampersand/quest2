@@ -4,7 +4,9 @@ use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
 use crate::value::{Gc, HasDefaultParent, Intern, ToAny};
 use crate::vm::block::BlockInner;
-use crate::vm::{Opcode, Args, Block, MAX_ARGUMENTS_FOR_SIMPLE_CALL, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE};
+use crate::vm::{
+	Args, Block, Opcode, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL,
+};
 use crate::{AnyValue, Result};
 use std::alloc::Layout;
 use std::fmt::{self, Debug, Formatter};
@@ -49,8 +51,10 @@ fn locals_layout_for(num_of_unnamed_locals: usize, num_named_locals: usize) -> L
 
 impl Drop for Inner {
 	fn drop(&mut self) {
-		let layout =
-			locals_layout_for(self.inner_block.num_of_unnamed_locals, self.inner_block.named_locals.len());
+		let layout = locals_layout_for(
+			self.inner_block.num_of_unnamed_locals,
+			self.inner_block.named_locals.len(),
+		);
 
 		unsafe {
 			std::alloc::dealloc(self.unnamed_locals.cast::<u8>(), layout);
@@ -98,9 +102,8 @@ impl Frame {
 			))
 			.as_ptr();
 
-			let named_locals = unnamed_locals
-				.add(inner_block.num_of_unnamed_locals)
-				.cast::<Option<AnyValue>>();
+			let named_locals =
+				unnamed_locals.add(inner_block.num_of_unnamed_locals).cast::<Option<AnyValue>>();
 
 			// The scratch register defaults to null.
 			unnamed_locals.write(AnyValue::default());
@@ -181,14 +184,14 @@ impl Frame {
 	}
 
 	unsafe fn get_unnamed_local(&self, index: usize) -> AnyValue {
-		debug_assert!(index <= self.inner_block.num_of_unnamed_locals, "{:?} > {:?}", index, self.inner_block.num_of_unnamed_locals);
 		debug_assert!(
-			self
-				.unnamed_locals
-				.add(index)
-				.cast::<Option<AnyValue>>()
-				.read()
-				.is_some(),
+			index <= self.inner_block.num_of_unnamed_locals,
+			"{:?} > {:?}",
+			index,
+			self.inner_block.num_of_unnamed_locals
+		);
+		debug_assert!(
+			self.unnamed_locals.add(index).cast::<Option<AnyValue>>().read().is_some(),
 			"reading from an unassigned unnamed local!"
 		);
 
@@ -196,7 +199,7 @@ impl Frame {
 	}
 
 	// this should also be unsafe (update: should it be??)
-	 fn get_local(&self, index: LocalTarget) -> Result<AnyValue> {
+	fn get_local(&self, index: LocalTarget) -> Result<AnyValue> {
 		let index = index.0;
 
 		if 0 <= index {
@@ -223,18 +226,23 @@ impl Frame {
 	fn get_object_local(&self, index: usize) -> Result<AnyValue> {
 		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
 
-		if let Some(attr) = self.0.header().get_unbound_attr_checked(attr_name.to_any(), &mut Vec::new())? {
+		if let Some(attr) =
+			self.0.header().get_unbound_attr_checked(attr_name.to_any(), &mut Vec::new())?
+		{
 			return Ok(attr);
 		} else if !self.is_object() {
 			if let Some(attr) = Gc::<Self>::parent().get_unbound_attr(attr_name.to_any())? {
-				return Ok(attr)
+				return Ok(attr);
 			}
 		}
 
-		Err(crate::error::ErrorKind::UnknownAttribute {
-			object: unsafe { crate::value::Gc::new(self.into()) }.to_any(),
-			attribute: attr_name.to_any()
-		}.into())
+		Err(
+			crate::error::ErrorKind::UnknownAttribute {
+				object: unsafe { crate::value::Gc::new(self.into()) }.to_any(),
+				attribute: attr_name.to_any(),
+			}
+			.into(),
+		)
 	}
 
 	fn set_local(&mut self, index: LocalTarget, value: AnyValue) -> Result<()> {
@@ -291,7 +299,7 @@ impl Frame {
 		self.pos >= self.inner_block.code.len()
 	}
 
-	 fn next_byte(&mut self) -> u8 {
+	fn next_byte(&mut self) -> u8 {
 		debug_assert!(!self.is_done());
 
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
@@ -309,15 +317,7 @@ impl Frame {
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
 		// out of bounds.
 		#[allow(clippy::cast_ptr_alignment)]
-		let us = unsafe {
-			self
-				.inner_block
-				.code
-				.as_ptr()
-				.add(self.pos)
-				.cast::<usize>()
-				.read_unaligned()
-		};
+		let us = unsafe { self.inner_block.code.as_ptr().add(self.pos).cast::<usize>().read_unaligned() };
 
 		self.pos += std::mem::size_of::<usize>();
 
@@ -404,11 +404,7 @@ impl Gc<Frame> {
 		fields(src=?self.as_ref()?.inner_block.location))
 	]
 	pub fn run(self) -> Result<AnyValue> {
-		if !self
-			.as_ref()?
-			.flags()
-			.try_acquire_all_user(FLAG_CURRENTLY_RUNNING)
-		{
+		if !self.as_ref()?.flags().try_acquire_all_user(FLAG_CURRENTLY_RUNNING) {
 			return Err(crate::error::ErrorKind::StackframeIsCurrentlyRunning(self).into());
 		}
 
@@ -462,12 +458,15 @@ impl Gc<Frame> {
 		}
 
 		macro_rules! args_slice {
-			(start=$start:expr) => {args_slice!(start=$start, len=variable_args_count.assume_init())};
+			(start=$start:expr) => {
+				args_slice!(start = $start, len = variable_args_count.assume_init())
+			};
 			(start=$start:expr, len=$len:expr) => {
 				Args::new(
 					std::slice::from_raw_parts(args.as_ptr().cast::<AnyValue>().add($start), $len),
-					&[])
-			}
+					&[],
+				)
+			};
 		}
 
 		while let Some(op) = this.next_op()? {
@@ -512,7 +511,7 @@ impl Gc<Frame> {
 						unsafe {
 							ptr.write(local);
 							ptr = ptr.add(1);
-						}					
+						}
 					}
 				}
 			}
@@ -532,17 +531,15 @@ impl Gc<Frame> {
 					}
 
 					list.to_any()
-				},
+				}
 
-				Opcode::Mov => unsafe {
-					args[0].assume_init()
-				},
+				Opcode::Mov => unsafe { args[0].assume_init() },
 				Opcode::Call => todo!(), //self.op_call(),
 				Opcode::CallSimple => unsafe {
 					without_this! {
 						args[0].assume_init().call(args_slice!(start=1))?
 					}
-				}
+				},
 
 				Opcode::ConstLoad => unsafe {
 					let idx = this.next_count();
@@ -629,7 +626,7 @@ impl Gc<Frame> {
 							*object
 						}
 					}
-				},
+				}
 
 				Opcode::DelAttr => unsafe {
 					without_this! {
@@ -643,36 +640,36 @@ impl Gc<Frame> {
 							.assume_init()
 							.call_attr(args[1].assume_init(), args_slice!(start=2))?
 					}
-				}
+				},
 
 				Opcode::Add => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init()
 							.call_attr(Intern::op_add, args_slice!(start=1, len=1))?
 					}
 				},
 				Opcode::Subtract => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_sub, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::Multiply => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_mul, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::Divide => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_div, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::Modulo => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_mod, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::Power => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_pow, args_slice!(start=1,len=1))?
 					}
 				},
@@ -685,51 +682,51 @@ impl Gc<Frame> {
 					without_this! {
 						args[0].assume_init().call_attr(Intern::op_neg, Args::default())?
 					}
-				}
+				},
 				Opcode::Equal => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_eql, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::NotEqual => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_neq, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::LessThan => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_lth, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::GreaterThan => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_gth, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::LessEqual => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_leq, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::GreaterEqual => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_geq, args_slice!(start=1,len=1))?
 					}
 				},
 				Opcode::Compare => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_cmp, args_slice!(start=1,len=1))?
 					}
 				},
 
 				Opcode::Index => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_index, args_slice!(start=1))?
 					}
 				},
 
 				Opcode::IndexAssign => unsafe {
-					without_this!{ 
+					without_this! {
 						args[0].assume_init().call_attr(Intern::op_index_assign, args_slice!(start=1))?
 					}
 				},
@@ -753,7 +750,6 @@ pub mod funcs {
 
 		frame.run()
 	}
-
 
 	/// Restarts `frame` from the beginning. Note that if it's already running, an error will be
 	/// returned.
@@ -821,10 +817,7 @@ mod tests {
 			builder.build()
 		};
 
-		fib.as_mut()
-			.unwrap()
-			.set_attr("fib".to_any(), fib.to_any())
-			.unwrap();
+		fib.as_mut().unwrap().set_attr("fib".to_any(), fib.to_any()).unwrap();
 
 		let result = fib.run(Args::new(&[15.to_any()], &[])).unwrap();
 

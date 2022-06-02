@@ -24,7 +24,7 @@ pub struct ParentsRef<'a> {
 #[repr(C)]
 pub struct ParentsMut<'a> {
 	parents: &'a mut Parents,
-	flags:  &'a Flags,
+	flags: &'a Flags,
 }
 
 sa::assert_eq_size!(ParentsRef<'_>, ParentsMut<'_>);
@@ -40,11 +40,17 @@ impl<'a> std::ops::Deref for ParentsMut<'a> {
 
 impl Parents {
 	pub(super) unsafe fn guard_ref<'a>(&'a self, flags: &'a Flags) -> ParentsRef<'a> {
-		ParentsRef { parents: self, flags }
+		ParentsRef {
+			parents: self,
+			flags,
+		}
 	}
 
 	pub(super) unsafe fn guard_mut<'a>(&'a mut self, flags: &'a Flags) -> ParentsMut<'a> {
-		ParentsMut { parents: self, flags }
+		ParentsMut {
+			parents: self,
+			flags,
+		}
 	}
 }
 
@@ -118,7 +124,11 @@ impl<'a> ParentsRef<'a> {
 	}
 
 	/// Attempts to get the unbound attribute `attr` on `self`.
-	pub fn get_unbound_attr_checked<A: Attribute>(&self, attr: A, checked: &mut Vec<AnyValue>) -> Result<Option<AnyValue>> {
+	pub fn get_unbound_attr_checked<A: Attribute>(
+		&self,
+		attr: A,
+		checked: &mut Vec<AnyValue>,
+	) -> Result<Option<AnyValue>> {
 		match self.classify() {
 			ParentsKind::None => Ok(None),
 			ParentsKind::Single(single) => single.get_unbound_attr_checked(attr, checked),
@@ -130,7 +140,7 @@ impl<'a> ParentsRef<'a> {
 				}
 
 				Ok(None)
-			}
+			},
 		}
 	}
 
@@ -148,7 +158,7 @@ impl<'a> ParentsRef<'a> {
 			.get_unbound_attr_checked(attr, &mut Vec::new())?
 			.ok_or_else(|| crate::error::ErrorKind::UnknownAttribute {
 				object: obj,
-				attribute: attr.to_value()
+				attribute: attr.to_value(),
 			})?;
 
 		drop(self);
@@ -176,11 +186,10 @@ impl ParentsMut<'_> {
 				self.set(list);
 				list
 			},
-			ParentsKind::List(list) => list
+			ParentsKind::List(list) => list,
 		}
 	}
 }
-
 
 impl Debug for ParentsRef<'_> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -188,14 +197,11 @@ impl Debug for ParentsRef<'_> {
 
 		match self.classify() {
 			ParentsKind::None => {},
-			ParentsKind::Single(s) => { l.entry(&s); },
+			ParentsKind::Single(s) => {
+				l.entry(&s);
+			},
 			ParentsKind::List(s) => {
-				l.entries(
-					s
-						.as_ref()
-						.expect("asref failed for entries")
-						.as_slice(),
-				);
+				l.entries(s.as_ref().expect("asref failed for entries").as_slice());
 			},
 		};
 

@@ -1,5 +1,5 @@
 use crate::value::Gc;
-use crate::vm::{Frame, Block};
+use crate::vm::{Block, Frame};
 use std::fmt::{self, Display, Formatter};
 
 /// A Stacktrace in Quest, representing the callstack at a point in time during execution.
@@ -27,7 +27,8 @@ impl Stacktrace {
 
 			// We skip the first one, as it's the "global frame," which doesn't have a location.
 			for frame in frames.iter().skip(1) {
-				locations.push(frame.as_ref_option().expect("<todo: get block without needing ref?").block());
+				locations
+					.push(frame.as_ref_option().expect("<todo: get block without needing ref?").block());
 			}
 
 			Self(locations)
@@ -54,7 +55,7 @@ impl Display for Stacktrace {
 			if let Some(blockref) = block.as_ref_option() {
 				match blockref.display() {
 					Ok(display) => Display::fmt(&display, f)?,
-					Err(err) => write!(f, "<error: {err}>")?
+					Err(err) => write!(f, "<error: {err}>")?,
 				}
 			} else {
 				write!(f, "<error: unable to get the frame>")?;

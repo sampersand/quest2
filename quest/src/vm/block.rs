@@ -1,9 +1,9 @@
 //! Types relating to Quest [`Block`]s.
 
 use super::{Frame, SourceLocation};
+use crate::value::gc::{Allocated, Gc};
 use crate::value::ty::{List, Text};
-use crate::value::{base::Base, Intern, HasDefaultParent, ToAny};
-use crate::value::gc::{Gc, Allocated};
+use crate::value::{base::Base, HasDefaultParent, Intern, ToAny};
 use crate::vm::Args;
 use crate::{AnyValue, Result};
 use std::fmt::{self, Debug, Display, Formatter};
@@ -65,12 +65,13 @@ impl Block {
 	/// Sets the name associated with this block.
 	pub fn set_name(&mut self, name: Gc<Text>) -> Result<()> {
 		debug_assert!(
-			self.header()
+			self
+				.header()
 				.attributes()
 				.get_unbound_attr(Intern::__name__)
 				.unwrap()
 				.is_none(),
-				"somehow assigning a name twice?"
+			"somehow assigning a name twice?"
 		);
 		self.header_mut().set_attr(Intern::__name__, name.to_any())
 	}
@@ -79,11 +80,11 @@ impl Block {
 	///
 	/// This returns a [`Result`] because attribute access can error.
 	pub fn name(&self) -> Result<Option<Gc<Text>>> {
-		Ok(self.header()
+		Ok(self
+			.header()
 			.attributes()
 			.get_unbound_attr(Intern::__name__)?
 			.and_then(|x| x.downcast::<Gc<Text>>()))
-
 	}
 
 	/// Gets a displayable version of `self`.
@@ -116,14 +117,16 @@ impl Block {
 
 	/// Deep clones `self`, returning a completely independent copy, and adding `frame` as a parent
 	pub fn deep_clone_from(&self, parent_scope: Gc<Frame>) -> Result<Gc<Self>> {
-		debug_assert!(self.header().parents()._is_just_single_and_identical(Gc::<Self>::parent()));
+		debug_assert!(self
+			.header()
+			.parents()
+			._is_just_single_and_identical(Gc::<Self>::parent()));
 
 		// TODO: optimize me, eg maybe have shared attributes pointer or something
 		let inner = self.inner();
 		let parents = List::from_slice(&[Gc::<Self>::parent(), parent_scope.to_any()]);
 		// this
 		let cloned = Gc::<Self>::from_inner(Base::new(inner, parents));
-
 
 		let mut clonedmut = cloned.as_mut().unwrap();
 		for (attr, value) in self.header().attributes().iter() {

@@ -355,8 +355,8 @@ fn reference_syntax_groups() {
 		"#,
 	)
 	.unwrap();
-	let ten_thirty_fourtyfive_pm = (10*3600 + 30*60 + 45) + 216000;
-	let ten_thirty_am = 10*3600 + 30*60;
+	let ten_thirty_fourtyfive_pm = (10 * 3600 + 30 * 60 + 45) + 216000;
+	let ten_thirty_am = 10 * 3600 + 30 * 60;
 	assert_eq!(result.downcast::<Integer>().unwrap(), ten_thirty_fourtyfive_pm - ten_thirty_am);
 }
 
@@ -400,11 +400,10 @@ fn repetition_in_macros() {
 			else if (x == 1) { 20 }
 			else if (x == 2) { 30 }
 			else { 40 }
-		"#
+		"#,
 	)
 	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), 30);
-
 }
 
 #[test]
@@ -417,7 +416,8 @@ fn negative_matches_and_underscore() {
 			};
 
 			begin 2 5 7 END
-		"#
-	).unwrap();
+		"#,
+	)
+	.unwrap();
 	assert_eq!(result.downcast::<Integer>().unwrap(), 70);
 }

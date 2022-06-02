@@ -52,7 +52,7 @@ impl ParenType {
 			'(' => Some(Self::Round),
 			'[' => Some(Self::Square),
 			'{' => Some(Self::Curly),
-			_ => None
+			_ => None,
 		}
 	}
 
@@ -61,7 +61,7 @@ impl ParenType {
 			')' => Some(Self::Round),
 			']' => Some(Self::Square),
 			'}' => Some(Self::Curly),
-			_ => None
+			_ => None,
 		}
 	}
 }
@@ -107,12 +107,15 @@ impl PartialEq for TokenContents<'_> {
 			(Self::Semicolon, Self::Semicolon) => true,
 			(Self::Comma, Self::Comma) => true,
 			(Self::ColonColon, Self::ColonColon) => true,
-			(Self::LeftParen(l) | Self::EscapedLeftParen(l),
-				Self::LeftParen(r) | Self::EscapedLeftParen(r)) => l == r,
-			(Self::RightParen(l) | Self::EscapedRightParen(l),
-				Self::RightParen(r) | Self::EscapedRightParen(r)) => l == r,
+			(
+				Self::LeftParen(l) | Self::EscapedLeftParen(l),
+				Self::LeftParen(r) | Self::EscapedLeftParen(r),
+			) => l == r,
+			(
+				Self::RightParen(l) | Self::EscapedRightParen(l),
+				Self::RightParen(r) | Self::EscapedRightParen(r),
+			) => l == r,
 			// TODO: should an escaped paren equal an unescaped paren?
-
 			(Self::SyntaxIdentifier(ld, l), Self::SyntaxIdentifier(rd, r)) => ld == rd && l == r,
 			(Self::SyntaxOr(ld), Self::SyntaxOr(rd)) => ld == rd,
 			(Self::SyntaxNot(ld), Self::SyntaxNot(rd)) => ld == rd,
@@ -216,15 +219,15 @@ impl<'a> TokenContents<'a> {
 				Ok(Self::RightParen(ParenType::Curly))
 			},
 
-			// TODO: nested escaped parens? 
+			// TODO: nested escaped parens?
 			'\\' if stream.peek2().and_then(ParenType::parse_left).is_some() => {
 				stream.advance();
 				Ok(Self::EscapedLeftParen(ParenType::parse_left(stream.take().unwrap()).unwrap()))
-			}
+			},
 			'\\' if stream.peek2().and_then(ParenType::parse_right).is_some() => {
 				stream.advance();
 				Ok(Self::EscapedRightParen(ParenType::parse_right(stream.take().unwrap()).unwrap()))
-			}
+			},
 
 			'.' if !stream.peek2().map_or(false, is_symbol_char) => {
 				stream.advance();

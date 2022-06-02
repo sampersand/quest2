@@ -1,14 +1,14 @@
 //! Types relating to Quest's virtual machine.
+mod args;
 pub mod block;
 pub mod frame;
-mod args;
 mod opcode;
 mod source_location;
 
 pub use args::Args;
 pub use block::Block;
-pub use opcode::Opcode;
 pub use frame::Frame;
+pub use opcode::Opcode;
 pub use source_location::SourceLocation;
 
 /// The max amount of arguments a "simple function call" can have.
