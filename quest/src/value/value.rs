@@ -317,7 +317,7 @@ impl AnyValue {
 		self
 			.parents_for()
 			.try_get_unbound_attr(attr)?
-			.call(args.with_self(self))
+			.call(args.with_this(self))
 	}
 
 	// there's a potential logic flaw here, as this may actually pass `self`

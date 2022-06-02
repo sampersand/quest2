@@ -129,7 +129,7 @@ impl<'a> AttributesMut<'a> {
 		} else if capacity <= list::MAX_LISTMAP_LEN {
 			self.attributes.list = ManuallyDrop::new(ListMap::new());
 		} else {
-			assert!(capacity <= isize::MAX as usize, "can only allocate up to isize::MAX ({} is too big)", capacity);
+			assert!(capacity <= isize::MAX as usize, "can only allocate up to isize::MAX ({capacity} is too big)");
 
 			self.flags.insert_internal(Flags::ATTR_MAP);
 			self.attributes.map = ManuallyDrop::new(Map::with_capacity(capacity));

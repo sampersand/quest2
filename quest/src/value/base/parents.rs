@@ -153,7 +153,7 @@ impl<'a> ParentsRef<'a> {
 
 		drop(self);
 
-		attr.call(args.with_self(obj))
+		attr.call(args.with_this(obj))
 	}
 }
 

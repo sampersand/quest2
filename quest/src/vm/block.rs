@@ -1,3 +1,5 @@
+//! Types relating to Quest [`Block`]s.
+
 use super::{Frame, SourceLocation};
 use crate::value::ty::{List, Text};
 use crate::value::{base::Base, Intern, HasDefaultParent, ToAny};
@@ -23,6 +25,7 @@ impl Debug for Block {
 }
 
 #[derive(Debug)]
+#[doc(hidden)]
 pub struct BlockInner {
 	pub(super) code: Vec<u8>,
 	pub(super) location: SourceLocation,
@@ -140,14 +143,17 @@ impl Gc<Block> {
 	}
 }
 
+/// Quest functions defined for [`Block`].
 pub mod funcs {
 	use super::*;
 	use crate::value::ToAny;
 
+	/// Calls `block` with the given `args`.
 	pub fn call(block: Gc<Block>, args: Args<'_>) -> Result<AnyValue> {
 		block.run(args)
 	}
 
+	/// Returns a debug representation of `block`.
 	pub fn dbg(block: Gc<Block>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_keyword()?;
 

@@ -54,7 +54,7 @@ impl Display for Stacktrace {
 			if let Some(blockref) = block.as_ref_option() {
 				match blockref.display() {
 					Ok(display) => Display::fmt(&display, f)?,
-					Err(err) => write!(f, "<error: {}>", err)?
+					Err(err) => write!(f, "<error: {err}>")?
 				}
 			} else {
 				write!(f, "<error: unable to get the frame>")?;

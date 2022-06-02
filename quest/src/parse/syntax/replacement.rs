@@ -219,7 +219,7 @@ impl<'a> ReplacementAtom<'a> {
 			},
 			Self::Capture(name) => {
 				let captures = matches.capture(name).ok_or_else(|| {
-					parser.error(format!("syntax variable ${} never matched", name).into())
+					parser.error(format!("syntax variable ${name} never matched").into())
 				})?;
 
 				for capture in captures {
@@ -247,8 +247,8 @@ impl<'a> ReplacementAtom<'a> {
 
 				if let Some(submatches) = submatches {
 					if submatches.len() < min || max.map_or(false, |max| max < submatches.len()) {
-						return Err(parser.error(format!("invalid match count (got {}, min={},max={:?})",
-							submatches.len(), min, max).into()))
+						return Err(parser.error(format!("invalid match count (got {}, min={min},max={max:?})",
+							submatches.len()).into()))
 					}
 
 					for submatch in submatches {

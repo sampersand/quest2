@@ -1,9 +1,10 @@
+//! Types associated with the [`Frame`] type.
+
 use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
 use crate::value::{Gc, HasDefaultParent, Intern, ToAny};
-use crate::vm::bytecode::Opcode;
 use crate::vm::block::BlockInner;
-use crate::vm::{Args, Block, MAX_ARGUMENTS_FOR_SIMPLE_CALL, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE};
+use crate::vm::{Opcode, Args, Block, MAX_ARGUMENTS_FOR_SIMPLE_CALL, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE};
 use crate::{AnyValue, Result};
 use std::alloc::Layout;
 use std::fmt::{self, Debug, Formatter};
@@ -12,6 +13,7 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 quest_type! {
+	/// A Stackframe within quest.
 	#[derive(NamedType)]
 	pub struct Frame(Inner);
 }
@@ -23,6 +25,7 @@ impl Debug for Frame {
 }
 
 #[derive(Debug)]
+#[doc(hidden)]
 pub struct Inner {
 	block: Gc<Block>,
 	inner_block: Arc<BlockInner>,
@@ -59,6 +62,7 @@ impl Drop for Inner {
 struct LocalTarget(isize);
 
 impl Frame {
+	/// Creates a new [`Frame`] from the given `block` and passed `args`.
 	pub fn new(block: Gc<Block>, args: Args) -> Result<Gc<Self>> {
 		args.assert_no_keyword()?; // todo: assign keyword arguments
 		let inner_block = block.as_ref()?.inner();
@@ -107,7 +111,7 @@ impl Frame {
 			start.add(1).write(Some(args.into_value()));
 			start = start.add(2);
 
-			if let Some(this) = args.get_self() {
+			if let Some(this) = args.this() {
 				start.write(Some(this));
 				start = start.add(1);
 			}
@@ -129,11 +133,18 @@ impl Frame {
 		}
 	}
 
+	/// Fetches the block associated with this stackframe.
 	pub fn block(&self) -> Gc<Block> {
 		self.block
 	}
 
-	pub fn with_stackframes<F: FnOnce(&mut Vec<Gc<Self>>) -> T, T>(func: F) -> T {
+	/// Provides access to the stackframe.
+	pub fn with_stackframes<F: FnOnce(&[Gc<Self>]) -> T, T>(func: F) -> T {
+		Self::with_stackframes_mut(|sf| func(&sf))
+	}
+
+	/// Provides mutable access to the stackframe.
+	pub fn with_stackframes_mut<F: FnOnce(&mut Vec<Gc<Self>>) -> T, T>(func: F) -> T {
 		use std::cell::RefCell;
 		thread_local! {
 			static STACKFRAMES: RefCell<Vec<Gc<Frame>>> = RefCell::new(Vec::new());
@@ -385,6 +396,7 @@ impl Frame {
 }
 
 impl Gc<Frame> {
+	/// Executes the stackframe, returning an error if it's currently running.
 	#[instrument(target="frame",
 		level="debug",
 		name="call frame",
@@ -400,7 +412,7 @@ impl Gc<Frame> {
 			return Err(crate::error::ErrorKind::StackframeIsCurrentlyRunning(self).into());
 		}
 
-		Frame::with_stackframes(|sfs| sfs.push(self));
+		Frame::with_stackframes_mut(|sfs| sfs.push(self));
 
 		let result = self.run_inner();
 
@@ -413,7 +425,7 @@ impl Gc<Frame> {
 			unreachable!("unable to set it as not currently running??");
 		}
 
-		Frame::with_stackframes(|sfs| {
+		Frame::with_stackframes_mut(|sfs| {
 			let p = sfs.pop();
 
 			debug_assert!(
@@ -731,15 +743,20 @@ impl Gc<Frame> {
 	}
 }
 
+/// Quest functions defined for [`Block`].
 pub mod funcs {
 	use super::*;
 
+	/// Resumes the `frame`. Note that if it's already running, an error will be returned.
 	pub fn resume(frame: Gc<Frame>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
 
 		frame.run()
 	}
 
+
+	/// Restarts `frame` from the beginning. Note that if it's already running, an error will be
+	/// returned.
 	pub fn restart(frame: Gc<Frame>, args: Args<'_>) -> Result<AnyValue> {
 		args.assert_no_arguments()?;
 		frame.as_mut()?.pos = 0;
@@ -747,8 +764,9 @@ pub mod funcs {
 		frame.run()
 	}
 
+	/// Returns a debug representation of `frame`.
 	pub fn dbg(frame: Gc<Frame>, args: Args<'_>) -> Result<AnyValue> {
-		args.assert_no_keyword()?;
+		args.assert_no_arguments()?;
 
 		// TODO: maybe cache this in the future?
 		let mut builder = Text::simple_builder();

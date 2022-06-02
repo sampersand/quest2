@@ -70,7 +70,7 @@ impl<'a> Syntax<'a> {
 				if num <= MIN_PRIORITY as _ {
 					num as Priority
 				} else {
-					return Err(parser.error(format!("priority must be 0..{}", MIN_PRIORITY).into()));
+					return Err(parser.error(format!("priority must be 0..{MIN_PRIORITY}").into()));
 				}
 			},
 			Some(token) => {

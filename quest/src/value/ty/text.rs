@@ -476,8 +476,7 @@ impl Text {
 	pub unsafe fn set_len(&mut self, new_len: usize) {
 		debug_assert!(
 			new_len <= self.capacity(),
-			"new len is larger than capacity ({} > {})",
-			new_len,
+			"new len is larger than capacity ({new_len} > {})",
 			self.capacity()
 		);
 

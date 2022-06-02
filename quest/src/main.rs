@@ -277,7 +277,7 @@ $syntax { @ ${! $f:int} } = { print(2 ${* $f}) } ;
 
 	match run_code(&std::env::args().skip(1).next().expect("usage: <expr>")) {
 		Err(err) => {
-			eprintln!("error: {}", err);
+			eprintln!("error: {err:#}");
 			std::process::exit(0)
 		},
 		Ok(num) => {

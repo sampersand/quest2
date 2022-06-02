@@ -310,9 +310,8 @@ impl Builder {
 	pub fn call_attr_simple(&mut self, obj: Local, attr: Local, args: &[Local], dst: Local) {
 		assert!(
 			args.len() <= MAX_ARGUMENTS_FOR_SIMPLE_CALL,
-			"too many arguments given for call_attr_simple: {}, max {}",
-			args.len(),
-			MAX_ARGUMENTS_FOR_SIMPLE_CALL
+			"too many arguments given for call_attr_simple: {}, max {MAX_ARGUMENTS_FOR_SIMPLE_CALL}",
+			args.len()
 		);
 
 		unsafe {
@@ -438,8 +437,7 @@ impl Builder {
 	pub fn index(&mut self, source: Local, index: &[Local], dst: Local) {
 		assert!(
 			index.len() <= MAX_ARGUMENTS_FOR_SIMPLE_CALL,
-			"too many arguments for index ({} max, got {}), use call_attr instead",
-			MAX_ARGUMENTS_FOR_SIMPLE_CALL,
+			"too many arguments for index ({MAX_ARGUMENTS_FOR_SIMPLE_CALL} max, got {}), use call_attr instead",
 			index.len(),
 		);
 

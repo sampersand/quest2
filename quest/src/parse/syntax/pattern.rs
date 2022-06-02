@@ -453,7 +453,7 @@ fn does_match_named<'a>(
 				// TODO: should we unmatch the submatches?
 				return Ok(false);
 			} else {
-				Err(parser.error(format!("unknown capture type {}", other).into()))
+				Err(parser.error(format!("unknown capture type {other}").into()))
 			},
 	}
 }

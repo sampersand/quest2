@@ -109,7 +109,7 @@ pub mod funcs {
 
 	pub fn tap_into(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
 		let (func, args) = args.split_first()?;
-		func.call(args.with_self(obj))
+		func.call(args.with_this(obj))
 	}
 
 	pub fn then(obj: AnyValue, args: Args<'_>) -> Result<AnyValue> {
@@ -126,7 +126,7 @@ pub mod funcs {
 		let (func, args) = args.split_first()?;
 
 		if obj.is_truthy()? {
-			func.call(args.with_self(obj))
+			func.call(args.with_this(obj))
 		} else {
 			Ok(obj)
 		}
@@ -148,7 +148,7 @@ pub mod funcs {
 		if obj.is_truthy()? {
 			Ok(obj)
 		} else {
-			func.call(args.with_self(obj))
+			func.call(args.with_this(obj))
 		}
 	}
 

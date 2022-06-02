@@ -366,7 +366,7 @@ impl<T: Allocated> Gc<T> {
 
 		if let Some(func) = asref.attributes().get_unbound_attr(attr)? {
 			drop(asref);
-			return func.call(args.with_self(obj));
+			return func.call(args.with_this(obj));
 		}
 
 		let attr = asref
@@ -378,7 +378,7 @@ impl<T: Allocated> Gc<T> {
 			})?;
 
 		drop(asref);
-		attr.call(args.with_self(obj))
+		attr.call(args.with_this(obj))
 	}
 }
 
@@ -452,7 +452,7 @@ impl<T: Allocated> Ref<T> {
 		let obj = self.as_gc().to_any();
 
 		if let Some(func) = self.attributes().get_unbound_attr(attr)? {
-			func.call(args.with_self(obj))
+			func.call(args.with_this(obj))
 		} else {
 			self.parents().call_attr(obj, attr, args)
 		}

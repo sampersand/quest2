@@ -82,7 +82,7 @@ pub mod funcs {
 		}
 
 		let (func, args) = args.split_first()?;
-		func.call(args.with_self(boolean.to_any()))
+		func.call(args.with_this(boolean.to_any()))
 	}
 
 	pub fn r#else(boolean: bool, args: Args<'_>) -> Result<AnyValue> {
@@ -100,7 +100,7 @@ pub mod funcs {
 		}
 
 		let (func, args) = args.split_first()?;
-		func.call(args.with_self(boolean.to_any()))
+		func.call(args.with_this(boolean.to_any()))
 	}
 
 	pub fn or(boolean: bool, args: Args<'_>) -> Result<AnyValue> {

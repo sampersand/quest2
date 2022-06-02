@@ -96,7 +96,7 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 		}
 
 		if self.named_defined(name) {
-			return Err(matches[0].all_tokens[0].span.start.error(format!("duplicate syntax variable '${}' encountered", name).into()))
+			return Err(matches[0].all_tokens[0].span.start.error(format!("duplicate syntax variable '${name}' encountered").into()))
 		}
 
 		self.captures.insert(name, matches);
