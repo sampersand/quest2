@@ -1,5 +1,7 @@
+#![warn(missing_docs)]
 //! Types relating to [`Value`] and its representation in Quest.
 
+#[allow(missing_docs)]
 #[macro_use]
 pub mod ty;
 

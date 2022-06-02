@@ -15,12 +15,14 @@ pub(super) union Parents {
 sa::assert_eq_size!(Parents, u64);
 sa::assert_eq_align!(Parents, u64);
 
+/// An immutable reference to a [`Header`](crate::value::base::Header)'s parents.
 #[repr(C)]
 pub struct ParentsRef<'a> {
 	parents: &'a Parents,
 	flags: &'a Flags,
 }
 
+/// A mutable reference to a [`Header`](crate::value::base::Header)'s parents.
 #[repr(C)]
 pub struct ParentsMut<'a> {
 	parents: &'a mut Parents,
@@ -48,43 +50,47 @@ impl Parents {
 	}
 }
 
-pub unsafe trait IntoParent {
-	fn into_parent(self, guard: &mut ParentsMut<'_>);
+/// A trait that indicates a type can be converted into a [`Header](crate::value::base::Header)'s
+/// parents.
+pub trait IntoParent {
+	/// Replaces `parents` with `self`.
+	fn into_parent(self, parents: &mut ParentsMut<'_>);
 }
 
+/// Indicates that no parents are used.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct NoParents;
 
-unsafe impl IntoParent for NoParents {
+impl IntoParent for NoParents {
 	#[inline]
-	fn into_parent(self, guard: &mut ParentsMut<'_>) {
-		guard.flags.remove_internal(Flags::MULTI_PARENT);
-		guard.parents.none = 0;
+	fn into_parent(self, parents: &mut ParentsMut<'_>) {
+		parents.flags.remove_internal(Flags::MULTI_PARENT);
+		parents.parents.none = 0;
 	}
 }
 
-unsafe impl IntoParent for Value {
+impl IntoParent for Value {
 	#[inline]
-	fn into_parent(self, guard: &mut ParentsMut<'_>) {
-		guard.flags.remove_internal(Flags::MULTI_PARENT);
-		guard.parents.single = self;
+	fn into_parent(self, parents: &mut ParentsMut<'_>) {
+		parents.flags.remove_internal(Flags::MULTI_PARENT);
+		parents.parents.single = self;
 	}
 }
 
-unsafe impl IntoParent for Gc<List> {
+impl IntoParent for Gc<List> {
 	#[inline]
-	fn into_parent(self, guard: &mut ParentsMut<'_>) {
-		guard.flags.insert_internal(Flags::MULTI_PARENT);
-		guard.parents.list = self;
+	fn into_parent(self, parents: &mut ParentsMut<'_>) {
+		parents.flags.insert_internal(Flags::MULTI_PARENT);
+		parents.parents.list = self;
 	}
 }
 
-unsafe impl IntoParent for ParentsRef<'_> {
-	fn into_parent(self, guard: &mut ParentsMut<'_>) {
+impl IntoParent for ParentsRef<'_> {
+	fn into_parent(self, parents: &mut ParentsMut<'_>) {
 		match self.classify() {
-			ParentsKind::None => NoParents.into_parent(guard),
-			ParentsKind::Single(single) => single.into_parent(guard),
-			ParentsKind::List(list) => list.as_ref().unwrap().dup().into_parent(guard),
+			ParentsKind::None => NoParents.into_parent(parents),
+			ParentsKind::Single(single) => single.into_parent(parents),
+			ParentsKind::List(list) => list.as_ref().unwrap().dup().into_parent(parents),
 		}
 	}
 }
@@ -141,9 +147,8 @@ impl ParentsRef<'_> {
 	/// Attempts to call the attribute `attr` on `self` with the given args. Note that this is a
 	/// distinct function so we can optimize function calls in the future without having to fetch
 	/// the attribute first.
-	// TODO: we should take by-reference, but this solves an issue with gc until we make gc only for body.
 	pub fn call_attr<A: Attribute>(
-		self,
+		&self,
 		obj: Value,
 		attr: A,
 		args: crate::vm::Args<'_>,
@@ -159,6 +164,7 @@ impl ParentsRef<'_> {
 }
 
 impl ParentsMut<'_> {
+	/// Replaces `self` with `parent`.
 	pub fn set<I: IntoParent>(&mut self, parent: I) {
 		parent.into_parent(self);
 	}

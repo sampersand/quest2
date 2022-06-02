@@ -12,7 +12,7 @@ use list::ListMap;
 use map::Map;
 
 #[repr(C)]
-pub union Attributes {
+pub(super) union Attributes {
 	none: u64,
 	list: ManuallyDrop<Box<ListMap>>,
 	map: ManuallyDrop<Box<Map>>,
@@ -21,12 +21,14 @@ pub union Attributes {
 sa::assert_eq_size!(Attributes, u64);
 sa::assert_eq_align!(Attributes, u64);
 
+/// Immutable access to a [`Header`](crate::value::base::Header)'s attributes.
 #[repr(C)]
 pub struct AttributesRef<'a> {
 	attributes: &'a Attributes,
 	flags: &'a Flags,
 }
 
+/// Mutable access to a [`Header`](crate::value::base::Header)'s attributes.
 #[repr(C)]
 pub struct AttributesMut<'a> {
 	attributes: &'a mut Attributes,
@@ -81,6 +83,7 @@ impl<'a> AttributesRef<'a> {
 		!self.flags.contains(Flags::ATTR_MAP)
 	}
 
+	/// Gets an iterator over `self`'s attributes.
 	pub fn iter(&self) -> AttributesIter<'_> {
 		AttributesIter(if self.is_none() {
 			AttributesIterInner::None
@@ -91,6 +94,7 @@ impl<'a> AttributesRef<'a> {
 		})
 	}
 
+	/// Gets the amount of attributes that were defined.
 	pub fn len(&self) -> usize {
 		if self.is_none() {
 			0
@@ -101,18 +105,21 @@ impl<'a> AttributesRef<'a> {
 		}
 	}
 
+	/// Whether any attributes are defined.
 	pub fn is_empty(&self) -> bool {
+		// NOTE: WE can't just check for `.is_none()`, as list/map attributes could have been deleted.
 		self.len() == 0
 	}
 
+	/// Gets an unbound attribute `attr`.
+	///
+	/// Note that `attr` should not be a [special attribute](Attribute::is_special).
 	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
 		debug_assert!(!attr.is_special());
 
 		if self.is_none() {
-			return Ok(None);
-		}
-
-		if self.isnt_map() {
+			Ok(None)
+		} else if self.isnt_map() {
 			unsafe { &self.attributes.list }.get_unbound_attr(attr)
 		} else {
 			unsafe { &self.attributes.map }.get_unbound_attr(attr)
@@ -139,6 +146,9 @@ impl<'a> AttributesMut<'a> {
 		}
 	}
 
+	/// Gets mutable access to an unbound attribute `attr`.
+	///
+	/// Note that `attr` should not be a [special attribute](Attribute::is_special).
 	pub fn get_unbound_attr_mut<A: Attribute>(mut self, attr: A) -> Result<&'a mut Value> {
 		debug_assert!(!attr.is_special());
 
@@ -156,6 +166,9 @@ impl<'a> AttributesMut<'a> {
 		}
 	}
 
+	/// Sets the attribute `attr` to `value`.
+	///
+	/// Note that `attr` should not be a [special attribute](Attribute::is_special).
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
 		debug_assert!(!attr.is_special());
 
@@ -180,6 +193,9 @@ impl<'a> AttributesMut<'a> {
 		unsafe { &mut self.attributes.map }.set_attr(attr, value)
 	}
 
+	/// Deletes an attribute `attr`, returning `None` if it didnt exist.
+	///
+	/// Note that `attr` should not be a [special attribute](Attribute::is_special).
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
 		debug_assert!(!attr.is_special());
 
@@ -203,6 +219,7 @@ impl<'a> AttributesMut<'a> {
 	}
 }
 
+/// An iterator over immutable references to attributes.
 pub struct AttributesIter<'a>(AttributesIterInner<'a>);
 
 // we need an inner enum so people cant access the internals whilst the iter is public.
@@ -224,31 +241,47 @@ impl Iterator for AttributesIter<'_> {
 	}
 }
 
+/// A helper trait which allows for indexing with more than just `Value`s.
+///
+/// This may become a sealed trait at some point.
 pub trait Attribute: Copy + Debug + ToValue {
+	/// See if `self` is equal to the [`Value`] rhs.
 	fn try_eq_value(self, rhs: Value) -> Result<bool>;
+
+	/// See if `self` is equal to the [`Intern`] rhs.
 	fn try_eq_intern(self, rhs: Intern) -> Result<bool>;
 
+	/// Attempts to convert `self` to an `Intern`.
 	fn as_intern(self) -> Result<Option<Intern>>;
 
+	/// Attempt to hash `self`.
 	fn try_hash(self) -> Result<u64>;
+
+	/// Get the raw data corresponding to `self`.
 	fn to_repr(self) -> u64;
 
-	fn is_parents(self) -> bool;
+	/// Checks to see if self is a "special" attribute
+	///
+	/// Special attributes don't work like normal attributes, and have special hooks associated with
+	/// them.
 	fn is_special(self) -> bool {
 		self.is_parents()
 	}
+
+	/// Checks to see if `self` corresponds to [`Intern::__parents__`].
+	fn is_parents(self) -> bool;
 }
 
-impl Attribute for crate::value::Intern {
+impl Attribute for Intern {
 	fn try_eq_value(self, rhs: Value) -> Result<bool> {
 		if let Some(text) = rhs.downcast::<Gc<Text>>() {
-			Ok(&*self == text.as_ref()?.as_str())
+			Ok(*text.as_ref()? == self)
 		} else {
 			Ok(false)
 		}
 	}
 
-	fn try_eq_intern(self, rhs: Intern) -> Result<bool> {
+	fn try_eq_intern(self, rhs: Self) -> Result<bool> {
 		Ok(self == rhs)
 	}
 
@@ -256,7 +289,7 @@ impl Attribute for crate::value::Intern {
 		Ok(self.fast_hash())
 	}
 
-	fn as_intern(self) -> Result<Option<Intern>> {
+	fn as_intern(self) -> Result<Option<Self>> {
 		Ok(Some(self))
 	}
 
@@ -270,7 +303,7 @@ impl Attribute for crate::value::Intern {
 }
 
 impl Attribute for Value {
-	fn try_eq_value(self, rhs: Value) -> Result<bool> {
+	fn try_eq_value(self, rhs: Self) -> Result<bool> {
 		Self::try_eq(self, rhs)
 	}
 

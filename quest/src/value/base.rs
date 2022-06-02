@@ -1,3 +1,5 @@
+//! Types relating to [`Base`], the type all allocated objects wrap.
+
 pub use super::HasDefaultParent;
 use crate::value::gc::Gc;
 use std::any::TypeId;
@@ -6,16 +8,20 @@ use std::sync::atomic::AtomicU32; // pub is deprecated here, just to fix other t
 
 mod attributes;
 mod builder;
-mod data;
 mod flags;
 mod parents;
 
 pub use attributes::{Attribute, AttributesMut, AttributesRef};
 pub use builder::Builder;
-pub use data::{DataMutGuard, DataRefGuard};
 pub use flags::Flags;
 pub use parents::{IntoParent, NoParents, ParentsMut, ParentsRef};
 
+/// The header for allocated [`Value`]s.
+///
+/// All [allocated](crate::value::gc::Allocated) types in Quest internally begin with a
+/// [`Header`]. This means that you can access the header for anything that's allocated without
+/// actually knowing what type was allocated. Thus, you can, for example, lookup attributes on a
+/// type without actually knowing what type it is.
 #[repr(C)]
 pub struct Header {
 	flags: Flags,
@@ -27,6 +33,12 @@ pub struct Header {
 
 sa::assert_eq_size!(Header, [u64; 4]);
 
+/// The base for all allocated [`Value`]s.
+///
+/// All [allocated](crate::value::gc::Allocated) types in Quest are actually newtype wrappers
+/// around a `Base<T>`. Thus, they all have a consistent layout, and begin with a header.
+/// This allows for looking up attributes, parents, flags, etc. without having to downcast a
+/// [`Gc<Any>`].
 #[repr(C, align(16))]
 pub struct Base<T: 'static> {
 	header: Header,
@@ -58,59 +70,12 @@ impl Debug for Header {
 
 impl<T: Debug> Debug for Base<T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		Debug::fmt(&self.data, f)
-	}
-}
-
-// impl<T> Base<T> {
-// 	pub fn new<P: IntoParent>(data: T, parent: P) -> NonNull<Self> {
-// 		unsafe {
-// 			let mut builder = Self::allocate();
-// 			builder.write_data(data);
-// 			builder.set_parents(parent);
-// 			builder.finish()
-// 		}
-// 	}
-
-// 	pub unsafe fn allocate<P: IntoParent>(parent: P) -> Builder<T> {
-// 		Self::allocate_with_capacity(0)
-// 	}
-
-// 	pub unsafe fn allocate_with_capacity(attr_capacity: usize) -> Builder<T> {
-// 		Self::allocate_with_parent(attr_capacity, T::parent())
-// 	}
-// }
-
-impl<T: HasDefaultParent> Base<T> {
-	/*)
-	/// Creates a new `Base<T>` with the given data, and its parents.
-	pub fn new(data: T) -> NonNull<Self> {
-		unsafe {
-			let mut builder = Self::allocate();
-			builder.data_mut().write(data);
-			builder.finish()
+		if f.alternate() {
+			f.debug_struct("Base").field("header", &self.header).field("data", &self.data).finish()
+		} else {
+			Debug::fmt(&self.data, f)
 		}
 	}
-
-	pub unsafe fn allocate() -> Builder<T> {
-		Self::allocate_with_capacity(0)
-	}
-
-	pub unsafe fn allocate_with_capacity(attr_capacity: usize) -> Builder<T> {
-		Self::allocate_with_parent(attr_capacity, T::parent())
-	}
-
-	pub unsafe fn builder_inplace(base: NonNull<Self>) -> Builder<T> {
-		let mut b = Builder::new(base);
-		b.set_parents(T::parent());
-		b
-	}
-
-	pub unsafe fn static_builder(base: &'static mut MaybeUninit<Self>) -> Builder<T> {
-		let builder = Self::builder_inplace(NonNull::new_unchecked(base.as_mut_ptr()));
-		builder.flags().insert(Flags::NOFREE);
-		builder
-	}*/
 }
 
 impl Base<crate::value::value::Any> {
@@ -120,14 +85,22 @@ impl Base<crate::value::value::Any> {
 }
 
 impl<T> Base<T> {
+	/// Returns a new [`Builder`] for [`Base`]s.
+	///
+	/// This is a convenience method around [`Builder::allocate`]. Most of the time you won't need
+	/// such fine control, and instead [`Base::new`]/[`Base::new_with_capacity`] can be used.
 	pub fn builder() -> Builder<T> {
 		Builder::allocate()
 	}
 
+	/// Creates a new [`Base`] with the given data and parents.
+	#[must_use]
 	pub fn new<P: IntoParent>(data: T, parent: P) -> Gc<Self> {
 		Self::new_with_capacity(data, parent, 0)
 	}
 
+	/// Creates a new [`Base`] with the given data, parents, and initial attribute capacity.
+	#[must_use]
 	pub fn new_with_capacity<P: IntoParent>(data: T, parent: P, attr_capacity: usize) -> Gc<Self> {
 		let mut builder = Self::builder();
 
@@ -138,55 +111,34 @@ impl<T> Base<T> {
 		unsafe { builder.finish() }
 	}
 
-	pub unsafe fn allocate_with_parent(attr_capacity: usize, parent: Value) -> Builder<T> {
-		let mut b = Builder::allocate();
-		b.allocate_attributes(attr_capacity);
-		b.set_parents(parent);
-		b
-	}
-
+	/// Gets a reference to the [`Header`] for `self`.
+	#[must_use]
 	pub fn header(&self) -> &Header {
 		&self.header
 	}
 
+	/// Gets a mutable reference to the [`Header`] for `self`.
+	#[must_use]
 	pub fn header_mut(&mut self) -> &mut Header {
 		&mut self.header
 	}
 
-	pub fn header_data_mut(&mut self) -> (&mut Header, &mut T) {
-		(&mut self.header, &mut self.data)
-	}
-
+	/// Gets a reference to the `data` for `self`.
 	pub fn data(&self) -> &T {
 		&self.data
 	}
 
+	/// Gets a mutable reference to the `data` for `self`.
 	pub fn data_mut(&mut self) -> &mut T {
 		&mut self.data
 	}
 
-	pub unsafe fn data_mut_raw<'a>(ptr: *mut Self) -> Result<DataMutGuard<'a, T>> {
-		let data_ptr = &mut (*ptr).data;
-		let flags = &(*ptr).header.flags;
-		let borrows = &(*ptr).header.borrows;
-
-		// TODO: you can currently make something froze whilst it's mutably borrowed, fix it.
-		if flags.contains(Flags::FROZEN) {
-			return Err("todo: how do we want to return an error here".to_string().into());
-			// return Err(Error::ValueFrozen(Gc::new(ptr).any()));
-		}
-
-		DataMutGuard::new(data_ptr, flags, borrows)
-			.ok_or_else(|| "data is already locked".to_string().into())
-	}
-
-	pub unsafe fn data_ref_raw<'a>(ptr: *const Self) -> Result<DataRefGuard<'a, T>> {
-		let data_ptr = &(*ptr).data;
-		let flags = &(*ptr).header.flags;
-		let borrows = &(*ptr).header.borrows;
-
-		DataRefGuard::new(data_ptr, flags, borrows)
-			.ok_or_else(|| "data is already locked".to_string().into())
+	/// Gets a mutable reference to both the data and [`Header`] for `self`.
+	///
+	/// This function is required because calling [`header_mut`](Self::header_mut) followed by
+	/// [`data_mut`](Self::data_mut) angers the borrow checker.
+	pub fn header_data_mut(&mut self) -> (&mut Header, &mut T) {
+		(&mut self.header, &mut self.data)
 	}
 }
 
@@ -207,6 +159,7 @@ impl<T> Drop for Base<T> {
 use crate::{value::Value, Result};
 
 impl Header {
+	/// Gets the borrows for `self`.
 	pub(crate) fn borrows(&self) -> &AtomicU32 {
 		&self.borrows
 	}
@@ -228,6 +181,10 @@ impl Header {
 		self.get_unbound_attr_checked(attr, &mut Vec::new())
 	}
 
+	/// The same as [`get_bound_attr`](Self::get_unbound_attr), except with a list of values that
+	/// have already been checked.
+	///
+	/// This function prevents duplicate checking of functions.
 	pub fn get_unbound_attr_checked<A: Attribute>(
 		&self,
 		attr: A,
@@ -240,12 +197,14 @@ impl Header {
 		}
 	}
 
+	/// Gets mutable access to the attribute `attr`.
+	///
+	/// This doesn't have an "checked" variant, as only attributes are looked at.
 	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
 		self.attributes_mut().get_unbound_attr_mut(attr)
 	}
 
 	/// Gets the flags associated with the current object.
-	// TODO: we need to somehow not expose the internal flags.
 	pub fn flags(&self) -> &Flags {
 		&self.flags
 	}
@@ -306,22 +265,27 @@ impl Header {
 		self.attributes_mut().del_attr(attr)
 	}
 
+	/// Gets an immutable reference to `self`'s parents.
 	pub fn parents(&self) -> ParentsRef<'_> {
 		unsafe { self.parents.guard_ref(&self.flags) }
 	}
 
+	/// Gets a mutable reference to `self`'s parents.
 	pub fn parents_mut(&mut self) -> ParentsMut<'_> {
 		unsafe { self.parents.guard_mut(&self.flags) }
 	}
 
+	/// Gets an immutable reference to `self`'s attributes.
 	pub fn attributes(&self) -> AttributesRef<'_> {
 		unsafe { self.attributes.guard_ref(&self.flags) }
 	}
 
+	/// Gets a mutable reference to `self`'s attributes.
 	pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
 		unsafe { self.attributes.guard_mut(&self.flags) }
 	}
 
+	/// <TODO: is this required?>
 	pub unsafe fn parents_raw<'a>(ptr: *const Self) -> ParentsRef<'a> {
 		let parents = &(*ptr).parents;
 		let flags = &(*ptr).flags;
@@ -329,6 +293,7 @@ impl Header {
 		parents.guard_ref(flags)
 	}
 
+	/// <TODO: is this required?>
 	pub unsafe fn parents_raw_mut<'a>(ptr: *mut Self) -> ParentsMut<'a> {
 		let parents = &mut (*ptr).parents;
 		let flags = &(*ptr).flags;
@@ -336,6 +301,7 @@ impl Header {
 		parents.guard_mut(flags)
 	}
 
+	/// <TODO: is this required?>
 	pub unsafe fn attributes_raw_mut<'a>(ptr: *mut Self) -> AttributesMut<'a> {
 		let attrs_ptr = &mut (*ptr).attributes;
 		let flags = &(*ptr).flags;

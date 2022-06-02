@@ -36,14 +36,17 @@ pub unsafe trait Allocated: 'static {
 	#[doc(hidden)]
 	type Inner;
 
+	/// Gets a reference to `self`'s internal [`Header`].
 	fn header(&self) -> &Header {
 		unsafe { &*(self as *const Self).cast::<Header>() }
 	}
 
+	/// Gets a mutable reference to `self`'s internal [`Header`].
 	fn header_mut(&mut self) -> &mut Header {
 		unsafe { &mut *(self as *mut Self).cast::<Header>() }
 	}
 
+	/// Gets the list of flags for `self`.
 	fn flags(&self) -> &Flags {
 		self.header().flags()
 	}
@@ -127,6 +130,8 @@ impl<T: HasDefaultParent + Allocated> Gc<T> {
 
 /// Sentinel value used to indicate the `Gc<T>` is mutably borrowed.
 const MUT_BORROW: u32 = u32::MAX;
+
+/// The maximum amount of immutable borrows that can occur at once.
 pub const MAX_BORROWS: usize = (MUT_BORROW - 1) as usize;
 
 impl<T: Allocated> Gc<T> {
@@ -210,6 +215,7 @@ impl<T: Allocated> Gc<T> {
 			.ok_or_else(|| ErrorKind::AlreadyLocked(Value::from(self).to_value()).into())
 	}
 
+	/// Tries to convert `self` to a reference, returning `None` if we can't.
 	pub fn as_ref_option(self) -> Option<Ref<T>> {
 		if cfg!(feature = "unsafe-no-locking") {
 			return Some(Ref(self));
@@ -359,6 +365,7 @@ impl<T: Allocated> Gc<T> {
 		unsafe { &*self.as_ptr() }.header().borrows()
 	}
 
+	/// Calls `attr` with the arguments `args`.
 	pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<Value> {
 		// try to get a function directly defined on `self`, which most likely wont exist.
 		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
@@ -439,11 +446,13 @@ impl<T: Allocated + Debug> Debug for Ref<T> {
 }
 
 impl<T: Allocated> Ref<T> {
+	/// Gets the [`Gc`] corresponding to `self`.
 	#[must_use]
 	pub fn as_gc(&self) -> Gc<T> {
 		self.0
 	}
 
+	/// Calls `attr` with the arguments `args`.
 	pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<Value> {
 		// try to get a function directly defined on `self`, which most likely wont exist.
 		// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
@@ -456,6 +465,10 @@ impl<T: Allocated> Ref<T> {
 		}
 	}
 
+	/// The gets an unbound attribute[`get_bound_attr`](Self::get_unbound_attr), except with a list of values that
+	/// have already been checked.
+	///
+	/// This function prevents duplicate checking of functions.
 	pub fn get_unbound_attr_checked<A: Attribute>(
 		&self,
 		attr: A,

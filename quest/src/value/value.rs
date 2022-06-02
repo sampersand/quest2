@@ -29,6 +29,10 @@ NOTE: Technically, the first page can be allocated in some architectures
 However, those are microkernels so I dont really care. No relevant OS will
 map the first page to userspace.
 */
+/// Any representable value within Quest uses this type.
+///
+/// The default `Value` itself represents any value at all, whereas specific values (`Value<Foo>`)
+/// indicate that the contexts are exactly that type.
 #[repr(transparent)]
 pub struct Value<T = Any>(NonZeroU64, PhantomData<T>);
 
