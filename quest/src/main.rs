@@ -9,9 +9,10 @@ use quest::value::ty::*;
 use quest::value::*;
 use quest::vm::*;
 use quest::Result;
+use std::path::Path;
 
-fn run_code(code: &str) -> Result<Value> {
-	let mut parser = Parser::new(code, None);
+fn run_code(code: &str, filename: Option<&Path>) -> Result<Value> {
+	let mut parser = Parser::new(code, filename);
 	let mut builder = quest::vm::block::Builder::new(Default::default());
 	let scratch = quest::vm::block::Local::Scratch;
 
@@ -43,242 +44,20 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if false {
-		let thingy = run_code(
-			r##"
-fib = n -> {
-	(n <= 1).then(n.return);
-	__block__(n-1) + __block__(n-2)
-};
-
-print(fib(20))
-__EOF__
-t = 1.upto(10).map(x -> { 
-	{ print(x) }; f.x = 99;# spawn(f)
-});
-print(3);
-t.join();
-__EOF__
-$syntax kw { $a:(let $| def $| do) } = { $a } ;
-$syntax { IO.println } = { print };
-$syntax { let $name:ident := ${$!$_:kw $v:token} $k:kw } = { $name = ${$v}; $k };
-$syntax {
-    def $name:ident ${$!:= $args:ident} := ${$!$_:kw $e:token} $k:kw
-} = { $name = (${$args ,}) -> { ${$e} }; $k };
-$syntax { do } = { } ;
-
-let msg := "hii"
-def add x y := x + y
-let test := add(1, 3)
-do IO.println(msg) ;
-
-__EOF__
-$syntax hr_min_sec { $hr:int : $min:int } = { $hr : $min . 0 } ;
-$syntax hr_min_sec { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
-
-$syntax { $time:hr_min_sec am } = { $time } ;
-$syntax { $time:hr_min_sec pm } = { ($time + 216_000) } ;
-
-print(10 : 30 . 45 pm); #=> 253845
-print(10 : 30 am); #=> 37800
-
-__EOF__
-foo = { bar() };
-bar = { unknownattribute };
-
-foo();
-
-__EOF__
-foo = { bar() };
-bar = { baz() };
-baz = { quux() };
-quux = { unknownattribute };
-
-foo();
-__EOF__
-fib = n -> {
-	(n <= 1).then(n.return);
-	__block__(n-1) + __block__(n-2)
-};
-
-print(fib(10))
-__EOF__
-import = {};
-fizzbuzz={};
-print = { print(:-1.stack.pop()); };
-$syntax stick { @ $l:literal } = { stack.push($l); };
-$syntax stick { @ $n:ident } = { $n(); };
-
-$syntax comment { @ ( ${$_:comment $| $!\) $_:token } ) } = { };
-$syntax { STICK ${ $!NOSTICK $x:token} NOSTICK } = { stack=[]; ${@ $x} };
-
-STICK
-
-1 2 print
-NOSTICK
-__EOF__
-"prelude.sk" import
-
-"fizzbuzz" {
-	1 swap range {
-		dup [
-			{ 15 % ! } => { pop "FizzBuzz" }
-			{  3 % ! } => { pop "Fizz" }
-			{  5 % ! } => { pop "Buzz" }
-			default  => { ( dont pop ) }
-		] switch println
-	} foreach
-} def
-
-100 fizzbuzz
-NOSTICK
-
-__EOF__
-$syntax time { $hr:int : $min:int } = { $hr : $min . 0 } ;
-$syntax time { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
-
-$syntax { $t:time am } = { $t } ;
-$syntax { $t:time pm } = { ($t + 216_000) } ;
-
-print(10 : 30 . 45 pm)
-
-__EOF__
-	; = x 0
-	: W ! ? x 10
-		; O x
-		: = x + x 1
-XDONE
-__EOF__
-$syntax end { end $| END } = { end } ;
-$syntax { begin ${ $! $_:end $x:token} $_:end } = {
-	${print($x);}
-};
-
-begin 1 2 3 END
-__EOF__
-$syntax {
-	object
-		# parents
-		$[(
-			$[$parent1:tt ${, $parent_rest:tt} $[,]]
-		)]
-	{
-		# attributes
-		${ $key:literal = $value:tt ; }
-	}
-} = {
-	({
-		$[ __parents__ = [$parent1 ${,$parent_rest}]; ]
-		${ $key = $value; }
-		:0
-	}())
-} ;
-
-l = object { m = 4; };
-person = object (l) {
-	n = 3;
-	x = (a -> { a.m - a.n });
-};
-
-print(person.x());
-
-__EOF__
-# $syntax { fn $name:ident = $body:block } = { $name = $body } ;
-$syntax { %% $b:block } = { $b };
-$syntax { %% $a:ident ${$r:ident} $b:block } = ( { $a -> %% ${$r} $b } );
-$syntax { fn $name:ident ${$rest:ident} $body:block } = { $name = (%% ${ $rest } $body)() ; };
-$syntax ( @ $fn:ident ${$arg:int} ) = ( ($fn ${($arg)}) );
-
-fn add a b { a + b }
-!print (!add 1 2) #=> 3
-
-__EOF__
-print(add(1)(2));
-#print(x(2))
-# add = a -> { b -> { a + b } };
-# a = add(1)(2);
-# print(a);
-# 
-# __EOF__
-$syntax { %% $body:block } = { $body };
-$syntax { %% $a:ident ${$rest:ident} $body:block } = (
-	{ $a -> %% ${$rest} $body }
-);
-$syntax { $$ a } = { exit(0); } ;
-$syntax { fn $name:ident = $body:block } = { $name = $body } ;
-$syntax {
-	fn $name:ident $init:ident ${$rest:ident} = $body:block
-} = {
-	$name = $init -> %% ${ $arg } $body ;
-};
-
-fn add a b c d = { a }
-
-# add = a -> { b -> { a + b } };
-print(add(1));
-__EOF__
-print(add(1)(2));
-#print(x(2))
-__EOF__
-$syntax { @ $e:text } = { stack.push($e); };
-$syntax { @ ++ } = { a = stack.pop(); stack.push(stack.pop() + a); };
-$syntax { @ . } = { print(stack.pop()); };
-$syntax { @ x } = { a = stack.pop(); b = stack.pop(); stack.push(a); stack.push(b); } ;
-$syntax { begin ${$tkn:token} } = { stack = []; ${@ $tkn} };
-begin
-
-"Hello," " " ++ "world!" x . . #=> Hello,<newline>world!
-__EOF__
-
-if_cascade(
-	x == 0, { print("x = 0") },
-	{ x == 1 }, {print("x = 1"); },
-	{ x == 2 }, { print("x = 2"); },
-	{ print("x is something else"); });
-
-$syntax {
-	if $cond:group $body:block
-	${ else if $cond1:group $body1:block }
-	$[ else $body2:block ]
-} = {
-	if_cascade($cond, $body ${, {$cond1}, $body1 } $[, $body2])
-};
-
-x = 3;
-if (x == 0) { 10 }
-else if (x == 1) { 20 }
-else if (x == 2) { 30 }
-else { 40 }
-__EOF__
-$syntax { @ $e:literal } = { stack.push($e); };
-$syntax { @ . } = { print(stack.pop()); };
-$syntax { begin ${$tkn:token} } = { stack = []; ${@ $tkn} };
-begin
-
-"hello" "sup" "quest syntax rocks" . . .
-
-__EOF__
-$syntax { @ ${! $f:int} } = { print(2 ${* $f}) } ;
-
-@ !3 !5 !7
-"##,
-		);
-		if let Err(err) = thingy {
-			eprintln!("{}", err);
-		}
-		return;
-	}
 
 	const USAGE: &str = "usage: -e <expr> | -f <file>";
 
 	let mut args = std::env::args().skip(1);
-	let contents = match &*args.next().expect(USAGE) {
-		"-f" => std::fs::read_to_string(args.next().expect(USAGE)).expect("cant open file"),
-		"-e" => args.next().expect(USAGE),
+	let (contents, filename) = match &*args.next().expect(USAGE) {
+		"-f" => {
+			let name = args.next().expect(USAGE);
+			(std::fs::read_to_string(&name).expect("cant open file"), Some(name))
+		}
+		"-e" => (args.next().expect(USAGE), None),
 		_ => panic!("{USAGE}"),
 	};
 
-	match run_code(&contents) {
+	match run_code(&contents, filename.as_deref().map(Path::new)) {
 		Err(err) => {
 			eprintln!("error: {err:#}");
 			std::process::exit(0)

@@ -249,7 +249,21 @@ impl Header {
 	/// # Example
 	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		self.attributes_mut().set_attr(attr, value)
+		if !attr.is_special() {
+			return self.attributes_mut().set_attr(attr, value);
+		}
+
+		if attr.is_parents() {
+			if let Some(list) = value.downcast::<Gc<crate::value::ty::List>>() {
+				self.parents_mut().set(list);
+
+				Ok(())
+			} else {
+				Err("can only set __parents__ to a List".to_string().into())
+			}
+		} else {
+			unreachable!("unknown special attribute {attr:?}");
+		}
 	}
 
 	/// Attempts to delete `self`'s attribute `attr`, returning the old value if it was present.

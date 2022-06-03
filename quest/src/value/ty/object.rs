@@ -173,8 +173,7 @@ pub mod funcs {
 	pub fn itself(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		let _ = obj;
-		todo!("itself (probs implemented via bound function)")
+		Ok(obj)
 	}
 
 	pub fn print(obj: Value, args: Args<'_>) -> Result<Value> {

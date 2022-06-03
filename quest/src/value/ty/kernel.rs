@@ -168,6 +168,9 @@ impl Singleton for Kernel {
 				Intern::if_cascade => justargs funcs::if_cascade,
 				Intern::r#while => justargs funcs::r#while,
 				Intern::Integer => constant ty::Integer::parent(),
+				// Intern::Object => constant ty::Object::instance(),
+				// Intern::Frame => constant Gc::<crate::vm::Frame>::parent(),
+				// Intern::Block => constant Gc::<crate::vm::Block>::parent(),
 				Intern::List => constant ty::List::parent(),
 				// TODO: Other types
 				Intern::r#true => constant true.to_value(),

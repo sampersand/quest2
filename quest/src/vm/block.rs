@@ -140,6 +140,13 @@ pub mod funcs {
 		block.run(args)
 	}
 
+	/// Calls `block` with the given `args`.
+	pub fn create_frame(block: Gc<Block>, args: Args<'_>) -> Result<Value> {
+		let frame = Frame::new(block, args)?;
+		frame.as_mut().unwrap().convert_to_object()?;
+		Ok(frame.to_value())
+	}
+
 	/// Returns a debug representation of `block`.
 	pub fn dbg(block: Gc<Block>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
@@ -163,6 +170,7 @@ pub mod funcs {
 
 quest_type_attrs! { for Gc<Block>, parent Object;
 	op_call => meth funcs::call,
+	create_frame => meth funcs::create_frame,
 	dbg => meth funcs::dbg,
 	// "+" => meth qs_add,
 	// "@text" => meth qs_at_text,

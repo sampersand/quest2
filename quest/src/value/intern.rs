@@ -118,12 +118,15 @@ define_interned! {
 	exit abort spawn join
 
 	r#true "true" r#false "false" null
-	print freeze resume restart dbg
+	print freeze
+	resume restart dbg create_frame
 	push pop shift unshift dump
 
 	map upto each
 
-	Block Boolean BoundFn Callable Class Float Integer Kernel List Null Object Pristine RustFn Scope Text
+	Boolean BoundFn Callable Class Float Integer Kernel List
+	Null Object Pristine RustFn Scope Text
+	Frame Block
 }
 
 // Note that this has to be implemented like this because we manually implement `Hash`.

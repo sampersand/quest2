@@ -18,32 +18,35 @@ pub fn run_code(code: &str) -> Result<Value> {
 	builder.build().run(Args::default())
 }
 
+macro_rules! run {
+	($code:literal) => {
+		run_code($code).unwrap()
+	};
+}
+
 #[test]
 fn divides() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			Integer.zero? = n -> { n == 0 };
 			Integer.divides? = (n, l) -> { (l % n).zero?() };
 			12.divides?(24).and(!12.divides?(13))
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	assert_eq!(result.downcast::<Boolean>().unwrap(), true);
 }
 
 #[test]
 fn square_root() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			Integer.'^' = Integer::'**';
 			Integer.'√' = n -> { n ^ 0.5 };
 			√16
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
-	// `√16.0` would be `4.0` and `√16` is `4`?
 	assert_eq!(result.downcast::<Float>().unwrap(), 4.0);
 }
 
@@ -51,7 +54,7 @@ fn square_root() {
 fn fib_set_attr() {
 	// NOTE: I'm not sure these semantics are what we want, ie setting an attr on the function means
 	// the block its in inherits those attrs.
-	let result = run_code(
+	let result = run!(
 		r#"
 			fib = n -> {
 				(n <= 1).then(n.return);
@@ -61,9 +64,8 @@ fn fib_set_attr() {
 
 			fib.fibb = fib;
 			fib(10)
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
 }
@@ -71,7 +73,7 @@ fn fib_set_attr() {
 #[test]
 fn fib_set_parent() {
 	// NOTE: This won't be necessary later when i get auto inheritance working.
-	let result = run_code(
+	let result = run!(
 		r#"
 			fib = n -> {
 				(n <= 1).then(n.return);
@@ -81,16 +83,15 @@ fn fib_set_parent() {
 
 			fib.__parents__ = [:0];
 			fib(10)
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
 }
 
 #[test]
 fn fib_pass_function() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			fib = (n, fn) -> {
 				(n <= 1).then(n.return);
@@ -99,16 +100,15 @@ fn fib_pass_function() {
 			};
 
 			fib(10, fib)
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
 }
 
 #[test]
 fn fib_normal() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			fib = n -> {
 				(n <= 1).then(n.return);
@@ -117,9 +117,8 @@ fn fib_normal() {
 			};
 
 			fib(10)
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 55);
 }
@@ -127,35 +126,33 @@ fn fib_normal() {
 #[test]
 #[ignore] // This is currently a bug
 fn modifying_string_literals_isnt_global() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			modify = { "x".concat("y") };
 
 			modify() + modify()
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	assert_eq!(*result.downcast::<Gc<Text>>().unwrap().as_ref().unwrap(), "xyxy");
 }
 
 #[test]
 fn assign_and_fetch_from_arrays() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			ary = [9, 12, -99];
 			ary[1] = 4;
 			ary[0] + ary[1]
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 13);
 }
 
 #[test]
 fn if_and_while() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			i = 0;
 			n = 0;
@@ -167,16 +164,15 @@ fn if_and_while() {
 				:1.i = i + 1;
 			});
 			n
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	assert_eq!(result.downcast::<Integer>().unwrap(), 20);
 }
 
 #[test]
 fn basic_stackframe_continuation() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			recur = acc -> {
 				[acc, :0].return();
@@ -189,9 +185,8 @@ fn basic_stackframe_continuation() {
 			tmp = tmp[1].resume(); q = q + ":" + tmp[0];
 			tmp = tmp[1].resume(); q = q + ":" + tmp[0];
 			q
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	assert_eq!(
 		result.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str(),
@@ -201,14 +196,13 @@ fn basic_stackframe_continuation() {
 
 #[test]
 fn dbg_representations() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			block = { :0 };
 			frame = block();
 			[true, false, null, 12."+", 1.12, 1, "f\n", frame, block].dbg()
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	// We don't actually check the return value as it's not defined exactly.
 	assert!(result.is_a::<Gc<Text>>());
@@ -218,28 +212,26 @@ fn dbg_representations() {
 
 #[test]
 fn basic_syntax() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
 			12 3
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 	assert_eq!(result.downcast::<Integer>().unwrap(), 9);
 
-	let result = run_code(
+	let result = run!(
 		r#"
 			$syntax { 12 $bar:(3 $| 4) } = { 12 - $bar };
 			12 4
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 	assert_eq!(result.downcast::<Integer>().unwrap(), 8);
 }
 
 #[test]
 fn nested_syntax() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			$syntax { defn $name:(a $| b) } = {
 				$$syntax { $name } = { 3 - };
@@ -247,15 +239,14 @@ fn nested_syntax() {
 
 			defn a
 			(a 10) * (a 0)
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 	assert_eq!(result.downcast::<Integer>().unwrap(), -21);
 }
 
 #[test]
 fn if_while_and_do_while() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			$syntax { if $cond:group $body:block } = { (if)($cond, $body); };
 			$syntax { while $cond:group $body:block } = { (while)({ $cond }, $body); };
@@ -270,15 +261,14 @@ fn if_while_and_do_while() {
 				}
 			} while (x < 10);
 			i
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 	assert_eq!(result.downcast::<Integer>().unwrap(), 25);
 }
 
 #[test]
 fn alias_macro() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			$syntax { alias $new:token $orig:token ; } = {
 			  $$syntax { $new } = { $orig };
@@ -288,15 +278,14 @@ fn alias_macro() {
 			alias __current_stackframe__ :0 ;
 			x <- 3;
 			__current_stackframe__.x
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 	assert_eq!(result.downcast::<Integer>().unwrap(), 3);
 }
 
 #[test]
 fn list_comprehension() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			$syntax {
 				[ $body:tt | $var:ident in $src:tt ]
@@ -305,9 +294,8 @@ fn list_comprehension() {
 			};
 
 			[(x * 2) | x in [1,2,3,4]]
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	let list = result.downcast::<Gc<List>>().unwrap().as_ref().unwrap();
 	assert_eq!(list.len(), 4);
@@ -319,16 +307,15 @@ fn list_comprehension() {
 
 #[test]
 fn lists_containing_themselves() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			l = [1,2];
 			l[0] = [3,4];
 			l[0][0] = l[0];
 			l[1] = l[0];
 			l.dbg()
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 
 	let result = result.downcast::<Gc<Text>>().unwrap().as_ref().unwrap();
 	assert_eq!(result.as_str(), "[[[...], 4], [[...], 4]]");
@@ -336,7 +323,7 @@ fn lists_containing_themselves() {
 
 #[test]
 fn reference_syntax_groups() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			$syntax time { $hr:int : $min:int } = { $hr : $min . 0 } ;
 			$syntax time { $hr:int : $min:int . $sec:int } = { (($min*60) + ($hr*3600) + $sec) } ;
@@ -345,9 +332,8 @@ fn reference_syntax_groups() {
 			$syntax { $t:time pm } = { ($t + 216_000) } ;
 
 			(10 : 30 . 45 pm) - (10 : 30 am)
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 	let ten_thirty_fourtyfive_pm = (10 * 3600 + 30 * 60 + 45) + 216000;
 	let ten_thirty_am = 10 * 3600 + 30 * 60;
 	assert_eq!(result.downcast::<Integer>().unwrap(), ten_thirty_fourtyfive_pm - ten_thirty_am);
@@ -355,7 +341,7 @@ fn reference_syntax_groups() {
 
 #[test]
 fn any_parens_in_syntax() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			$syntax ( a ) = ( 2 );
 			$syntax ( b ) = [ 3 ];
@@ -370,15 +356,14 @@ fn any_parens_in_syntax() {
 			$syntax { i } = { 23 };
 
 			a * b * c * d * e * f * g * h * i
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 	assert_eq!(result.downcast::<Integer>().unwrap(), 223092870);
 }
 
 #[test]
 fn repetition_in_macros() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			$syntax {
 				if $cond:group $body:block
@@ -393,15 +378,14 @@ fn repetition_in_macros() {
 			else if (x == 1) { 20 }
 			else if (x == 2) { 30 }
 			else { 40 }
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 	assert_eq!(result.downcast::<Integer>().unwrap(), 30);
 }
 
 #[test]
 fn negative_matches_and_underscore() {
-	let result = run_code(
+	let result = run!(
 		r#"
 			$syntax end { end $| END } = { end } ;
 			$syntax { begin ${ $! $_:end $x:token} $_:end } = {
@@ -409,8 +393,29 @@ fn negative_matches_and_underscore() {
 			};
 
 			begin 2 5 7 END
-		"#,
-	)
-	.unwrap();
+		"#
+	);
 	assert_eq!(result.downcast::<Integer>().unwrap(), 70);
+}
+
+#[test]
+fn create_frame_iteration() {
+	let result = run!(
+		r#"
+			iter = acc -> {
+			  acc = acc + "X";
+			  acc
+			};
+
+			frame = iter.create_frame("");
+			[frame.restart(),
+			 frame.restart(),
+			 frame.restart(),
+			 frame.restart()].join(":")
+		"#
+	)
+	.downcast::<Gc<Text>>()
+	.unwrap();
+
+	assert_eq!(*result.as_ref().unwrap(), "X:XX:XXX:XXXX");
 }

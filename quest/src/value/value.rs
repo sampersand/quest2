@@ -386,21 +386,21 @@ impl Value {
 		let gc = unsafe { self.get_gc_any_unchecked() };
 
 		// 99% of the time it's not special.
-		if !attr.is_special() {
-			return gc.as_mut()?.set_attr(attr, value);
-		}
+		// if !attr.is_special() {
+		return gc.as_mut()?.set_attr(attr, value);
+		// }
 
-		if attr.is_parents() {
-			if let Some(list) = value.downcast::<Gc<List>>() {
-				gc.as_mut()?.set_parents(list);
+		// if attr.is_parents() {
+		// 	if let Some(list) = value.downcast::<Gc<List>>() {
+		// 		gc.as_mut()?.set_parents(list);
 
-				Ok(())
-			} else {
-				Err("can only set __parents__ to a List".to_string().into())
-			}
-		} else {
-			unreachable!("unknown special attribute {attr:?}");
-		}
+		// 		Ok(())
+		// 	} else {
+		// 		Err("can only set __parents__ to a List".to_string().into())
+		// 	}
+		// } else {
+		// 	unreachable!("unknown special attribute {attr:?}");
+		// }
 	}
 
 	/// Deletes the attribute `attr` from `self`, returning whatever was there before.

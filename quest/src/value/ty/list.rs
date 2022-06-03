@@ -449,6 +449,36 @@ pub mod funcs {
 		Ok((list.as_ref()?.len() as Integer).to_value())
 	}
 
+	pub fn eql(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		if list.to_value().is_identical(args[0]) {
+			return Ok(true.to_value());
+		}
+
+		let rhs = if let Some(rhs) = args[0].downcast::<Gc<List>>() {
+			rhs
+		} else {
+			return Ok(false.to_value());
+		};
+
+		let lhsref = list.as_ref()?;
+		let rhsref = rhs.as_ref()?;
+
+		if lhsref.len() != rhsref.len() {
+			return Ok(false.to_value());
+		}
+
+		for (&l, &r) in lhsref.as_slice().iter().zip(rhsref.as_slice()) {
+			if !l.try_eq(r)? {
+				return Ok(false.to_value());
+			}
+		}
+
+		Ok(true.to_value())
+	}
+
 	pub fn index(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?; // todo: more positional args for slicing
@@ -602,6 +632,32 @@ pub mod funcs {
 
 		Ok(list.to_value())
 	}
+
+	pub fn join(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.idx_err_unless(|a| a.len() <= 1)?;
+
+		let mut builder = Text::simple_builder();
+
+		if let Some((first, rest)) = list.as_ref()?.as_slice().split_first() {
+			builder.push_str(first.to_text()?.as_ref()?.as_str());
+
+			let sep1 =
+				if let Some(sep) = args.get(0).map(|x| x.try_downcast::<Gc<Text>>()).transpose()? {
+					Some(sep.as_ref()?)
+				} else {
+					None
+				};
+			let sep = sep1.as_ref().map(|s| s.as_str()).unwrap_or_default();
+
+			for ele in rest {
+				builder.push_str(sep);
+				builder.push_str(ele.to_text()?.as_ref()?.as_str());
+			}
+		}
+
+		Ok(builder.finish().to_value())
+	}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -615,6 +671,7 @@ impl Singleton for ListClass {
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "List", parent Object::instance();
+				Intern::op_eql => method funcs::eql,
 				Intern::op_index => method funcs::index,
 				Intern::op_index_assign => method funcs::index_assign,
 				Intern::len => method funcs::len,
@@ -626,6 +683,7 @@ impl Singleton for ListClass {
 				Intern::at_text => method funcs::at_text,
 				Intern::map => method funcs::map,
 				Intern::each => method funcs::each,
+				Intern::join => method funcs::join,
 			}
 		})
 	}
