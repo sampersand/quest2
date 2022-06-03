@@ -43,7 +43,7 @@ fn setup_tracing() {
 
 fn main() {
 	setup_tracing();
-	if true {
+	if false {
 		let thingy = run_code(
 			r##"
 fib = n -> {
@@ -269,7 +269,16 @@ $syntax { @ ${! $f:int} } = { print(2 ${* $f}) } ;
 		return;
 	}
 
-	match run_code(&std::env::args().skip(1).next().expect("usage: <expr>")) {
+	const USAGE: &str = "usage: -e <expr> | -f <file>";
+
+	let mut args = std::env::args().skip(1);
+	let contents = match &*args.next().expect(USAGE) {
+		"-f" => std::fs::read_to_string(args.next().expect(USAGE)).expect("cant open file"),
+		"-e" => args.next().expect(USAGE),
+		_ => panic!("{USAGE}"),
+	};
+
+	match run_code(&contents) {
 		Err(err) => {
 			eprintln!("error: {err:#}");
 			std::process::exit(0)

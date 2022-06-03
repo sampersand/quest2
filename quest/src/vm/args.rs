@@ -62,7 +62,7 @@ impl<'a> Args<'a> {
 	}
 
 	/// <TODO: eventually remove this.>
-	#[deprecated]
+	// #[deprecated]
 	pub fn idx_err_unless(self, func: impl FnOnce(Self) -> bool) -> Result<Self> {
 		if func(self) {
 			Ok(self)
