@@ -1,12 +1,11 @@
 //! Types related to allocated Quest types.
 
-use crate::error::ErrorKind;
 use crate::value::base::{
 	Attribute, AttributesMut, AttributesRef, Base, Flags, Header, IntoParent, ParentsMut, ParentsRef,
 };
 use crate::value::ty::{List, Wrap};
 use crate::value::{value::Any, Convertible};
-use crate::{Result, ToValue, Value};
+use crate::{ErrorKind, Result, ToValue, Value};
 use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
@@ -197,7 +196,7 @@ impl<T: Allocated> Gc<T> {
 	/// You cannot get an immutable reference when a mutable one exists.
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use quest::{error::ErrorKind, value::ty::Text};
+	/// # use quest::{ErrorKind, value::ty::Text};
 	/// let text = Text::from_static_str("what a wonderful day");
 	/// let textmut = text.as_mut()?;
 	///
@@ -261,7 +260,7 @@ impl<T: Allocated> Gc<T> {
 	/// You cannot get a mutable reference when any immutable ones exist.
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use quest::{error::ErrorKind, value::ty::Text};
+	/// # use quest::{ErrorKind, value::ty::Text};
 	/// let text = Text::from_static_str("what a wonderful day");
 	/// let textref = text.as_ref()?;
 	///
@@ -328,7 +327,7 @@ impl<T: Allocated> Gc<T> {
 	/// # Examples
 	/// ```
 	/// # #[macro_use] use assert_matches::assert_matches;
-	/// # use quest::{error::ErrorKind, value::ty::Text};
+	/// # use quest::{ErrorKind, value::ty::Text};
 	/// let text = Text::from_static_str("Quest is cool");
 	///
 	/// text.as_ref()?.freeze();

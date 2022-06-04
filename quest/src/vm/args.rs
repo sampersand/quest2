@@ -1,5 +1,5 @@
 use crate::value::ToValue;
-use crate::{Result, Value};
+use crate::{ErrorKind, Result, Value};
 
 /// Arguments passed to native Quest functions.
 #[derive(Default, Debug, Clone, Copy)]
@@ -67,7 +67,7 @@ impl<'a> Args<'a> {
 		if func(self) {
 			Ok(self)
 		} else {
-			Err(crate::error::ErrorKind::Message("argument count error error happened".into()).into())
+			Err(ErrorKind::Message("argument count error error happened".into()).into())
 		}
 	}
 
@@ -81,12 +81,7 @@ impl<'a> Args<'a> {
 		if self.positional.is_empty() {
 			Ok(())
 		} else {
-			Err(
-				crate::error::ErrorKind::Message(
-					"positional arguments given when none expected".to_string(),
-				)
-				.into(),
-			)
+			Err(ErrorKind::Message("positional arguments given when none expected".to_string()).into())
 		}
 	}
 
@@ -96,11 +91,8 @@ impl<'a> Args<'a> {
 			Ok(())
 		} else {
 			Err(
-				crate::error::ErrorKind::PositionalArgumentMismatch {
-					given: len,
-					expected: self.positional.len(),
-				}
-				.into(),
+				ErrorKind::PositionalArgumentMismatch { given: len, expected: self.positional.len() }
+					.into(),
 			)
 		}
 	}
@@ -110,7 +102,7 @@ impl<'a> Args<'a> {
 		if self.keyword.is_empty() {
 			Ok(())
 		} else {
-			Err(crate::error::ErrorKind::KeywordsGivenWhenNotExpected.into())
+			Err(ErrorKind::KeywordsGivenWhenNotExpected.into())
 		}
 	}
 

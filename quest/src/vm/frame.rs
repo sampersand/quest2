@@ -7,7 +7,7 @@ use crate::vm::block::BlockInner;
 use crate::vm::{
 	Args, Block, Opcode, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL,
 };
-use crate::{Result, Value};
+use crate::{ErrorKind, Result, Value};
 use std::alloc::Layout;
 use std::cell::RefCell;
 use std::fmt::{self, Debug, Formatter};
@@ -166,7 +166,7 @@ impl Frame {
 		});
 
 		if overflow {
-			return Err(crate::error::ErrorKind::StackOverflow.into());
+			return Err(ErrorKind::StackOverflow.into());
 		}
 
 		let result = func();
@@ -271,7 +271,7 @@ impl Frame {
 		}
 
 		Err(
-			crate::error::ErrorKind::UnknownAttribute {
+			ErrorKind::UnknownAttribute {
 				object: unsafe { crate::value::Gc::new(self.into()) }.to_value(),
 				attribute: attr_name.to_value(),
 			}
@@ -439,7 +439,7 @@ impl Gc<Frame> {
 	]
 	pub fn run(self) -> Result<Value> {
 		if !self.as_ref()?.flags().try_acquire_all_user(FLAG_CURRENTLY_RUNNING) {
-			return Err(crate::error::ErrorKind::StackframeIsCurrentlyRunning(self).into());
+			return Err(ErrorKind::StackframeIsCurrentlyRunning(self).into());
 		}
 
 		let result = Frame::enter_stackframe(self, || self.run_inner());
@@ -454,7 +454,7 @@ impl Gc<Frame> {
 		}
 
 		if let Err(err) = result {
-			if let crate::error::ErrorKind::Return { value, from_frame } = err.kind() {
+			if let ErrorKind::Return { value, from_frame } = err.kind() {
 				if from_frame.map_or(true, |ff| ff.is_identical(self.to_value())) {
 					return Ok(*value);
 				}

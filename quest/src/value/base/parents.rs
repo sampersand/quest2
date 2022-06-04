@@ -1,7 +1,7 @@
 use crate::value::base::{Attribute, Flags};
 use crate::value::ty::List;
 use crate::value::{Gc, Value};
-use crate::Result;
+use crate::{ErrorKind, Result};
 use std::fmt::{self, Debug, Formatter};
 
 #[repr(C)]
@@ -153,9 +153,9 @@ impl ParentsRef<'_> {
 		attr: A,
 		args: crate::vm::Args<'_>,
 	) -> Result<Value> {
-		let attr = self.get_unbound_attr_checked(attr, &mut Vec::new())?.ok_or_else(|| {
-			crate::error::ErrorKind::UnknownAttribute { object: obj, attribute: attr.to_value() }
-		})?;
+		let attr = self
+			.get_unbound_attr_checked(attr, &mut Vec::new())?
+			.ok_or_else(|| ErrorKind::UnknownAttribute { object: obj, attribute: attr.to_value() })?;
 
 		drop(self);
 

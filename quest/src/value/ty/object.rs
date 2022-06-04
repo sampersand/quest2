@@ -1,6 +1,6 @@
 use crate::value::{Intern, ToValue};
 use crate::vm::Args;
-use crate::{Result, Value};
+use crate::{Error, ErrorKind, Result, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Object;
@@ -86,8 +86,8 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() <= 1)?;
 
-		Err(crate::Error::new(
-			crate::error::ErrorKind::Return { value: obj, from_frame: args.get(0) },
+		Err(Error::new(
+			ErrorKind::Return { value: obj, from_frame: args.get(0) },
 			crate::error::Stacktrace::empty(),
 		))
 	}

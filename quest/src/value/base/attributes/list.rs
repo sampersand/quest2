@@ -1,6 +1,6 @@
 use super::{Attribute, InternKey};
 use crate::value::ToValue;
-use crate::{Result, Value};
+use crate::{ErrorKind, Result, Value};
 use std::fmt::{self, Debug, Formatter};
 
 pub const MAX_LISTMAP_LEN: usize = 8;
@@ -116,10 +116,7 @@ impl ListMap {
 				if let Some(intern) = InternKey::try_from_repr(unsafe { key.raw_data }) {
 					if intern.is_frozen() {
 						return Err(
-							crate::error::ErrorKind::Message(
-								"attribute is frozen, cannot set it".to_string(),
-							)
-							.into(),
+							ErrorKind::Message("attribute is frozen, cannot set it".to_string()).into(),
 						);
 					}
 				}
@@ -146,10 +143,7 @@ impl ListMap {
 			if let Some(intern) = InternKey::try_from_repr(unsafe { key.raw_data }) {
 				if intern.is_frozen() {
 					return Err(
-						crate::error::ErrorKind::Message(
-							"attribute is frozen, cannot set it".to_string(),
-						)
-						.into(),
+						ErrorKind::Message("attribute is frozen, cannot set it".to_string()).into(),
 					);
 				}
 			}

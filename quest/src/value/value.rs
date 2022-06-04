@@ -1,11 +1,10 @@
-use crate::error::ErrorKind;
 use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{
 	AttrConversionDefined, Boolean, BoundFn, Float, Integer, List, RustFn, Text, Wrap,
 };
 use crate::value::{Convertible, Gc, Intern, NamedType, ToValue};
 use crate::vm::{Args, Block};
-use crate::Result;
+use crate::{ErrorKind, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::num::NonZeroU64;

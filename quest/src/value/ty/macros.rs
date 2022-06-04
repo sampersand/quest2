@@ -76,7 +76,7 @@ macro_rules! new_quest_scope {
 					($fn:ident) => (method!($($child)?, $fn));
 					($type:ty, $fn:ident) => (func!(|this: Value, args| {
 						let this = this.downcast::<$type>()
-							.ok_or_else(|| $crate::error::ErrorKind::InvalidTypeGiven {
+							.ok_or_else(|| $crate::ErrorKind::InvalidTypeGiven {
 								expected: <$type as $crate::value::NamedType>::TYPENAME,
 								given: this.typename()
 							})?;
@@ -202,7 +202,7 @@ macro_rules! _handle_quest_type_attrs {
 	($ty:ty, $builder:expr, $name:expr, meth $func:expr) => {
 		_handle_quest_type_attrs!($ty, $builder, $name, func |args| {
 			let (this, args) = args.split_first()?;
-			let this = this.downcast::<$ty>().ok_or_else(|| $crate::error::ErrorKind::InvalidTypeGiven {
+			let this = this.downcast::<$ty>().ok_or_else(|| $crate::ErrorKind::InvalidTypeGiven {
 				expected: <$ty as $crate::value::NamedType>::TYPENAME,
 				given: this.typename()
 			})?;
