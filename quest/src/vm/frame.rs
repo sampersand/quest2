@@ -9,6 +9,7 @@ use crate::vm::{
 };
 use crate::{Result, Value};
 use std::alloc::Layout;
+use std::cell::RefCell;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
@@ -143,17 +144,50 @@ impl Frame {
 
 	/// Provides access to the stackframe.
 	pub fn with_stackframes<F: FnOnce(&[Gc<Self>]) -> T, T>(func: F) -> T {
-		Self::with_stackframes_mut(|sf| func(sf))
+		Self::_with_stackframes(|sf| func(&sf.borrow()))
 	}
 
-	/// Provides mutable access to the stackframe.
-	pub fn with_stackframes_mut<F: FnOnce(&mut Vec<Gc<Self>>) -> T, T>(func: F) -> T {
-		use std::cell::RefCell;
-		thread_local! {
-			static STACKFRAMES: RefCell<Vec<Gc<Frame>>> = RefCell::new(Vec::new());
+	#[cfg(debug_assertions)]
+	pub const MAX_STACKFRAME_LEN: usize = 100;
+
+	#[cfg(not(debug_assertions))]
+	pub const MAX_STACKFRAME_LEN: usize = 100_000;
+
+	pub fn enter_stackframe<F: FnOnce() -> Result<T>, T>(frame: Gc<Frame>, func: F) -> Result<T> {
+		let overflow = Self::_with_stackframes(|sf| {
+			let mut sf = sf.borrow_mut();
+
+			if sf.len() <= Self::MAX_STACKFRAME_LEN {
+				sf.push(frame);
+				false
+			} else {
+				true
+			}
+		});
+
+		if overflow {
+			return Err(crate::error::ErrorKind::StackOverflow.into());
 		}
 
-		STACKFRAMES.with(|sf| func(&mut sf.borrow_mut()))
+		let result = func();
+
+		Self::_with_stackframes(|sf| {
+			let f = sf.borrow_mut().pop();
+
+			debug_assert!(f.unwrap().ptr_eq(frame));
+		});
+
+		result
+	}
+
+	fn _with_stackframes<F: FnOnce(&RefCell<Vec<Gc<Self>>>) -> T, T>(func: F) -> T {
+		thread_local! {
+			static STACKFRAMES: RefCell<Vec<Gc<Frame>>> = RefCell::new(
+				Vec::with_capacity(Frame::MAX_STACKFRAME_LEN)
+			);
+		}
+
+		STACKFRAMES.with(func)
 	}
 
 	fn is_object(&self) -> bool {
@@ -408,9 +442,7 @@ impl Gc<Frame> {
 			return Err(crate::error::ErrorKind::StackframeIsCurrentlyRunning(self).into());
 		}
 
-		Frame::with_stackframes_mut(|sfs| sfs.push(self));
-
-		let result = self.run_inner();
+		let result = Frame::enter_stackframe(self, || self.run_inner());
 
 		if !self
 			.as_ref()
@@ -420,15 +452,6 @@ impl Gc<Frame> {
 		{
 			unreachable!("unable to set it as not currently running??");
 		}
-
-		Frame::with_stackframes_mut(|sfs| {
-			let p = sfs.pop();
-
-			debug_assert!(
-				p.unwrap().ptr_eq(self),
-				"removed invalid value from stackframe? {p:?} <=> {self:?}"
-			);
-		});
 
 		if let Err(err) = result {
 			if let crate::error::ErrorKind::Return { value, from_frame } = err.kind() {

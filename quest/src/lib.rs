@@ -33,7 +33,7 @@ pub mod error;
 pub mod parse;
 pub mod vm;
 
-pub use error::{Error, Result};
+pub use error::{Error, ErrorKind, Result};
 pub use value::{ToValue, Value};
 
 #[cfg(miri)]

@@ -11,34 +11,45 @@ $syntax { to_list } = { '@list' };
 Frame = {:0}().__parents__[0];
 object_ = (parents, body) -> {
 	frame = body.create_frame();
-	(parents != []).then { frame.becomes(parents) };
+	(parents != []).then { frame.__parents__ = parents; };
 	Frame::resume(frame);
 	frame
 };
 
 StopIteration = object();
 
-Object = 1.__parents__[0].__parents__[0];
-Object.becomes = (self, parents) -> { self.__parents__ = parents; self };
-Object.extend = (self, parent) -> { self.__parents__.unshift(parent); self };
-Object.inherit = (self, parent) -> { self.__parents__.push(parent); self };
+# Object.becomes = (self, parents) -> { self.__parents__ = parents; self };
+# Object.extend = (self, parent) -> { self.__parents__.unshift(parent); self };
+# Object.inherit = (self, parent) -> { self.__parents__.push(parent); self };
+# 
+$syntax {
+	'()' = (class ${, $arg:ident} $[,]) -> $b:block;
+} = {
+	:0.('()') = (class ${, $arg}) -> {
+		frame = $b.create_frame(class ${, $arg});
+		frame.__parents__ = [class];
+		Frame::resume(frame);
+		frame
+	};
+};
 
 Enumerator = object {
 	Block = object (:0,) {
 		'()' = (class, block) -> {
 			frame = block.create_frame();
-			:0.becomes(class)
 		};
 
 		next = self -> { self::frame.restart() };
 	};
 
 	Func = object (:0,) {
-		'()' = (class, func) -> { :0.becomes(class) };
-
-		next = self -> {
-			self.func()
+		'()' = (class, func) -> {
+			print(func);
+			#:0.__parents__ = [class];
+			#:0
 		};
+
+		next = self -> { print(self); self.func() };
 	};
 
 	map = (self, func) -> {
@@ -59,9 +70,11 @@ Enumerator = object {
 };
 
 
-Integer.upto = iterator (min, max) -> {
-	(max <= min).then(StopIteration.return);
-	(min = min + 1) - 1
+Integer.upto = (min, max) -> {
+	Enumerator::Block({
+		(max <= min).then(StopIteration.return);
+		(min = min + 1) - 1
+	})
 };
 	
 iter = 0.upto(10).map(x -> { x * 2 });

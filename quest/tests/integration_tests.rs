@@ -419,3 +419,19 @@ fn create_frame_iteration() {
 
 	assert_eq!(*result.as_ref().unwrap(), "X:XX:XXX:XXXX");
 }
+
+#[test]
+fn should_overflow() {
+	let result = run_code(
+		r#"
+			{ __block__() }()
+		"#,
+	)
+	.unwrap_err();
+
+	assert!(
+		matches!(result.kind(), quest::ErrorKind::StackOverflow),
+		"didnt overflow, but {:?}",
+		result.kind()
+	);
+}

@@ -60,6 +60,9 @@ pub enum ErrorKind {
 
 	/// Attempted execution of a currently-running stackframe.
 	StackframeIsCurrentlyRunning(crate::value::Gc<crate::vm::Frame>),
+
+	/// Too many stackframes encountered
+	StackOverflow,
 }
 
 impl Error {
@@ -116,6 +119,7 @@ impl Display for ErrorKind {
 			Self::StackframeIsCurrentlyRunning(frame) => {
 				write!(f, "frame {frame:?} is currently executing")
 			}
+			Self::StackOverflow => write!(f, "too many stackframes are running"),
 		}
 	}
 }
