@@ -421,7 +421,7 @@ fn create_frame_iteration() {
 }
 
 #[test]
-fn should_overflow() {
+fn should_overflow_and_return_error() {
 	let result = run_code(
 		r#"
 			{ __block__() }()

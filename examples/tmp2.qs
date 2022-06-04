@@ -26,7 +26,8 @@ $syntax {
 	'()' = (class ${, $arg:ident} $[,]) -> $b:block;
 } = {
 	:0.('()') = (class ${, $arg}) -> {
-		frame = $b.create_frame(class ${, $arg});
+		'()' = $b;
+		frame = :0::'()'.create_frame(class ${, $arg});
 		frame.__parents__ = [class];
 		Frame::resume(frame);
 		frame

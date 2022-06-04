@@ -1,5 +1,5 @@
 use crate::value::Gc;
-use crate::vm::{Block, Frame};
+use crate::vm::{frame, Block};
 use std::fmt::{self, Display, Formatter};
 
 /// A Stacktrace in Quest, representing the callstack at a point in time during execution.
@@ -22,7 +22,7 @@ impl Stacktrace {
 	/// infrequent. Thus, we mark this cold.
 	#[cold]
 	pub fn current() -> Self {
-		Frame::with_stackframes(|frames| {
+		frame::with_stackframes(|frames| {
 			let mut locations = Vec::with_capacity(frames.len().saturating_sub(1));
 
 			// We skip the first one, as it's the "global frame," which doesn't have a location.

@@ -142,55 +142,7 @@ impl Frame {
 		self.block
 	}
 
-	/// Provides access to the stackframe.
-	pub fn with_stackframes<F: FnOnce(&[Gc<Self>]) -> T, T>(func: F) -> T {
-		Self::_with_stackframes(|sf| func(&sf.borrow()))
-	}
-
-	#[cfg(debug_assertions)]
-	pub const MAX_STACKFRAME_LEN: usize = 100;
-
-	#[cfg(not(debug_assertions))]
-	pub const MAX_STACKFRAME_LEN: usize = 100_000;
-
-	pub fn enter_stackframe<F: FnOnce() -> Result<T>, T>(frame: Gc<Frame>, func: F) -> Result<T> {
-		let overflow = Self::_with_stackframes(|sf| {
-			let mut sf = sf.borrow_mut();
-
-			if sf.len() <= Self::MAX_STACKFRAME_LEN {
-				sf.push(frame);
-				false
-			} else {
-				true
-			}
-		});
-
-		if overflow {
-			return Err(ErrorKind::StackOverflow.into());
-		}
-
-		let result = func();
-
-		Self::_with_stackframes(|sf| {
-			let f = sf.borrow_mut().pop();
-
-			debug_assert!(f.unwrap().ptr_eq(frame));
-		});
-
-		result
-	}
-
-	fn _with_stackframes<F: FnOnce(&RefCell<Vec<Gc<Self>>>) -> T, T>(func: F) -> T {
-		thread_local! {
-			static STACKFRAMES: RefCell<Vec<Gc<Frame>>> = RefCell::new(
-				Vec::with_capacity(Frame::MAX_STACKFRAME_LEN)
-			);
-		}
-
-		STACKFRAMES.with(func)
-	}
-
-	fn is_object(&self) -> bool {
+	pub(crate) fn is_object(&self) -> bool {
 		self.0.header().flags().contains(FLAG_IS_OBJECT)
 	}
 
@@ -429,7 +381,43 @@ impl Frame {
 	}
 }
 
+/// The maximum stackframe length.
+pub const MAX_STACKFRAME_LEN: usize = if cfg!(debug_assertions) { 50 } else { 10_000 };
+
+thread_local! {
+	static STACKFRAMES: RefCell<Vec<Gc<Frame>>> = RefCell::new(
+		Vec::with_capacity(MAX_STACKFRAME_LEN)
+	);
+}
+
+/// Provides access to the stackframe.
+pub fn with_stackframes<F: FnOnce(&[Gc<Frame>]) -> T, T>(func: F) -> T {
+	STACKFRAMES.with(|sf| func(&sf.borrow()))
+}
+
 impl Gc<Frame> {
+	/// Enters the given `frame`, executes `func`, then returns the result of `func`.
+	pub fn enter_stackframe<F: FnOnce() -> Result<T>, T>(self, func: F) -> Result<T> {
+		STACKFRAMES.with(|stackframes| {
+			let mut sf = stackframes.borrow_mut();
+
+			if MAX_STACKFRAME_LEN < sf.len() {
+				drop(sf); // so we dont have a mutable borrow
+				return Err(ErrorKind::StackOverflow.into());
+			}
+
+			sf.push(self);
+			drop(sf); // so we can call `func`.
+
+			let result = func();
+
+			let popped_frame = stackframes.borrow_mut().pop();
+			debug_assert!(popped_frame.unwrap().ptr_eq(self));
+
+			result
+		})
+	}
+
 	/// Executes the stackframe, returning an error if it's currently running.
 	#[instrument(target="frame",
 		level="debug",
@@ -442,7 +430,7 @@ impl Gc<Frame> {
 			return Err(ErrorKind::StackframeIsCurrentlyRunning(self).into());
 		}
 
-		let result = Frame::enter_stackframe(self, || self.run_inner());
+		let result = self.enter_stackframe(|| self.run_inner());
 
 		if !self
 			.as_ref()
@@ -572,7 +560,7 @@ impl Gc<Frame> {
 					let mut count = this.next_count() as isize;
 
 					// todo: optimization for :0
-					let frame = Frame::with_stackframes(|frames| {
+					let frame = with_stackframes(|frames| {
 						if count < 0 {
 							count += frames.len() as isize;
 

@@ -329,6 +329,16 @@ impl Value {
 		self.get_unbound_attr_checked(attr, &mut Vec::new())
 	}
 
+	fn assert_isnt_an_objectified_frame(self) {
+		#[cfg(debug_assertions)]
+		if let Some(frame) = self.downcast::<Gc<crate::vm::Frame>>() {
+			debug_assert!(
+				frame.as_ref().map_or(true, |x| x.is_object()),
+				"attempted to get an attr on an un-objectified frame."
+			);
+		}
+	}
+
 	/// Get the unbound attribute `attr`, with a list of checked parents, `None` if it doesnt exist.
 	///
 	/// The `checked` parameter allows us to keep track of which parents have already been checked,
@@ -338,6 +348,8 @@ impl Value {
 		attr: A,
 		checked: &mut Vec<Self>,
 	) -> Result<Option<Self>> {
+		self.assert_isnt_an_objectified_frame();
+
 		if !self.is_allocated() {
 			let parents = unsafe { self.parents_for_unallocated() };
 
@@ -375,6 +387,8 @@ impl Value {
 	/// If it isn't, `self` will be replaced with an allocated version, with the attribute set on
 	/// that type.
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Self) -> Result<()> {
+		self.assert_isnt_an_objectified_frame();
+
 		if !self.is_allocated() {
 			// SAFETY: `self` is unallocated, as we just verified
 			unsafe {
@@ -382,24 +396,7 @@ impl Value {
 			}
 		}
 
-		let gc = unsafe { self.get_gc_any_unchecked() };
-
-		// 99% of the time it's not special.
-		// if !attr.is_special() {
-		return gc.as_mut()?.set_attr(attr, value);
-		// }
-
-		// if attr.is_parents() {
-		// 	if let Some(list) = value.downcast::<Gc<List>>() {
-		// 		gc.as_mut()?.set_parents(list);
-
-		// 		Ok(())
-		// 	} else {
-		// 		Err("can only set __parents__ to a List".to_string().into())
-		// 	}
-		// } else {
-		// 	unreachable!("unknown special attribute {attr:?}");
-		// }
+		unsafe { self.get_gc_any_unchecked() }.as_mut()?.set_attr(attr, value)
 	}
 
 	/// Deletes the attribute `attr` from `self`, returning whatever was there before.
@@ -407,6 +404,8 @@ impl Value {
 	/// Note that unallocated types don't actually have attributes defined on them, so they always
 	/// will return `Ok(None)`
 	pub fn del_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
+		self.assert_isnt_an_objectified_frame();
+
 		if self.is_allocated() {
 			unsafe { self.get_gc_any_unchecked() }.as_mut()?.del_attr(attr)
 		} else {
