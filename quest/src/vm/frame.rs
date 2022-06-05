@@ -71,7 +71,10 @@ fn locals_layout_for(num_of_unnamed_locals: NonZeroUsize, num_named_locals: usiz
 }
 
 #[derive(Debug, Clone, Copy)]
-struct LocalTarget(isize);
+enum LocalTarget {
+	Unnamed(usize),
+	Named(usize),
+}
 
 impl Frame {
 	/// Creates a new [`Frame`] from the given `block` and passed `args`.
@@ -197,8 +200,11 @@ impl Frame {
 	}
 
 	// SAFETY:
-	// - `index` needs to be a valid unnamed local index
-	// - `index` must have been assigned to.
+	// `index <= self.inner_block.num_of_unnamed_locals` and also have been assigned to.
+	// - `index` needs to correspond to a valid named or unnamed index (ie for
+	//      `Unnamed`: `<= self.inner_block.num_of_unnamed_locals`,
+	//      `Named`:   `<= `self.inner_block.named_locals`
+	// - The corresponding value at said index needs to have been assigned to beforehand.
 	unsafe fn get_unnamed_local(&self, index: usize) -> Value {
 		debug_assert!(
 			index <= self.inner_block.num_of_unnamed_locals.get(),
@@ -216,39 +222,49 @@ impl Frame {
 		}
 	}
 
-	// this should also be unsafe (update: should it be??)
-	fn get_local(&self, index: LocalTarget) -> Result<Value> {
-		let index = index.0;
+	// SAFETY:
+	// - `index` needs to correspond to a valid named or unnamed index (ie for
+	//      `Unnamed`: `<= self.inner_block.num_of_unnamed_locals`,
+	//      `Named`:   `<= `self.inner_block.named_locals`
+	// - The corresponding value at said index needs to have been assigned to beforehand for unnamed
+	//   locals.
+	unsafe fn get_local(&self, index: LocalTarget) -> Result<Value> {
+		match index {
+			LocalTarget::Unnamed(index) => Ok(self.get_unnamed_local(index)),
+			LocalTarget::Named(index) => {
+				debug_assert!(index <= self.inner_block.named_locals.len());
 
-		if 0 <= index {
-			return Ok(unsafe { self.get_unnamed_local(index as usize) });
-		}
+				if !self.is_object() {
+					// Since we could be trying to access a parent scope's variable, we won't return an error
+					// in the false case.
+					if let Some(value) = *self.named_locals.add(index) {
+						return Ok(value);
+					}
+				}
 
-		let index = !index as usize;
-		debug_assert!(index <= self.inner_block.named_locals.len());
-
-		if !self.is_object() {
-			// Since we could be trying to access a parent scope's variable, we won't return an error
-			// in the false case.
-			if let Some(value) = unsafe { *self.named_locals.add(index) } {
-				return Ok(value);
+				// SAFETY: we know `index` is valid, as the caller guarantees it.
+				self.get_object_local(index)
 			}
 		}
-
-		self.get_object_local(index)
 	}
 
 	// The vast majority of the time, we're looking for unnamed or named locals, not through parent
 	// attributes.
+	// SAFETY: `index` has to be a valid named local index.
 	#[inline(never)]
-	fn get_object_local(&self, index: usize) -> Result<Value> {
-		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
+	unsafe fn get_object_local(&self, index: usize) -> Result<Value> {
+		let attr_name = *self.inner_block.named_locals.get_unchecked(index);
 
 		if let Some(attr) =
 			self.0.header().get_unbound_attr_checked(attr_name.to_value(), &mut Vec::new())?
 		{
 			return Ok(attr);
-		} else if !self.is_object() {
+		}
+
+		// When we're not an object, we first check the parent block and then the frame.
+		// when we are an object, the frame and block (in that order) are checked in the previous
+		// function.
+		if !self.is_object() {
 			if let Some(attr) = Gc::<Self>::parent().get_unbound_attr(attr_name.to_value())? {
 				return Ok(attr);
 			}
@@ -256,44 +272,38 @@ impl Frame {
 
 		Err(
 			ErrorKind::UnknownAttribute {
-				object: unsafe { crate::value::Gc::new(self.into()) }.to_value(),
+				object: crate::value::Gc::new(self.into()).to_value(),
 				attribute: attr_name.to_value(),
 			}
 			.into(),
 		)
 	}
 
-	fn set_local(&mut self, index: LocalTarget, value: Value) -> Result<()> {
-		let index = index.0;
+	// SAFETY: `index` needs to be a valid index.
+	unsafe fn set_local(&mut self, index: LocalTarget, value: Value) -> Result<()> {
+		match index {
+			LocalTarget::Unnamed(index) => {
+				debug_assert!(index <= self.inner_block.num_of_unnamed_locals.get());
 
-		if 0 <= index {
-			let index = index as usize;
-			debug_assert!(index <= self.inner_block.num_of_unnamed_locals.get());
-
-			unsafe {
 				self.unnamed_locals.add(index).write(Some(value));
+
+				Ok(())
 			}
-
-			return Ok(());
-		}
-
-		let index = !index as usize;
-		debug_assert!(index <= self.inner_block.named_locals.len());
-
-		if !self.is_object() {
-			unsafe {
-				self.named_locals.add(index).write(Some(value));
+			LocalTarget::Named(index) => {
+				if !self.is_object() {
+					self.named_locals.add(index).write(Some(value));
+					Ok(())
+				} else {
+					self.set_object_local(index, value)
+				}
 			}
-
-			return Ok(());
 		}
-
-		self.set_object_local(index, value)
 	}
 
+	// SAFETY: `index` needs to be a valid index.
 	#[inline(never)]
-	fn set_object_local(&mut self, index: usize, value: Value) -> Result<()> {
-		let attr_name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
+	unsafe fn set_object_local(&mut self, index: usize, value: Value) -> Result<()> {
+		let attr_name = *self.inner_block.named_locals.get_unchecked(index);
 		self.0.header_mut().set_attr(attr_name.to_value(), value)
 	}
 }
@@ -317,12 +327,13 @@ impl Frame {
 		self.pos >= self.inner_block.code.len()
 	}
 
-	fn next_byte(&mut self) -> u8 {
-		debug_assert!(!self.is_done());
+	// SAFETY: `is_done()` should not be true.
+	unsafe fn next_byte(&mut self) -> u8 {
+		debug_assert!(self.pos + 1 <= self.inner_block.code.len());
 
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
 		// out of bounds.
-		let byte = unsafe { *self.inner_block.code.get_unchecked(self.pos) };
+		let byte = *self.inner_block.code.get_unchecked(self.pos);
 
 		trace!(target: "frame", byte=%format!("{byte:02x}"), sp=%self.pos, "read byte");
 
@@ -330,19 +341,23 @@ impl Frame {
 		byte
 	}
 
+	// SAFETY: Must be called when there's at least `usize` bytes left.
 	#[cold]
-	fn next_usize(&mut self) -> usize {
+	unsafe fn next_usize(&mut self) -> usize {
+		debug_assert!(self.pos + std::mem::size_of::<usize>() <= self.inner_block.code.len());
+
 		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
 		// out of bounds.
 		#[allow(clippy::cast_ptr_alignment)]
-		let us = unsafe { self.inner_block.code.as_ptr().add(self.pos).cast::<usize>().read_unaligned() };
+		let us = self.inner_block.code.as_ptr().add(self.pos).cast::<usize>().read_unaligned();
 
 		self.pos += std::mem::size_of::<usize>();
 
 		us
 	}
 
-	fn next_local(&mut self) -> Result<Value> {
+	// SAFETY: Must be called when the next value is actually a valid local.
+	unsafe fn next_local(&mut self) -> Result<Value> {
 		let index = self.next_local_target();
 		let value = self.get_local(index)?;
 
@@ -351,7 +366,8 @@ impl Frame {
 		Ok(value)
 	}
 
-	fn next_count(&mut self) -> usize {
+	// SAFETY: Must be called when there's at least `usize` bytes left.
+	unsafe fn next_count(&mut self) -> usize {
 		match self.next_byte() {
 			COUNT_IS_NOT_ONE_BYTE_BUT_USIZE => self.next_usize(),
 			byte if (byte as i8) < 0 => byte as i8 as isize as usize,
@@ -359,22 +375,30 @@ impl Frame {
 		}
 	}
 
-	fn next_local_target(&mut self) -> LocalTarget {
-		LocalTarget(self.next_count() as isize)
+	// SAFETY: must be called when there's at least `usize` bytes left.
+	unsafe fn next_local_target(&mut self) -> LocalTarget {
+		match self.next_count() as isize {
+			n @ 0.. => LocalTarget::Unnamed(n as usize),
+			n => LocalTarget::Named(!n as usize),
+		}
 	}
 
-	fn next_opcode(&mut self) -> Opcode {
+	// SAFETY:
+	// - At least 1 byte is left
+	// - the next byte must be a valid opcode.
+	unsafe fn next_opcode(&mut self) -> Opcode {
 		let byte = self.next_byte();
 
 		debug_assert!(Opcode::verify_is_valid(byte), "read invalid opcode? {:?}", byte);
 
-		let op = unsafe { std::mem::transmute::<u8, Opcode>(byte) };
+		let op = std::mem::transmute::<u8, Opcode>(byte);
 
 		trace!(target: "frame", ?op, "read opcode");
 		op
 	}
 
-	fn next_op(&mut self) -> Result<Option<Opcode>> {
+	// SAFETY: if we're not at the end, the next byte must be a valid opcode.
+	unsafe fn next_op(&mut self) -> Result<Option<Opcode>> {
 		if self.is_done() {
 			Ok(None)
 		} else {
@@ -382,7 +406,7 @@ impl Frame {
 		}
 	}
 
-	// safety: index has to be in bounds
+	// SAFETY: index has to be in bounds
 	unsafe fn get_constant(&mut self, index: usize, dst: LocalTarget) -> Result<Value> {
 		debug_assert!(index <= self.inner_block.constants.len());
 
@@ -394,18 +418,19 @@ impl Frame {
 		}
 	}
 
+	// SAFETY: `dst` must be a valid local target.
 	#[inline(never)]
-	fn constant_as_block(&mut self, block: Gc<Block>, dst: LocalTarget) -> Result<Value> {
+	unsafe fn constant_as_block(&mut self, block: Gc<Block>, dst: LocalTarget) -> Result<Value> {
 		self.convert_to_object()?;
 
-		let parent = unsafe { crate::value::Gc::new(self.into()) };
+		// SAFETY: TODO
+		let parent = crate::value::Gc::new(self.into());
 		let block = block.as_ref()?.deep_clone_from(parent)?;
 
 		// TODO: maybe pass name to `deep_clone_from` too?
-		if dst.0 < 0 {
-			let index = !dst.0 as usize;
+		if let LocalTarget::Named(index) = dst {
 			debug_assert!(index <= self.inner_block.named_locals.len());
-			let name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
+			let name = *self.inner_block.named_locals.get_unchecked(index);
 
 			debug_assert!(
 				block
@@ -544,10 +569,8 @@ impl Gc<Frame> {
 				let mut ptr = args.as_mut_ptr().cast::<Value>();
 
 				for _ in 0..arity {
-					let local = this.next_local()?;
-
 					unsafe {
-						ptr.write(local);
+						ptr.write(this.next_local()?);
 						ptr = ptr.add(1);
 					}
 				}
@@ -563,10 +586,8 @@ impl Gc<Frame> {
 					debug_assert!(arity + count <= NUM_ARGUMENT_REGISTERS);
 
 					for _ in 0..count {
-						let local = this.next_local()?;
-
 						unsafe {
-							ptr.write(local);
+							ptr.write(this.next_local()?);
 							ptr = ptr.add(1);
 						}
 					}
@@ -583,7 +604,7 @@ impl Gc<Frame> {
 					{
 						let mut l = list.as_mut().unwrap();
 						for _ in 0..amnt {
-							l.push(this.next_local()?);
+							l.push(unsafe { this.next_local()? });
 						}
 					}
 
@@ -788,7 +809,9 @@ impl Gc<Frame> {
 			};
 
 			debug!(target: "frame", ?dst, ?args, ?op, "ran opcode");
-			this.set_local(dst, result)?;
+			unsafe {
+				this.set_local(dst, result)?;
+			}
 		}
 
 		Ok(())
