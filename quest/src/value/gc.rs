@@ -643,17 +643,17 @@ mod tests {
 		let text = Text::from_static_str("g'day mate");
 
 		let mut1 = text.as_mut().unwrap();
-		assert_matches!(text.as_ref().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
+		assert_matches!(text.as_ref().unwrap_err().kind, ErrorKind::AlreadyLocked(_));
 		drop(mut1);
 
 		let ref1 = text.as_ref().unwrap();
-		assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
+		assert_matches!(text.as_mut().unwrap_err().kind, ErrorKind::AlreadyLocked(_));
 
 		let ref2 = text.as_ref().unwrap();
-		assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
+		assert_matches!(text.as_mut().unwrap_err().kind, ErrorKind::AlreadyLocked(_));
 
 		drop(ref1);
-		assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
+		assert_matches!(text.as_mut().unwrap_err().kind, ErrorKind::AlreadyLocked(_));
 
 		drop(ref2);
 		assert_matches!(text.as_mut(), Ok(_));
@@ -668,7 +668,7 @@ mod tests {
 		assert!(!text.is_frozen());
 
 		text.as_ref().unwrap().freeze();
-		assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::ValueFrozen(_));
+		assert_matches!(text.as_mut().unwrap_err().kind, ErrorKind::ValueFrozen(_));
 		assert!(text.is_frozen());
 	}
 }

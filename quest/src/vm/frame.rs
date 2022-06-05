@@ -5,7 +5,7 @@ use crate::value::ty::{List, Text};
 use crate::value::{Gc, HasDefaultParent, Intern, ToValue};
 use crate::vm::block::BlockInner;
 use crate::vm::{Args, Block, Opcode, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, NUM_ARGUMENT_REGISTERS};
-use crate::{ErrorKind, Result, Value};
+use crate::{Error, ErrorKind, Result, Value};
 use std::alloc::Layout;
 use std::cell::RefCell;
 use std::fmt::{self, Debug, Formatter};
@@ -491,15 +491,12 @@ impl Gc<Frame> {
 				// to always be written to
 				unsafe { this.get_unnamed_local(0) }
 			}),
-			Err(err) => {
-				if let ErrorKind::Return { value, from_frame } = err.kind() {
-					if from_frame.map_or(true, |ff| ff.is_identical(self.to_value())) {
-						return Ok(*value);
-					}
-				}
-
-				Err(err)
+			Err(Error { kind: ErrorKind::Return { value, from_frame }, .. })
+				if from_frame.map_or(true, |ff| ff.is_identical(self.to_value())) =>
+			{
+				Ok(value)
 			}
+			Err(err) => Err(err),
 		}
 	}
 

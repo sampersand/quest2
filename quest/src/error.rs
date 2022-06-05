@@ -4,12 +4,12 @@ use std::fmt::{self, Display, Formatter};
 mod stacktrace;
 pub use stacktrace::Stacktrace;
 
-/// An error type that contains both a [`Stacktrace`] and an [`ErrorKind`]
+/// An error type that contains both a [`Stacktrace`] and an [`ErrorKind`].
 #[derive(Debug)]
 #[must_use]
 pub struct Error {
-	stacktrace: Stacktrace,
-	kind: ErrorKind,
+	pub stacktrace: Stacktrace,
+	pub kind: ErrorKind,
 }
 
 /// Type alias for [`Error`].
@@ -65,29 +65,12 @@ pub enum ErrorKind {
 	StackOverflow,
 }
 
-impl Error {
-	/// Creates a new [`Error`] with the given stacktrace.
-	pub const fn new(kind: ErrorKind, stacktrace: Stacktrace) -> Self {
-		Self { kind, stacktrace }
-	}
-
-	/// Gets the kind of error `self` is.
-	pub const fn kind(&self) -> &ErrorKind {
-		&self.kind
-	}
-
-	/// Gets the stacktrace associated with `self`.
-	pub const fn stacktrace(&self) -> &Stacktrace {
-		&self.stacktrace
-	}
-}
-
 impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		if f.alternate() {
 			write!(f, "error: {}\nstacktrace:\n{}", self.kind, self.stacktrace)
 		} else {
-			Display::fmt(self.kind(), f)
+			Display::fmt(&self.kind, f)
 		}
 	}
 }
@@ -138,7 +121,7 @@ impl From<String> for Error {
 
 impl From<ErrorKind> for Error {
 	fn from(kind: ErrorKind) -> Self {
-		Self::new(kind, Stacktrace::current())
+		Self { kind, stacktrace: Stacktrace::current() }
 	}
 }
 

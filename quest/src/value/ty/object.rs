@@ -86,10 +86,10 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() <= 1)?;
 
-		Err(Error::new(
-			ErrorKind::Return { value: obj, from_frame: args.get(0) },
-			crate::error::Stacktrace::empty(),
-		))
+		Err(Error {
+			kind: ErrorKind::Return { value: obj, from_frame: args.get(0) },
+			stacktrace: crate::error::Stacktrace::empty(),
+		})
 	}
 
 	pub fn assert(obj: Value, args: Args<'_>) -> Result<Value> {
