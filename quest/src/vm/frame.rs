@@ -10,6 +10,7 @@ use std::alloc::Layout;
 use std::cell::RefCell;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::MaybeUninit;
+use std::num::NonZeroUsize;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
@@ -34,10 +35,11 @@ pub struct Inner {
 
 	// note that both of these are actually from the same allocation;
 	// `unnamed_locals` points to the base and `named_locals` is simply an offset.
-	unnamed_locals: *mut Value,
+	unnamed_locals: *mut Option<Value>,
 	named_locals: *mut Option<Value>,
 }
 
+// TODO: verify send and sync for this.
 unsafe impl Send for Inner {}
 unsafe impl Sync for Inner {}
 
@@ -48,6 +50,8 @@ impl Drop for Inner {
 			self.inner_block.named_locals.len(),
 		);
 
+		// SAFETY:
+		// `self.unnamed_locals` was allocated by `crate::alloc`, and the layout is the same.
 		unsafe {
 			std::alloc::dealloc(self.unnamed_locals.cast::<u8>(), layout);
 		}
@@ -57,8 +61,13 @@ impl Drop for Inner {
 const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
 const FLAG_IS_OBJECT: u32 = Flags::USER1;
 
-fn locals_layout_for(num_of_unnamed_locals: usize, num_named_locals: usize) -> Layout {
-	Layout::array::<Option<Value>>(num_of_unnamed_locals + num_named_locals).unwrap()
+// SAFETY: `num_of_unnamed_locals` should be nonzero
+fn locals_layout_for(num_of_unnamed_locals: NonZeroUsize, num_named_locals: usize) -> Layout {
+	// SAFETY: we know `num_of_unnamed_locals` is nonzero, as it's a `NonZeroUsize`.
+	unsafe {
+		Layout::array::<Option<Value>>(num_of_unnamed_locals.get() + num_named_locals)
+			.unwrap_unchecked()
+	}
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -67,45 +76,50 @@ struct LocalTarget(isize);
 impl Frame {
 	/// Creates a new [`Frame`] from the given `block` and passed `args`.
 	pub fn new(block: Gc<Block>, args: Args) -> Result<Gc<Self>> {
-		args.assert_no_keyword()?; // todo: assign keyword arguments
-		let inner_block = block.as_ref()?.inner();
+		args.assert_no_keyword().expect("todo: assign keyword arguments");
 
-		if inner_block.named_locals.len() < args.positional().len() {
-			// TODO: Arity
+		let inner_block = block.as_ref()?.inner();
+		if inner_block.arity != args.positional().len() {
 			return Err(
 				ErrorKind::PositionalArgumentMismatch {
 					given: args.positional().len(),
-					expected: inner_block.named_locals.len(),
+					expected: inner_block.arity,
 				}
 				.into(),
 			);
 		}
 
-		let mut builder = Base::<Inner>::builder();
+		// SAFETY: `locals_layout_for` is guaranteed to have a positive size, because of
+		// the scratch register.
+		let unnamed_locals = unsafe {
+			let layout =
+				locals_layout_for(inner_block.num_of_unnamed_locals, inner_block.named_locals.len());
 
-		// XXX: If we swap these around, we get a significant speed slowdown. But what semantics
-		// do we want? Do we want the outside stackframe to be first or last? and in any case,
-		// this is setting the _block_ itself as the parent, which isn't what we want. how do we
-		// want to register the outer block as the parent?
-		// ^^ update: having them like `[block, parent]` means that attribute lookups such as `dbg`
-		// are first found on frame, which is not good.
-		// update 2: we removed the following, as we simply set the `Gc::parent()` when we convert to
-		// an actual object.
-		// 	builder.set_parents(List::from_slice(&[Gc::<Self>::parent(), block.to_value()]));
-		builder.set_parents(block.to_value());
+			crate::alloc_zeroed::<Option<Value>>(layout).as_ptr()
+		};
 
+		// Initialize the scratch register to `null`.
+		// SAFETY: We know this is in bounds as `num_of_unnamed_locals` is nonzero.
 		unsafe {
-			let unnamed_locals = crate::alloc_zeroed::<Value>(locals_layout_for(
-				inner_block.num_of_unnamed_locals,
-				inner_block.named_locals.len(),
-			))
-			.as_ptr();
+			unnamed_locals.write(Some(Value::default()));
+		}
 
-			let named_locals =
-				unnamed_locals.add(inner_block.num_of_unnamed_locals).cast::<Option<Value>>();
+		// SAFETY
+		// - The resulting pointer is in bounds, as we created `unnamed_locals` with at least
+		//   `inner_block.num_named_locals`.
+		// - `num_of_unnamed_locals` will never reach `isize::MAX`, as per
+		//   `block::Builder::unnamed_local`'s safety guarantee.
+		// - We don't rely on wrapping behaviour
+		let named_locals = unsafe { unnamed_locals.add(inner_block.num_of_unnamed_locals.get()) };
 
-			// The scratch register defaults to null.
-			unnamed_locals.write(Value::default());
+		// Copy the arguments over.
+		// SAFETY:
+		// - We have allocated enoguh space for all our `write`s, as we allocated enough for
+		//   all named locals, which includes `__block__`, `__args__`, as well as normal arguments.
+		// - We know that `start` and `args.positional` don't overlap.
+		unsafe {
+			debug_assert!(inner_block.named_locals.len() >= 2);
+			debug_assert!(inner_block.arity <= inner_block.named_locals.len() - 2);
 
 			// copy positional arguments over into the first few named local arguments.
 			let mut start = named_locals;
@@ -122,17 +136,30 @@ impl Frame {
 				args.positional().as_ptr().cast::<Option<Value>>(),
 				args.positional().len(),
 			);
+		}
 
-			let data_ptr = builder.data_mut();
+		// Fill out and finish the builder
+		let mut builder = Base::<Inner>::builder();
 
+		builder.set_parents(block.to_value());
+		let data_ptr = builder.data_mut();
+
+		// Fill out the builder
+		// SAFETY:
+		// - We know `(*data_ptr).xxx` is valid because we got `data_ptr` from `builder`, which we
+		//   validly allocated
+		unsafe {
 			std::ptr::addr_of_mut!((*data_ptr).unnamed_locals).write(unnamed_locals);
 			std::ptr::addr_of_mut!((*data_ptr).named_locals).write(named_locals);
 			std::ptr::addr_of_mut!((*data_ptr).inner_block).write(inner_block);
 			std::ptr::addr_of_mut!((*data_ptr).block).write(block);
-			// no need to initialize `pos` as it starts off as zero.
-
-			Ok(Gc::from_inner(builder.finish()))
 		}
+
+		// No need to initialize `pos` as it starts off as zero.
+		debug_assert_eq!(unsafe { (*data_ptr).pos }, 0);
+
+		// SAFETY: We've finished creating a valid `Inner`, so we can call `.finish()`.
+		Ok(Gc::from_inner(unsafe { builder.finish() }))
 	}
 
 	/// Fetches the block associated with this stackframe.
@@ -156,9 +183,11 @@ impl Frame {
 		// Once we start referencing the frame as an object, we no longer can longer use the "block is
 		// our only parent" optimization.
 		header.parents_mut().set(List::from_slice(&[Gc::<Self>::parent(), block]));
-		// OPTIMIZE: we could use `with_capacity`, but we'd need to move it out of the builder.
 
+		// OPTIMIZE: we could use `with_capacity`, but we'd need to move it out of the builder.
 		for i in 0..data.inner_block.named_locals.len() {
+			// SAFETY:
+			// We know that `i` is in bounds b/c we iterate over `data.inner_block.named_locals.len()`.
 			if let Some(value) = unsafe { *data.named_locals.add(i) } {
 				header.set_attr(data.inner_block.named_locals[i].to_value(), value)?;
 			}
@@ -167,19 +196,24 @@ impl Frame {
 		Ok(())
 	}
 
+	// SAFETY:
+	// - `index` needs to be a valid unnamed local index
+	// - `index` must have been assigned to.
 	unsafe fn get_unnamed_local(&self, index: usize) -> Value {
 		debug_assert!(
-			index <= self.inner_block.num_of_unnamed_locals,
-			"{:?} > {:?}",
-			index,
+			index <= self.inner_block.num_of_unnamed_locals.get(),
+			"index out of bounds: {index}, where max is {}",
 			self.inner_block.num_of_unnamed_locals
 		);
-		debug_assert!(
-			self.unnamed_locals.add(index).cast::<Option<Value>>().read().is_some(),
-			"reading from an unassigned unnamed local!"
-		);
 
-		*self.unnamed_locals.add(index)
+		if let Some(value) = *self.unnamed_locals.add(index) {
+			value
+		} else if cfg!(debug_assertions) {
+			unreachable!("reading from an unassigned unnamed local at index {index}??");
+		} else {
+			// This should never occur, as the bytecode should be well-formed.
+			std::hint::unreachable_unchecked()
+		}
 	}
 
 	// this should also be unsafe (update: should it be??)
@@ -234,10 +268,10 @@ impl Frame {
 
 		if 0 <= index {
 			let index = index as usize;
-			debug_assert!(index <= self.inner_block.num_of_unnamed_locals);
+			debug_assert!(index <= self.inner_block.num_of_unnamed_locals.get());
 
 			unsafe {
-				self.unnamed_locals.add(index).write(value);
+				self.unnamed_locals.add(index).write(Some(value));
 			}
 
 			return Ok(());
@@ -372,6 +406,18 @@ impl Frame {
 			let index = !dst.0 as usize;
 			debug_assert!(index <= self.inner_block.named_locals.len());
 			let name = unsafe { *self.inner_block.named_locals.get_unchecked(index) };
+
+			debug_assert!(
+				block
+					.as_ref()
+					.unwrap()
+					.attributes()
+					.get_unbound_attr(Intern::__name__)
+					.unwrap()
+					.is_none(),
+				"somehow assigning a name twice?"
+			);
+
 			block.as_mut().unwrap().set_name(name)?;
 		}
 
@@ -439,16 +485,21 @@ impl Gc<Frame> {
 			unreachable!("unable to set it as not currently running??");
 		}
 
-		if let Err(err) = result {
-			if let ErrorKind::Return { value, from_frame } = err.kind() {
-				if from_frame.map_or(true, |ff| ff.is_identical(self.to_value())) {
-					return Ok(*value);
+		match result {
+			Ok(()) => self.as_mut().map(|this| {
+				// SAFETY: We wrote `null` to the scratch register at creation, so this is guaranteed
+				// to always be written to
+				unsafe { this.get_unnamed_local(0) }
+			}),
+			Err(err) => {
+				if let ErrorKind::Return { value, from_frame } = err.kind() {
+					if from_frame.map_or(true, |ff| ff.is_identical(self.to_value())) {
+						return Ok(*value);
+					}
 				}
-			}
 
-			Err(err)
-		} else {
-			self.as_mut().map(|this| unsafe { *this.unnamed_locals })
+				Err(err)
+			}
 		}
 	}
 
@@ -798,7 +849,7 @@ mod tests {
 	#[test]
 	fn test_fibonacci() {
 		let fib = {
-			let mut builder = crate::vm::block::Builder::default();
+			let mut builder = crate::vm::block::Builder::new(2, Default::default());
 
 			let n = builder.named_local("n");
 			let fib = builder.named_local("fib");

@@ -1,5 +1,4 @@
 //! Types relating to Quest [`Block`]s.
-
 use super::{Frame, SourceLocation};
 use crate::value::gc::{Allocated, Gc};
 use crate::value::ty::{List, Text};
@@ -7,6 +6,7 @@ use crate::value::{base::Base, HasDefaultParent, Intern, ToValue};
 use crate::vm::Args;
 use crate::{Result, Value};
 use std::fmt::{self, Debug, Display, Formatter};
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 mod builder;
@@ -27,23 +27,31 @@ impl Debug for Block {
 #[derive(Debug)]
 #[doc(hidden)]
 pub struct BlockInner {
+	pub(super) arity: usize,
 	pub(super) code: Vec<u8>,
 	pub(super) location: SourceLocation,
 	pub(super) constants: Vec<Value>,
-	pub(super) num_of_unnamed_locals: usize,
+	pub(super) num_of_unnamed_locals: NonZeroUsize,
 	pub(super) named_locals: Vec<Gc<Text>>,
 }
 
 impl Block {
 	fn _new(
+		arity: usize,
 		code: Vec<u8>,
 		location: SourceLocation,
 		constants: Vec<Value>,
-		num_of_unnamed_locals: usize,
+		num_of_unnamed_locals: NonZeroUsize,
 		named_locals: Vec<Gc<Text>>,
 	) -> Gc<Self> {
-		let inner =
-			Arc::new(BlockInner { code, location, constants, num_of_unnamed_locals, named_locals });
+		let inner = Arc::new(BlockInner {
+			arity,
+			code,
+			location,
+			constants,
+			num_of_unnamed_locals,
+			named_locals,
+		});
 
 		Gc::from_inner(Base::new(inner, Gc::<Self>::parent()))
 	}
@@ -52,23 +60,27 @@ impl Block {
 		self.0.data().clone()
 	}
 
+	pub fn arity(&self) -> usize {
+		self.0.data().arity
+	}
+
 	/// Gets the place that `self` was defined.
 	pub fn source_location(&self) -> &SourceLocation {
 		&self.0.data().location
 	}
 
 	/// Sets the name associated with this block.
+	///
+	/// # Errors
+	/// Returns any errors associated with [setting attributes](Value::set_attr).
 	pub fn set_name(&mut self, name: Gc<Text>) -> Result<()> {
-		debug_assert!(
-			self.header().attributes().get_unbound_attr(Intern::__name__).unwrap().is_none(),
-			"somehow assigning a name twice?"
-		);
 		self.header_mut().set_attr(Intern::__name__, name.to_value())
 	}
 
 	/// Fetches the name associated with this block, if it exists.
 	///
-	/// This returns a [`Result`] because attribute access can error.
+	/// # Errors
+	/// Returns any errors associated with [setting attributes](Value::set_attr).
 	pub fn name(&self) -> Result<Option<Gc<Text>>> {
 		Ok(self
 			.header()
@@ -80,6 +92,9 @@ impl Block {
 	/// Gets a displayable version of `self`.
 	///
 	/// This returns a [`Result`] because [`Block::name`] can error.
+	///
+	/// # Errors
+	/// Returns any errors caused by [`Block::name`].
 	pub fn display(&self) -> Result<impl Display + '_> {
 		struct BlockDisplay<'a>(&'a SourceLocation, Option<crate::value::gc::Ref<Text>>);
 
@@ -102,7 +117,10 @@ impl Block {
 	}
 
 	/// Deep clones `self`, returning a completely independent copy, and adding `frame` as a parent
-	pub fn deep_clone_from(&self, parent_scope: Gc<Frame>) -> Result<Gc<Self>> {
+	///
+	/// # Errors
+	/// Returns any errors associated with [setting attributes](Value::set_attr).
+	pub(super) fn deep_clone_from(&self, parent_scope: Gc<Frame>) -> Result<Gc<Self>> {
 		#[cfg(debug_assertions)] // needed otherwise `_is_just_single_and_identical` isnt defined?
 		debug_assert!(self.header().parents()._is_just_single_and_identical(Gc::<Self>::parent()));
 
@@ -125,12 +143,16 @@ impl Gc<Block> {
 	/// Executes the block.
 	///
 	/// This is a convenience wrapper around [`Frame::new`] and [`Gc<Frame>::run`].
+	///
+	/// # Errors
+	/// Returns any errors caused by [`Gc<Frame>::run`].
 	pub fn run(self, args: Args<'_>) -> Result<Value> {
 		Frame::new(self, args)?.run()
 	}
 }
 
 /// Quest functions defined for [`Block`].
+#[allow(clippy::missing_errors_doc)]
 pub mod funcs {
 	use super::*;
 	use crate::value::ToValue;

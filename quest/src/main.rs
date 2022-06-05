@@ -13,7 +13,7 @@ use std::path::Path;
 
 fn run_code(code: &str, filename: Option<&Path>) -> Result<Value> {
 	let mut parser = Parser::new(code, filename);
-	let mut builder = quest::vm::block::Builder::new(Default::default());
+	let mut builder = quest::vm::block::Builder::new(0, Default::default());
 	let scratch = quest::vm::block::Local::Scratch;
 
 	ast::Group::parse_all(&mut parser).expect("bad parse").compile(&mut builder, scratch);
@@ -45,7 +45,7 @@ fn setup_tracing() {
 fn main() {
 	setup_tracing();
 
-	if true {
+	if false {
 		run_code(
 			r#"
 i=0;

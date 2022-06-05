@@ -2,6 +2,7 @@ use super::Block;
 use crate::value::ToValue;
 use crate::value::{ty::Text, Gc, Value};
 use crate::vm::{Opcode, SourceLocation, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, NUM_ARGUMENT_REGISTERS};
+use std::num::NonZeroUsize;
 
 /// A builder for [`Block`].
 ///
@@ -9,10 +10,11 @@ use crate::vm::{Opcode, SourceLocation, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, NUM_ARG
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct Builder {
+	arity: usize,
 	source_location: SourceLocation,
 	code: Vec<u8>,
 	constants: Vec<Value>,
-	num_of_unnamed_locals: usize,
+	num_of_unnamed_locals: NonZeroUsize,
 	named_locals: Vec<Gc<Text>>,
 }
 
@@ -27,25 +29,20 @@ pub enum Local {
 	Named(usize),
 }
 
-impl Default for Builder {
-	fn default() -> Self {
-		Self::new(SourceLocation::default())
-	}
-}
-
 impl Builder {
 	/// Creates a new [`Builder`] for a block at the given `source_location`.
-	pub fn new(source_location: SourceLocation) -> Self {
+	pub fn new(arity: usize, source_location: SourceLocation) -> Self {
 		// These are present in every block
 		// OPTIMIZE: maybe make these things once and freeze them?
 		let named_locals =
 			vec![Text::from_static_str("__block__"), Text::from_static_str("__args__")];
 
 		Self {
+			arity,
 			source_location,
 			code: Vec::default(),
 			constants: Vec::default(),
-			num_of_unnamed_locals: 1, // The first register is `Scratch`.
+			num_of_unnamed_locals: NonZeroUsize::new(1).unwrap(), // The first register is `Scratch`.
 			named_locals,
 		}
 	}
@@ -54,6 +51,7 @@ impl Builder {
 	#[must_use]
 	pub fn build(self) -> Gc<Block> {
 		Block::_new(
+			self.arity,
 			self.code,
 			self.source_location,
 			self.constants,
@@ -134,12 +132,22 @@ impl Builder {
 	}
 
 	/// Creates a new unnamed local.
+	///
+	/// # Panics
+	/// Panics if the amount of unnamed locals is larger than `isize::MAX / 2`.
 	pub fn unnamed_local(&mut self) -> Local {
-		self.num_of_unnamed_locals += 1;
-		Local::Unnamed(self.num_of_unnamed_locals - 1)
+		let num = self.num_of_unnamed_locals.get();
+		assert!(num <= (isize::MAX as usize) / 2, "too many unnamed locals");
+
+		self.num_of_unnamed_locals = NonZeroUsize::new(num + 1).unwrap();
+		Local::Unnamed(num)
 	}
 
 	/// Creates a new named local, returning its previous location if it hadn't existed.
+	///
+	/// # Panics
+	/// Panics if the amount of named locals is larger than `isize::MAX / 2`.
+	#[allow(clippy::missing_panics_doc)] // the `.unwrap()` should never panic.
 	pub fn named_local(&mut self, name: &str) -> Local {
 		for (idx, named_local) in self.named_locals.iter().enumerate() {
 			// We created the `Gc<Text>` so no one else should be able to mutate them rn.
@@ -150,9 +158,13 @@ impl Builder {
 		}
 
 		let idx = self.named_locals.len();
+		assert!(idx <= (isize::MAX as usize) / 2, "too many named locals");
+
 		trace!(target: "block_builder", ?idx, ?name, "created new local");
 
-		self.named_locals.push(Text::from_str(name));
+		let named_local = Text::from_str(name);
+		named_local.as_ref().unwrap().freeze();
+		self.named_locals.push(named_local);
 		Local::Named(idx)
 	}
 
@@ -185,8 +197,11 @@ impl Builder {
 
 	/// Equivalent to [`constant`](Self::constant), except there's no need to allocate a
 	/// [`Gc<Text>`](crate::value::ty::Text) if the string already exists.
+	#[allow(clippy::missing_panics_doc)] // the `.unwrap()` should never panic.
 	pub fn str_constant(&mut self, string: &str, dst: Local) {
 		let mut index = None;
+
+		// TODO: maybe also check `named_locals`?
 
 		for (idx, constant) in self.constants.iter().enumerate() {
 			if let Some(text) = constant.downcast::<Gc<Text>>() {
@@ -232,7 +247,6 @@ impl Builder {
 		unsafe {
 			self.opcode(Opcode::CreateList, dst);
 			self.count(args.len());
-
 			for &arg in args {
 				self.local(arg);
 			}
@@ -240,6 +254,7 @@ impl Builder {
 	}
 
 	/// <under construction, come back later>
+	#[allow(clippy::missing_panics_doc)] // TODO
 	pub fn call(&mut self, _dst: Local) {
 		// self.opcode(Opcode::Call, dst);
 		todo!();
@@ -269,7 +284,6 @@ impl Builder {
 			self.opcode(Opcode::CallSimple, dst);
 			self.local(what);
 			self.count(args.len());
-
 			for &arg in args {
 				self.local(arg);
 			}
@@ -327,6 +341,7 @@ impl Builder {
 	}
 
 	/// <under construction, come back later>
+	#[allow(clippy::missing_panics_doc)] // TODO
 	pub fn call_attr(&mut self, _dst: Local) {
 		// self.opcode(Opcode::CallAttr, dst);
 		todo!();
@@ -338,8 +353,11 @@ impl Builder {
 	/// Performs a simple attribute call (ie just positional arguments) of `obj`'s attribute `attr`
 	/// with the arguments `args`, storing the result into `dst`.
 	///
-	/// Note that `args` can contain at most [`NUM_ARGUMENT_REGISTERS`] arguments. If more
-	/// are needed, use [`Builder::call_attr`] instead.
+	/// Note that at most [`Builder::MAX_CALL_ATTR_SIMPLE_ARGUMENTS`] can be passed. If more need to
+	/// be passed, instead use [`Builder::call_attr`].
+	///
+	/// # Panics
+	/// Panics if `args.len()` is greater than [`Builder::MAX_CALL_ATTR_SIMPLE_ARGUMENTS`].
 	pub fn call_attr_simple(&mut self, obj: Local, attr: Local, args: &[Local], dst: Local) {
 		assert!(
 			args.len() <= Self::MAX_CALL_ATTR_SIMPLE_ARGUMENTS,
@@ -485,8 +503,11 @@ impl Builder {
 
 	/// Indexes `source` by the arguments `index`, storing the result into `dst`.
 	///
-	/// Note that `args` can contain at most [`NUM_ARGUMENT_REGISTERS`] arguments. If more
-	/// are needed, use [`Builder::call_attr`] instead.
+	/// Note that at most [`Builder::MAX_INDEX_ARGUMENTS`] can be passed. If more need to be
+	/// passed, instead use [`Builder::call_attr`] calling the `[]` attribute instead.
+	///
+	/// # Panics
+	/// Panics if `args.len()` is greater than [`Builder::MAX_INDEX_ARGUMENTS`].
 	pub fn index(&mut self, source: Local, index: &[Local], dst: Local) {
 		assert!(
 			index.len() <= Self::MAX_INDEX_ARGUMENTS,
@@ -511,8 +532,11 @@ impl Builder {
 
 	/// Assigns the index `index` in `source` to `value`, storing `value` back into `dst`.
 	///
-	/// Note that `args` can contain at most [`NUM_ARGUMENT_REGISTERS`] arguments. If more
-	/// are needed, use [`Builder::call_attr`] instead.
+	/// Note that at most [`Builder::MAX_INDEX_ASSIGN_ARGUMENTS`] can be passed. If more need to be
+	/// passed, instead use [`Builder::call_attr`] calling the `[]=` attribute instead.
+	///
+	/// # Panics
+	/// Panics if `args.len()` is greater than [`Builder::MAX_INDEX_ASSIGN_ARGUMENTS`].
 	pub fn index_assign(&mut self, source: Local, index: &[Local], value: Local, dst: Local) {
 		assert!(
 			index.len() <= Self::MAX_INDEX_ASSIGN_ARGUMENTS,
@@ -526,11 +550,9 @@ impl Builder {
 			self.opcode(Opcode::IndexAssign, dst);
 			self.local(source);
 			self.count(index.len() + 1); // `+1` as `value`'s the last argument.
-
 			for &arg in index {
 				self.local(arg);
 			}
-
 			self.local(value);
 		}
 	}

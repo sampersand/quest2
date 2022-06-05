@@ -97,17 +97,21 @@ impl Compile for Block<'_> {
 	fn compile(&self, builder: &mut Builder, dst: Local) {
 		let location = crate::vm::SourceLocation::from(self.body.start);
 
-		let mut inner_builder = Builder::new(location);
+		let arity = self.args.as_ref().map_or(0, |a| a.args.len());
+
+		let mut inner_builder = Builder::new(arity, location);
 		let scratch = Local::Scratch;
 
-		if let Some(args) = &self.args {
-			for arg in &args.args {
-				let _ = inner_builder.named_local(arg);
-			}
-		}
-
 		let span = debug_span!(target: "block_builder", "new block", src=?crate::vm::SourceLocation::from(self.body.start));
-		span.in_scope(|| self.body.compile(&mut inner_builder, scratch));
+		span.in_scope(|| {
+			if let Some(args) = &self.args {
+				for arg in &args.args {
+					let _ = inner_builder.named_local(arg);
+				}
+			}
+
+			self.body.compile(&mut inner_builder, scratch)
+		});
 		let block = inner_builder.build();
 		builder.constant(block.to_value(), dst);
 	}

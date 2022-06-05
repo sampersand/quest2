@@ -61,6 +61,7 @@ pub unsafe fn alloc<T>(layout: std::alloc::Layout) -> std::ptr::NonNull<T> {
 	std::ptr::NonNull::new_unchecked(ptr)
 }
 
+// SAFETY: layout must be nonzero
 #[allow(clippy::unusual_byte_groupings)]
 #[must_use]
 pub unsafe fn alloc_zeroed<T>(layout: std::alloc::Layout) -> std::ptr::NonNull<T> {
