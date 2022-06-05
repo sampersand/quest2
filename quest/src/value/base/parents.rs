@@ -148,7 +148,7 @@ impl ParentsRef<'_> {
 	/// distinct function so we can optimize function calls in the future without having to fetch
 	/// the attribute first.
 	pub fn call_attr<A: Attribute>(
-		&self,
+		self,
 		obj: Value,
 		attr: A,
 		args: crate::vm::Args<'_>,

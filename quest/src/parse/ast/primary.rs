@@ -21,10 +21,7 @@ impl<'a> Primary<'a> {
 			Self::Block(block)
 		} else if let Some(atom) = Atom::parse(parser)? {
 			Self::Atom(atom)
-		} else if parser
-			.take_if_contents(TokenContents::LeftParen(ParenType::Square))?
-			.is_some()
-		{
+		} else if parser.take_if_contents(TokenContents::LeftParen(ParenType::Square))?.is_some() {
 			Self::List(FnArgs::parse(parser, ParenType::Square)?)
 		} else if let Some(token) =
 			parser.take_if(|token| matches!(token.contents, TokenContents::Symbol(_)))?
@@ -46,15 +43,10 @@ impl<'a> Primary<'a> {
 		};
 
 		loop {
-			primary = if parser
-				.take_if_contents(TokenContents::LeftParen(ParenType::Round))?
-				.is_some()
+			primary = if parser.take_if_contents(TokenContents::LeftParen(ParenType::Round))?.is_some()
 			{
 				Self::FnCall(Box::new(primary), FnArgs::parse(parser, ParenType::Round)?)
-			} else if parser
-				.take_if_contents(TokenContents::LeftParen(ParenType::Square))?
-				.is_some()
-			{
+			} else if parser.take_if_contents(TokenContents::LeftParen(ParenType::Square))?.is_some() {
 				Self::Index(Box::new(primary), FnArgs::parse(parser, ParenType::Square)?)
 			} else if let Some(access_kind) = AttrAccessKind::parse(parser)? {
 				if let Some(atom) = Atom::parse(parser)? {
@@ -85,12 +77,12 @@ impl Compile for Primary<'_> {
 					element_locals.push(local);
 				}
 				builder.create_list(&element_locals, dst);
-			},
+			}
 			Self::UnaryOp(op, primary) => {
 				if let Some(opcode) = crate::vm::Opcode::unary_from_symbol(op) {
 					primary.compile(builder, dst);
 					unsafe {
-						builder.simple_opcode(opcode, dst, &[dst]);
+						builder.simple_opcode(opcode, dst, [dst]);
 					}
 				} else {
 					let op_local = builder.unnamed_local();
@@ -98,7 +90,7 @@ impl Compile for Primary<'_> {
 					primary.compile(builder, dst);
 					builder.call_attr_simple(dst, op_local, &[], dst);
 				}
-			},
+			}
 			Self::FnCall(function, arguments) => {
 				let function_local = builder.unnamed_local();
 				function.compile(builder, function_local);
@@ -108,13 +100,13 @@ impl Compile for Primary<'_> {
 					argument.compile(builder, local);
 					argument_locals.push(local);
 				}
-				if argument_locals.len() <= crate::vm::MAX_ARGUMENTS_FOR_SIMPLE_CALL {
+				if argument_locals.len() <= crate::vm::block::Builder::MAX_CALL_SIMPLE_ARGUMENTS {
 					builder.call_simple(function_local, &argument_locals, dst);
 				} else {
 					todo!();
 					// builder.call(/*function_local, &argument_locals, dst*/);
 				}
-			},
+			}
 			Self::Index(source, index) => {
 				let source_local = builder.unnamed_local();
 				source.compile(builder, source_local);
@@ -126,7 +118,7 @@ impl Compile for Primary<'_> {
 					argument_locals.push(local);
 				}
 				builder.index(source_local, &argument_locals, dst);
-			},
+			}
 			Self::AttrAccess(source, kind, attribute) => {
 				let local = builder.unnamed_local();
 				source.compile(builder, local);
@@ -142,7 +134,7 @@ impl Compile for Primary<'_> {
 					AttrAccessKind::ColonColon => builder.get_unbound_attr(local, dst, dst),
 					AttrAccessKind::Period => builder.get_attr(local, dst, dst),
 				}
-			},
+			}
 		}
 	}
 }

@@ -4,8 +4,8 @@
 /// absolute value first) yields the amount of fixed locals the opcode takes.
 ///
 /// If the opcode is negative, it indicates that the opcode additionally accepts a variable amount
-/// of locals (but at most [`MAX_ARGUMENTS_FOR_SIMPLE_CALL`](super::MAX_ARGUMENTS_FOR_SIMPLE_CALL).
-/// (For opcodes that expect more than `MAX_ARGUMENTS_FOR_SIMPLE_CALL`, they're positive).
+/// of locals (but at most [`NUM_ARGUMENT_REGISTERS`](super::NUM_ARGUMENT_REGISTERS).
+/// (For opcodes that expect more than `NUM_ARGUMENT_REGISTERS`, they're positive).
 ///
 /// All opcodes take a destination operand as their first argument, including ones that don't
 /// _really_ need a destination (eg [`IndexAssign`](Self::IndexAssign)).
@@ -93,7 +93,7 @@ pub enum Opcode {
 
 impl Opcode {
 	/// Gets the arity of `self`.
-	pub const fn arity(self) -> usize {
+	pub const fn fixed_arity(self) -> usize {
 		((self as i8) / 0x20).abs() as usize
 	}
 

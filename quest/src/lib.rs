@@ -17,6 +17,8 @@
 
 extern crate static_assertions as sa;
 
+extern crate self as quest; // for proc macros
+
 #[macro_use]
 extern crate tracing;
 

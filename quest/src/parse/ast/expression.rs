@@ -61,7 +61,7 @@ impl Compile for Expression<'_> {
 				if let Some(opcode) = crate::vm::Opcode::binary_from_symbol(op) {
 					rhs.compile(builder, dst);
 					unsafe {
-						builder.simple_opcode(opcode, dst, &[lhs_local, dst]);
+						builder.simple_opcode(opcode, dst, [lhs_local, dst]);
 					}
 				} else {
 					let op_local = builder.unnamed_local();
@@ -69,7 +69,7 @@ impl Compile for Expression<'_> {
 					rhs.compile(builder, dst);
 					builder.call_attr_simple(lhs_local, op_local, &[dst], dst);
 				}
-			},
+			}
 		}
 	}
 }

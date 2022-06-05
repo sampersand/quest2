@@ -1,4 +1,7 @@
 #[macro_use]
+mod macros_old;
+
+#[macro_use]
 mod macros;
 
 #[macro_use]

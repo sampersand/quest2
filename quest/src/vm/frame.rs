@@ -4,9 +4,7 @@ use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
 use crate::value::{Gc, HasDefaultParent, Intern, ToValue};
 use crate::vm::block::BlockInner;
-use crate::vm::{
-	Args, Block, Opcode, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, MAX_ARGUMENTS_FOR_SIMPLE_CALL,
-};
+use crate::vm::{Args, Block, Opcode, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, NUM_ARGUMENT_REGISTERS};
 use crate::{ErrorKind, Result, Value};
 use std::alloc::Layout;
 use std::cell::RefCell;
@@ -43,13 +41,6 @@ pub struct Inner {
 unsafe impl Send for Inner {}
 unsafe impl Sync for Inner {}
 
-const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
-const FLAG_IS_OBJECT: u32 = Flags::USER1;
-
-fn locals_layout_for(num_of_unnamed_locals: usize, num_named_locals: usize) -> Layout {
-	Layout::array::<Option<Value>>(num_of_unnamed_locals + num_named_locals).unwrap()
-}
-
 impl Drop for Inner {
 	fn drop(&mut self) {
 		let layout = locals_layout_for(
@@ -63,6 +54,13 @@ impl Drop for Inner {
 	}
 }
 
+const FLAG_CURRENTLY_RUNNING: u32 = Flags::USER0;
+const FLAG_IS_OBJECT: u32 = Flags::USER1;
+
+fn locals_layout_for(num_of_unnamed_locals: usize, num_named_locals: usize) -> Layout {
+	Layout::array::<Option<Value>>(num_of_unnamed_locals + num_named_locals).unwrap()
+}
+
 #[derive(Debug, Clone, Copy)]
 struct LocalTarget(isize);
 
@@ -73,12 +71,12 @@ impl Frame {
 		let inner_block = block.as_ref()?.inner();
 
 		if inner_block.named_locals.len() < args.positional().len() {
+			// TODO: Arity
 			return Err(
-				format!(
-					"argc mismatch, expected at most {}, got {}",
-					inner_block.named_locals.len(),
-					args.positional().len()
-				)
+				ErrorKind::PositionalArgumentMismatch {
+					given: args.positional().len(),
+					expected: inner_block.named_locals.len(),
+				}
 				.into(),
 			);
 		}
@@ -455,7 +453,7 @@ impl Gc<Frame> {
 	}
 
 	fn run_inner(self) -> Result<()> {
-		let mut args = [MaybeUninit::<Value>::uninit(); MAX_ARGUMENTS_FOR_SIMPLE_CALL];
+		let mut args = [MaybeUninit::<Value>::uninit(); NUM_ARGUMENT_REGISTERS];
 		let mut this = self.as_mut()?;
 		let mut variable_args_count = MaybeUninit::uninit();
 
@@ -482,7 +480,7 @@ impl Gc<Frame> {
 
 		while let Some(op) = this.next_op()? {
 			if cfg!(debug_assertions) {
-				for position in args.iter_mut().take(MAX_ARGUMENTS_FOR_SIMPLE_CALL) {
+				for position in args.iter_mut().take(NUM_ARGUMENT_REGISTERS) {
 					*position = MaybeUninit::uninit();
 				}
 
@@ -492,9 +490,9 @@ impl Gc<Frame> {
 			let dst = this.next_local_target();
 
 			{
-				let arity = op.arity();
+				let arity = op.fixed_arity();
 				let is_variable_simple = op.is_variable_simple();
-				debug_assert!(arity <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
+				debug_assert!(arity <= NUM_ARGUMENT_REGISTERS);
 				let mut ptr = args.as_mut_ptr().cast::<Value>();
 
 				for _ in 0..arity {
@@ -510,11 +508,11 @@ impl Gc<Frame> {
 					let count = this.next_byte() as usize;
 					variable_args_count.write(count);
 
-					// all things with `is_variable` are <= MAX_ARGUMENTS_FOR_SIMPLE_CALL.
+					// all things with `is_variable` are <= NUM_ARGUMENT_REGISTERS.
 					debug_assert_ne!(count, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize);
 					debug_assert!((count as u8 as i8) >= 0);
-					debug_assert!(count <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
-					debug_assert!(arity + count <= MAX_ARGUMENTS_FOR_SIMPLE_CALL);
+					debug_assert!(count <= NUM_ARGUMENT_REGISTERS);
+					debug_assert!(arity + count <= NUM_ARGUMENT_REGISTERS);
 
 					for _ in 0..count {
 						let local = this.next_local()?;
@@ -618,10 +616,8 @@ impl Gc<Frame> {
 						if self.to_value().is_identical(object) {
 							this.convert_to_object()?;
 							this.set_attr(attr, value)?;
-							self.to_value()
 						} else {
 							object.set_attr(attr, value)?;
-							object
 						}
 					} else {
 						let index = !object_index as usize;
@@ -631,12 +627,12 @@ impl Gc<Frame> {
 						if self.to_value().is_identical(*object) {
 							this.convert_to_object()?;
 							this.set_attr(attr, value)?;
-							self.to_value()
 						} else {
 							object.set_attr(attr, value)?;
-							*object
 						}
 					}
+
+					value
 				}
 
 				Opcode::DelAttr => unsafe {
