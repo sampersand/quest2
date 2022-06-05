@@ -82,20 +82,28 @@ impl Builder {
 				self.code.push(0);
 			}
 			Local::Unnamed(n) if n < COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize => {
+				assert!(n <= self.num_of_unnamed_locals.get(), "invalid local: {n} is too large");
+
 				debug!(target: "block_builder", idx=self.code.len(), local=%n, "set byte");
 				self.code.push(n as u8);
 			}
 			Local::Unnamed(n) => {
+				assert!(n <= self.num_of_unnamed_locals.get(), "invalid local: {n} is too large");
+
 				debug!(target: "block_builder", idx=self.code.len(), local=?n, "set bytes");
 				self.code.push(COUNT_IS_NOT_ONE_BYTE_BUT_USIZE);
 				self.code.extend(n.to_ne_bytes());
 			}
 			// todo, im not sure if this is 100% correct, math-wise
 			Local::Named(n) if n < COUNT_IS_NOT_ONE_BYTE_BUT_USIZE as usize => {
+				assert!(n <= self.named_locals.len(), "invalid local: {n} is too large");
+
 				debug!(target: "block_builder", idx=self.code.len(), local=?n, updated=?(!(n as i8) as u8), "set byte");
 				self.code.push(!(n as i8) as u8);
 			}
 			Local::Named(n) => {
+				assert!(n <= self.named_locals.len(), "invalid local: {n} is too large");
+
 				debug!(target: "block_builder", idx=self.code.len(), local=?n, updated=?((!n as isize) as usize), "set bytes");
 				self.code.push(COUNT_IS_NOT_ONE_BYTE_BUT_USIZE);
 				self.code.extend((!(n as isize)).to_ne_bytes());

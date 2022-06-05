@@ -791,16 +791,14 @@ impl Gc<Frame> {
 					object.call_attr(Intern::op_pow, args)?
 				},
 				Opcode::Not => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_not, args)?
+					// SAFETY: `self` is well-formed, so we know that the first argument exists
+					let object = unsafe { args[0].assume_init() };
+					object.call_attr(Intern::op_not, Args::default())?
 				},
 				Opcode::Negate => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_neg, args)?
+					// SAFETY: `self` is well-formed, so we know that the first argument exists
+					let object = unsafe { args[0].assume_init() };
+					object.call_attr(Intern::op_neg, Args::default())?
 				},
 				Opcode::Equal => without_this! {
 					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
