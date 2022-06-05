@@ -32,9 +32,7 @@ macro_rules! define_interned {
 		#[non_exhaustive]
 		pub enum Intern {
 			$(
-				#[doc = "Represents the \""]
-				#[doc = variant_name!($name $($value)?)]
-				#[doc = "\" string in Quest"]
+				#[doc = concat!("Represents the `\"", variant_name!($name $($value)?), "\"` string in Quest")]
 				$name = offset(__InternHelper::$name as _),
 			)*
 		}
