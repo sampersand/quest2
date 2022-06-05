@@ -201,7 +201,7 @@ impl<T: Allocated> Gc<T> {
 	/// let textmut = text.as_mut()?;
 	///
 	/// // `textmut` is in scope, we cant get a reference.
-	/// assert_matches!(text.as_ref().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
+	/// assert_matches!(text.as_ref().unwrap_err().kind, ErrorKind::AlreadyLocked(_));
 	/// drop(textmut);
 	///
 	/// // now it isn't, so we can get a reference.
@@ -265,7 +265,7 @@ impl<T: Allocated> Gc<T> {
 	/// let textref = text.as_ref()?;
 	///
 	/// // `textref` is in scope, we cant get a reference.
-	/// assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::AlreadyLocked(_));
+	/// assert_matches!(text.as_mut().unwrap_err().kind, ErrorKind::AlreadyLocked(_));
 	/// drop(textref);
 	///
 	/// // now it isn't, so we can get a reference.
@@ -332,7 +332,7 @@ impl<T: Allocated> Gc<T> {
 	///
 	/// text.as_ref()?.freeze();
 	/// assert!(text.is_frozen());
-	/// assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::ValueFrozen(_));
+	/// assert_matches!(text.as_mut().unwrap_err().kind, ErrorKind::ValueFrozen(_));
 	/// # quest::Result::<()>::Ok(())
 	/// ```
 	#[must_use]

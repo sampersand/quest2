@@ -219,7 +219,7 @@ impl Header {
 	/// let text = Text::from_static_str("Quest is cool");
 	///
 	/// text.as_ref()?.freeze();
-	/// assert_matches!(text.as_mut().unwrap_err().kind(), ErrorKind::ValueFrozen(_));
+	/// assert_matches!(text.as_mut().unwrap_err().kind, ErrorKind::ValueFrozen(_));
 	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn freeze(&self) {

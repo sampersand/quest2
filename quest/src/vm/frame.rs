@@ -79,10 +79,10 @@ impl Frame {
 		args.assert_no_keyword().expect("todo: assign keyword arguments");
 
 		let inner_block = block.as_ref()?.inner();
-		if inner_block.arity != args.positional().len() {
+		if inner_block.arity != args.len() {
 			return Err(
 				ErrorKind::PositionalArgumentMismatch {
-					given: args.positional().len(),
+					given: args.len(),
 					expected: inner_block.arity,
 				}
 				.into(),
@@ -846,7 +846,7 @@ mod tests {
 	#[test]
 	fn test_fibonacci() {
 		let fib = {
-			let mut builder = crate::vm::block::Builder::new(2, Default::default());
+			let mut builder = crate::vm::block::Builder::new(1, Default::default());
 
 			let n = builder.named_local("n");
 			let fib = builder.named_local("fib");

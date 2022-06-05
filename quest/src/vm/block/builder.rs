@@ -18,6 +18,12 @@ pub struct Builder {
 	named_locals: Vec<Gc<Text>>,
 }
 
+impl Default for Builder {
+	fn default() -> Self {
+		Self::new(0, SourceLocation::default())
+	}
+}
+
 /// The type of local register.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Local {

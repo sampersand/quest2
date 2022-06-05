@@ -430,8 +430,8 @@ fn should_overflow_and_return_error() {
 	.unwrap_err();
 
 	assert!(
-		matches!(result.kind(), quest::ErrorKind::StackOverflow),
+		matches!(result.kind, quest::ErrorKind::StackOverflow),
 		"didnt overflow, but {:?}",
-		result.kind()
+		result.kind
 	);
 }
