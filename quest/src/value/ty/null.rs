@@ -49,7 +49,7 @@ impl ConvertTo<Integer> for Null {
 	fn convert(&self, args: Args<'_>) -> Result<Integer> {
 		args.assert_no_arguments()?;
 
-		Ok(0)
+		Ok(Integer::ZERO)
 	}
 }
 

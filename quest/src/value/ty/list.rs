@@ -439,14 +439,14 @@ impl From<&'_ [Value]> for crate::Value<Gc<List>> {
 
 pub mod funcs {
 	use super::*;
-	use crate::value::ty::{Integer, Text};
+	use crate::value::ty::Text;
 	use crate::value::ToValue;
 	use crate::{vm::Args, Result};
 
 	pub fn len(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok((list.as_ref()?.len() as Integer).to_value())
+		Ok((list.as_ref()?.len() as i64).to_value())
 	}
 
 	pub fn eql(list: Gc<List>, args: Args<'_>) -> Result<Value> {
@@ -484,10 +484,10 @@ pub mod funcs {
 		args.assert_positional_len(1)?; // todo: more positional args for slicing
 
 		let listref = list.as_ref()?;
-		let mut index = args[0].to_integer()?;
+		let mut index = args[0].to_integer()?.get();
 
 		if index < 0 {
-			index += listref.len() as Integer;
+			index += listref.len() as i64;
 
 			if index < 0 {
 				return Err("todo: error for out of bounds".to_string().into());
@@ -502,11 +502,11 @@ pub mod funcs {
 		args.assert_positional_len(2)?; // todo: more positional args for slicing
 
 		let mut listmut = list.as_mut()?;
-		let mut index = args[0].to_integer()?;
+		let mut index = args[0].to_integer()?.get();
 		let value = args[1];
 
 		if index < 0 {
-			index += listmut.len() as Integer;
+			index += listmut.len() as i64;
 
 			if index < 0 {
 				return Err("todo: error for out of bounds".to_string().into());

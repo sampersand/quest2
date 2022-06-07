@@ -73,7 +73,7 @@ pub mod funcs {
 	pub fn hash(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok((obj.bits() as crate::value::ty::Integer).to_value())
+		Ok((obj.id() as i64).to_value())
 	}
 
 	pub fn clone(obj: Value, args: Args<'_>) -> Result<Value> {

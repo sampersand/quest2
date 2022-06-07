@@ -7,6 +7,7 @@ mod macros;
 #[macro_use]
 pub mod rustfn;
 
+pub mod bignum;
 pub mod boolean;
 pub mod boundfn;
 pub mod callable;
@@ -23,6 +24,7 @@ pub mod scope;
 pub mod text;
 mod wrap;
 
+pub use bignum::BigNum;
 pub use boolean::Boolean;
 pub use boundfn::BoundFn;
 pub use callable::Callable;

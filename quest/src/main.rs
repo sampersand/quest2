@@ -73,8 +73,8 @@ fn main() {
 			std::process::exit(0)
 		}
 		Ok(num) => {
-			if let Some(exit_code) = num.downcast::<i64>() {
-				std::process::exit(exit_code as i32)
+			if let Some(exit_code) = num.downcast::<Integer>() {
+				std::process::exit(exit_code.get() as i32)
 			}
 		}
 	}

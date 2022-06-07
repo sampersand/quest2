@@ -464,12 +464,12 @@ impl Value {
 		if let Some(integer) = self.downcast::<Integer>() {
 			Ok(integer)
 		} else if let Some(float) = self.downcast::<Float>() {
-			Ok(float as Integer)
+			Ok(Integer::new_truncate(float as i64))
 		} else if bits <= Value::NULL.bits() {
 			debug_assert!(bits == Value::NULL.bits() || bits == Value::FALSE.bits());
-			Ok(0)
+			Ok(Integer::ZERO)
 		} else if bits == Value::TRUE.bits() {
-			Ok(1)
+			Ok(Integer::ONE)
 		} else {
 			debug_assert!(self.is_a::<RustFn>());
 			Err(ErrorKind::ConversionFailed { object: self, into: Integer::TYPENAME }.into())
@@ -538,7 +538,7 @@ impl Value {
 				self
 					.call_attr(Intern::hash, Args::default())?
 					.try_downcast::<Integer>()
-					.map(|n| n as u64)
+					.map(|n| n.get() as u64)
 			}
 		} else {
 			// this can also be modified, but that's a future thing

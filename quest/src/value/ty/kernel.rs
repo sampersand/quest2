@@ -36,7 +36,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		std::process::exit(args[0].to_integer()? as i32);
+		std::process::exit(args[0].to_integer()?.get() as i32);
 	}
 
 	pub fn abort(args: Args<'_>) -> Result<Value> {

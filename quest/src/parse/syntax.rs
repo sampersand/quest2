@@ -37,58 +37,44 @@ impl<'a> Syntax<'a> {
 
 	pub fn parse(parser: &mut Parser<'a>) -> Result<'a, Option<Self>> {
 		match parser.take_bypass_syntax()? {
-			Some(Token {
-				contents: TokenContents::SyntaxIdentifier(0, "syntax"),
-				..
-			}) => {},
+			Some(Token { contents: TokenContents::SyntaxIdentifier(0, "syntax"), .. }) => {}
 			Some(token) => {
 				parser.untake(token);
 				return Ok(None);
-			},
+			}
 			None => return Ok(None),
 		}
 
-		let nomatch = parser
-			.take_if_contents_bypass_syntax(TokenContents::Symbol("!"))?
-			.is_some();
+		let nomatch = parser.take_if_contents_bypass_syntax(TokenContents::Symbol("!"))?.is_some();
 
 		let group = match parser.take()? {
-			Some(Token {
-				contents: TokenContents::Identifier(name),
-				..
-			}) => Some(name),
+			Some(Token { contents: TokenContents::Identifier(name), .. }) => Some(name),
 			Some(token) => {
 				parser.untake(token);
 				None
-			},
+			}
 			None => None,
 		};
 
 		let priority = match parser.take()? {
-			Some(Token {
-				contents: TokenContents::Integer(num),
-				..
-			}) => {
-				if num <= MIN_PRIORITY as _ {
-					num as Priority
+			Some(Token { contents: TokenContents::Integer(num), .. }) => {
+				if num.get() <= MIN_PRIORITY as _ {
+					num.get() as Priority
 				} else {
 					return Err(parser.error(format!("priority must be 0..{MIN_PRIORITY}").into()));
 				}
-			},
+			}
 			Some(token) => {
 				parser.untake(token);
 				DEFAULT_PRIORITY
-			},
+			}
 			None => DEFAULT_PRIORITY,
 		};
 
 		let pattern = Pattern::parse(parser)?
 			.ok_or_else(|| parser.error("expected pattern for `$syntax`".to_string().into()))?;
 
-		if parser
-			.take_if_contents(TokenContents::Symbol("="))?
-			.is_none()
-		{
+		if parser.take_if_contents(TokenContents::Symbol("="))?.is_none() {
 			return Err(parser.error("expected `=` after `$syntax` pattern".to_string().into()));
 		}
 
@@ -96,22 +82,10 @@ impl<'a> Syntax<'a> {
 			.ok_or_else(|| parser.error("expected replacement for `$syntax`".to_string().into()))?;
 
 		if parser.take_if_contents(TokenContents::Semicolon)?.is_none() {
-			return Err(
-				parser.error(
-					"expected `;` after `$syntax` replacement"
-						.to_string()
-						.into(),
-				),
-			);
+			return Err(parser.error("expected `;` after `$syntax` replacement".to_string().into()));
 		}
 
-		Ok(Some(Self {
-			group,
-			priority,
-			nomatch,
-			pattern,
-			replacement,
-		}))
+		Ok(Some(Self { group, priority, nomatch, pattern, replacement }))
 	}
 
 	// fn matches(&self, matches: &mut Matches<'a>, parser: &mut Parser<'a>) -> Result<'a, bool> {

@@ -162,10 +162,7 @@ impl<'a> Token<'a> {
 		let contents = TokenContents::parse(stream)?;
 		let end = stream.location();
 
-		Ok(Some(Self {
-			span: Span { start, end },
-			contents,
-		}))
+		Ok(Some(Self { span: Span { start, end }, contents }))
 	}
 }
 
@@ -197,65 +194,65 @@ impl<'a> TokenContents<'a> {
 			'(' => {
 				stream.advance();
 				Ok(Self::LeftParen(ParenType::Round))
-			},
+			}
 			'[' => {
 				stream.advance();
 				Ok(Self::LeftParen(ParenType::Square))
-			},
+			}
 			'{' => {
 				stream.advance();
 				Ok(Self::LeftParen(ParenType::Curly))
-			},
+			}
 			')' => {
 				stream.advance();
 				Ok(Self::RightParen(ParenType::Round))
-			},
+			}
 			']' => {
 				stream.advance();
 				Ok(Self::RightParen(ParenType::Square))
-			},
+			}
 			'}' => {
 				stream.advance();
 				Ok(Self::RightParen(ParenType::Curly))
-			},
+			}
 
 			// TODO: nested escaped parens?
 			'\\' if stream.peek2().and_then(ParenType::parse_left).is_some() => {
 				stream.advance();
 				Ok(Self::EscapedLeftParen(ParenType::parse_left(stream.take().unwrap()).unwrap()))
-			},
+			}
 			'\\' if stream.peek2().and_then(ParenType::parse_right).is_some() => {
 				stream.advance();
 				Ok(Self::EscapedRightParen(ParenType::parse_right(stream.take().unwrap()).unwrap()))
-			},
+			}
 
 			'.' if !stream.peek2().map_or(false, is_symbol_char) => {
 				stream.advance();
 				Ok(Self::Period)
-			},
+			}
 			',' if !stream.peek2().map_or(false, is_symbol_char) => {
 				stream.advance();
 				Ok(Self::Comma)
-			},
+			}
 			';' if !stream.peek2().map_or(false, is_symbol_char) => {
 				stream.advance();
 				Ok(Self::Semicolon)
-			},
+			}
 			':' if matches!(stream.peek2(), Some('-' | '+'))
 				&& stream.peek3().map_or(false, |c| c.is_ascii_digit())
 				|| stream.peek2().map_or(false, |c| c.is_ascii_digit()) =>
 			{
 				stream.advance();
 				match parse_number(stream, true)? {
-					Self::Integer(num) => Ok(Self::Stackframe(num as isize)),
+					Self::Integer(num) => Ok(Self::Stackframe(num.get() as isize)),
 					other => panic!("todo: error for bad stackframe: {other:?}"),
 				}
-			},
+			}
 			':' if stream.peek2() == Some(':') && !stream.peek3().map_or(false, is_symbol_char) => {
 				stream.advance();
 				stream.advance();
 				Ok(Self::ColonColon)
-			},
+			}
 			chr if chr.is_ascii_digit() => parse_number(stream, false),
 			// '-' | '+' if stream.peek2().map_or(false, |c| c.is_ascii_digit()) => parse_number(stream),
 			'\'' | '"' => parse_text(stream),
@@ -278,26 +275,26 @@ fn parse_syntax<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
 		Some('(') => {
 			stream.take();
 			Ok(TokenContents::SyntaxLeftParen(depth, ParenType::Round))
-		},
+		}
 		Some('[') => {
 			stream.take();
 			Ok(TokenContents::SyntaxLeftParen(depth, ParenType::Square))
-		},
+		}
 		Some('{') => {
 			stream.take();
 			Ok(TokenContents::SyntaxLeftParen(depth, ParenType::Curly))
-		},
+		}
 		Some('|') => {
 			stream.take();
 			Ok(TokenContents::SyntaxOr(depth))
-		},
+		}
 		Some('!') => {
 			stream.take();
 			Ok(TokenContents::SyntaxNot(depth))
-		},
+		}
 		Some(c) if c.is_alphanumeric() || c == '_' => {
 			Ok(TokenContents::SyntaxIdentifier(depth, take_identifier(stream)))
-		},
+		}
 		_ => Ok(TokenContents::Symbol(dollars)),
 	}
 }
@@ -324,8 +321,8 @@ fn parse_integer_base(stream: &mut Stream<'_>, base: u32, is_negative: bool) -> 
 
 	while let Some(chr) = stream.peek() {
 		if let Some(digit) = chr.to_digit(base) {
-			integer *= Integer::from(base);
-			integer += Integer::from(digit);
+			integer *= i64::from(base);
+			integer += i64::from(digit);
 		} else if chr != '_' {
 			break;
 		}
@@ -337,14 +334,14 @@ fn parse_integer_base(stream: &mut Stream<'_>, base: u32, is_negative: bool) -> 
 		integer = -integer;
 	}
 
-	integer
+	Integer::new_truncate(integer)
 }
 
 fn parse_float(lhs: Integer, stream: &mut Stream<'_>) -> Float {
 	const TEN: Float = 10.0;
 
 	#[allow(clippy::cast_precision_loss)]
-	let mut float = lhs as Float;
+	let mut float = lhs.get() as Float;
 
 	// OPTIMIZE: in the future, parsing a string should be handled by the rust stdlib or something.
 	if stream.take_if(|c| c == '.').is_some() {
@@ -361,7 +358,7 @@ fn parse_float(lhs: Integer, stream: &mut Stream<'_>) -> Float {
 
 	let exponent = if stream.take_if(|c| c == 'e' || c == 'E').is_some() {
 		let is_exp_neg = Some('-') == stream.take_if(|c| c == '-' || c == '+');
-		parse_integer_base(stream, 10, is_exp_neg)
+		parse_integer_base(stream, 10, is_exp_neg).get()
 	} else {
 		0
 	};
@@ -380,25 +377,22 @@ fn parse_number<'a>(stream: &mut Stream<'a>, integer_only: bool) -> Result<'a, T
 			if base == 10 && !integer_only && stream.peek2().map_or(false, |c| c.is_ascii_digit()) =>
 		{
 			TokenContents::Float(parse_float(integer, stream))
-		},
+		}
 		_ => TokenContents::Integer(integer),
 	};
 
 	match stream.peek() {
 		Some(c) if c.is_alphanumeric() => {
 			Err(stream.error(ErrorKind::BadCharacterAfterIntegerLiteral(c)))
-		},
+		}
 		_ => Ok(contents),
 	}
 }
 
 fn next_hex<'a>(stream: &mut Stream<'a>) -> Result<'a, u32> {
-	let chr = stream
-		.take()
-		.ok_or_else(|| stream.error(ErrorKind::UnterminatedQuote))?;
+	let chr = stream.take().ok_or_else(|| stream.error(ErrorKind::UnterminatedQuote))?;
 
-	chr.to_digit(16)
-		.ok_or_else(|| stream.error(ErrorKind::InvalidEscape))
+	chr.to_digit(16).ok_or_else(|| stream.error(ErrorKind::InvalidEscape))
 }
 
 fn double_quote_escape<'a>(escape: char, stream: &mut Stream<'a>) -> Result<'a, char> {
@@ -442,9 +436,7 @@ fn parse_text<'a>(stream: &mut Stream<'a>) -> Result<'a, TokenContents<'a>> {
 		}
 
 		// It _is_ a backslash. What is it escaping?
-		let escape = stream
-			.take()
-			.ok_or_else(|| stream.error(ErrorKind::UnterminatedQuote))?;
+		let escape = stream.take().ok_or_else(|| stream.error(ErrorKind::UnterminatedQuote))?;
 
 		if quote == '\'' {
 			// If we're single quoted, only `'`, `"`, and `\` are recognized as escapes.

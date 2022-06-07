@@ -50,7 +50,7 @@ impl ConvertTo<Integer> for Boolean {
 	fn convert(&self, args: Args<'_>) -> Result<Integer> {
 		args.assert_no_arguments()?;
 
-		Ok(if *self { 1 } else { 0 })
+		Ok(if *self { Integer::ONE } else { Integer::ZERO })
 	}
 }
 
@@ -254,8 +254,8 @@ mod tests {
 
 	#[test]
 	fn test_convert_to_integer() {
-		assert_eq!(1, ConvertTo::<Integer>::convert(&true, Args::default()).unwrap());
-		assert_eq!(0, ConvertTo::<Integer>::convert(&false, Args::default()).unwrap());
+		assert_eq!(1, ConvertTo::<Integer>::convert(&true, Args::default()).unwrap().get());
+		assert_eq!(0, ConvertTo::<Integer>::convert(&false, Args::default()).unwrap().get());
 
 		assert!(
 			ConvertTo::<Integer>::convert(&true, Args::new(&[Value::TRUE.to_value()], &[])).is_err()

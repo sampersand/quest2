@@ -43,7 +43,7 @@ impl ConvertTo<Integer> for Float {
 	fn convert(&self, args: Args<'_>) -> Result<Integer> {
 		args.assert_no_arguments()?;
 
-		Ok(*self as Integer)
+		Ok(Integer::new_truncate(*self as _))
 	}
 }
 
@@ -174,7 +174,7 @@ pub mod funcs {
 		args.assert_no_arguments()?;
 
 		// TODO: this wont work for things outside the representable range of `Integer`.
-		Ok((float as Integer as Float == float).to_value())
+		Ok((float as i64 as Float == float).to_value())
 	}
 }
 
