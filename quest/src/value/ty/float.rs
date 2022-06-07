@@ -1,4 +1,4 @@
-use crate::value::ty::{ConvertTo, InstanceOf, Singleton, Text};
+use crate::value::ty::{ConvertTo, InstanceOf, Integer, Singleton, Text};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
 use crate::{Result, ToValue, Value};
@@ -39,6 +39,145 @@ impl ConvertTo<Gc<Text>> for Float {
 	}
 }
 
+impl ConvertTo<Integer> for Float {
+	fn convert(&self, args: Args<'_>) -> Result<Integer> {
+		args.assert_no_arguments()?;
+
+		Ok(*self as Integer)
+	}
+}
+
+pub mod funcs {
+	use super::*;
+
+	pub fn at_float(float: Float, args: Args<'_>) -> Result<Value> {
+		ConvertTo::<Float>::convert(&float, args).map(ToValue::to_value)
+	}
+
+	pub fn at_text(float: Float, args: Args<'_>) -> Result<Value> {
+		ConvertTo::<Gc<Text>>::convert(&float, args).map(ToValue::to_value)
+	}
+
+	pub fn at_int(float: Float, args: Args<'_>) -> Result<Value> {
+		ConvertTo::<Integer>::convert(&float, args).map(ToValue::to_value)
+	}
+
+	pub fn dbg(float: Float, args: Args<'_>) -> Result<Value> {
+		at_text(float, args)
+	}
+
+	pub fn op_neg(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok((-float).to_value())
+	}
+
+	pub fn op_add(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((float + args[0].try_downcast::<Float>()?).to_value())
+	}
+
+	pub fn op_sub(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((float - args[0].try_downcast::<Float>()?).to_value())
+	}
+
+	pub fn op_mul(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((float * args[0].try_downcast::<Float>()?).to_value())
+	}
+
+	pub fn op_div(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((float / args[0].try_downcast::<Float>()?).to_value())
+	}
+
+	pub fn op_mod(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((float % args[0].try_downcast::<Float>()?).to_value())
+	}
+
+	pub fn op_pow(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok(float.powf(args[0].try_downcast::<Float>()?).to_value())
+	}
+
+	pub fn op_lth(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((float < args[0].try_downcast::<Float>()?).to_value())
+	}
+
+	pub fn op_leq(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((float <= args[0].try_downcast::<Float>()?).to_value())
+	}
+
+	pub fn op_gth(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((float > args[0].try_downcast::<Float>()?).to_value())
+	}
+
+	pub fn op_geq(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((float >= args[0].try_downcast::<Float>()?).to_value())
+	}
+
+	pub fn op_cmp(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok(float
+			.partial_cmp(&args[0].try_downcast::<Float>()?)
+			.map(|x| x.to_value())
+			.unwrap_or_default())
+	}
+
+	pub fn is_zero(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok((float == 0.0).to_value())
+	}
+
+	pub fn is_positive(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok((float > 0.0).to_value())
+	}
+
+	pub fn is_negative(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok((float < 0.0).to_value())
+	}
+
+	pub fn is_whole(float: Float, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		// TODO: this wont work for things outside the representable range of `Integer`.
+		Ok((float as Integer as Float == float).to_value())
+	}
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct FloatClass;
 
@@ -50,16 +189,29 @@ impl Singleton for FloatClass {
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Float", parent Object::instance();
-				// Intern::op_add => method funcs::add,
-				// Intern::op_sub => method funcs::sub,
-				// Intern::op_mul => method funcs::mul,
-				// Intern::op_div => method funcs::div,
-				// Intern::op_mod => method funcs::r#mod,
-				// Intern::op_pow => method funcs::pow,
-				// Intern::op_lth => method funcs::lth,
-				// Intern::op_leq => method funcs::leq,
-				// Intern::op_neg => method funcs::neg,
+				Intern::op_neg => method funcs::op_neg,
+				Intern::op_add => method funcs::op_add,
+				Intern::op_sub => method funcs::op_sub,
+				Intern::op_mul => method funcs::op_mul,
+				Intern::op_div => method funcs::op_div,
+				Intern::op_mod => method funcs::op_mod,
+				Intern::op_pow => method funcs::op_pow,
+
+				Intern::op_lth => method funcs::op_lth,
+				Intern::op_leq => method funcs::op_leq,
+				Intern::op_gth => method funcs::op_gth,
+				Intern::op_geq => method funcs::op_geq,
+				Intern::op_cmp => method funcs::op_cmp,
+
+				Intern::is_zero => method funcs::is_zero,
+				Intern::is_positive => method funcs::is_positive,
+				Intern::is_negative => method funcs::is_negative,
+				Intern::is_whole => method funcs::is_whole,
+
 				Intern::at_text => method funcs::at_text,
+				Intern::at_float => method funcs::at_float,
+				Intern::at_int => method funcs::at_int,
+
 				Intern::dbg => method funcs::dbg,
 			}
 		})
@@ -68,18 +220,6 @@ impl Singleton for FloatClass {
 
 impl InstanceOf for Float {
 	type Parent = FloatClass;
-}
-
-pub mod funcs {
-	use super::*;
-
-	pub fn at_text(float: Float, args: Args<'_>) -> Result<Value> {
-		ConvertTo::<Gc<Text>>::convert(&float, args).map(ToValue::to_value)
-	}
-
-	pub fn dbg(float: Float, args: Args<'_>) -> Result<Value> {
-		at_text(float, args)
-	}
 }
 
 #[cfg(test)]

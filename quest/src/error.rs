@@ -63,6 +63,9 @@ pub enum ErrorKind {
 
 	/// Too many stackframes encountered
 	StackOverflow,
+
+	/// An assertion failed, with an optional message
+	AssertionFailed(Option<crate::value::Gc<crate::value::ty::Text>>),
 }
 
 impl Display for Error {
@@ -103,6 +106,8 @@ impl Display for ErrorKind {
 				write!(f, "frame {frame:?} is currently executing")
 			}
 			Self::StackOverflow => write!(f, "too many stackframes are running"),
+			Self::AssertionFailed(None) => write!(f, "an assertion failed"),
+			Self::AssertionFailed(Some(err)) => write!(f, "an assertion failed: {err:?}"),
 		}
 	}
 }

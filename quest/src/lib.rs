@@ -29,6 +29,30 @@ extern crate assert_matches;
 #[macro_use]
 extern crate qvm_macros;
 
+#[cfg(test)]
+macro_rules! assert_code {
+	($code:literal) => {
+		$crate::run_code($code).unwrap();
+	};
+	($code:literal $($rest:tt)*) => {
+		$crate::run_code(&format!($code $($rest)*)).unwrap();
+	};
+}
+
+#[cfg(test)]
+fn run_code(code: &str) -> Result<Value> {
+	use quest::parse::ast::{Compile, Group};
+
+	let mut parser = parse::Parser::new(code, None);
+	let mut builder = vm::block::Builder::default();
+
+	Group::parse_all(&mut parser)
+		.expect("bad parse")
+		.compile(&mut builder, vm::block::Local::Scratch);
+
+	builder.build().run(vm::Args::default())
+}
+
 #[macro_use]
 pub mod value;
 pub mod error;

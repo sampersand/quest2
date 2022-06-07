@@ -34,6 +34,7 @@ impl Object {
 				Intern::print => function funcs::print,
 				Intern::freeze => function funcs::freeze,
 				Intern::dbg => function funcs::dbg,
+				Intern::assert => function funcs::assert,
 			}
 		})
 	}
@@ -90,13 +91,6 @@ pub mod funcs {
 			kind: ErrorKind::Return { value: obj, from_frame: args.get(0) },
 			stacktrace: crate::error::Stacktrace::empty(),
 		})
-	}
-
-	pub fn assert(obj: Value, args: Args<'_>) -> Result<Value> {
-		args.assert_no_arguments()?;
-
-		let _ = obj;
-		todo!("assert")
 	}
 
 	pub fn tap(obj: Value, args: Args<'_>) -> Result<Value> {
@@ -204,6 +198,17 @@ pub mod funcs {
 		builder.push('>');
 
 		Ok(builder.finish().to_value())
+	}
+
+	pub fn assert(obj: Value, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.idx_err_unless(|a| a.positional().len() <= 1)?;
+
+		if obj.is_truthy() {
+			Ok(obj)
+		} else {
+			Err(ErrorKind::AssertionFailed(args.get(0).map(Value::try_downcast).transpose()?).into())
+		}
 	}
 }
 /*

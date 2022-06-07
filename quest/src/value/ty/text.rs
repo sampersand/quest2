@@ -1032,7 +1032,7 @@ pub mod funcs {
 		Ok(text.to_value())
 	}
 
-	pub fn add(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
+	pub fn op_add(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -1045,7 +1045,7 @@ pub mod funcs {
 		Ok(text.to_value())
 	}
 
-	pub fn eql(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
+	pub fn op_eql(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -1061,7 +1061,7 @@ pub mod funcs {
 		Ok((text.as_ref()?.len() as i64).to_value())
 	}
 
-	pub fn assign(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
+	pub fn op_assign(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -1086,9 +1086,9 @@ quest_type_attrs! { for Gc<Text>,
 	parent Object;
 	concat => meth funcs::concat,
 	len => meth funcs::len,
-	op_eql => meth funcs::eql,
-	op_add => meth funcs::add,
-	op_assign => meth funcs::assign,
+	op_eql => meth funcs::op_eql,
+	op_add => meth funcs::op_add,
+	op_assign => meth funcs::op_assign,
 	dbg => meth funcs::dbg,
 }
 

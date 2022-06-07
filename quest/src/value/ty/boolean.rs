@@ -126,13 +126,45 @@ pub mod funcs {
 	}
 
 	pub fn at_text(boolean: bool, args: Args<'_>) -> Result<Value> {
-		args.assert_no_keyword()?;
-
 		ConvertTo::<Gc<Text>>::convert(&boolean, args).map(ToValue::to_value)
+	}
+
+	pub fn at_int(boolean: bool, args: Args<'_>) -> Result<Value> {
+		ConvertTo::<Integer>::convert(&boolean, args).map(ToValue::to_value)
+	}
+
+	pub fn at_bool(boolean: bool, args: Args<'_>) -> Result<Value> {
+		ConvertTo::<Boolean>::convert(&boolean, args).map(ToValue::to_value)
 	}
 
 	pub fn dbg(boolean: bool, args: Args<'_>) -> Result<Value> {
 		at_text(boolean, args)
+	}
+
+	pub fn op_not(boolean: bool, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+		Ok((!boolean).to_value())
+	}
+
+	pub fn op_bitand(boolean: bool, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((boolean & args[0].try_downcast::<Boolean>()?).to_value())
+	}
+
+	pub fn op_bitor(boolean: bool, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((boolean | args[0].try_downcast::<Boolean>()?).to_value())
+	}
+
+	pub fn op_bitxor(boolean: bool, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((boolean ^ args[0].try_downcast::<Boolean>()?).to_value())
 	}
 }
 
@@ -144,15 +176,23 @@ impl HasDefaultParent for Boolean {
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Boolean", parent Object::instance();
-				// "+" => method funcs::add,
+				Intern::op_not => method funcs::op_not,
+				Intern::op_bitand => method funcs::op_bitand,
+				Intern::op_bitor => method funcs::op_bitor,
+				Intern::op_bitxor => method funcs::op_bitxor,
+
+				Intern::and => method funcs::and,
 				Intern::then => method funcs::then,
 				Intern::and_then => method funcs::and_then,
+
+				Intern::or => method funcs::or,
 				Intern::r#else => method funcs::r#else,
 				Intern::or_else => method funcs::or_else,
-				Intern::and => method funcs::and,
-				Intern::or => method funcs::or,
+
 				Intern::dbg => method funcs::dbg,
 				Intern::at_text => method funcs::at_text,
+				Intern::at_int => method funcs::at_int,
+				Intern::at_bool => method funcs::at_bool,
 			}
 		})
 	}

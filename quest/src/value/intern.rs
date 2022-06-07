@@ -89,42 +89,60 @@ macro_rules! define_interned {
 }
 
 define_interned! {
-	__parents__
-	__id__ __name__
+	// underscore methods
+	__parents__ __id__ __name__
 	__get_attr__ __get_unbound_attr__ __set_attr__
 	__del_attr__ __has_attr__ __call_attr__
 
-	concat
-	len
-
-	op_add "+" op_sub "-" op_mul "*" op_div "/" op_mod "%" op_pow "**"
-	op_eql "==" op_neq "!=" op_lth "<" op_leq "<=" op_gth ">" op_geq ">=" op_cmp "<=>"
-	op_not "!" op_neg "-@" op_index "[]" op_index_assign "[]=" op_call "()" op_assign "="
-
-	at_text "@text" at_num "@num" at_bool "@bool" at_list "@list"
-	at_int "@int" at_float "@float"
-
-	hash
-	clone
-	tap tap_into then and_then or_else or and itself
-
-	if_cascade ifl
-	r#if "if"
-	r#while "while"
-	r#else "else"
-	r#return "return"
-	exit abort spawn join
-
+	// Constants
 	r#true "true" r#false "false" null
-	print freeze
-	resume restart dbg create_frame
-	push pop shift unshift dump
 
-	map upto each
-
+	// Classes
 	Boolean BoundFn Callable Class Float Integer Kernel List
 	Null Object Pristine RustFn Scope Text
 	Frame Block
+
+	// Operators
+	op_add "+" op_sub "-" op_mul "*" op_div "/" op_mod "%" op_pow "**"
+	op_eql "==" op_neq "!=" op_lth "<" op_leq "<=" op_gth ">" op_geq ">=" op_cmp "<=>"
+	op_not "!" op_neg "-@" op_index "[]" op_index_assign "[]=" op_call "()" op_assign "="
+	op_shl "<<" op_shr ">>" op_bitand "&" op_bitor "|" op_bitxor "^" op_bitneg
+
+	// Conversions
+	at_text "@text" at_num "@num" at_bool "@bool" at_list "@list"
+	at_int "@int" at_float "@float"
+	dbg
+
+	// `Object` functions
+	hash clone itself
+	tap tap_into then and_then r#else "else" or_else or and
+	print freeze
+
+	// Kernel functions
+	if_cascade ifl r#if "if"
+	r#while "while" r#return "return"
+	exit abort assert
+	spawn dump // both are temporary
+
+	// Frame and Block Functions
+	resume restart create_frame
+
+	// String functions
+	join concat len
+
+	// Array functions
+	push pop shift unshift
+
+	// Enumerator functions
+	map filter reduce each next
+
+	// Integer functions
+	upto downto times chr
+	is_even is_odd is_zero is_positive is_negative
+
+	// Float functions
+	is_whole
+
 }
 
 // Note that this has to be implemented like this because we manually implement `Hash`.

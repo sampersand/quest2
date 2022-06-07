@@ -73,3 +73,13 @@ impl<T: Convertible> ToValue for T {
 		self.into().to_value()
 	}
 }
+
+impl ToValue for std::cmp::Ordering {
+	fn to_value(self) -> Value {
+		match self {
+			Self::Less => (-1).to_value(),
+			Self::Equal => 0.to_value(),
+			Self::Greater => 1.to_value(),
+		}
+	}
+}

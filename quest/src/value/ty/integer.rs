@@ -74,28 +74,28 @@ impl ConvertTo<Float> for Integer {
 pub mod funcs {
 	use super::*;
 
-	pub fn add(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn op_add(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok((int + args[0].try_downcast::<Integer>()?).to_value())
 	}
 
-	pub fn sub(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn op_sub(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok((int - args[0].try_downcast::<Integer>()?).to_value())
 	}
 
-	pub fn mul(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn op_mul(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok((int * args[0].try_downcast::<Integer>()?).to_value())
 	}
 
-	pub fn div(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn op_div(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -109,7 +109,7 @@ pub mod funcs {
 	}
 
 	// TODO: verify it's actually modulus
-	pub fn r#mod(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn op_mod(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -122,7 +122,7 @@ pub mod funcs {
 		}
 	}
 
-	pub fn pow(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn op_pow(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -136,28 +136,98 @@ pub mod funcs {
 		}
 	}
 
-	pub fn lth(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn op_lth(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok((int < args[0].try_downcast::<Integer>()?).to_value())
 	}
 
-	pub fn leq(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn op_leq(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
 		Ok((int <= args[0].try_downcast::<Integer>()?).to_value())
 	}
 
-	pub fn neg(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn op_gth(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((int > args[0].try_downcast::<Integer>()?).to_value())
+	}
+
+	pub fn op_geq(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((int >= args[0].try_downcast::<Integer>()?).to_value())
+	}
+
+	pub fn op_cmp(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok(int.cmp(&args[0].try_downcast::<Integer>()?).to_value())
+	}
+
+	pub fn op_neg(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		Ok((-int).to_value())
 	}
 
+	pub fn op_shl(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((int << args[0].try_downcast::<Integer>()?).to_value())
+	}
+
+	pub fn op_shr(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((int >> args[0].try_downcast::<Integer>()?).to_value())
+	}
+
+	pub fn op_bitand(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((int & args[0].try_downcast::<Integer>()?).to_value())
+	}
+
+	pub fn op_bitor(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((int | args[0].try_downcast::<Integer>()?).to_value())
+	}
+
+	pub fn op_bitxor(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok((int ^ args[0].try_downcast::<Integer>()?).to_value())
+	}
+
+	pub fn op_bitneg(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok((!int).to_value())
+	}
+
 	pub fn at_text(int: Integer, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Gc<Text>>::convert(&int, args).map(ToValue::to_value)
+	}
+
+	pub fn at_float(int: Integer, args: Args<'_>) -> Result<Value> {
+		ConvertTo::<Float>::convert(&int, args).map(ToValue::to_value)
+	}
+
+	pub fn at_int(int: Integer, args: Args<'_>) -> Result<Value> {
+		ConvertTo::<Integer>::convert(&int, args).map(ToValue::to_value)
 	}
 
 	pub fn dbg(int: Integer, args: Args<'_>) -> Result<Value> {
@@ -180,7 +250,7 @@ pub mod funcs {
 
 		let max = args[0].try_downcast::<Integer>()?;
 
-		if max <= int {
+		if max < int {
 			return Ok(List::new().to_value());
 		}
 
@@ -193,11 +263,81 @@ pub mod funcs {
 
 		Ok(list.to_value())
 	}
-}
 
-// impl crate::value::base::HasDefaultParent for Integer {
-// 	fn parent() -> Value {}
-// }
+	pub fn downto(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let min = args[0].try_downcast::<Integer>()?;
+
+		if min > int {
+			return Ok(List::new().to_value());
+		}
+
+		let list = List::with_capacity((int - min) as usize);
+		let mut listmut = list.as_mut().unwrap();
+
+		for i in (min..=int).rev() {
+			listmut.push(i.to_value());
+		}
+
+		Ok(list.to_value())
+	}
+
+	pub fn times(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		upto(0, Args::new(&[(int - 1).to_value()], &[]))
+	}
+
+	pub fn chr(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		if let Some(chr) = u32::try_from(int).ok().and_then(char::from_u32) {
+			let mut builder = Text::simple_builder();
+			builder.push(chr);
+			Ok(builder.finish().to_value())
+		} else {
+			Err(format!("oops, number {int:x} is out of bounds!").into())
+		}
+	}
+
+	pub fn is_even(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok((int % 2 == 0).to_value())
+	}
+
+	pub fn is_odd(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok((int % 2 == 1).to_value())
+	}
+
+	pub fn is_zero(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok((int == 0).to_value())
+	}
+
+	pub fn is_one(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok((int == 1).to_value())
+	}
+
+	pub fn is_positive(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok((int > 0).to_value())
+	}
+
+	pub fn is_negative(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok((int < 0).to_value())
+	}
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct IntegerClass;
@@ -210,18 +350,42 @@ impl Singleton for IntegerClass {
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Integer", parent Object::instance();
-				Intern::op_add => method funcs::add,
-				Intern::op_sub => method funcs::sub,
-				Intern::op_mul => method funcs::mul,
-				Intern::op_div => method funcs::div,
-				Intern::op_mod => method funcs::r#mod,
-				Intern::op_pow => method funcs::pow,
-				Intern::op_lth => method funcs::lth,
-				Intern::op_leq => method funcs::leq,
-				Intern::op_neg => method funcs::neg,
-				Intern::at_text => method funcs::at_text,
-				Intern::dbg => method funcs::dbg,
+				Intern::op_neg => method funcs::op_neg,
+				Intern::op_add => method funcs::op_add,
+				Intern::op_sub => method funcs::op_sub,
+				Intern::op_mul => method funcs::op_mul,
+				Intern::op_div => method funcs::op_div,
+				Intern::op_mod => method funcs::op_mod,
+				Intern::op_pow => method funcs::op_pow,
+
+				Intern::op_lth => method funcs::op_lth,
+				Intern::op_leq => method funcs::op_leq,
+				Intern::op_gth => method funcs::op_gth,
+				Intern::op_geq => method funcs::op_geq,
+				Intern::op_cmp => method funcs::op_cmp,
+
+				Intern::op_shl => method funcs::op_shl,
+				Intern::op_shr => method funcs::op_shr,
+				Intern::op_bitand => method funcs::op_bitand,
+				Intern::op_bitor => method funcs::op_bitor,
+				Intern::op_bitxor => method funcs::op_bitxor,
+				Intern::op_bitneg => method funcs::op_bitneg,
+
+				Intern::times => method funcs::times,
 				Intern::upto => method funcs::upto,
+				Intern::downto => method funcs::downto,
+
+				Intern::is_even => method funcs::is_even,
+				Intern::is_odd => method funcs::is_odd,
+				Intern::is_zero => method funcs::is_zero,
+				Intern::is_positive => method funcs::is_positive,
+				Intern::is_negative => method funcs::is_negative,
+
+				Intern::chr => method funcs::chr,
+				Intern::at_text => method funcs::at_text,
+				Intern::at_float => method funcs::at_float,
+				Intern::at_int => method funcs::at_int,
+				Intern::dbg => method funcs::dbg,
 			}
 		})
 	}
@@ -355,4 +519,64 @@ mod tests {
 			assert_eq!(radix_fmt::radix(MAX, radix).to_string(), to_text!(MAX, radix));
 		}
 	}
+
+	#[test]
+	fn op_neg() {
+		// println!("{} {} {} {}", -i8::MAX, i8::MAX, i8::MIN, 0);
+		// println!("{MAX} {:?}", (-MAX).to_value().downcast::<Integer>().unwrap());
+		// println!("{MIN} {:?}", (-MIN).to_value().downcast::<Integer>().unwrap());
+
+		assert_code! {
+			r#"
+				# Make sure we aren't using a `-` prefix when parsing
+				assert( -(1) == (0 - 1) );
+				assert( -(0) == 0 );
+				assert( -(-(1)) == 1 );
+				#assert( -({MAX}) == {MIN} );
+				#assert( -({MIN}) == {MAX} );
+			"#,
+		}
+	}
+
+	/*
+				create_class! { "Integer", parent Object::instance();
+					Intern::op_neg => method funcs::op_neg,
+					Intern::op_add => method funcs::op_add,
+					Intern::op_sub => method funcs::op_sub,
+					Intern::op_mul => method funcs::op_mul,
+					Intern::op_div => method funcs::op_div,
+					Intern::op_mod => method funcs::op_mod,
+					Intern::op_pow => method funcs::op_pow,
+
+					Intern::op_lth => method funcs::op_lth,
+					Intern::op_leq => method funcs::op_leq,
+					Intern::op_gth => method funcs::op_gth,
+					Intern::op_geq => method funcs::op_geq,
+					Intern::op_cmp => method funcs::op_cmp,
+
+					Intern::op_shl => method funcs::op_shl,
+					Intern::op_shr => method funcs::op_shr,
+					Intern::op_bitand => method funcs::op_bitand,
+					Intern::op_bitor => method funcs::op_bitor,
+					Intern::op_bitxor => method funcs::op_bitxor,
+					Intern::op_bitneg => method funcs::op_bitneg,
+
+					Intern::times => method funcs::times,
+					Intern::upto => method funcs::upto,
+					Intern::downto => method funcs::downto,
+
+					Intern::is_even => method funcs::is_even,
+					Intern::is_odd => method funcs::is_odd,
+					Intern::is_zero => method funcs::is_zero,
+					Intern::is_positive => method funcs::is_positive,
+					Intern::is_negative => method funcs::is_negative,
+
+					Intern::chr => method funcs::chr,
+					Intern::at_text => method funcs::at_text,
+					Intern::at_float => method funcs::at_float,
+					Intern::at_int => method funcs::at_int,
+					Intern::dbg => method funcs::dbg,
+				}
+			})
+	*/
 }
