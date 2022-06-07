@@ -1,14 +1,19 @@
-use crate::value::ty::{ConvertTo, Float, InstanceOf, List, Singleton, Text};
+use crate::value::ty::{BigNum, ConvertTo, Float, InstanceOf, List, Singleton, Text};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
 use crate::{Result, ToValue, Value};
 use std::fmt::{self, Display, Formatter};
-use std::ops;
 
 pub type Inner = i64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Integer(Inner);
+
+impl PartialEq<Inner> for Integer {
+	fn eq(&self, rhs: &Inner) -> bool {
+		self.0 == *rhs
+	}
+}
 
 impl Integer {
 	/// The largest possible [`Integer`]. Anything larger than this will become a [`BigNum`].
@@ -112,14 +117,41 @@ impl ConvertTo<Float> for Integer {
 	}
 }
 
-impl ops::Add<Integer> for Integer {
-	type Output = Value;
+impl Integer {
+	pub fn checked_add(self, rhs: Self) -> Value {
+		// i63::MAX + i63::MAX shouldnt overflow checked add.
+		debug_assert!(self.0.checked_add(rhs.0).is_some());
 
-	fn add(self, rhs: Self) -> Self::Output {
-		// if let Some(result) = self.0.checked_add(rhs.0) {
-		// 	return Self::new_truncate;
-		// }
-		todo!()
+		let sum = self.0 + rhs.0;
+		if let Some(integer) = Self::new(sum) {
+			return integer.to_value();
+		}
+
+		BigNum::from_i64(sum).to_value()
+	}
+
+	pub fn checked_sub(self, rhs: Self) -> Value {
+		// i63::MIN - i63::MIN shouldnt overflow checked add.
+		debug_assert!(self.0.checked_sub(rhs.0).is_some());
+
+		let difference = self.0 - rhs.0;
+		if let Some(integer) = Self::new(difference) {
+			return integer.to_value();
+		}
+
+		BigNum::from_i64(difference).to_value()
+	}
+
+	pub fn checked_mul(self, rhs: Self) -> Value {
+		if let Some(integer) = self.0.checked_mul(rhs.0).and_then(Self::new) {
+			return integer.to_value();
+		}
+
+		(&*self.to_bignum().as_ref().unwrap() * &*rhs.to_bignum().as_ref().unwrap()).to_value()
+	}
+
+	pub fn to_bignum(self) -> Gc<BigNum> {
+		BigNum::from_i64(self.get())
 	}
 }
 
@@ -127,30 +159,28 @@ pub mod funcs {
 	use super::*;
 
 	pub fn op_add(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		Ok(int.checked_add(args[0].try_downcast::<Integer>()?))
 
 		// Ok((int + args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn op_sub(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
 		// args.assert_no_keyword()?;
 		// args.assert_positional_len(1)?;
+
+		Ok(int.checked_sub(args[0].try_downcast::<Integer>()?))
 
 		// Ok((int - args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn op_mul(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// Ok((int * args[0].try_downcast::<Integer>()?).to_value())
+		Ok(int.checked_mul(args[0].try_downcast::<Integer>()?))
 	}
 
 	pub fn op_div(int: Integer, args: Args<'_>) -> Result<Value> {
@@ -201,48 +231,38 @@ pub mod funcs {
 	}
 
 	pub fn op_lth(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// Ok((int < args[0].try_downcast::<Integer>()?).to_value())
+		Ok((int < args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn op_leq(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// Ok((int <= args[0].try_downcast::<Integer>()?).to_value())
+		Ok((int <= args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn op_gth(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// Ok((int > args[0].try_downcast::<Integer>()?).to_value())
+		Ok((int > args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn op_geq(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// Ok((int >= args[0].try_downcast::<Integer>()?).to_value())
+		Ok((int >= args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn op_cmp(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// Ok(int.cmp(&args[0].try_downcast::<Integer>()?).to_value())
+		Ok(int.cmp(&args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn op_neg(int: Integer, args: Args<'_>) -> Result<Value> {
@@ -512,13 +532,13 @@ mod tests {
 
 	#[test]
 	fn test_get() {
-		assert_eq!(Integer(0), Integer::get(Integer(0i64).into()));
-		assert_eq!(Integer(1), Integer::get(Integer(1i64).into()));
-		assert_eq!(Integer(-123), Integer::get(Integer(-123i64).into()));
-		assert_eq!(Integer(14), Integer::get(Integer(14i64).into()));
-		assert_eq!(Integer(-1), Integer::get(Integer(-1i64).into()));
-		assert_eq!(Integer::MIN, Integer::get(Integer::MIN.into()));
-		assert_eq!(Integer::MAX, Integer::get(Integer::MAX.into()));
+		assert_eq!(Integer(0), <Integer as Convertible>::get(Integer(0i64).into()));
+		assert_eq!(Integer(1), <Integer as Convertible>::get(Integer(1i64).into()));
+		assert_eq!(Integer(-123), <Integer as Convertible>::get(Integer(-123i64).into()));
+		assert_eq!(Integer(14), <Integer as Convertible>::get(Integer(14i64).into()));
+		assert_eq!(Integer(-1), <Integer as Convertible>::get(Integer(-1i64).into()));
+		assert_eq!(Integer::MIN, <Integer as Convertible>::get(Integer::MIN.into()));
+		assert_eq!(Integer::MAX, <Integer as Convertible>::get(Integer::MAX.into()));
 	}
 
 	#[test]

@@ -168,7 +168,7 @@ mod tests {
 
 	#[test]
 	fn test_convert_to_integer() {
-		assert_eq!(0, ConvertTo::<Integer>::convert(&Null, Args::default()).unwrap());
+		assert_eq!(Integer::ZERO, ConvertTo::<Integer>::convert(&Null, Args::default()).unwrap());
 		assert!(
 			ConvertTo::<Integer>::convert(&Null, Args::new(&[Value::TRUE.to_value()], &[])).is_err()
 		);

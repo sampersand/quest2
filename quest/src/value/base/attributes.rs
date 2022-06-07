@@ -356,7 +356,7 @@ mod tests {
 			let mut textmut = text.as_mut().unwrap();
 
 			for i in 0..=list::MAX_LISTMAP_LEN * 2 {
-				let value = Value::from(i as i64).to_value_const();
+				let value = Value::from(Integer::new(i as i64).unwrap()).to_value_const();
 				textmut.set_attr(value, value).unwrap();
 
 				// assert!(textmut.r().get_unbound_attr(value).unwrap().unwrap().try_eq(value).unwrap());
@@ -365,7 +365,7 @@ mod tests {
 
 		let textref = text.as_ref().unwrap();
 
-		let value = Value::from(3).to_value_const();
+		let value = Value::from(Integer::new(3).unwrap()).to_value_const();
 		assert!(textref
 			.get_unbound_attr_checked(value, &mut vec![])
 			.unwrap()
@@ -375,7 +375,7 @@ mod tests {
 
 		// now it should be a full `map`, let's go over all of them again.
 		for i in 0..=list::MAX_LISTMAP_LEN * 2 {
-			let value = Value::from(i as i64).to_value_const();
+			let value = Value::from(Integer::new(i as i64).unwrap()).to_value_const();
 			assert!(textref
 				.get_unbound_attr_checked(value, &mut vec![])
 				.unwrap()
@@ -393,7 +393,11 @@ mod tests {
 		assert_matches!(text.as_ref().unwrap().get_unbound_attr_checked(ONE, &mut vec![]), Ok(None));
 		assert_matches!(text.as_mut().unwrap().del_attr(ONE), Ok(None));
 
-		text.as_mut().unwrap().set_attr(ONE, Value::from(23).to_value_const()).unwrap();
+		text
+			.as_mut()
+			.unwrap()
+			.set_attr(ONE, Value::from(Integer::new(23).unwrap()).to_value_const())
+			.unwrap();
 
 		assert_eq!(
 			text
@@ -404,10 +408,14 @@ mod tests {
 				.unwrap()
 				.downcast::<Integer>()
 				.unwrap(),
-			23
+			Integer::new(23).unwrap()
 		);
 
-		text.as_mut().unwrap().set_attr(ONE, Value::from(45).to_value_const()).unwrap();
+		text
+			.as_mut()
+			.unwrap()
+			.set_attr(ONE, Value::from(Integer::new(45).unwrap()).to_value_const())
+			.unwrap();
 		assert_eq!(
 			text
 				.as_ref()
@@ -417,12 +425,12 @@ mod tests {
 				.unwrap()
 				.downcast::<Integer>()
 				.unwrap(),
-			45
+			Integer::new(45).unwrap()
 		);
 
 		assert_eq!(
 			text.as_mut().unwrap().del_attr(ONE).unwrap().unwrap().downcast::<Integer>().unwrap(),
-			45
+			Integer::new(45).unwrap()
 		);
 		assert_matches!(text.as_ref().unwrap().get_unbound_attr_checked(ONE, &mut vec![]), Ok(None));
 	}
@@ -437,7 +445,7 @@ mod tests {
 		const ATTR: Value = Value::TRUE.to_value_const();
 
 		let mut parent = Value::from("hello, world").to_value_const();
-		parent.set_attr(ATTR, Value::from(123).to_value_const()).unwrap();
+		parent.set_attr(ATTR, Value::from(Integer::new(123).unwrap()).to_value_const()).unwrap();
 		assert_eq!(
 			parent
 				.get_unbound_attr_checked(ATTR, &mut vec![])
@@ -445,7 +453,7 @@ mod tests {
 				.unwrap()
 				.downcast::<Integer>()
 				.unwrap(),
-			123
+			Integer::new(123).unwrap()
 		);
 
 		let mut child = Value::ONE.to_value_const();
@@ -459,10 +467,10 @@ mod tests {
 				.unwrap()
 				.downcast::<Integer>()
 				.unwrap(),
-			123
+			Integer::new(123).unwrap()
 		);
 
-		child.set_attr(ATTR, Value::from(456).to_value_const()).unwrap();
+		child.set_attr(ATTR, Value::from(Integer::new(456).unwrap()).to_value_const()).unwrap();
 		assert_eq!(
 			child
 				.get_unbound_attr_checked(ATTR, &mut vec![])
@@ -470,10 +478,13 @@ mod tests {
 				.unwrap()
 				.downcast::<Integer>()
 				.unwrap(),
-			456
+			Integer::new(456).unwrap()
 		);
 
-		assert_eq!(child.del_attr(ATTR).unwrap().unwrap().downcast::<Integer>().unwrap(), 456);
+		assert_eq!(
+			child.del_attr(ATTR).unwrap().unwrap().downcast::<Integer>().unwrap(),
+			Integer::new(456).unwrap()
+		);
 		assert_eq!(
 			child
 				.get_unbound_attr_checked(ATTR, &mut vec![])
@@ -481,7 +492,7 @@ mod tests {
 				.unwrap()
 				.downcast::<Integer>()
 				.unwrap(),
-			123
+			Integer::new(123).unwrap()
 		);
 		assert!(child.del_attr(ATTR).unwrap().is_none()); // cannot delete from parents.
 	}

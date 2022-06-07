@@ -948,6 +948,9 @@ mod tests {
 
 		let result = fib.run(Args::new(&[15.to_value()], &[])).unwrap();
 
-		assert_eq!(result.downcast::<crate::value::ty::Integer>(), Some(610));
+		assert_eq!(
+			result.downcast::<crate::value::ty::Integer>(),
+			Some(crate::value::ty::Integer::new(610).unwrap())
+		);
 	}
 }

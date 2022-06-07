@@ -200,6 +200,7 @@ impl Value {
 			_ if self.is_a::<Gc<Class>>() => Gc::<Class>::TYPENAME,
 			_ if self.is_a::<Gc<Scope>>() => Gc::<Scope>::TYPENAME,
 			_ if self.is_a::<Gc<BoundFn>>() => Gc::<BoundFn>::TYPENAME,
+			_ if self.is_a::<Gc<BigNum>>() => Gc::<BigNum>::TYPENAME,
 			_ if self.is_a::<Gc<crate::vm::Block>>() => Gc::<crate::vm::Block>::TYPENAME,
 			_ if self.is_a::<Gc<crate::vm::Frame>>() => Gc::<crate::vm::Frame>::TYPENAME,
 			_ if cfg!(debug_assertions) => panic!("todo: typename for {:?}", self),
@@ -603,6 +604,8 @@ impl Debug for Value {
 			Debug::fmt(&t, fmt)
 		} else if let Some(l) = self.downcast::<Gc<List>>() {
 			Debug::fmt(&l, fmt)
+		} else if let Some(l) = self.downcast::<Gc<BigNum>>() {
+			Debug::fmt(&l, fmt)
 		} else if let Some(l) = self.downcast::<Gc<Class>>() {
 			Debug::fmt(&l, fmt)
 		} else if let Some(l) = self.downcast::<Gc<Scope>>() {
@@ -694,7 +697,7 @@ mod tests {
 		let five = value!(5);
 		let twelve = value!(12);
 		assert_eq!(
-			17,
+			Integer::new(17).unwrap(),
 			five.call_attr(Intern::op_add, args![twelve]).unwrap().downcast::<Integer>().unwrap()
 		);
 
