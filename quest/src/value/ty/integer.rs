@@ -1,49 +1,73 @@
-use crate::value::ty::{BigNum, ConvertTo, Float, InstanceOf, List, Singleton, Text};
+use crate::value::ty::{ConvertTo, Float, InstanceOf, List, Singleton, Text};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
-use crate::{Result, ToValue, Value};
+use crate::{ErrorKind, Result, ToValue, Value};
+use num_bigint::BigInt;
 use std::fmt::{self, Display, Formatter};
 
 pub type Inner = i64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub struct Integer(Inner);
+#[repr(transparent)]
+pub struct Integer {
+	// We have it as `n` instead of `0` to make it harder to accidentally create it.
+	n: Inner,
+}
 
 impl PartialEq<Inner> for Integer {
 	fn eq(&self, rhs: &Inner) -> bool {
-		self.0 == *rhs
+		self.get() == *rhs
 	}
 }
 
 impl Integer {
 	/// The largest possible [`Integer`]. Anything larger than this will become a [`BigNum`].
-	pub const MAX: Self = Self((u64::MAX >> 2) as Inner); // all but the top two bits
+	pub const MAX: Self = unsafe { Self::new_raw(i64::MAX & !1) };
 
 	/// The smallest possible [`Integer`]. Anything smaller than this will become a [`BigNum`].
-	pub const MIN: Self = Self(!Self::MAX.0);
+	pub const MIN: Self = unsafe { Self::new_raw(i64::MIN & !1) };
+	// pub const MAX: Self = Self(((u64::MAX >> 2) as Inner) << 1); // all but the top two bits
 
-	pub const ONE: Self = Self(1);
-	pub const ZERO: Self = Self(0);
+	// /// The smallest possible [`Integer`]. Anything smaller than this will become a [`BigNum`].
+	// pub const MIN: Self = Self((!Self::MAX.0) & !1);
+
+	pub const ONE: Self = Self::new_truncate(1);
+	pub const NEG_ONE: Self = Self::new_truncate(-1);
+	pub const ZERO: Self = Self::new_truncate(0);
 
 	pub const fn new(num: Inner) -> Option<Self> {
-		if (num << 1) >> 1 == num {
-			Some(Self(num))
+		let truncated = Self::new_truncate(num);
+
+		if truncated.get() == num {
+			Some(Self::new_truncate(num))
 		} else {
 			None
 		}
 	}
 
+	pub const unsafe fn new_raw(num: Inner) -> Self {
+		debug_assert!(num & 1 == 0);
+		Self { n: num }
+	}
+
+	pub const fn get_raw(self) -> i64 {
+		self.n
+	}
+
 	pub const fn new_truncate(num: Inner) -> Self {
-		Self((num << 1) >> 1)
+		Self { n: num << 1 }
 	}
 
 	pub const fn get(self) -> Inner {
-		self.0
+		debug_assert!(self.n & 1 == 0);
+
+		self.n >> 1
 	}
 }
 
 impl ToValue for Inner {
 	// soft deprecated
+	#[must_use]
 	fn to_value(self) -> Value {
 		Integer::new_truncate(self).to_value()
 	}
@@ -51,7 +75,7 @@ impl ToValue for Inner {
 
 impl Display for Integer {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		Display::fmt(&self.0, f)
+		Display::fmt(&self.get(), f)
 	}
 }
 
@@ -67,7 +91,8 @@ impl Value<Integer> {
 impl From<Integer> for Value<Integer> {
 	#[inline]
 	fn from(integer: Integer) -> Self {
-		let bits = (integer.0 << 1) | 1;
+		debug_assert_ne!(integer.n & 1, 1);
+		let bits = integer.n | 1;
 
 		unsafe { Self::from_bits(bits as _) }
 	}
@@ -80,7 +105,8 @@ unsafe impl Convertible for Integer {
 	}
 
 	fn get(value: Value<Self>) -> Self {
-		Self((value.bits() as Inner) >> 1)
+		let bits = (value.bits() as Inner) - 1;
+		unsafe { Self::new_raw(bits) }
 	}
 }
 
@@ -101,7 +127,7 @@ impl ConvertTo<Gc<Text>> for Integer {
 		};
 
 		if (2..=36).contains(&base) {
-			Ok(Text::from_string(radix_fmt::radix(self.0, base as u8).to_string()))
+			Ok(Text::from_string(radix_fmt::radix(self.get(), base as u8).to_string()))
 		} else {
 			Err(format!("invalid radix '{base}'").into())
 		}
@@ -113,45 +139,106 @@ impl ConvertTo<Float> for Integer {
 		args.assert_no_arguments()?;
 
 		#[allow(clippy::cast_precision_loss)] // Literally the definition of this method.
-		Ok(self.0 as Float)
+		Ok(self.get() as Float)
 	}
 }
 
 impl Integer {
-	pub fn checked_add(self, rhs: Self) -> Value {
-		// i63::MAX + i63::MAX shouldnt overflow checked add.
-		debug_assert!(self.0.checked_add(rhs.0).is_some());
+	pub fn checked_neg(self) -> Value {
+		// TODO
+		Self::ZERO.checked_sub(self)
+	}
 
-		let sum = self.0 + rhs.0;
-		if let Some(integer) = Self::new(sum) {
-			return integer.to_value();
+	pub fn checked_add(self, rhs: Self) -> Value {
+		if let Some(integer) = self.n.checked_add(rhs.n) {
+			// SAFETY: It's impossible to add even `i64`s and get an odd one.
+			return unsafe { Self::new_raw(integer) }.to_value();
 		}
 
-		BigNum::from_i64(sum).to_value()
+		(self.to_bigint() + &rhs.get()).to_value()
 	}
 
 	pub fn checked_sub(self, rhs: Self) -> Value {
-		// i63::MIN - i63::MIN shouldnt overflow checked add.
-		debug_assert!(self.0.checked_sub(rhs.0).is_some());
-
-		let difference = self.0 - rhs.0;
-		if let Some(integer) = Self::new(difference) {
-			return integer.to_value();
+		if let Some(integer) = self.n.checked_sub(rhs.n) {
+			// SAFETY: It's impossible to subtract even `i64`s and get an odd one.
+			return unsafe { Self::new_raw(integer & !1) }.to_value();
 		}
 
-		BigNum::from_i64(difference).to_value()
+		(self.to_bigint() - &rhs.get()).to_value()
 	}
 
 	pub fn checked_mul(self, rhs: Self) -> Value {
-		if let Some(integer) = self.0.checked_mul(rhs.0).and_then(Self::new) {
-			return integer.to_value();
+		if let Some(integer) = self.n.checked_mul(rhs.n) {
+			// SAFETY: It's impossible to multiply even `i64` and get a divisible-by-four one.
+			return unsafe { Self::new_raw(integer >> 1) }.to_value();
 		}
 
-		(&*self.to_bignum().as_ref().unwrap() * &*rhs.to_bignum().as_ref().unwrap()).to_value()
+		(self.to_bigint() * &rhs.get()).to_value()
 	}
 
-	pub fn to_bignum(self) -> Gc<BigNum> {
-		BigNum::from_i64(self.get())
+	pub fn checked_div(self, rhs: Self) -> Result<Value> {
+		if let Some(integer) = self.n.checked_div(rhs.n) {
+			// It's possible to get an odd number via division, so we have to `new_truncate`.
+			return Ok(Self::new_truncate(integer).to_value());
+		}
+
+		if rhs == 0 {
+			return Err(ErrorKind::DivisionByZero("division").into());
+		}
+
+		Ok((self.to_bigint() / &rhs.get()).to_value())
+	}
+
+	// technically this is remainder right now...
+	pub fn checked_mod(self, rhs: Self) -> Result<Value> {
+		if let Some(integer) = self.n.checked_rem(rhs.n) {
+			// SAFETY: It's impossible to modulo even `i64` and get an odd one.
+			return Ok(unsafe { Self::new_raw(integer) }.to_value());
+		}
+
+		if rhs == 0 {
+			return Err(ErrorKind::DivisionByZero("modulo").into());
+		}
+
+		Ok((self.to_bigint() % &rhs.get()).to_value())
+	}
+
+	pub fn checked_pow(self, rhs: Self) -> Value {
+		// TODO!
+		self.get().pow(rhs.get().try_into().expect("todo: exception for not valid number")).to_value()
+	}
+
+	pub fn checked_shl(self, rhs: Self) -> Result<Value> {
+		let _ = rhs;
+		todo!();
+	}
+
+	pub fn checked_shr(self, rhs: Self) -> Result<Value> {
+		let _ = rhs;
+		todo!();
+	}
+
+	pub fn checked_bitand(self, rhs: Self) -> Value {
+		let _ = rhs;
+		todo!();
+	}
+
+	pub fn checked_bitor(self, rhs: Self) -> Value {
+		let _ = rhs;
+		todo!();
+	}
+
+	pub fn checked_bitxor(self, rhs: Self) -> Value {
+		let _ = rhs;
+		todo!();
+	}
+
+	pub fn checked_bitneg(self) -> Value {
+		todo!();
+	}
+
+	pub fn to_bigint(self) -> BigInt {
+		BigInt::from(self.get())
 	}
 }
 
@@ -163,17 +250,13 @@ pub mod funcs {
 		args.assert_positional_len(1)?;
 
 		Ok(int.checked_add(args[0].try_downcast::<Integer>()?))
-
-		// Ok((int + args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn op_sub(int: Integer, args: Args<'_>) -> Result<Value> {
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
 		Ok(int.checked_sub(args[0].try_downcast::<Integer>()?))
-
-		// Ok((int - args[0].try_downcast::<Integer>()?).to_value())
 	}
 
 	pub fn op_mul(int: Integer, args: Args<'_>) -> Result<Value> {
@@ -184,50 +267,29 @@ pub mod funcs {
 	}
 
 	pub fn op_div(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// let denom = args[0].try_downcast::<Integer>()?;
-
-		// if denom == 0 {
-		// 	Err("division by zero".to_string().into())
-		// } else {
-		// 	Ok((int / denom).to_value())
-		// }
+		int.checked_div(args[0].try_downcast::<Integer>()?)
 	}
 
 	// TODO: verify it's actually modulus
 	pub fn op_mod(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// let denom = args[0].try_downcast::<Integer>()?;
-
-		// if denom == 0 {
-		// 	Err("modulo by zero".to_string().into())
-		// } else {
-		// 	Ok((int % denom).to_value())
-		// }
+		int.checked_mod(args[0].try_downcast::<Integer>()?)
 	}
 
 	pub fn op_pow(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// #[allow(clippy::cast_precision_loss)] // Eh, maybe in the future i should fix this?
-		// if let Some(float) = args[0].downcast::<Float>() {
-		// 	Ok(((int as Float).powf(float)).to_value())
-		// } else {
-		// 	let exp = args[0].try_downcast::<Integer>()?;
+		if let Some(float) = args[0].downcast::<Float>() {
+			return Ok(((int.get() as Float).powf(float)).to_value());
+		}
 
-		// 	Ok(int.pow(exp.try_into().expect("todo: exception for not valid number")).to_value())
-		// }
+		Ok(int.checked_pow(args[0].try_downcast::<Integer>()?))
 	}
 
 	pub fn op_lth(int: Integer, args: Args<'_>) -> Result<Value> {
@@ -266,64 +328,50 @@ pub mod funcs {
 	}
 
 	pub fn op_neg(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_arguments()?;
+		args.assert_no_arguments()?;
 
-		// Ok((-int).to_value())
+		Ok(int.checked_neg())
 	}
 
 	pub fn op_shl(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// Ok((int << args[0].try_downcast::<Integer>()?).to_value())
+		int.checked_shl(args[0].try_downcast::<Integer>()?)
 	}
 
 	pub fn op_shr(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// Ok((int >> args[0].try_downcast::<Integer>()?).to_value())
+		int.checked_shr(args[0].try_downcast::<Integer>()?)
 	}
 
 	pub fn op_bitand(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// Ok((int & args[0].try_downcast::<Integer>()?).to_value())
+		Ok(int.checked_bitand(args[0].try_downcast::<Integer>()?))
 	}
 
 	pub fn op_bitor(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// Ok((int | args[0].try_downcast::<Integer>()?).to_value())
+		Ok(int.checked_bitor(args[0].try_downcast::<Integer>()?))
 	}
 
 	pub fn op_bitxor(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_keyword()?;
-		// args.assert_positional_len(1)?;
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
 
-		// Ok((int ^ args[0].try_downcast::<Integer>()?).to_value())
+		Ok(int.checked_bitxor(args[0].try_downcast::<Integer>()?))
 	}
 
 	pub fn op_bitneg(int: Integer, args: Args<'_>) -> Result<Value> {
-		let _ = (int, args);
-		todo!();
-		// args.assert_no_arguments()?;
+		args.assert_no_arguments()?;
 
-		// Ok((!int).to_value())
+		Ok(int.checked_bitneg)
 	}
 
 	pub fn at_text(int: Integer, args: Args<'_>) -> Result<Value> {
@@ -356,8 +404,8 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		let max = args[0].try_downcast::<Integer>()?.0;
-		let int = int.0;
+		let max = args[0].try_downcast::<Integer>()?.get();
+		let int = int.get();
 
 		if max < int {
 			return Ok(List::new().to_value());
@@ -377,8 +425,8 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
-		let min = args[0].try_downcast::<Integer>()?.0;
-		let int = int.0;
+		let min = args[0].try_downcast::<Integer>()?.get();
+		let int = int.get();
 
 		if min > int {
 			return Ok(List::new().to_value());
@@ -397,12 +445,12 @@ pub mod funcs {
 	pub fn times(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		upto(Integer(0), Args::new(&[(int.0 - 1).to_value()], &[]))
+		upto(Integer::ZERO, Args::new(&[(int.get() - 1).to_value()], &[]))
 	}
 
 	pub fn chr(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
-		let int = int.0;
+		let int = int.get();
 
 		if let Some(chr) = u32::try_from(int).ok().and_then(char::from_u32) {
 			let mut builder = Text::simple_builder();
@@ -416,37 +464,37 @@ pub mod funcs {
 	pub fn is_even(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok((int.0 % 2 == 0).to_value())
+		Ok((int.n & 0b10 == 0b00).to_value())
 	}
 
 	pub fn is_odd(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok((int.0 % 2 == 1).to_value())
+		Ok((int.n & 0b10 == 0b10).to_value())
 	}
 
 	pub fn is_zero(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok((int.0 == 0).to_value())
+		Ok((int == Integer::ZERO).to_value())
 	}
 
 	pub fn is_one(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok((int.0 == 1).to_value())
+		Ok((int == Integer::ONE).to_value())
 	}
 
 	pub fn is_positive(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok((int.0 > 0).to_value())
+		Ok((int.n > 0).to_value())
 	}
 
 	pub fn is_negative(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok((int.0 < 0).to_value())
+		Ok((int.n < 0).to_value())
 	}
 }
 
@@ -532,11 +580,20 @@ mod tests {
 
 	#[test]
 	fn test_get() {
-		assert_eq!(Integer(0), <Integer as Convertible>::get(Integer(0i64).into()));
-		assert_eq!(Integer(1), <Integer as Convertible>::get(Integer(1i64).into()));
-		assert_eq!(Integer(-123), <Integer as Convertible>::get(Integer(-123i64).into()));
-		assert_eq!(Integer(14), <Integer as Convertible>::get(Integer(14i64).into()));
-		assert_eq!(Integer(-1), <Integer as Convertible>::get(Integer(-1i64).into()));
+		assert_eq!(Integer::ZERO, <Integer as Convertible>::get(Integer::ZERO.into()));
+		assert_eq!(Integer::ONE, <Integer as Convertible>::get(Integer::ONE.into()));
+		assert_eq!(
+			Integer::new_truncate(-123),
+			<Integer as Convertible>::get(Integer::new_truncate(-123i64).into())
+		);
+		assert_eq!(
+			Integer::new_truncate(14),
+			<Integer as Convertible>::get(Integer::new_truncate(14i64).into())
+		);
+		assert_eq!(
+			Integer::new_truncate(-1),
+			<Integer as Convertible>::get(Integer::new_truncate(-1i64).into())
+		);
 		assert_eq!(Integer::MIN, <Integer as Convertible>::get(Integer::MIN.into()));
 		assert_eq!(Integer::MAX, <Integer as Convertible>::get(Integer::MAX.into()));
 	}
@@ -558,11 +615,11 @@ mod tests {
 			};
 		}
 
-		assert_eq!("0", to_text!(Integer(0)));
-		assert_eq!("1", to_text!(Integer(1)));
-		assert_eq!("-123", to_text!(Integer(-123)));
-		assert_eq!("14", to_text!(Integer(14)));
-		assert_eq!("-1", to_text!(Integer(-1)));
+		assert_eq!("0", to_text!(Integer::ZERO));
+		assert_eq!("1", to_text!(Integer::ONE));
+		assert_eq!("-123", to_text!(Integer::new_truncate(-123)));
+		assert_eq!("14", to_text!(Integer::new_truncate(14)));
+		assert_eq!("-1", to_text!(Integer::new_truncate(-1)));
 		assert_eq!(Integer::MIN.to_string(), to_text!(Integer::MIN));
 		assert_eq!(Integer::MAX.to_string(), to_text!(Integer::MAX));
 	}
@@ -570,41 +627,50 @@ mod tests {
 	#[test]
 	fn test_convert_to_text_bad_args_error() {
 		assert!(ConvertTo::<Gc<Text>>::convert(
-			&Integer(0),
+			&Integer::ZERO,
 			Args::new(&[Value::TRUE.to_value()], &[])
 		)
 		.is_err());
 		assert!(ConvertTo::<Gc<Text>>::convert(
-			&Integer(0),
+			&Integer::ZERO,
 			Args::new(&[], &[("A", Value::TRUE.to_value())])
 		)
 		.is_err());
 		assert!(ConvertTo::<Gc<Text>>::convert(
-			&Integer(0),
+			&Integer::ZERO,
 			Args::new(&[Value::TRUE.to_value()], &[("A", Value::TRUE.to_value())])
 		)
 		.is_err());
 
 		assert!(ConvertTo::<Gc<Text>>::convert(
-			&Integer(0),
-			Args::new(&[Value::TRUE.to_value()], &[("base", Value::from(Integer(2)).to_value())])
-		)
-		.is_err());
-
-		assert!(ConvertTo::<Gc<Text>>::convert(
-			&Integer(0),
+			&Integer::ZERO,
 			Args::new(
 				&[Value::TRUE.to_value()],
-				&[("base", Value::from(Integer(2)).to_value()), ("A", Value::TRUE.to_value())]
+				&[("base", Value::from(Integer::new_truncate(2)).to_value())]
 			)
 		)
 		.is_err());
 
 		assert!(ConvertTo::<Gc<Text>>::convert(
-			&Integer(0),
+			&Integer::ZERO,
+			Args::new(
+				&[Value::TRUE.to_value()],
+				&[
+					("base", Value::from(Integer::new_truncate(2)).to_value()),
+					("A", Value::TRUE.to_value())
+				]
+			)
+		)
+		.is_err());
+
+		assert!(ConvertTo::<Gc<Text>>::convert(
+			&Integer::ONE,
 			Args::new(
 				&[],
-				&[("base", Value::from(Integer(2)).to_value()), ("A", Value::TRUE.to_value())]
+				&[
+					("base", Value::from(Integer::new_truncate(2)).to_value()),
+					("A", Value::TRUE.to_value())
+				]
 			)
 		)
 		.is_err());
@@ -617,7 +683,10 @@ mod tests {
 			($num:expr, $radix:expr) => {
 				ConvertTo::<Gc<Text>>::convert(
 					&$num,
-					Args::new(&[], &[("base", Value::from(Integer($radix as Inner)).to_value())]),
+					Args::new(
+						&[],
+						&[("base", Value::from(Integer::new_truncate($radix as Inner)).to_value())],
+					),
 				)
 				.unwrap()
 				.as_ref()
@@ -627,20 +696,29 @@ mod tests {
 		}
 
 		for radix in 2..=36 {
-			assert_eq!(radix_fmt::radix(0 as Inner, radix).to_string(), to_text!(Integer(0), radix));
-			assert_eq!(radix_fmt::radix(1 as Inner, radix).to_string(), to_text!(Integer(1), radix));
+			assert_eq!(
+				radix_fmt::radix(0 as Inner, radix).to_string(),
+				to_text!(Integer::ZERO, radix)
+			);
+			assert_eq!(radix_fmt::radix(1 as Inner, radix).to_string(), to_text!(Integer::ONE, radix));
 			assert_eq!(
 				radix_fmt::radix(-123 as Inner, radix).to_string(),
-				to_text!(Integer(-123), radix)
+				to_text!(Integer::new_truncate(-123), radix)
 			);
-			assert_eq!(radix_fmt::radix(14 as Inner, radix).to_string(), to_text!(Integer(14), radix));
-			assert_eq!(radix_fmt::radix(-1 as Inner, radix).to_string(), to_text!(Integer(-1), radix));
 			assert_eq!(
-				radix_fmt::radix(Integer::MIN.0, radix).to_string(),
+				radix_fmt::radix(14 as Inner, radix).to_string(),
+				to_text!(Integer::new_truncate(14), radix)
+			);
+			assert_eq!(
+				radix_fmt::radix(-1 as Inner, radix).to_string(),
+				to_text!(Integer::NEG_ONE, radix)
+			);
+			assert_eq!(
+				radix_fmt::radix(Integer::MIN.get(), radix).to_string(),
 				to_text!(Integer::MIN, radix)
 			);
 			assert_eq!(
-				radix_fmt::radix(Integer::MAX.0, radix).to_string(),
+				radix_fmt::radix(Integer::MAX.get(), radix).to_string(),
 				to_text!(Integer::MAX, radix)
 			);
 		}

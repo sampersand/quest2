@@ -1,10 +1,10 @@
 use crate::value::ty::{InstanceOf, Singleton};
 use crate::value::{Gc, ToValue};
 use crate::vm::Args;
-use crate::{Result, Value};
+use crate::{ErrorKind, Result, Value};
 use num_bigint::BigInt;
+use num_traits::identities::Zero;
 use std::fmt::{self, Display, Formatter};
-use std::ops;
 
 quest_type! {
 	#[derive(Debug, NamedType)]
@@ -21,6 +21,33 @@ impl BigNum {
 	pub fn from_i64(num: i64) -> Gc<Self> {
 		Self::new(num.into())
 	}
+
+	pub fn checked_add(&self, rhs: &Self) -> Gc<Self> {
+		Self::new(self.as_ref() + rhs.as_ref())
+	}
+
+	pub fn checked_sub(&self, rhs: &Self) -> Gc<Self> {
+		Self::new(self.as_ref() - rhs.as_ref())
+	}
+
+	pub fn checked_mul(&self, rhs: &Self) -> Gc<Self> {
+		Self::new(self.as_ref() * rhs.as_ref())
+	}
+
+	pub fn checked_div(&self, rhs: &Self) -> Result<Gc<Self>> {
+		if rhs.as_ref().is_zero() {
+			return Err(ErrorKind::DivisionByZero("division").into());
+		}
+
+		Ok(Self::new(self.as_ref() / rhs.as_ref()))
+	}
+}
+
+impl ToValue for BigInt {
+	fn to_value(self) -> Value {
+		panic!();
+		BigNum::new(self).to_value()
+	}
 }
 
 impl Display for BigNum {
@@ -29,11 +56,9 @@ impl Display for BigNum {
 	}
 }
 
-impl ops::Mul for &BigNum {
-	type Output = Gc<BigNum>;
-
-	fn mul(self, rhs: Self) -> Self::Output {
-		BigNum::new(self.0.data() * rhs.0.data())
+impl AsRef<BigInt> for BigNum {
+	fn as_ref(&self) -> &BigInt {
+		self.0.data()
 	}
 }
 

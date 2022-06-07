@@ -194,6 +194,7 @@ dependencies = [
  "env_logger",
  "hashbrown",
  "num-bigint",
+ "num-traits",
  "once_cell",
  "qvm-macros",
  "radix_fmt",

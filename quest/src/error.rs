@@ -31,14 +31,23 @@ pub enum ErrorKind {
 	ValueFrozen(Value),
 
 	/// Attempted access of the unknown attribute `attribute` on `object`.
-	UnknownAttribute { object: Value, attribute: Value },
+	UnknownAttribute {
+		object: Value,
+		attribute: Value,
+	},
 
 	/// An `expected` type was required but a `given` was given.
-	InvalidTypeGiven { expected: crate::value::Typename, given: crate::value::Typename },
+	InvalidTypeGiven {
+		expected: crate::value::Typename,
+		given: crate::value::Typename,
+	},
 
 	/// The conversion function of `object` for type `into` was called, but the result wasn't
 	/// something of type `into`.
-	ConversionFailed { object: Value, into: crate::value::Typename },
+	ConversionFailed {
+		object: Value,
+		into: crate::value::Typename,
+	},
 
 	/// For when i haven't made an actual error
 	Message(String),
@@ -56,7 +65,10 @@ pub enum ErrorKind {
 	KeywordsGivenWhenNotExpected,
 
 	/// A function was given the wrong amount of arguments.
-	PositionalArgumentMismatch { given: usize, expected: usize },
+	PositionalArgumentMismatch {
+		given: usize,
+		expected: usize,
+	},
 
 	/// Attempted execution of a currently-running stackframe.
 	StackframeIsCurrentlyRunning(crate::value::Gc<crate::vm::Frame>),
@@ -66,6 +78,9 @@ pub enum ErrorKind {
 
 	/// An assertion failed, with an optional message
 	AssertionFailed(Option<crate::value::Gc<crate::value::ty::Text>>),
+
+	// Division/Modulo/Exponentiation by an invalid value
+	DivisionByZero(&'static str),
 }
 
 impl Display for Error {
@@ -108,6 +123,7 @@ impl Display for ErrorKind {
 			Self::StackOverflow => write!(f, "too many stackframes are running"),
 			Self::AssertionFailed(None) => write!(f, "an assertion failed"),
 			Self::AssertionFailed(Some(err)) => write!(f, "an assertion failed: {err:?}"),
+			Self::DivisionByZero(kind) => write!(f, "{kind} by zero"),
 		}
 	}
 }

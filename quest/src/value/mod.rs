@@ -65,6 +65,7 @@ pub unsafe trait Convertible: Into<Value<Self>> {
 /// creates a new [`Text`](ty::Text) for it, and then converts the `Text` to a [`Value`].
 pub trait ToValue {
 	/// Perform the to value conversion.
+	#[must_use]
 	fn to_value(self) -> Value;
 }
 
