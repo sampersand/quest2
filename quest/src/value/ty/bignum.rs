@@ -45,7 +45,6 @@ impl BigNum {
 
 impl ToValue for BigInt {
 	fn to_value(self) -> Value {
-		panic!();
 		BigNum::new(self).to_value()
 	}
 }

@@ -10,6 +10,7 @@ quest_type! {
 
 pub mod funcs {
 	use super::*;
+	use crate::value::ToValue;
 
 	pub fn print(args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
@@ -101,11 +102,33 @@ pub mod funcs {
 		Ok(last)
 	}
 
+	pub fn object(args: Args<'_>) -> Result<Value> {
+		use crate::value::ty::{List, Object, Wrap};
+		use crate::vm::Block;
+
+		args.assert_no_keyword()?;
+		args.idx_err_unless(|a| a.positional().len() <= 2)?;
+
+		let body = if let Some(body) = args.positional().last() {
+			body
+		} else {
+			return Ok(Wrap::with_parent((), Object::instance()).to_value());
+		};
+
+		let frame = body.try_downcast::<Gc<Block>>()?.create_frame(Args::default())?;
+		if args.len() == 2 {
+			frame.as_mut().unwrap().set_parents(args[0].try_downcast::<Gc<List>>()?);
+		}
+
+		frame.run()?;
+
+		Ok(frame.to_value())
+	}
+
 	// this isn't the actual interface, im just curious how threads will work out
 	pub fn spawn(args: Args<'_>) -> Result<Value> {
 		use crate::value::base::Base;
 		use crate::value::ty::InstanceOf;
-		use crate::value::ToValue;
 		use std::thread::{self, JoinHandle};
 
 		quest_type! {
@@ -163,6 +186,7 @@ impl Singleton for Kernel {
 				Intern::dump => justargs funcs::dump,
 				Intern::exit => justargs funcs::exit,
 				Intern::abort => justargs funcs::abort,
+				Intern::object => justargs funcs::object,
 				Intern::r#if => justargs funcs::r#if,
 				Intern::ifl => justargs funcs::ifl,
 				Intern::if_cascade => justargs funcs::if_cascade,

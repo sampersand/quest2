@@ -31,7 +31,7 @@ impl Object {
 				Intern::or => function funcs::or,
 				Intern::and => function funcs::and,
 				Intern::itself => function funcs::itself,
-				Intern::print => function funcs::print,
+				Intern::display => function funcs::display,
 				Intern::freeze => function funcs::freeze,
 				Intern::dbg => function funcs::dbg,
 				Intern::assert => function funcs::assert,
@@ -170,7 +170,7 @@ pub mod funcs {
 		Ok(obj)
 	}
 
-	pub fn print(obj: Value, args: Args<'_>) -> Result<Value> {
+	pub fn display(obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		crate::value::ty::kernel::funcs::print(Args::new(&[obj], &[])).and(Ok(obj))

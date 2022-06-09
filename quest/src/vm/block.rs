@@ -149,6 +149,17 @@ impl Gc<Block> {
 	pub fn run(self, args: Args<'_>) -> Result<Value> {
 		Frame::new(self, args)?.run()
 	}
+
+	/// Creates, but doesnt execute, a frame for `self`
+	pub fn create_frame(self, args: Args<'_>) -> Result<Gc<Frame>> {
+		let frame = Frame::new(self, args)?;
+
+		// We have to make it an object, as otherwise we wont be able to access
+		// its local variables.
+		frame.as_mut().unwrap().convert_to_object()?;
+
+		Ok(frame)
+	}
 }
 
 /// Quest functions defined for [`Block`].
@@ -162,11 +173,9 @@ pub mod funcs {
 		block.run(args)
 	}
 
-	/// Calls `block` with the given `args`.
+	/// Creates, but doesnt execute, a frame for `block`
 	pub fn create_frame(block: Gc<Block>, args: Args<'_>) -> Result<Value> {
-		let frame = Frame::new(block, args)?;
-		frame.as_mut().unwrap().convert_to_object()?;
-		Ok(frame.to_value())
+		block.create_frame(args).map(ToValue::to_value)
 	}
 
 	/// Returns a debug representation of `block`.

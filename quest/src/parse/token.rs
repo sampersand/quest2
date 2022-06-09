@@ -175,16 +175,25 @@ fn is_symbol_char(chr: char) -> bool {
 
 fn take_identifier<'a>(stream: &mut Stream<'a>) -> &'a str {
 	let mut was_last_question_mark = false;
+	let mut is_first = true;
 	stream.take_while(|c| {
-		!was_last_question_mark
-			&& if c.is_alphanumeric() || c == '_' {
-				true
-			} else if c == '?' {
-				was_last_question_mark = true;
-				true
-			} else {
-				false
-			}
+		if is_first {
+			is_first = false;
+			return true;
+		}
+
+		if was_last_question_mark {
+			return false;
+		}
+
+		if c.is_alphanumeric() || c == '_' {
+			true
+		} else if c == '?' {
+			was_last_question_mark = true;
+			true
+		} else {
+			false
+		}
 	})
 }
 
@@ -257,7 +266,12 @@ impl<'a> TokenContents<'a> {
 			// '-' | '+' if stream.peek2().map_or(false, |c| c.is_ascii_digit()) => parse_number(stream),
 			'\'' | '"' => parse_text(stream),
 			'$' => parse_syntax(stream),
-			chr if chr.is_alphabetic() || chr == '_' => Ok(Self::Identifier(take_identifier(stream))),
+			chr if chr.is_alphabetic()
+				|| chr == '_'
+				|| chr == '@' && stream.peek2().map_or(false, |c| c.is_alphabetic()) =>
+			{
+				Ok(Self::Identifier(take_identifier(stream)))
+			}
 			chr if is_symbol_char(chr) => Ok(Self::Symbol(stream.take_while(is_symbol_char))),
 			other => Err(stream.error(ErrorKind::UnknownTokenStart(other))),
 		}

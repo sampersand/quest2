@@ -149,6 +149,12 @@ impl Integer {
 		Self::ZERO.checked_sub(self)
 	}
 
+	#[quest_fn(name)]
+	pub fn op_add(self, rhs: Integer) -> Result<Value> {
+		Ok(self.checked_add(rhs))
+	}
+
+	// #[quest_fn(name = "op_add")]
 	pub fn checked_add(self, rhs: Self) -> Value {
 		if let Some(integer) = self.n.checked_add(rhs.n) {
 			// SAFETY: It's impossible to add even `i64`s and get an odd one.
@@ -371,7 +377,7 @@ pub mod funcs {
 	pub fn op_bitneg(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		Ok(int.checked_bitneg)
+		Ok(int.checked_bitneg())
 	}
 
 	pub fn at_text(int: Integer, args: Args<'_>) -> Result<Value> {
@@ -510,7 +516,8 @@ impl Singleton for IntegerClass {
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Integer", parent Object::instance();
 				Intern::op_neg => method funcs::op_neg,
-				Intern::op_add => method funcs::op_add,
+				Intern::op_add => function Integer::qs_op_add,
+				// Intern::op_add => method funcs::op_add,
 				Intern::op_sub => method funcs::op_sub,
 				Intern::op_mul => method funcs::op_mul,
 				Intern::op_div => method funcs::op_div,

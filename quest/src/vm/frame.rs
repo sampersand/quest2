@@ -485,6 +485,13 @@ impl Gc<Frame> {
 		})
 	}
 
+	/// Restarts `frame` from the beginning. Note that if it's already running, an error will be
+	/// returned.
+	pub fn restart(self) -> Result<Value> {
+		self.as_mut()?.pos = 0;
+		self.run()
+	}
+
 	/// Executes the stackframe, returning an error if it's currently running.
 	#[instrument(target="frame",
 		level="debug",

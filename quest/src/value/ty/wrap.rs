@@ -1,4 +1,4 @@
-use crate::value::base::{Builder, HasDefaultParent};
+use crate::value::base::{Builder, HasDefaultParent, IntoParent};
 use crate::value::gc::Gc;
 use std::fmt::{self, Debug, Formatter};
 
@@ -8,9 +8,15 @@ quest_type! {
 
 impl<T: HasDefaultParent + 'static> Wrap<T> {
 	pub fn new(data: T) -> Gc<Self> {
+		Self::with_parent(data, T::parent())
+	}
+}
+
+impl<T: 'static> Wrap<T> {
+	pub fn with_parent<P: IntoParent>(data: T, parent: P) -> Gc<Self> {
 		let mut builder = Builder::<T>::allocate();
 
-		builder.set_parents(T::parent());
+		builder.set_parents(parent);
 		builder.set_data(data);
 
 		Gc::from_inner(unsafe { builder.finish() })
