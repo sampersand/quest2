@@ -54,7 +54,7 @@ const fn mask_len(len: usize) -> u32 {
 }
 
 impl super::AttrConversionDefined for Gc<List> {
-	const ATTR_NAME: crate::value::Intern = crate::value::Intern::at_list;
+	const ATTR_NAME: crate::value::Intern = crate::value::Intern::to_list;
 }
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
@@ -550,7 +550,7 @@ pub mod funcs {
 		Ok(list.to_value())
 	}
 
-	pub fn at_text(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+	pub fn to_text(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		use crate::value::ty::text::SimpleBuilder;
 
 		fn at_text_maybe_list(
@@ -602,7 +602,7 @@ pub mod funcs {
 	}
 
 	pub fn dbg(list: Gc<List>, args: Args<'_>) -> Result<Value> {
-		at_text(list, args)
+		to_text(list, args)
 	}
 
 	pub fn map(list: Gc<List>, args: Args<'_>) -> Result<Value> {
@@ -680,7 +680,7 @@ impl Singleton for ListClass {
 				Intern::shift => method funcs::shift,
 				Intern::unshift => method funcs::unshift,
 				Intern::dbg => method funcs::dbg,
-				Intern::at_text => method funcs::at_text,
+				Intern::to_text => method funcs::to_text,
 				Intern::map => method funcs::map,
 				Intern::each => method funcs::each,
 				Intern::join => method funcs::join,

@@ -12,10 +12,10 @@ Text.tonum = n -> { abort("<todo: string to num>") };
 Boolean.tonum = n -> { ifl(n, 1, 0) };
 Null.tonum = n -> { 0 };
 
-Integer.tostr = n -> { n."@text"() };
-Text.tostr = n -> { n."@text"() };
-Boolean.tostr = n -> { n."@text"() };
-Null.tostr = n -> { n."@text"() };
+Integer.tostr = n -> { n.to_text() };
+Text.tostr = n -> { n.to_text() };
+Boolean.tostr = n -> { n.to_text() };
+Null.tostr = n -> { n.to_text() };
 
 Integer.add = (l,r) -> { l + r.tonum() };
 Text.add = (l,r) -> { l + r.tostr() };
@@ -47,7 +47,7 @@ $syntax kn { @ E $r:kn } = { abort("<eval isnt supported until quest gets it>") 
 $syntax kn { @ B $r:kn } = { { $r } };
 $syntax kn { @ C $r:kn } = { ($r)() };
 $syntax kn { @ ` $r:kn } = { abort("<todo: make ` in quest>") };
-$syntax kn { @ Q $r:kn } = { exit(($r)."@num"()) };
+$syntax kn { @ Q $r:kn } = { exit(($r).to_int()) };
 $syntax kn { @ ! $r:kn } = { !($r).tobool() };
 $syntax kn { @ L $r:kn } = { ($r).len() };
 $syntax kn { @ D $r:kn } = { ($r).tap(print) };

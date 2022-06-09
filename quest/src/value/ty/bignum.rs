@@ -64,7 +64,7 @@ impl AsRef<BigInt> for BigNum {
 pub mod funcs {
 	use super::*;
 
-	pub fn at_text(int: Gc<BigNum>, args: Args<'_>) -> Result<Value> {
+	pub fn to_text(int: Gc<BigNum>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		Ok(int.as_ref()?.to_string().to_value())
@@ -83,7 +83,7 @@ impl Singleton for BigNumClass {
 
 		*INSTANCE.get_or_init(|| {
 			create_class! { "BigNum", parent Object::instance();
-				Intern::at_text => method funcs::at_text
+				Intern::to_text => method funcs::to_text
 			}
 		})
 	}

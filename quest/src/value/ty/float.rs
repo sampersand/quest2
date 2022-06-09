@@ -50,20 +50,20 @@ impl ConvertTo<Integer> for Float {
 pub mod funcs {
 	use super::*;
 
-	pub fn at_float(float: Float, args: Args<'_>) -> Result<Value> {
+	pub fn to_float(float: Float, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Float>::convert(&float, args).map(ToValue::to_value)
 	}
 
-	pub fn at_text(float: Float, args: Args<'_>) -> Result<Value> {
+	pub fn to_text(float: Float, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Gc<Text>>::convert(&float, args).map(ToValue::to_value)
 	}
 
-	pub fn at_int(float: Float, args: Args<'_>) -> Result<Value> {
+	pub fn to_int(float: Float, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Integer>::convert(&float, args).map(ToValue::to_value)
 	}
 
 	pub fn dbg(float: Float, args: Args<'_>) -> Result<Value> {
-		at_text(float, args)
+		to_text(float, args)
 	}
 
 	pub fn op_neg(float: Float, args: Args<'_>) -> Result<Value> {
@@ -208,9 +208,9 @@ impl Singleton for FloatClass {
 				Intern::is_negative => method funcs::is_negative,
 				Intern::is_whole => method funcs::is_whole,
 
-				Intern::at_text => method funcs::at_text,
-				Intern::at_float => method funcs::at_float,
-				Intern::at_int => method funcs::at_int,
+				Intern::to_text => method funcs::to_text,
+				Intern::to_float => method funcs::to_float,
+				Intern::to_int => method funcs::to_int,
 
 				Intern::dbg => method funcs::dbg,
 			}

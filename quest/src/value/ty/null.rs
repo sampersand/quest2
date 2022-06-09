@@ -80,28 +80,28 @@ impl ConvertTo<Gc<List>> for Null {
 pub mod funcs {
 	use super::*;
 
-	pub fn at_text(null: Null, args: Args<'_>) -> Result<Value> {
+	pub fn to_text(null: Null, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Gc<Text>>::convert(&null, args).map(ToValue::to_value)
 	}
 
-	pub fn at_int(null: Null, args: Args<'_>) -> Result<Value> {
+	pub fn to_int(null: Null, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Integer>::convert(&null, args).map(ToValue::to_value)
 	}
 
-	pub fn at_float(null: Null, args: Args<'_>) -> Result<Value> {
+	pub fn to_float(null: Null, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Float>::convert(&null, args).map(ToValue::to_value)
 	}
 
-	pub fn at_list(null: Null, args: Args<'_>) -> Result<Value> {
+	pub fn to_list(null: Null, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Gc<List>>::convert(&null, args).map(ToValue::to_value)
 	}
 
-	pub fn at_bool(null: Null, args: Args<'_>) -> Result<Value> {
+	pub fn to_bool(null: Null, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Boolean>::convert(&null, args).map(ToValue::to_value)
 	}
 
 	pub fn dbg(null: Null, args: Args<'_>) -> Result<Value> {
-		at_text(null, args)
+		to_text(null, args)
 	}
 }
 
@@ -121,11 +121,11 @@ impl Singleton for NullClass {
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Null", parent Object::instance();
 				Intern::dbg => method funcs::dbg,
-				Intern::at_text => method funcs::at_text,
-				Intern::at_int => method funcs::at_int,
-				Intern::at_float => method funcs::at_float,
-				Intern::at_bool => method funcs::at_bool,
-				Intern::at_list => method funcs::at_list,
+				Intern::to_text => method funcs::to_text,
+				Intern::to_int => method funcs::to_int,
+				Intern::to_float => method funcs::to_float,
+				Intern::to_bool => method funcs::to_bool,
+				Intern::to_list => method funcs::to_list,
 			}
 		})
 	}

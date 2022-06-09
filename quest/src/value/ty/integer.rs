@@ -111,7 +111,7 @@ unsafe impl Convertible for Integer {
 }
 
 impl super::AttrConversionDefined for Integer {
-	const ATTR_NAME: crate::value::Intern = crate::value::Intern::at_int;
+	const ATTR_NAME: crate::value::Intern = crate::value::Intern::to_int;
 }
 
 impl ConvertTo<Gc<Text>> for Integer {
@@ -380,20 +380,20 @@ pub mod funcs {
 		Ok(int.checked_bitneg())
 	}
 
-	pub fn at_text(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn to_text(int: Integer, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Gc<Text>>::convert(&int, args).map(ToValue::to_value)
 	}
 
-	pub fn at_float(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn to_float(int: Integer, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Float>::convert(&int, args).map(ToValue::to_value)
 	}
 
-	pub fn at_int(int: Integer, args: Args<'_>) -> Result<Value> {
+	pub fn to_int(int: Integer, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Integer>::convert(&int, args).map(ToValue::to_value)
 	}
 
 	pub fn dbg(int: Integer, args: Args<'_>) -> Result<Value> {
-		at_text(int, args)
+		to_text(int, args)
 	}
 
 	// pub fn dbg(val: Value, args: Args<'_>) -> Result<Value> {
@@ -548,9 +548,9 @@ impl Singleton for IntegerClass {
 				Intern::is_negative => method funcs::is_negative,
 
 				Intern::chr => method funcs::chr,
-				Intern::at_text => method funcs::at_text,
-				Intern::at_float => method funcs::at_float,
-				Intern::at_int => method funcs::at_int,
+				Intern::to_text => method funcs::to_text,
+				Intern::to_float => method funcs::to_float,
+				Intern::to_int => method funcs::to_int,
 				Intern::dbg => method funcs::dbg,
 			}
 		})
@@ -783,9 +783,9 @@ mod tests {
 					Intern::is_negative => method funcs::is_negative,
 
 					Intern::chr => method funcs::chr,
-					Intern::at_text => method funcs::at_text,
-					Intern::at_float => method funcs::at_float,
-					Intern::at_int => method funcs::at_int,
+					Intern::to_text => method funcs::to_text,
+					Intern::to_float => method funcs::to_float,
+					Intern::to_int => method funcs::to_int,
 					Intern::dbg => method funcs::dbg,
 				}
 			})

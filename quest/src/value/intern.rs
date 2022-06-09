@@ -109,9 +109,7 @@ define_interned! {
 	op_shl "<<" op_shr ">>" op_bitand "&" op_bitor "|" op_bitxor "^" op_bitneg
 
 	// Conversions
-	at_text "@text" at_num "@num" at_bool "@bool" at_list "@list"
-	at_int "@int" at_float "@float"
-	dbg
+	dbg to_text to_num to_bool to_list to_int to_float
 
 	// `Object` functions
 	hash clone itself

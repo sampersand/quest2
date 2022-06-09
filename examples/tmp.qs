@@ -13,7 +13,6 @@ $syntax 50 { object $b:block } = { object_ ([], $b) };
 
 $syntax { $n:ident $b:block } = { $n($b) };
 $syntax { while $g:group $b:block } = { while({ $g }, $b); } ;
-$syntax { to_list } = { '@list' };
 $syntax { fn $name:tt $args:group $body:block } = { $name = $args -> $body; };
 $syntax { class $name:ident $args:group $body:block } = { $name = object $args $body; } ;
 

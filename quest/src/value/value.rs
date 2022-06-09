@@ -701,7 +701,7 @@ mod tests {
 			five.call_attr(Intern::op_add, args![twelve]).unwrap().downcast::<Integer>().unwrap()
 		);
 
-		let ff = value!(255).call_attr(Intern::at_text, args!["base" => 16]).unwrap();
+		let ff = value!(255).call_attr(Intern::to_text, args!["base" => 16]).unwrap();
 		assert_eq!("ff", ff.downcast::<Gc<Text>>().unwrap().as_ref().unwrap().as_str());
 	}
 }

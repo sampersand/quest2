@@ -8,7 +8,7 @@ Car = object {
 		:0
 	};
 
-	@text = self -> {
+	to_text = self -> {
 		"A car by " + self.maker + " with " + self.wheels.to_text() + " wheels."
 	};
 

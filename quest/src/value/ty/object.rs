@@ -21,8 +21,8 @@ impl Object {
 				Intern::op_eql => function funcs::eql,
 				Intern::op_neq => function funcs::neq,
 				Intern::op_not => function funcs::not,
-				Intern::at_bool => function funcs::at_bool,
-				Intern::at_text => function funcs::at_text,
+				Intern::to_bool => function funcs::to_bool,
+				Intern::to_text => function funcs::to_text,
 				Intern::hash => function funcs::hash,
 				Intern::r#return => function funcs::r#return,
 				Intern::tap => function funcs::tap,
@@ -60,13 +60,13 @@ pub mod funcs {
 		Ok((!obj.is_truthy()).to_value())
 	}
 
-	pub fn at_bool(_obj: Value, args: Args<'_>) -> Result<Value> {
+	pub fn to_bool(_obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
 		Ok(true.to_value())
 	}
 
-	pub fn at_text(obj: Value, args: Args<'_>) -> Result<Value> {
+	pub fn to_text(obj: Value, args: Args<'_>) -> Result<Value> {
 		obj.call_attr(Intern::dbg, args)
 	}
 
@@ -217,8 +217,8 @@ singleton_object! { for Object, parent Pristine;
 	"!=" => func!(funcs::neq),
 	"!" => func!(funcs::not),
 
-	"@bool" => func!(funcs::at_bool),
-	"@text" => func!(funcs::at_text),
+	"@bool" => func!(funcs::to_bool),
+	"@text" => func!(funcs::to_text),
 	"hash" => func!(funcs::hash),
 	"clone" => func!(funcs::clone),
 

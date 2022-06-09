@@ -13,7 +13,6 @@ $syntax 50 { object $b:block } = { object_ ([], $b) };
 
 $syntax { $n:ident $b:block } = { $n($b) };
 $syntax { while $g:group $b:block } = { while({ $g }, $b); } ;
-$syntax { to_list } = { '@list' };
 
 StopIteration = object();
 

@@ -64,7 +64,7 @@ quest_type! {
 }
 
 impl super::AttrConversionDefined for Gc<Text> {
-	const ATTR_NAME: Intern = Intern::at_text;
+	const ATTR_NAME: Intern = Intern::to_text;
 }
 
 // #[macro_export]

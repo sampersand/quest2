@@ -6,7 +6,7 @@ use crate::{Result, Value};
 pub type Boolean = bool;
 
 impl super::AttrConversionDefined for Boolean {
-	const ATTR_NAME: crate::value::Intern = crate::value::Intern::at_bool;
+	const ATTR_NAME: crate::value::Intern = crate::value::Intern::to_bool;
 }
 
 impl crate::value::NamedType for Boolean {
@@ -125,20 +125,20 @@ pub mod funcs {
 		Ok(args[0])
 	}
 
-	pub fn at_text(boolean: bool, args: Args<'_>) -> Result<Value> {
+	pub fn to_text(boolean: bool, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Gc<Text>>::convert(&boolean, args).map(ToValue::to_value)
 	}
 
-	pub fn at_int(boolean: bool, args: Args<'_>) -> Result<Value> {
+	pub fn to_int(boolean: bool, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Integer>::convert(&boolean, args).map(ToValue::to_value)
 	}
 
-	pub fn at_bool(boolean: bool, args: Args<'_>) -> Result<Value> {
+	pub fn to_bool(boolean: bool, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Boolean>::convert(&boolean, args).map(ToValue::to_value)
 	}
 
 	pub fn dbg(boolean: bool, args: Args<'_>) -> Result<Value> {
-		at_text(boolean, args)
+		to_text(boolean, args)
 	}
 
 	pub fn op_not(boolean: bool, args: Args<'_>) -> Result<Value> {
@@ -190,9 +190,9 @@ impl HasDefaultParent for Boolean {
 				Intern::or_else => method funcs::or_else,
 
 				Intern::dbg => method funcs::dbg,
-				Intern::at_text => method funcs::at_text,
-				Intern::at_int => method funcs::at_int,
-				Intern::at_bool => method funcs::at_bool,
+				Intern::to_text => method funcs::to_text,
+				Intern::to_int => method funcs::to_int,
+				Intern::to_bool => method funcs::to_bool,
 			}
 		})
 	}
