@@ -2,7 +2,7 @@
 #if 0
 $syntax { $i:ident $name:ident () $body:block } = { $name = () -> $body; };
 $syntax { $i:ident $name:ident ($j:ident $arg:ident) $body:block } = { $name = ($arg) -> $body; };
-printf = (_, what) -> { what.print() };
+printf = (_, what) -> { what.display() };
 $syntax { $cond:tt ? $ift:tt : $iff:tt } = { if($cond, { $ift }, { $iff }) };
 $syntax { return $what:tt ; } = { $what };
 $syntax { if $cond:tt $ift:block else $iff:block } = { (if)($cond, $ift, $iff) } ;

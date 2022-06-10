@@ -669,6 +669,12 @@ impl Gc<Frame> {
 				// 8 bytes after, corresponding to a valid `Value`.
 				Opcode::LoadImmediate => unsafe { Value::from_bits(this.next_u64()) },
 
+				// SAFETY: `self` is well-formed, so we know that `LoadSmallImmediate` will have at
+				// least a single byte after, corresponding to a valid `Value`.
+				Opcode::LoadSmallImmediate => unsafe {
+					Value::from_bits(this.next_byte() as i8 as i64 as u64)
+				},
+
 				// SAFETY: `self` is well-formed, so we know that `Gc<Block>` will have at least
 				// 8 bytes after, corresponding to a valid `Gc<Block>`.
 				Opcode::LoadBlock => unsafe {

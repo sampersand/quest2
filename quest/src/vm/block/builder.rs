@@ -215,8 +215,13 @@ impl Builder {
 		// TODO: when we implement garbage collection, maybe somehow indicate `value` is being
 		// used by this builder?
 		unsafe {
-			self.opcode(Opcode::LoadImmediate, dst);
-			self.code.extend(value.bits().to_ne_bytes());
+			if let Ok(byte) = i8::try_from(value.bits() as i64) {
+				self.opcode(Opcode::LoadSmallImmediate, dst);
+				self.code.push(byte as u8);
+			} else {
+				self.opcode(Opcode::LoadImmediate, dst);
+				self.code.extend(value.bits().to_ne_bytes());
+			}
 		}
 	}
 

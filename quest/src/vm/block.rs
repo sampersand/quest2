@@ -219,6 +219,28 @@ struct CodeDebugger<'a>(&'a BlockInner);
 
 impl Debug for CodeDebugger<'_> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		struct LclDbg<'a>(isize, &'a BlockInner);
+		impl Debug for LclDbg<'_> {
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+				Display::fmt(self, f)
+			}
+		}
+
+		impl Display for LclDbg<'_> {
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+				if self.0 < 0 {
+					write!(
+						f,
+						"{} ({})",
+						self.0,
+						*self.1.named_locals[!self.0 as usize].as_ref().unwrap()
+					)
+				} else {
+					write!(f, "{}", self.0)
+				}
+			}
+		}
+
 		use crate::vm::Opcode;
 
 		let mut i = 0;
@@ -263,7 +285,7 @@ impl Debug for CodeDebugger<'_> {
 
 		macro_rules! local {
 			() => {
-				lcl!(count!())
+				LclDbg(count!() as isize, self.0)
 			};
 		}
 
@@ -279,27 +301,17 @@ impl Debug for CodeDebugger<'_> {
 
 		macro_rules! writeln_len {
 			($($tt:tt)*) => {{
-				for _ in 0..(15-len) {
+				for _ in 0..(30-len) {
 					write!(f, " ")?;
 				}
 				writeln!($($tt)*)
 			}};
 		}
 
-		macro_rules! lcl {
-			($n:expr) => {{
-				let n = $n;
-				if (n as isize) < 0 {
-					let n = !n as usize;
-					format!("{} ({})", n, *self.0.named_locals[n].as_ref().unwrap())
-				} else {
-					n.to_string()
-				}
-			}};
-		}
-
+		let mut amnt_of_opcodes = 0;
 		f.write_str("{\n")?;
 		while i < self.0.code.len() {
+			amnt_of_opcodes += 1;
 			f.write_str("\t")?;
 			len = 0;
 
@@ -308,7 +320,7 @@ impl Debug for CodeDebugger<'_> {
 
 			match op {
 				Opcode::CreateList => {
-					let count = usize!();
+					let count = count!();
 					let mut list = Vec::with_capacity(count);
 					for _ in 0..count {
 						list.push(local!());
@@ -320,10 +332,16 @@ impl Debug for CodeDebugger<'_> {
 					let idx = count!();
 					writeln_len!(
 						f,
-						"ConstLoad: dst={dst}, idx={idx} [{:?}]",
+						"ConstLoad: dst={dst}, idx={idx} {{{:?}}}",
 						self.0.constants[idx as usize]
 					)?
 				}
+				Opcode::LoadSmallImmediate => {
+					let bits = byte!() as i8 as i64 as u64;
+					let immediate = unsafe { <Value>::from_bits(bits) };
+					writeln_len!(f, "LoadSmallImmediate: dst={dst}, immediate={immediate:?}")?;
+				}
+
 				Opcode::LoadImmediate => {
 					let bits = u64!();
 					let immediate = unsafe { <Value>::from_bits(bits) };
@@ -401,6 +419,7 @@ impl Debug for CodeDebugger<'_> {
 			}
 		}
 
+		write!(f, "num_opcodes={amnt_of_opcodes}")?;
 		f.write_str("}")
 	}
 }

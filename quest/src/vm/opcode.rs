@@ -24,11 +24,13 @@ pub enum Opcode {
 	ConstLoad = 0x01,
 	/// `LoadImmediate(dst, <8 bytes>)` interprets the following 8 bytes as a [`Value`].
 	LoadImmediate = 0x02,
+	/// `LoadImmediate(dst, <1 byte>)` interprets the following `i8` as a [`Value`], sign-extending.
+	LoadSmallImmediate = 0x03,
 	/// `LoadBlock(dst, <8 bytes>)` interprets the following 8 bytes as a [`Gc<Block>`], adding the
 	/// currently executing frame as a parent.
-	LoadBlock = 0x03,
+	LoadBlock = 0x04,
 	/// `Stackframe(dst, count)` Gets the `count`th stackframe. Can be negative.
-	Stackframe = 0x04,
+	Stackframe = 0x05,
 
 	/// `Mov(dst, src)` Copies `src` into `dst`.
 	Mov = 0x20,
@@ -161,6 +163,7 @@ impl Opcode {
 			_ if byte == Self::CallSimple as u8 => true,
 			_ if byte == Self::ConstLoad as u8 => true,
 			_ if byte == Self::LoadImmediate as u8 => true,
+			_ if byte == Self::LoadSmallImmediate as u8 => true,
 			_ if byte == Self::LoadBlock as u8 => true,
 			_ if byte == Self::Stackframe as u8 => true,
 
