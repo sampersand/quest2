@@ -22,10 +22,13 @@ pub enum Opcode {
 	CreateListShort = -0x01i8 as u8,
 	/// `ConstLoad(dst, count)` Loads the constant at `count` into `dst`.
 	ConstLoad = 0x01,
-	/// `LoadImmediate(dst, <8 bytes>)` interprets the following 8 bytes as a `Value`.
+	/// `LoadImmediate(dst, <8 bytes>)` interprets the following 8 bytes as a [`Value`].
 	LoadImmediate = 0x02,
+	/// `LoadBlock(dst, <8 bytes>)` interprets the following 8 bytes as a [`Gc<Block>`], adding the
+	/// currently executing frame as a parent.
+	LoadBlock = 0x03,
 	/// `Stackframe(dst, count)` Gets the `count`th stackframe. Can be negative.
-	Stackframe = 0x03,
+	Stackframe = 0x04,
 
 	/// `Mov(dst, src)` Copies `src` into `dst`.
 	Mov = 0x20,
@@ -138,6 +141,14 @@ impl Opcode {
 		}
 	}
 
+	pub const fn from_byte(byte: u8) -> Option<Self> {
+		if Self::verify_is_valid(byte) {
+			Some(unsafe { std::mem::transmute(byte) })
+		} else {
+			None
+		}
+	}
+
 	/// Returns whether `byte` actually corresponds to a valid [`Opcode`].
 	#[allow(clippy::cognitive_complexity)]
 	pub const fn verify_is_valid(byte: u8) -> bool {
@@ -150,6 +161,7 @@ impl Opcode {
 			_ if byte == Self::CallSimple as u8 => true,
 			_ if byte == Self::ConstLoad as u8 => true,
 			_ if byte == Self::LoadImmediate as u8 => true,
+			_ if byte == Self::LoadBlock as u8 => true,
 			_ if byte == Self::Stackframe as u8 => true,
 
 			_ if byte == Self::GetAttr as u8 => true,

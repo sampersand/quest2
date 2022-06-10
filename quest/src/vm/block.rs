@@ -18,21 +18,29 @@ quest_type! {
 	pub struct Block(Arc<BlockInner>);
 }
 
-impl Debug for Block {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "Block({:?})", self.source_location())
-	}
-}
-
-#[derive(Debug)]
 #[doc(hidden)]
 pub struct BlockInner {
 	pub(super) arity: usize,
-	pub(super) code: Vec<u8>,
 	pub(super) location: SourceLocation,
+	pub(super) named_locals: Vec<Gc<Text>>,
+	pub(super) code: Vec<u8>,
 	pub(super) constants: Vec<Value>,
 	pub(super) num_of_unnamed_locals: NonZeroUsize,
-	pub(super) named_locals: Vec<Gc<Text>>,
+}
+
+impl Debug for Block {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		if !f.alternate() {
+			return write!(f, "Block({:?})", self.source_location());
+		}
+
+		let inner = self.inner();
+		f.debug_struct("Block")
+			.field("arity", &inner.arity)
+			.field("location", &inner.location)
+			.field("code", &CodeDebugger(&inner))
+			.finish()
+	}
 }
 
 impl Block {
@@ -205,4 +213,194 @@ quest_type_attrs! { for Gc<Block>, parent Object;
 	dbg => meth funcs::dbg,
 	// "+" => meth qs_add,
 	// "@text" => meth qs_at_text,
+}
+
+struct CodeDebugger<'a>(&'a BlockInner);
+
+impl Debug for CodeDebugger<'_> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		use crate::vm::Opcode;
+
+		let mut i = 0;
+		let mut len;
+
+		macro_rules! byte {
+			() => {{
+				let byte = self.0.code[i];
+				i += 1;
+				len += 3;
+				write!(f, "{byte:02x} ")?;
+				byte
+			}};
+		}
+
+		macro_rules! u64 {
+			() => {{
+				let bytes = &self.0.code[i..i + std::mem::size_of::<u64>()];
+				i += std::mem::size_of::<u64>();
+
+				for byte in bytes {
+					len += 3;
+					write!(f, "{byte:02x} ")?;
+				}
+
+				u64::from_ne_bytes(bytes.try_into().unwrap())
+			}};
+		}
+
+		macro_rules! usize {
+			() => {{
+				let bytes = &self.0.code[i..i + std::mem::size_of::<usize>()];
+				i += std::mem::size_of::<usize>();
+
+				for byte in bytes {
+					write!(f, "{byte:02x} ")?;
+				}
+
+				usize::from_ne_bytes(bytes.try_into().unwrap())
+			}};
+		}
+
+		macro_rules! local {
+			() => {
+				lcl!(count!())
+			};
+		}
+
+		macro_rules! count {
+			() => {
+				match byte!() {
+					super::COUNT_IS_NOT_ONE_BYTE_BUT_USIZE => usize!(),
+					byte if (byte as i8) < 0 => byte as i8 as usize,
+					byte => byte as usize,
+				}
+			};
+		}
+
+		macro_rules! writeln_len {
+			($($tt:tt)*) => {{
+				for _ in 0..(15-len) {
+					write!(f, " ")?;
+				}
+				writeln!($($tt)*)
+			}};
+		}
+
+		macro_rules! lcl {
+			($n:expr) => {{
+				let n = $n;
+				if (n as isize) < 0 {
+					let n = !n as usize;
+					format!("{} ({})", n, *self.0.named_locals[n].as_ref().unwrap())
+				} else {
+					n.to_string()
+				}
+			}};
+		}
+
+		f.write_str("{\n")?;
+		while i < self.0.code.len() {
+			f.write_str("\t")?;
+			len = 0;
+
+			let op = Opcode::from_byte(byte!()).expect("bad opcode");
+			let dst = local!();
+
+			match op {
+				Opcode::CreateList => {
+					let count = usize!();
+					let mut list = Vec::with_capacity(count);
+					for _ in 0..count {
+						list.push(local!());
+					}
+					writeln_len!(f, "CreateList: dst={dst}, list: {list:?}")?;
+				}
+				Opcode::CreateListShort => todo!(),
+				Opcode::ConstLoad => {
+					let idx = count!();
+					writeln_len!(
+						f,
+						"ConstLoad: dst={dst}, idx={idx} [{:?}]",
+						self.0.constants[idx as usize]
+					)?
+				}
+				Opcode::LoadImmediate => {
+					let bits = u64!();
+					let immediate = unsafe { <Value>::from_bits(bits) };
+					writeln_len!(f, "LoadImmediate: dst={dst}, immediate={immediate:?}")?;
+				}
+				Opcode::LoadBlock => {
+					let bits = u64!();
+					let block = unsafe { std::mem::transmute::<u64, Gc<Block>>(bits) };
+					writeln_len!(f, "LoadBlock: dst={dst}, block={block:?}")?;
+				}
+				Opcode::Stackframe => {
+					let count = count!();
+					writeln_len!(f, "Stackframe: dst={dst}, count={count}")?;
+				}
+
+				Opcode::Mov => {
+					let src = local!();
+					writeln_len!(f, "Mov: dst={dst}, src={src}")?;
+				}
+				Opcode::Call => todo!(),
+				Opcode::CallSimple | Opcode::Index | Opcode::IndexAssign => {
+					let obj = local!();
+					let count = count!();
+					let mut args = Vec::with_capacity(count as usize);
+					for _ in 0..count {
+						args.push(local!());
+					}
+					writeln_len!(f, "{op:?}: dst={dst}, obj={obj}, args={args:?}")?;
+				}
+				Opcode::Not | Opcode::Negate => {
+					let src = local!();
+					writeln_len!(f, "{op:?}: dst={dst}, src={src}")?;
+				}
+
+				Opcode::GetAttr | Opcode::GetUnboundAttr | Opcode::HasAttr | Opcode::DelAttr => {
+					let obj = local!();
+					let attr = local!();
+					writeln_len!(f, "{op:?}: dst={dst}, obj={obj}, attr={attr}")?;
+				}
+				Opcode::SetAttr => {
+					let attr = local!();
+					let value = local!();
+					let obj = local!();
+					writeln_len!(f, "{op:?}: dst={dst}, obj={obj}, attr={attr}, value={value}")?;
+				}
+
+				Opcode::CallAttr => todo!(),
+				Opcode::CallAttrSimple => {
+					let obj = local!();
+					let attr = local!();
+					let count = count!();
+					let mut args = Vec::with_capacity(count as usize);
+					for _ in 0..count {
+						args.push(local!());
+					}
+					writeln_len!(f, "{op:?}: dst={dst}, obj={obj}, attr={attr}, args={args:?}")?;
+				}
+				Opcode::Add
+				| Opcode::Subtract
+				| Opcode::Multiply
+				| Opcode::Divide
+				| Opcode::Modulo
+				| Opcode::Power
+				| Opcode::Equal
+				| Opcode::NotEqual
+				| Opcode::LessThan
+				| Opcode::LessEqual
+				| Opcode::GreaterThan
+				| Opcode::GreaterEqual
+				| Opcode::Compare => {
+					let lhs = local!();
+					let rhs = local!();
+					writeln_len!(f, "{op:?}: dst={dst}, lhs={lhs}, rhs={rhs}")?;
+				}
+			}
+		}
+
+		f.write_str("}")
+	}
 }

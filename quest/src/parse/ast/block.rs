@@ -1,7 +1,6 @@
 use super::{Compile, Group};
 use crate::parse::token::{ParenType, TokenContents};
 use crate::parse::{Parser, Result};
-use crate::value::ToValue;
 use crate::vm::block::{Builder, Local};
 
 #[derive(Debug)]
@@ -113,6 +112,6 @@ impl Compile for Block<'_> {
 			self.body.compile(&mut inner_builder, scratch)
 		});
 		let block = inner_builder.build();
-		builder.constant(block.to_value(), dst);
+		builder.block(block, dst);
 	}
 }

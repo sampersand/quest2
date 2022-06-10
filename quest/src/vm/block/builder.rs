@@ -220,6 +220,17 @@ impl Builder {
 		}
 	}
 
+	/// Loads the constant `block` into `dst`, adding the stackframe at the time as a parent.
+	pub fn block(&mut self, block: Gc<Block>, dst: Local) {
+		// SAFETY: This is the definition of the `LoadImmediate` opcode.
+		// TODO: when we implement garbage collection, maybe somehow indicate `value` is being
+		// used by this builder?
+		unsafe {
+			self.opcode(Opcode::LoadBlock, dst);
+			self.code.extend(block.to_value().bits().to_ne_bytes());
+		}
+	}
+
 	/// Equivalent to [`constant`](Self::constant), except there's no need to allocate a
 	/// [`Gc<Text>`](crate::value::ty::Text) if the string already exists.
 	#[allow(clippy::missing_panics_doc)] // the `.unwrap()` should never panic.

@@ -3,11 +3,11 @@ use crate::value::{Convertible, Gc};
 use crate::vm::Args;
 use crate::{ErrorKind, Result, ToValue, Value};
 use num_bigint::BigInt;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 
 pub type Inner = i64;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[repr(transparent)]
 pub struct Integer {
 	// We have it as `n` instead of `0` to make it harder to accidentally create it.
@@ -70,6 +70,12 @@ impl ToValue for Inner {
 	#[must_use]
 	fn to_value(self) -> Value {
 		Integer::new_truncate(self).to_value()
+	}
+}
+
+impl Debug for Integer {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		Debug::fmt(&self.get(), f)
 	}
 }
 

@@ -27,7 +27,6 @@ impl Debug for Frame {
 	}
 }
 
-#[derive(Debug)]
 #[doc(hidden)]
 pub struct Inner {
 	block: Gc<Block>,
@@ -402,12 +401,14 @@ impl Frame {
 	unsafe fn next_opcode(&mut self) -> Opcode {
 		let byte = self.next_byte();
 
-		debug_assert!(Opcode::verify_is_valid(byte), "read invalid opcode? {:?}", byte);
-
-		let op = std::mem::transmute::<u8, Opcode>(byte);
-
-		trace!(target: "frame", ?op, "read opcode");
-		op
+		if let Some(op) = Opcode::from_byte(byte) {
+			trace!(target: "frame", ?op, "read opcode");
+			op
+		} else if cfg!(debug_assertions) {
+			unreachable!("invalid opcode? {byte:?}")
+		} else {
+			std::hint::unreachable_unchecked()
+		}
 	}
 
 	// SAFETY: if we're not at the end, the next byte must be a valid opcode.
@@ -667,6 +668,13 @@ impl Gc<Frame> {
 				// SAFETY: `self` is well-formed, so we know that `LoadImmediate` will have at least
 				// 8 bytes after, corresponding to a valid `Value`.
 				Opcode::LoadImmediate => unsafe { Value::from_bits(this.next_u64()) },
+
+				// SAFETY: `self` is well-formed, so we know that `Gc<Block>` will have at least
+				// 8 bytes after, corresponding to a valid `Gc<Block>`.
+				Opcode::LoadBlock => unsafe {
+					let block = std::mem::transmute::<u64, Gc<Block>>(this.next_u64());
+					this.constant_as_block(block, dst)?
+				},
 
 				Opcode::Stackframe => {
 					// SAFETY: `self` is well-formed, so we know that `Stackframe`, after `dst`, has a
