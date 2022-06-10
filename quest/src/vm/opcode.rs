@@ -22,8 +22,10 @@ pub enum Opcode {
 	CreateListShort = -0x01i8 as u8,
 	/// `ConstLoad(dst, count)` Loads the constant at `count` into `dst`.
 	ConstLoad = 0x01,
+	/// `LoadImmediate(dst, <8 bytes>)` interprets the following 8 bytes as a `Value`.
+	LoadImmediate = 0x02,
 	/// `Stackframe(dst, count)` Gets the `count`th stackframe. Can be negative.
-	Stackframe = 0x02,
+	Stackframe = 0x03,
 
 	/// `Mov(dst, src)` Copies `src` into `dst`.
 	Mov = 0x20,
@@ -147,6 +149,7 @@ impl Opcode {
 			_ if byte == Self::Call as u8 => true,
 			_ if byte == Self::CallSimple as u8 => true,
 			_ if byte == Self::ConstLoad as u8 => true,
+			_ if byte == Self::LoadImmediate as u8 => true,
 			_ if byte == Self::Stackframe as u8 => true,
 
 			_ if byte == Self::GetAttr as u8 => true,

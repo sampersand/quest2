@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 quest_type! {
 	/// A Stackframe within quest.
+	// TODO: when garbage collecting, check `block`'s bytecode for immediates.
 	#[derive(NamedType)]
 	pub struct Frame(Inner);
 }
@@ -354,6 +355,20 @@ impl Frame {
 		us
 	}
 
+	// SAFETY: Must be called when there's at least `sizeof(u64)` bytes left.
+	unsafe fn next_u64(&mut self) -> u64 {
+		debug_assert!(self.pos + std::mem::size_of::<u64>() <= self.inner_block.code.len());
+
+		// SAFETY: `block`s can only be created from well-formed bytecode, so this will never be
+		// out of bounds.
+		#[allow(clippy::cast_ptr_alignment)]
+		let us = self.inner_block.code.as_ptr().add(self.pos).cast::<u64>().read_unaligned();
+
+		self.pos += std::mem::size_of::<u64>();
+
+		us
+	}
+
 	// SAFETY: Must be called when the next value is actually a valid local.
 	unsafe fn next_local(&mut self) -> Result<Value> {
 		let index = self.next_local_target();
@@ -648,6 +663,10 @@ impl Gc<Frame> {
 					let idx = this.next_count();
 					this.get_constant(idx, dst)?
 				},
+
+				// SAFETY: `self` is well-formed, so we know that `LoadImmediate` will have at least
+				// 8 bytes after, corresponding to a valid `Value`.
+				Opcode::LoadImmediate => unsafe { Value::from_bits(this.next_u64()) },
 
 				Opcode::Stackframe => {
 					// SAFETY: `self` is well-formed, so we know that `Stackframe`, after `dst`, has a

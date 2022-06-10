@@ -44,8 +44,8 @@ impl<'a> Atom<'a> {
 impl Compile for Atom<'_> {
 	fn compile(&self, builder: &mut Builder, dst: Local) {
 		match self {
-			Self::Integer(integer) => builder.constant((*integer).to_value(), dst),
-			Self::Float(float) => builder.constant((*float).to_value(), dst),
+			Self::Integer(integer) => builder.immediate((*integer).to_value(), dst),
+			Self::Float(float) => builder.immediate((*float).to_value(), dst),
 			Self::Text(text) => builder.constant((*text).to_value(), dst),
 			Self::Group(group) => group.compile(builder, dst),
 			Self::Identifier(identifier) => {
