@@ -130,22 +130,22 @@ impl<'a> Args<'a> {
 	pub fn into_value(self) -> Value {
 		self.assert_no_keyword().expect("todo: keyword for argument into value");
 
-		let mut builder = crate::value::ty::List::builder();
-
 		let mut len = self.positional.len();
 		if self.this.is_some() {
 			len += 1;
 		}
 
+		let mut builder = crate::value::ty::List::with_capacity(len);
+
 		unsafe {
-			builder.allocate_buffer(len);
 			if let Some(this) = self.this {
-				builder.list_mut().push(this);
+				builder.push_unchecked(this);
 			}
 
-			builder.list_mut().push_slice_unchecked(self.positional);
-			builder.finish().to_value()
+			builder.extend_from_slice_unchecked(self.positional);
 		}
+
+		builder.to_value()
 	}
 }
 

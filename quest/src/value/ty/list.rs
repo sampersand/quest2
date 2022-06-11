@@ -6,7 +6,9 @@ use std::alloc;
 use std::fmt::{self, Debug, Formatter};
 
 mod builder;
+mod simple_builder;
 pub use builder::Builder;
+pub use simple_builder::SimpleBuilder;
 
 quest_type! {
 	#[derive(NamedType)]
@@ -76,17 +78,11 @@ impl List {
 
 	#[must_use]
 	pub fn new() -> Gc<Self> {
-		Self::with_capacity(0)
+		Self::with_capacity(0).finish()
 	}
 
-	#[must_use]
-	pub fn with_capacity(capacity: usize) -> Gc<Self> {
-		let mut builder = Self::builder();
-
-		unsafe {
-			builder.allocate_buffer(capacity);
-			builder.finish() // Nothing else to do, as the default state is valid.
-		}
+	pub fn with_capacity(capacity: usize) -> SimpleBuilder {
+		SimpleBuilder::with_capacity(capacity)
 	}
 
 	#[must_use]
@@ -95,7 +91,7 @@ impl List {
 
 		unsafe {
 			builder.allocate_buffer(inp.len());
-			builder.list_mut().push_slice_unchecked(inp);
+			builder.list_mut().extend_from_slice_unchecked(inp);
 			builder.finish()
 		}
 	}
@@ -205,7 +201,10 @@ impl List {
 	}
 
 	#[must_use]
-	pub fn substr<I: std::slice::SliceIndex<[Value], Output = [Value]>>(&self, idx: I) -> Gc<Self> {
+	pub fn subslice<I: std::slice::SliceIndex<[Value], Output = [Value]>>(
+		&self,
+		idx: I,
+	) -> Gc<Self> {
 		let slice = &self.as_slice()[idx];
 
 		unsafe {
@@ -339,7 +338,11 @@ impl List {
 
 	pub fn push(&mut self, ele: Value) {
 		// OPTIMIZE: you can make this work better for single values.
-		self.push_slice(std::slice::from_ref(&ele));
+		self.extend_from_slice(std::slice::from_ref(&ele));
+	}
+
+	pub unsafe fn push_unchecked(&mut self, ele: Value) {
+		self.extend_from_slice_unchecked(std::slice::from_ref(&ele));
 	}
 
 	pub fn pop(&mut self) -> Option<Value> {
@@ -354,21 +357,29 @@ impl List {
 		ret
 	}
 
-	pub fn push_slice(&mut self, slice: &[Value]) {
+	pub fn extend_from_slice(&mut self, slice: &[Value]) {
 		if self.capacity() <= self.len() + slice.len() {
 			self.allocate_more(slice.len());
 		}
 
 		unsafe {
-			self.push_slice_unchecked(slice);
+			self.extend_from_slice_unchecked(slice);
 		}
 	}
 
-	pub unsafe fn push_slice_unchecked(&mut self, slice: &[Value]) {
+	pub unsafe fn extend_from_slice_unchecked(&mut self, slice: &[Value]) {
 		debug_assert!(self.capacity() >= self.len() + slice.len());
 
 		std::ptr::copy(slice.as_ptr(), self.mut_end_ptr(), slice.len());
 		self.set_len(self.len() + slice.len());
+	}
+}
+
+impl Extend<Value> for List {
+	fn extend<T: IntoIterator<Item = Value>>(&mut self, iter: T) {
+		for ele in iter {
+			self.push(ele);
+		}
 	}
 }
 
@@ -611,11 +622,10 @@ pub mod funcs {
 		let func = args[0];
 
 		let listref = list.as_ref()?;
-		let new = List::with_capacity(listref.len());
-		let mut newmut = new.as_mut()?;
+		let mut new = List::with_capacity(listref.len());
 
 		for ele in listref.as_slice() {
-			newmut.push(func.call(Args::new(&[*ele], &[]))?);
+			new.push(func.call(Args::new(&[*ele], &[]))?);
 		}
 
 		Ok(new.to_value())

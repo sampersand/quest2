@@ -634,13 +634,12 @@ impl Gc<Frame> {
 					let amnt = unsafe { this.next_count() };
 
 					// TODO: use simple list builder when we make it
-					let list = List::with_capacity(amnt);
-					{
-						let mut l = list.as_mut().unwrap();
-						for _ in 0..amnt {
-							// SAFETY: `self` is well-formed, so after `CreateList`'s count is that many
-							// locals.
-							l.push(unsafe { this.next_local()? });
+					let mut list = List::with_capacity(amnt);
+					for _ in 0..amnt {
+						// SAFETY: `self` is well-formed, so after `CreateList`'s count is that many
+						// locals.
+						unsafe {
+							list.push_unchecked(this.next_local()?);
 						}
 					}
 

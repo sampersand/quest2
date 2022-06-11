@@ -423,11 +423,10 @@ pub mod funcs {
 			return Ok(List::new().to_value());
 		}
 
-		let list = List::with_capacity((max - int) as usize);
-		let mut listmut = list.as_mut().unwrap();
+		let mut list = List::with_capacity((max - int) as usize);
 
 		for i in int..=max {
-			listmut.push(i.to_value());
+			list.push(i.to_value());
 		}
 
 		Ok(list.to_value())
@@ -444,11 +443,10 @@ pub mod funcs {
 			return Ok(List::new().to_value());
 		}
 
-		let list = List::with_capacity((int - min) as usize);
-		let mut listmut = list.as_mut().unwrap();
+		let mut list = List::with_capacity((int - min) as usize);
 
 		for i in (min..=int).rev() {
-			listmut.push(i.to_value());
+			list.push(i.to_value());
 		}
 
 		Ok(list.to_value())
