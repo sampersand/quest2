@@ -683,26 +683,30 @@ impl Gc<Frame> {
 				},
 
 				Opcode::Stackframe => {
+					#[cold]
+					fn stackframe(mut count: isize) -> Result<Gc<Frame>> {
+						// todo: optimization for :0
+						with_stackframes(|frames| {
+							if count < 0 {
+								count += frames.len() as isize;
+
+								if count < 0 {
+									return Err("todo: out of bounds error".to_string().into());
+								}
+							}
+
+							Result::<_>::Ok(
+								*frames
+									.get(frames.len() - count as usize - 1)
+									.expect("todo: out of bounds error"),
+							)
+						})
+					}
+
 					// SAFETY: `self` is well-formed, so we know that `Stackframe`, after `dst`, has a
 					// valid count.
-					let mut count = unsafe { this.next_count() } as isize;
-
-					// todo: optimization for :0
-					let frame = with_stackframes(|frames| {
-						if count < 0 {
-							count += frames.len() as isize;
-
-							if count < 0 {
-								return Err("todo: out of bounds error".to_string().into());
-							}
-						}
-
-						Result::<_>::Ok(
-							*frames
-								.get(frames.len() - count as usize - 1)
-								.expect("todo: out of bounds error"),
-						)
-					})?;
+					let count = unsafe { this.next_count() } as isize;
+					let frame = stackframe(count)?;
 
 					without_this! {
 						frame.as_mut()?.convert_to_object()?;
@@ -839,7 +843,7 @@ impl Gc<Frame> {
 				Opcode::Not | Opcode::Negate => without_this! {
 					// SAFETY: `self` is well-formed, so we know that the first argument exists
 					let object = unsafe { args[0].assume_init() };
-					let intern = if op == Opcode::Index {
+					let intern = if op == Opcode::Not {
 						Intern::op_not
 					} else {
 						Intern::op_neg

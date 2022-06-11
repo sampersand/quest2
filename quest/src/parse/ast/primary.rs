@@ -13,6 +13,8 @@ pub enum Primary<'a> {
 	FnCall(Box<Primary<'a>>, FnArgs<'a>),
 	Index(Box<Primary<'a>>, FnArgs<'a>),
 	AttrAccess(Box<Primary<'a>>, AttrAccessKind, Atom<'a>),
+	HasAttr(Box<Primary<'a>>, Atom<'a>),
+	DelAttr(Box<Primary<'a>>, Atom<'a>),
 }
 
 impl<'a> Primary<'a> {
@@ -48,6 +50,22 @@ impl<'a> Primary<'a> {
 				Self::FnCall(Box::new(primary), FnArgs::parse(parser, ParenType::Round)?)
 			} else if parser.take_if_contents(TokenContents::LeftParen(ParenType::Square))?.is_some() {
 				Self::Index(Box::new(primary), FnArgs::parse(parser, ParenType::Square)?)
+			} else if parser.take_if_contents(TokenContents::Symbol(".?"))?.is_some() {
+				if let Some(atom) = Atom::parse(parser)? {
+					Self::HasAttr(Box::new(primary), atom)
+				} else {
+					return Err(
+						parser.error(ErrorKind::Message("expected atom after `.?`".to_string())),
+					);
+				}
+			} else if parser.take_if_contents(TokenContents::Symbol(".~"))?.is_some() {
+				if let Some(atom) = Atom::parse(parser)? {
+					Self::DelAttr(Box::new(primary), atom)
+				} else {
+					return Err(
+						parser.error(ErrorKind::Message("expected atom after `.~`".to_string())),
+					);
+				}
 			} else if let Some(access_kind) = AttrAccessKind::parse(parser)? {
 				if let Some(atom) = Atom::parse(parser)? {
 					Self::AttrAccess(Box::new(primary), access_kind, atom)
@@ -134,6 +152,32 @@ impl Compile for Primary<'_> {
 					AttrAccessKind::ColonColon => builder.get_unbound_attr(local, dst, dst),
 					AttrAccessKind::Period => builder.get_attr(local, dst, dst),
 				}
+			}
+			Self::HasAttr(source, attribute) => {
+				let local = builder.unnamed_local();
+				source.compile(builder, local);
+
+				// don't parse identifiers straight up
+				if let Atom::Identifier(ident) = attribute {
+					builder.str_constant(ident, dst);
+				} else {
+					attribute.compile(builder, dst);
+				}
+
+				builder.has_attr(local, dst, dst)
+			}
+			Self::DelAttr(source, attribute) => {
+				let local = builder.unnamed_local();
+				source.compile(builder, local);
+
+				// don't parse identifiers straight up
+				if let Atom::Identifier(ident) = attribute {
+					builder.str_constant(ident, dst);
+				} else {
+					attribute.compile(builder, dst);
+				}
+
+				builder.del_attr(local, dst, dst)
 			}
 		}
 	}

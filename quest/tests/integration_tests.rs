@@ -435,3 +435,16 @@ fn should_overflow_and_return_error() {
 		result.kind
 	);
 }
+
+#[test]
+fn has_attr_and_del_attr() {
+	run_code(
+		r#"
+			obj = object({ x = 3 });
+			assert(obj.?x);
+			assert(3 == obj.~x);
+			assert(!(obj.?x));
+		"#,
+	)
+	.unwrap();
+}
