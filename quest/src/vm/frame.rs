@@ -794,105 +794,70 @@ impl Gc<Frame> {
 					object.call_attr(attr, args_slice)?
 				},
 
-				Opcode::Add => without_this! {
+				Opcode::Add
+				| Opcode::Subtract
+				| Opcode::Multiply
+				| Opcode::Divide
+				| Opcode::Modulo
+				| Opcode::Power
+				| Opcode::Equal
+				| Opcode::NotEqual
+				| Opcode::LessThan
+				| Opcode::GreaterThan
+				| Opcode::LessEqual
+				| Opcode::GreaterEqual
+				| Opcode::Compare => without_this! {
+					static INTERNS_PER_OPCODE_COUNT: [Intern; 13] = [
+						Intern::op_add,
+						Intern::op_sub,
+						Intern::op_mul,
+						Intern::op_div,
+						Intern::op_mod,
+						Intern::op_pow,
+						Intern::op_eql,
+						Intern::op_neq,
+						Intern::op_lth,
+						Intern::op_gth,
+						Intern::op_leq,
+						Intern::op_geq,
+						Intern::op_cmp,
+					];
+
 					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
 					// followed by an argument slice of length 1.
 					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_add, args)?
+
+					let opcode_count = op.count_within_arity();
+					debug_assert!(opcode_count < INTERNS_PER_OPCODE_COUNT.len());
+
+					// SAFETY: `self` is well-formed, so we know that all of the opcodes matched in this
+					// block are <= `INTERNS_PER_OPCODE_COUNT`'s length.
+					let intern = unsafe { *INTERNS_PER_OPCODE_COUNT.get_unchecked(opcode_count) };
+					object.call_attr(intern, args)?
 				},
-				Opcode::Subtract => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_sub, args)?
-				},
-				Opcode::Multiply => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_mul, args)?
-				},
-				Opcode::Divide => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_div, args)?
-				},
-				Opcode::Modulo => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_mod, args)?
-				},
-				Opcode::Power => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_pow, args)?
-				},
-				Opcode::Not => without_this! {
+
+				Opcode::Not | Opcode::Negate => without_this! {
 					// SAFETY: `self` is well-formed, so we know that the first argument exists
 					let object = unsafe { args[0].assume_init() };
-					object.call_attr(Intern::op_not, Args::default())?
+					let intern = if op == Opcode::Index {
+						Intern::op_not
+					} else {
+						Intern::op_neg
+					};
+					object.call_attr(intern, Args::default())?
 				},
-				Opcode::Negate => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists
-					let object = unsafe { args[0].assume_init() };
-					object.call_attr(Intern::op_neg, Args::default())?
-				},
-				Opcode::Equal => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_eql, args)?
-				},
-				Opcode::NotEqual => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_neq, args)?
-				},
-				Opcode::LessThan => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_lth, args)?
-				},
-				Opcode::GreaterThan => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_gth, args)?
-				},
-				Opcode::LessEqual => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_leq, args)?
-				},
-				Opcode::GreaterEqual => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_geq, args)?
-				},
-				Opcode::Compare => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice of length 1.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1, len=1)) };
-					object.call_attr(Intern::op_cmp, args)?
-				},
-				Opcode::Index => without_this! {
+				Opcode::Index | Opcode::IndexAssign => without_this! {
 					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
 					// followed by an argument slice.
 					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start=1)) };
-					object.call_attr(Intern::op_index, args)?
-				},
-				Opcode::IndexAssign => without_this! {
-					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is
-					// followed by an argument slice.
-					let (object, args) = unsafe { (args[0].assume_init(), args_slice!(start = 1)) };
-					object.call_attr(Intern::op_index_assign, args)?
+
+					let intern = if op == Opcode::Index {
+						Intern::op_index
+					} else {
+						Intern::op_index_assign
+					};
+
+					object.call_attr(intern, args)?
 				},
 			};
 

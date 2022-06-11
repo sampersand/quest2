@@ -1,3 +1,12 @@
+// opcode format: V_CCCCC_AA
+// `v` is whether it's variable, `C` is count, `A` is arity
+const fn opcode_fmt(takes_variable: bool, fixed_arity: u8, count: u8) -> u8 {
+	debug_assert!(fixed_arity <= 3);
+	debug_assert!(count <= 31);
+
+	(count << 2) | fixed_arity | if takes_variable { 128 } else { 0 }
+}
+
 /// The list of opcodes the Quest interpreter supports.
 ///
 /// The numeric representations were very carefully chosen: Divide the number by `0x20` (taking the
@@ -12,101 +21,111 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 #[repr(u8)]
+#[allow(clippy::unusual_byte_groupings)]
 pub enum Opcode {
 	/// `CreateList(dst, count, ...)` Create a list of size `count` of trailing locals and stores it
 	/// into `dst`. (For short lists, use [`CreateListShort`](Self::CreateListShort), as it uses an
 	/// internal buffer).
-	CreateList = 0x00,
+	CreateList = opcode_fmt(false, 0, 0),
 	/// `CreateListShort(dst, count, ...)` Create a list of size `count` of trailing locals and
 	/// stores it into `dst`. (For longer lists, use [`CreateList`](Self::CreateList))
-	CreateListShort = -0x01i8 as u8,
+	CreateListShort = opcode_fmt(true, 0, 0),
 	/// `ConstLoad(dst, count)` Loads the constant at `count` into `dst`.
-	ConstLoad = 0x01,
+	ConstLoad = opcode_fmt(false, 0, 1),
 	/// `LoadImmediate(dst, <8 bytes>)` interprets the following 8 bytes as a [`Value`].
-	LoadImmediate = 0x02,
+	LoadImmediate = opcode_fmt(false, 0, 2),
 	/// `LoadImmediate(dst, <1 byte>)` interprets the following `i8` as a [`Value`], sign-extending.
-	LoadSmallImmediate = 0x03,
+	LoadSmallImmediate = opcode_fmt(false, 0, 3),
 	/// `LoadBlock(dst, <8 bytes>)` interprets the following 8 bytes as a [`Gc<Block>`], adding the
 	/// currently executing frame as a parent.
-	LoadBlock = 0x04,
+	LoadBlock = opcode_fmt(false, 0, 4),
 	/// `Stackframe(dst, count)` Gets the `count`th stackframe. Can be negative.
-	Stackframe = 0x05,
+	Stackframe = opcode_fmt(false, 0, 5),
 
 	/// `Mov(dst, src)` Copies `src` into `dst`.
-	Mov = 0x20,
+	Mov = opcode_fmt(false, 1, 0),
 	/// `Call(dst, fn, ???)` todo comeback later
-	Call = 0x21,
+	Call = opcode_fmt(false, 1, 1),
 	/// `CallSimple(dst, fn, count, ...)` Calls `fn` with `count` positional arguments.
-	CallSimple = -0x23i8 as u8,
+	CallSimple = opcode_fmt(true, 1, 0),
 	/// `Index(dst, ary, count, ...)` Indexes into `ary` with `count` arguments.
-	Index = -0x21i8 as u8,
+	Index = opcode_fmt(true, 1, 1),
 	/// `IndexAssign(dst, ary, count, ...)` Index-assigns `ary` with `count` arguments.
 	/// Note that this doesn't have a separate "value to store" operand, as that's simply the last
 	/// positional argument.
-	IndexAssign = -0x22i8 as u8,
+	IndexAssign = opcode_fmt(true, 1, 2),
 	/// `Not(dst, src)` Logically negates `src`, pushing it into `dst`.
-	Not = 0x22,
+	Not = opcode_fmt(false, 1, 2),
 	/// `Negate(dst, src)` Numerically negates `src`, pushing it into `dst`.
-	Negate = 0x23,
+	Negate = opcode_fmt(false, 1, 3),
+
+	/// `Add(dst, lhs, rhs)` Sets `dst` to the result of adding `lhs + rhs`.
+	Add = opcode_fmt(false, 2, 0),
+	/// `Subtract(dst, lhs, rhs)` Sets `dst` to the result of `lhs - rhs`.
+	Subtract = opcode_fmt(false, 2, 1),
+	/// `Multiply(dst, lhs, rhs)` Sets `dst` to the result of `lhs * rhs`.
+	Multiply = opcode_fmt(false, 2, 2),
+	/// `Divide(dst, lhs, rhs)` Sets `dst` to the result of `lhs / rhs`.
+	Divide = opcode_fmt(false, 2, 3),
+	/// `Modulo(dst, lhs, rhs)` Sets `dst` to the result of `lhs % rhs`.
+	Modulo = opcode_fmt(false, 2, 4),
+	/// `Power(dst, lhs, rhs)` Sets `dst` to the result of `lhs ** rhs`.
+	Power = opcode_fmt(false, 2, 5),
+	/// `Equal(dst, lhs, rhs)` Sets `dst` to the result of `lhs == rhs`.
+	Equal = opcode_fmt(false, 2, 6),
+	/// `NotEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs != rhs`.
+	NotEqual = opcode_fmt(false, 2, 7),
+	/// `LessThan(dst, lhs, rhs)` Sets `dst` to the result of `lhs < rhs`.
+	LessThan = opcode_fmt(false, 2, 8),
+	/// `GreaterThan(dst, lhs, rhs)` Sets `dst` to the result of `lhs > rhs`.
+	GreaterThan = opcode_fmt(false, 2, 9),
+	/// `LessEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs <= rhs`.
+	LessEqual = opcode_fmt(false, 2, 10),
+	/// `GreaterEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs >= rhs`.
+	GreaterEqual = opcode_fmt(false, 2, 11),
+	/// `Compare(dst, lhs, rhs)` Sets `dst` to the result of `lhs <=> rhs`.
+	Compare = opcode_fmt(false, 2, 12),
 
 	/// `GetAttr(dst, obj, attr)` Gets the attribute `attr` on `obj`, storing the result into `dst`.
-	GetAttr = 0x40,
+	GetAttr = opcode_fmt(false, 2, 13),
 	/// `GetUnboundAttr(dst, obj, attr)` Gets the unbound attribute `attr` on `obj`, storing the
 	/// result into `dst`.
-	GetUnboundAttr = 0x41,
+	GetUnboundAttr = opcode_fmt(false, 2, 14),
 	/// `HasAttr(dst, obj, attr)` Checks to see if the attribute `attr` on `obj`, storing the result
 	/// into `dst`.
-	HasAttr = 0x42,
+	HasAttr = opcode_fmt(false, 2, 15),
 	/// `SetAttr(dst, attr, value[, obj])` Sets the attribute `attr` on `obj` to `value`.
 	/// Note that `obj` is not actually read as part of the bytecode, as we may be assigning to an
 	/// [`Integer`](crate::value::ty::Integer) (or another type), which means we may need to mutably
 	/// get the attribute.
-	SetAttr = 0x43,
+	SetAttr = opcode_fmt(false, 2, 16),
 	/// `DelAttr(dst, obj, attr)` Deletes the attribute `attr` from `obj`, storing its previous
 	/// value into `dst` (if it doesnt exist, [`Null`](crate::value::ty::Null) is used).
-	DelAttr = 0x44,
+	DelAttr = opcode_fmt(false, 2, 17),
 	/// `CallAttr(dst, fn, ???)` todo comeback later
-	CallAttr = 0x45,
+	CallAttr = opcode_fmt(false, 2, 18),
 	/// `CallAttrSimple(dst, obj, attr, count, ...)` Calls `obj`'s attribute `attr` with `count`
 	/// positional arguments, storing the result into `dst`.
-	CallAttrSimple = -0x41i8 as u8,
-	/// `Add(dst, lhs, rhs)` Sets `dst` to the result of adding `lhs + rhs`.
-	Add = 0x46,
-	/// `Subtract(dst, lhs, rhs)` Sets `dst` to the result of `lhs - rhs`.
-	Subtract = 0x47,
-	/// `Multiply(dst, lhs, rhs)` Sets `dst` to the result of `lhs * rhs`.
-	Multiply = 0x48,
-	/// `Divide(dst, lhs, rhs)` Sets `dst` to the result of `lhs / rhs`.
-	Divide = 0x49,
-	/// `Modulo(dst, lhs, rhs)` Sets `dst` to the result of `lhs % rhs`.
-	Modulo = 0x4a,
-	/// `Power(dst, lhs, rhs)` Sets `dst` to the result of `lhs ** rhs`.
-	Power = 0x4b,
-	/// `Equal(dst, lhs, rhs)` Sets `dst` to the result of `lhs == rhs`.
-	Equal = 0x4c,
-	/// `NotEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs != rhs`.
-	NotEqual = 0x4d,
-	/// `LessThan(dst, lhs, rhs)` Sets `dst` to the result of `lhs < rhs`.
-	LessThan = 0x4e,
-	/// `GreaterThan(dst, lhs, rhs)` Sets `dst` to the result of `lhs > rhs`.
-	GreaterThan = 0x4f,
-	/// `LessEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs <= rhs`.
-	LessEqual = 0x50,
-	/// `GreaterEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs >= rhs`.
-	GreaterEqual = 0x51,
-	/// `Compare(dst, lhs, rhs)` Sets `dst` to the result of `lhs <=> rhs`.
-	Compare = 0x52,
+	CallAttrSimple = opcode_fmt(true, 2, 0),
 }
 
 impl Opcode {
 	/// Gets the arity of `self`.
+	#[inline]
 	pub const fn fixed_arity(self) -> usize {
-		((self as i8) / 0x20).abs() as usize
+		(self as u8 & 0b11) as usize
 	}
 
 	/// Gets whether `self` takes a variable amount of arguments.
+	#[inline]
 	pub const fn is_variable_simple(self) -> bool {
 		(self as i8).is_negative()
+	}
+
+	/// <DOC: TODO>
+	#[inline]
+	pub const fn count_within_arity(self) -> usize {
+		((self as u8 & 0b0_11111_00) >> 2) as usize
 	}
 
 	/// Gets the `Opcode` corresponding to the unary operator `symbol`, if one exists.
