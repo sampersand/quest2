@@ -26,6 +26,7 @@ impl Object {
 				Intern::hash => function funcs::hash,
 				Intern::r#return => function funcs::r#return,
 				Intern::tap => function funcs::tap,
+				Intern::pipe => function funcs::pipe,
 				Intern::then => function funcs::then,
 				Intern::r#else => function funcs::r#else,
 				Intern::or => function funcs::or,
@@ -94,10 +95,10 @@ pub mod funcs {
 	}
 
 	pub fn tap(obj: Value, args: Args<'_>) -> Result<Value> {
-		tap_into(obj, args).and(Ok(obj))
+		pipe(obj, args).and(Ok(obj))
 	}
 
-	pub fn tap_into(obj: Value, args: Args<'_>) -> Result<Value> {
+	pub fn pipe(obj: Value, args: Args<'_>) -> Result<Value> {
 		let (func, args) = args.split_first()?;
 		func.call(args.with_this(obj))
 	}

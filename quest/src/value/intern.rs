@@ -113,7 +113,7 @@ define_interned! {
 
 	// `Object` functions
 	hash clone itself
-	tap tap_into then and_then r#else "else" or_else or and
+	tap pipe then and_then r#else "else" or_else or and
 	display freeze
 
 	// Kernel functions

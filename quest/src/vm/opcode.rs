@@ -1,5 +1,5 @@
 // opcode format: V_CCCCC_AA
-// `v` is whether it's variable, `C` is count, `A` is arity
+// `V` is whether it's variable, `C` is count, `A` is arity
 const fn opcode_fmt(takes_variable: bool, fixed_arity: u8, count: u8) -> u8 {
 	debug_assert!(fixed_arity <= 3);
 	debug_assert!(count <= 31);
