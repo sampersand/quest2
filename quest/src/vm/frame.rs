@@ -176,7 +176,7 @@ impl Frame {
 		self.0.header().flags().contains(FLAG_IS_OBJECT)
 	}
 
-	pub(super) fn convert_to_object(&mut self) -> Result<()> {
+	pub(crate) fn convert_to_object(&mut self) -> Result<()> {
 		// If we're already an object, nothing else needed to be done.
 		if !self.0.header().flags().try_acquire_all_user(FLAG_IS_OBJECT) {
 			return Ok(());

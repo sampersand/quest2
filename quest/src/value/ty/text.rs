@@ -1066,11 +1066,11 @@ pub mod funcs {
 		args.assert_positional_len(1)?;
 
 		let value = args[0];
-		let mut frame =
-			crate::vm::frame::with_stackframes(|sfs| *sfs.last().expect("returning from nothing?"))
-				.to_value();
+		let frame = crate::vm::frame::with_stackframes(|sfs| sfs.last().copied())
+			.expect("returning from nothing?");
 
-		frame.set_attr(text.to_value(), value)?;
+		frame.as_mut()?.convert_to_object()?;
+		frame.to_value().set_attr(text.to_value(), value)?;
 
 		Ok(value)
 	}
