@@ -282,11 +282,20 @@ impl Builder {
 		}
 	}
 
+	/// The maximum amount of arguments before [`Builder::simple_list`] uses the full
+	/// [`Opcode::CreateList`] opcode.
+	pub const MAX_SIMPLE_LIST_LEN: usize = NUM_ARGUMENT_REGISTERS;
+
 	/// Creates a new list from `args`.
 	pub fn create_list(&mut self, args: &[Local], dst: Local) {
-		// SAFETY: This is the definition of the `CreateList` opcode.
+		// SAFETY: This is the definition of the `CreateList` and `CreateListSimple` opcodes.
 		unsafe {
-			self.opcode(Opcode::CreateList, dst);
+			let opcode = if args.len() <= Self::MAX_SIMPLE_LIST_LEN {
+				Opcode::CreateListSimple
+			} else {
+				Opcode::CreateList
+			};
+			self.opcode(opcode, dst);
 			self.count(args.len());
 			for &arg in args {
 				self.local(arg);

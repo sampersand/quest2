@@ -643,6 +643,19 @@ pub mod funcs {
 		Ok(list.to_value())
 	}
 
+	pub fn sum(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.idx_err_unless(|a| a.len() <= 1)?;
+
+		let mut sum = args.get(0).unwrap_or(crate::value::ty::Integer::ZERO.to_value());
+
+		for &ele in list.as_ref()?.as_slice() {
+			sum = sum.call_attr(crate::value::Intern::op_add, Args::new(&[ele], &[]))?;
+		}
+
+		Ok(sum)
+	}
+
 	pub fn join(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.len() <= 1)?;

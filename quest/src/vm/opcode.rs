@@ -24,12 +24,12 @@ const fn opcode_fmt(takes_variable: bool, fixed_arity: u8, count: u8) -> u8 {
 #[allow(clippy::unusual_byte_groupings)]
 pub enum Opcode {
 	/// `CreateList(dst, count, ...)` Create a list of size `count` of trailing locals and stores it
-	/// into `dst`. (For short lists, use [`CreateListShort`](Self::CreateListShort), as it uses an
+	/// into `dst`. (For short lists, use [`CreateListSimple`](Self::CreateListSimple), as it uses an
 	/// internal buffer).
 	CreateList = opcode_fmt(false, 0, 0),
-	/// `CreateListShort(dst, count, ...)` Create a list of size `count` of trailing locals and
+	/// `CreateListSimple(dst, count, ...)` Create a list of size `count` of trailing locals and
 	/// stores it into `dst`. (For longer lists, use [`CreateList`](Self::CreateList))
-	CreateListShort = opcode_fmt(true, 0, 0),
+	CreateListSimple = opcode_fmt(true, 0, 0),
 	/// `ConstLoad(dst, count)` Loads the constant at `count` into `dst`.
 	ConstLoad = opcode_fmt(false, 0, 1),
 	/// `LoadImmediate(dst, <8 bytes>)` interprets the following 8 bytes as a [`Value`].
@@ -175,7 +175,7 @@ impl Opcode {
 	pub const fn verify_is_valid(byte: u8) -> bool {
 		match byte {
 			_ if byte == Self::CreateList as u8 => true,
-			_ if byte == Self::CreateListShort as u8 => true,
+			_ if byte == Self::CreateListSimple as u8 => true,
 
 			_ if byte == Self::Mov as u8 => true,
 			_ if byte == Self::Call as u8 => true,

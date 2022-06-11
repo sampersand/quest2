@@ -325,9 +325,17 @@ impl Debug for CodeDebugger<'_> {
 					for _ in 0..count {
 						list.push(local!());
 					}
-					writeln_len!(f, "CreateList: dst={dst}, list: {list:?}")?;
+					writeln_len!(f, "CreateList: dst={dst}, list={list:?}")?;
 				}
-				Opcode::CreateListShort => todo!(),
+				Opcode::CreateListSimple => {
+					let count = count!();
+					let mut list = Vec::with_capacity(count as usize);
+					for _ in 0..count {
+						list.push(local!());
+					}
+					writeln_len!(f, "CreateListSimple: dst={dst}, list={list:?}")?;
+				}
+
 				Opcode::ConstLoad => {
 					let idx = count!();
 					writeln_len!(

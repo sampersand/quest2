@@ -628,22 +628,40 @@ impl Gc<Frame> {
 			}
 
 			let result = match op {
-				// todo: create list short, do a bitwise copy over to the pointer.
-				Opcode::CreateList | Opcode::CreateListShort => {
-					// SAFETY: `self` is well-formed, so after `CreateList` and `dst` follows a count.
-					let amnt = unsafe { this.next_count() };
+				Opcode::CreateList => {
+					#[cold]
+					fn create_large_list(this: &mut Frame) -> Result<Value> {
+						// SAFETY: `self` is well-formed, so after `CreateList` and `dst` follows a count.
+						let amnt = unsafe { this.next_count() };
 
-					// TODO: use simple list builder when we make it
-					let mut list = List::with_capacity(amnt);
-					for _ in 0..amnt {
-						// SAFETY: `self` is well-formed, so after `CreateList`'s count is that many
-						// locals.
-						unsafe {
-							list.push_unchecked(this.next_local()?);
+						// TODO: use simple list builder when we make it
+						let mut list = List::with_capacity(amnt);
+
+						for _ in 0..amnt {
+							// SAFETY: `self` is well-formed, so after `CreateList`'s count is that many
+							// locals.
+							unsafe {
+								list.push_unchecked(this.next_local()?);
+							}
 						}
+
+						Ok(list.to_value())
 					}
 
-					list.to_value()
+					create_large_list(&mut this)?
+				}
+
+				Opcode::CreateListSimple => {
+					// SAFETY: `self` is well-formed, so we know that `CreateListSimple` is followed by
+					// a count, and then a bunch of locals.
+					let slice = unsafe {
+						std::slice::from_raw_parts(
+							args.as_ptr().cast::<Value>(),
+							variable_args_count.assume_init(),
+						)
+					};
+
+					List::from_slice(slice).to_value()
 				}
 
 				// SAFETY: `self` is well-formed, so we know the first argument to `Mov` is present
