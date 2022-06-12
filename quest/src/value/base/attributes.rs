@@ -457,7 +457,7 @@ mod tests {
 		let mut child = Value::ONE.to_value_const();
 		assert!(!child.has_attr(ATTR).unwrap());
 
-		child.parents().unwrap().as_mut().unwrap().push(parent);
+		child.parents_list().unwrap().as_mut().unwrap().push(parent);
 		assert_eq!(
 			child
 				.get_unbound_attr_checked(ATTR, &mut vec![])

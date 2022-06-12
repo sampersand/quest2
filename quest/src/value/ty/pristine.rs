@@ -1,4 +1,4 @@
-use crate::value::{base::Base, Gc, Intern, ToValue};
+use crate::value::{base::Base, Attributed, AttributedMut, Gc, Intern, ToValue};
 use crate::vm::Args;
 use crate::{Result, Value};
 

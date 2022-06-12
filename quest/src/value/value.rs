@@ -271,7 +271,7 @@ impl Value {
 	/// Gets the list of parents associated with `self`
 	///
 	/// This takes a mutable reference in case `self` is not allocated
-	pub fn parents(&mut self) -> Result<Gc<List>> {
+	pub fn parents_list(&mut self) -> Result<Gc<List>> {
 		if !self.is_allocated() {
 			// SAFETY: `self` is unallocated, as we just verified
 			unsafe {
@@ -301,7 +301,8 @@ impl crate::value::Attributed for Value {
 	}
 
 	fn has_attr<A: Attribute>(&self, attr: A) -> Result<bool> {
-		(*self).has_attr(attr)
+		// (*self).has_attr(attr)
+		self.get_unbound_attr(attr).map(|opt| opt.is_some())
 	}
 
 	fn try_get_attr<A: Attribute>(&self, attr: A) -> Result<Value> {

@@ -130,7 +130,8 @@ impl Block {
 	/// Returns any errors associated with [setting attributes](Value::set_attr).
 	pub(super) fn deep_clone_from(&self, parent_scope: Gc<Frame>) -> Result<Gc<Self>> {
 		#[cfg(debug_assertions)] // needed otherwise `_is_just_single_and_identical` isnt defined?
-		debug_assert!(self.parents()._is_just_single_and_identical(Gc::<Self>::parent()));
+		debug_assert!(crate::value::HasParents::parents(self)
+			._is_just_single_and_identical(Gc::<Self>::parent()));
 
 		// TODO: optimize me, eg maybe have shared attributes pointer or something
 		let inner = self.inner();
