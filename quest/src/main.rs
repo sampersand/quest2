@@ -45,9 +45,10 @@ fn setup_tracing() {
 fn main() {
 	setup_tracing();
 
-	if false {
+	if true {
 		run_code(
-			r#"fib=n->{(n<=1).then(n.return);__block__(n-1)+__block__(n-2)};print(fib(30))"#,
+			r#"fib=n->{(n<=1).then(n.return);fib(n-1)+fib(n-2)};print(fib(30))"#,
+			// r#"i=0; while({ i < 1_000_000 }, { :1.i = i + 1 })"#,
 			None,
 		)
 		.unwrap();

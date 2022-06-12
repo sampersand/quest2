@@ -1,54 +1,111 @@
-use super::{Inner, List, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
-use crate::value::base::Builder as BaseBuilder;
+use super::{InternalBuilder, List};
 use crate::value::gc::Gc;
-use crate::value::HasDefaultParent;
+use crate::{ToValue, Value};
 
+/// A builder for a [`List`]
+///
+/// This allows for inserting elements without having to call `as_mut` on a [`List`] reference.
+///
+/// The [`List::with_capacity`] function returns this type.
+///
+/// # Examples
+/// ```
+/// use quest::value::ty::{List, Integer};
+/// use quest::ToValue;
+///
+/// let mut builder = List::with_capacity(5);
+/// for i in 0..5 {
+///    builder.push(Integer::new(i).unwrap().to_value());
+/// }
+/// let list = builder.finish();
+/// // use the `list`
+/// # let listref = list.as_ref().unwrap();
+/// # for i in 0..5 {
+/// #    assert_eq!(i, listref[i].downcast::<Integer>().unwrap().get() as usize);
+/// # }
+/// ```
 #[must_use]
-pub struct Builder(BaseBuilder<Inner>);
+pub struct Builder(InternalBuilder);
+
+impl Default for Builder {
+	/// Creates an empty [`Builder`.
+	fn default() -> Self {
+		Self::new()
+	}
+}
 
 impl Builder {
-	pub unsafe fn new(mut builder: BaseBuilder<Inner>) -> Self {
-		builder.set_parents(List::parent());
+	/// Creates a new [`Builder`] with no starting capacity.
+	pub fn new() -> Self {
+		Self::with_capacity(0)
+	}
+
+	/// Creates a new [`Builder`] guaranteed to hold at least `capacity` elements.
+	///
+	/// The function [`List::with_capacity`] is a convenience wrapper around this function.
+	pub fn with_capacity(capacity: usize) -> Self {
+		let mut builder = InternalBuilder::allocate();
+
+		unsafe {
+			builder.allocate_buffer(capacity);
+		}
 
 		Self(builder)
 	}
 
-	pub fn allocate() -> Self {
-		unsafe { Self::new(BaseBuilder::<Inner>::allocate()) }
+	/// Gets how many elements the list can hold before requiring resizing.
+	pub fn capacity(&self) -> usize {
+		self.0.list().capacity()
 	}
 
-	pub fn insert_flags(&mut self, flag: u32) {
-		self.0.insert_user_flags(flag);
+	/// Gets how many elements are currently within the list.
+	pub fn len(&self) -> usize {
+		self.0.list().len()
 	}
 
-	pub unsafe fn inner_mut(&mut self) -> &mut Inner {
-		&mut *self.0.data_mut()
+	/// Adds `ele` to the end of the list.
+	pub fn push(&mut self, ele: Value) {
+		self.0.list_mut().push(ele);
 	}
 
-	pub unsafe fn list_mut(&mut self) -> &mut List {
-		&mut *self.0.base_mut().cast::<List>()
+	/// Adds `ele` to the end of the list, without checking to see if there's enough capacity.
+	///
+	/// # Safety
+	/// You must ensure that `self` has [enough capacity](Self::capacity) to hold `ele`.
+	pub unsafe fn push_unchecked(&mut self, ele: Value) {
+		self.0.list_mut().push_unchecked(ele)
 	}
 
-	// pub unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
-	// 	self.0.gcmut().as_mut_ptr()
-	// }
-
-	// unsafe because you should call this before you edit anything.
-	pub unsafe fn allocate_buffer(&mut self, capacity: usize) {
-		if capacity <= MAX_EMBEDDED_LEN {
-			self.insert_flags(FLAG_EMBEDDED);
-			return;
-		}
-
-		let mut alloc = &mut self.inner_mut().alloc;
-
-		// alloc.len is `0` because `Base::<T>::allocate` always zero allocates.
-		alloc.cap = capacity;
-		alloc.ptr = crate::alloc(super::alloc_ptr_layout(capacity)).as_ptr();
+	/// Concatenates all of `slice` onto the end of `self`.
+	pub fn extend_from_slice(&mut self, slice: &[Value]) {
+		self.0.list_mut().extend_from_slice(slice);
 	}
 
+	/// Concatenates all of `slice` onto the end of `self`, without checking to see if there's enough
+	/// capacity.
+	///
+	/// # Safety
+	/// You must ensure that `self` has [enough capacity](Self::capacity) to hold all of `slice`.
+	pub unsafe fn extend_from_slice_unchecked(&mut self, slice: &[Value]) {
+		self.0.list_mut().extend_from_slice(slice)
+	}
+
+	/// Finishes the builder, returning the created [`Gc<List>`].
 	#[must_use]
-	pub unsafe fn finish(self) -> Gc<List> {
-		Gc::from_inner(self.0.finish())
+	pub fn finish(self) -> Gc<List> {
+		unsafe { self.0.finish() }
+	}
+}
+
+impl Extend<Value> for Builder {
+	fn extend<T: IntoIterator<Item = Value>>(&mut self, iter: T) {
+		self.0.list_mut().extend(iter)
+	}
+}
+
+impl ToValue for Builder {
+	/// [Finishes the builder](Self::finish) and converts the [`Gc<List>`] into a [`Value`].
+	fn to_value(self) -> Value {
+		self.finish().to_value()
 	}
 }

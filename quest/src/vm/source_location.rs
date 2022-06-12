@@ -24,7 +24,7 @@ impl Debug for SourceLocation {
 
 impl Display for SourceLocation {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		if let Some(ref file) = self.file {
+		if let Some(file) = self.file.as_ref() {
 			Display::fmt(&file.display(), f)?;
 		} else {
 			f.write_str("(unknown)")?;

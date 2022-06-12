@@ -49,6 +49,63 @@ pub unsafe trait Allocated: 'static {
 	fn flags(&self) -> &Flags {
 		self.header().flags()
 	}
+
+	fn get_unbound_attr_checked<A: Attribute>(
+		&self,
+		attr: A,
+		checked: &mut Vec<Value>,
+	) -> Result<Option<Value>> {
+		self.header().get_unbound_attr_checked(attr, checked)
+	}
+
+	fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
+		self.get_unbound_attr_checked(attr, &mut Vec::new())
+	}
+
+	fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
+		self.get_unbound_attr(attr)
+	}
+
+	fn has_attr<A: Attribute>(&self, attr: A) -> Result<bool> {
+		self.get_unbound_attr(attr).map(|x| x.is_some())
+	}
+
+	fn try_get_attr<A: Attribute>(&self, attr: A) -> Result<Value>
+	where
+		Self: Clone + ToValue,
+	{
+		self.get_attr(attr)?.ok_or_else(|| {
+			ErrorKind::UnknownAttribute { object: self.clone().to_value(), attribute: attr.to_value() }
+				.into()
+		})
+	}
+
+	// IDEA: make `Header` private, and just expose these methods
+
+	// /// Calls `attr` with the arguments `args`.
+	// pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<Value> {
+	// 	// try to get a function directly defined on `self`, which most likely wont exist.
+	// 	// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
+	// 	let obj = self.as_gc().to_value();
+
+	// 	if let Some(func) = self.attributes().get_unbound_attr(attr)? {
+	// 		func.call(args.with_this(obj))
+	// 	} else {
+	// 		self.parents().call_attr(obj, attr, args)
+	// 	}
+	// }
+
+	// /// The gets an unbound attribute[`get_bound_attr`](Self::get_unbound_attr), except with a list of values that
+	// /// have already been checked.
+	// ///
+	// /// This function prevents duplicate checking of functions.
+	// pub fn get_unbound_attr_checked<A: Attribute>(
+	// 	&self,
+	// 	attr: A,
+	// 	checked: &mut Vec<Value>,
+	// ) -> Result<Option<Value>> {
+	// 	self.header().get_unbound_attr_checked(attr, checked)
+	// }
 }
 
 /// A garbage collected pointer to `T`.

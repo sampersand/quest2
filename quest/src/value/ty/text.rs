@@ -433,9 +433,27 @@ impl Text {
 		if self.is_embedded() {
 			self.embedded_len()
 		} else {
+			let inner = self.inner();
+
 			// SAFETY: we know we're allocated, as per the `if`.
-			unsafe { self.inner().alloc.len }
+			unsafe { inner.alloc.len }
 		}
+	}
+
+	/// Checks to see if `self` has a length of zero bytes.
+	///
+	/// # Examples
+	/// ```
+	/// # use quest::value::ty::Text;
+	/// let empty = Text::from_static_str("");
+	/// assert!(empty.as_ref()?.is_empty());
+	///
+	/// let nonempty = Text::from_static_str("nonempty");
+	/// assert!(!nonempty.as_ref()?.is_empty());
+	/// # quest::Result::<()>::Ok(())
+	/// ```
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
 	}
 
 	fn embedded_len(&self) -> usize {
@@ -506,22 +524,6 @@ impl Text {
 		self.flags().insert_user(mask_len(new_len));
 	}
 
-	/// Checks to see if `self` has a length of zero bytes.
-	///
-	/// # Examples
-	/// ```
-	/// # use quest::value::ty::Text;
-	/// let empty = Text::from_static_str("");
-	/// assert!(empty.as_ref()?.is_empty());
-	///
-	/// let nonempty = Text::from_static_str("nonempty");
-	/// assert!(!nonempty.as_ref()?.is_empty());
-	/// # quest::Result::<()>::Ok(())
-	/// ```
-	pub fn is_empty(&self) -> bool {
-		self.len() == 0
-	}
-
 	/// Returns the amount of bytes `self` can hold before reallocating.
 	///
 	/// # Examples
@@ -543,8 +545,10 @@ impl Text {
 	}
 
 	pub fn fast_hash(&self) -> u64 {
+		let inner = self.inner();
+
 		// the hash starts at the same offset for both types
-		unsafe { self.inner().alloc.hash }
+		unsafe { inner.alloc.hash }
 	}
 
 	/// Returns a pointer to the beginning of the `Text` buffer.
@@ -986,7 +990,9 @@ impl PartialEq<Intern> for Text {
 
 impl PartialEq<str> for Text {
 	fn eq(&self, rhs: &str) -> bool {
-		self.as_str() == rhs
+		let ss = self.as_str();
+		ss.len() == rhs.len() && ss == rhs
+		// self.as_str() == rhs
 	}
 }
 

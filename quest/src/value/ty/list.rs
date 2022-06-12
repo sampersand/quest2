@@ -1,16 +1,19 @@
 use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 use crate::value::ty::{InstanceOf, Singleton};
+use crate::value::Intern;
 use crate::Value;
 use std::alloc;
 use std::fmt::{self, Debug, Formatter};
+use std::ops::{Index, IndexMut};
 
 mod builder;
-mod simple_builder;
+mod internal_builder;
 pub use builder::Builder;
-pub use simple_builder::SimpleBuilder;
+use internal_builder::InternalBuilder;
 
 quest_type! {
+	/// The list type within Quest.
 	#[derive(NamedType)]
 	pub struct List(Inner);
 }
@@ -37,6 +40,9 @@ struct EmbeddedList {
 	buf: [Value; MAX_EMBEDDED_LEN],
 }
 
+sa::assert_eq_size!(Inner, AllocatedList, EmbeddedList);
+sa::assert_eq_align!(Inner, AllocatedList, EmbeddedList);
+
 const MAX_EMBEDDED_LEN: usize = std::mem::size_of::<AllocatedList>() / std::mem::size_of::<Value>();
 const FLAG_EMBEDDED: u32 = Flags::USER0;
 const FLAG_SHARED: u32 = Flags::USER1;
@@ -56,7 +62,7 @@ const fn mask_len(len: usize) -> u32 {
 }
 
 impl super::AttrConversionDefined for Gc<List> {
-	const ATTR_NAME: crate::value::Intern = crate::value::Intern::to_list;
+	const ATTR_NAME: Intern = Intern::to_list;
 }
 
 fn alloc_ptr_layout(cap: usize) -> alloc::Layout {
@@ -72,40 +78,50 @@ impl List {
 		self.0.data_mut()
 	}
 
-	pub fn builder() -> Builder {
-		Builder::allocate()
-	}
-
+	/// Creates a new, empty `List`.
 	#[must_use]
+	#[inline]
 	pub fn new() -> Gc<Self> {
 		Self::with_capacity(0).finish()
 	}
 
-	pub fn with_capacity(capacity: usize) -> SimpleBuilder {
-		SimpleBuilder::with_capacity(capacity)
+	/// Creates a new [`Builder`] with the given starting capacity.
+	///
+	/// This is a convenience wrapper around [`Builder::with_capacity`].
+	#[inline]
+	pub fn with_capacity(capacity: usize) -> Builder {
+		Builder::with_capacity(capacity)
 	}
 
+	/// Creates a new [`List`] from the given `slice`.
+	///
+	/// Note that if you're creating a list from a static slice, use [`List::from_static_slice`]
+	/// instead, as it reuses the pointer internally, resulting in fewer allocations.
 	#[must_use]
-	pub fn from_slice(inp: &[Value]) -> Gc<Self> {
-		let mut builder = Self::builder();
+	pub fn from_slice(slice: &[Value]) -> Gc<Self> {
+		let mut builder = Self::with_capacity(slice.len());
 
+		// SAFETY: We know we have enough capacity, as we just allocated the builder.
 		unsafe {
-			builder.allocate_buffer(inp.len());
-			builder.list_mut().extend_from_slice_unchecked(inp);
-			builder.finish()
+			builder.extend_from_slice_unchecked(slice);
 		}
+
+		builder.finish()
 	}
 
+	/// Creates a new [`List`] from the given static `slice`.
+	///
+	/// This internally reuses `slice`'s buffer, so additional allocation isn't needed.
 	#[must_use]
-	pub fn from_static_slice(inp: &'static [Value]) -> Gc<Self> {
-		let mut builder = Self::builder();
+	pub fn from_static_slice(slice: &'static [Value]) -> Gc<Self> {
+		let mut builder = InternalBuilder::allocate();
 		builder.insert_flags(FLAG_NOFREE | FLAG_SHARED);
 
 		unsafe {
 			let mut alloc = &mut builder.inner_mut().alloc;
 
-			alloc.ptr = inp.as_ptr() as *mut Value;
-			alloc.len = inp.len();
+			alloc.ptr = slice.as_ptr() as *mut Value;
+			alloc.len = slice.len();
 			alloc.cap = alloc.len;
 
 			builder.finish()
@@ -120,12 +136,22 @@ impl List {
 		self.flags().contains_any(FLAG_NOFREE | FLAG_SHARED)
 	}
 
-	pub fn is_empty(&self) -> bool {
-		self.len() == 0
+	/// Gets the capacity of `self`, ie how many elements it can hold before resizing.
+	#[inline]
+	pub fn capacity(&self) -> usize {
+		if self.is_embedded() {
+			MAX_EMBEDDED_LEN
+		} else {
+			// SAFETY: we know we're allocated, as per the `if`.
+			unsafe { self.inner().alloc.cap }
+		}
 	}
 
+	/// Gets the length of the list.
+	#[inline]
 	pub fn len(&self) -> usize {
 		if self.is_embedded() {
+			// SAFETY: we know we're embedded, as per the `if`.
 			self.embedded_len()
 		} else {
 			// SAFETY: we know we're allocated, as per the `if`.
@@ -133,54 +159,73 @@ impl List {
 		}
 	}
 
+	/// Checks to see if `self` is empty.
+	#[inline]
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
+
 	fn embedded_len(&self) -> usize {
+		// while not unsafe to access flags incorrectly, it's a logic error.
 		debug_assert!(self.is_embedded());
+
 		unmask_len(self.flags().mask(EMBED_LENMASK))
 	}
 
-	pub unsafe fn set_len(&mut self, new_len: usize) {
-		debug_assert!(new_len <= self.capacity(), "new len is larger than capacity");
+	/// Sets the length to `len`.
+	///
+	/// # Safety
+	/// - `len` must be less than or equal to [`capacity()`](Self::capacity)
+	/// - The bytes from `old_len..len` must be initialized.
+	pub unsafe fn set_len(&mut self, len: usize) {
+		debug_assert!(len <= self.capacity(), "new len is larger than capacity");
+		debug_assert!(len < isize::MAX as usize);
 
 		if self.is_embedded() {
-			self.set_embedded_len(new_len);
+			self.set_embedded_len(len);
 		} else {
-			self.inner_mut().alloc.len = new_len;
+			self.inner_mut().alloc.len = len;
 		}
 	}
 
 	fn set_embedded_len(&mut self, new_len: usize) {
+		// while not unsafe to access flags incorrectly, it's a logic error.
 		debug_assert!(self.is_embedded());
 
 		self.flags().remove_user(EMBED_LENMASK);
 		self.flags().insert_user(mask_len(new_len));
 	}
 
-	pub fn capacity(&self) -> usize {
-		if self.is_embedded() {
-			MAX_EMBEDDED_LEN
-		} else {
-			unsafe { self.inner().alloc.cap }
-		}
-	}
-
+	/// Gets a pointer to `self`'s internal buffer.
+	///
+	/// While not unsafe, you must make sure that you follow all pointer rules.
 	pub fn as_ptr(&self) -> *const Value {
 		if self.is_embedded() {
+			// SAFETY: we know we're embedded, as per the `if`.
 			unsafe { &self.inner().embed.buf }.as_ptr()
 		} else {
+			// SAFETY: we know we're allocated, as per the `if`.
 			unsafe { self.inner().alloc.ptr }
 		}
 	}
 
+	/// Gets a slice of `self`'s internal data.
 	#[inline]
 	pub fn as_slice(&self) -> &[Value] {
+		// SAFETY: We know that `self.as_ptr()` returns a valid pointer to at least `self.len()`
+		// elements. And, since we're immutably borrowed, we know we can't modify the contents later.
 		unsafe { std::slice::from_raw_parts(self.as_ptr(), self.len()) }
 	}
 
+	/// Duplicates `self`, returning a copy which can be independently modified.
+	///
+	/// This shares the internal buffer for optimization purposes, so this method's more efficient
+	/// than doing something like `List::from_slice(list.as_slice())`.
 	#[must_use]
 	pub fn dup(&self) -> Gc<Self> {
 		if self.is_embedded() {
 			// Since we're allocating a new `Self` anyways, we may as well copy over the data.
-			return self.deep_dup();
+			return Self::from_slice(self.as_slice());
 		}
 
 		unsafe {
@@ -188,16 +233,11 @@ impl List {
 			// have `FLAG_SHARED` marked.
 			self.flags().insert_user(FLAG_SHARED);
 
-			let mut builder = Self::builder();
+			let mut builder = InternalBuilder::allocate();
 			let builder_ptr = builder.inner_mut() as *mut Inner;
 			builder_ptr.copy_from_nonoverlapping(self.inner() as *const Inner, 1);
 			builder.finish()
 		}
-	}
-
-	#[must_use]
-	pub fn deep_dup(&self) -> Gc<Self> {
-		Self::from_slice(self.as_slice())
 	}
 
 	#[must_use]
@@ -210,7 +250,7 @@ impl List {
 		unsafe {
 			self.flags().insert_user(FLAG_SHARED);
 
-			let mut builder = Self::builder();
+			let mut builder = InternalBuilder::allocate();
 			builder.insert_flags(FLAG_SHARED);
 			builder.inner_mut().alloc = AllocatedList {
 				ptr: slice.as_ptr() as *mut Value,
@@ -224,6 +264,7 @@ impl List {
 
 	unsafe fn duplicate_alloc_ptr(&mut self, capacity: usize) {
 		debug_assert!(self.is_pointer_immutable());
+		assert!(isize::try_from(capacity).is_ok(), "too much memory allocated: {capacity} bytes");
 
 		let mut alloc = &mut self.inner_mut().alloc;
 		let old_ptr = alloc.ptr;
@@ -398,6 +439,20 @@ impl AsRef<[Value]> for List {
 impl AsMut<[Value]> for List {
 	fn as_mut(&mut self) -> &mut [Value] {
 		self.as_mut_slice()
+	}
+}
+
+impl Index<usize> for List {
+	type Output = Value;
+
+	fn index(&self, idx: usize) -> &Self::Output {
+		&self.as_slice()[idx]
+	}
+}
+
+impl IndexMut<usize> for List {
+	fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+		&mut self.as_mut_slice()[idx]
 	}
 }
 
@@ -650,7 +705,7 @@ pub mod funcs {
 		let mut sum = args.get(0).unwrap_or(crate::value::ty::Integer::ZERO.to_value());
 
 		for &ele in list.as_ref()?.as_slice() {
-			sum = sum.call_attr(crate::value::Intern::op_add, Args::new(&[ele], &[]))?;
+			sum = sum.call_attr(Intern::op_add, Args::new(&[ele], &[]))?;
 		}
 
 		Ok(sum)
@@ -707,6 +762,7 @@ impl Singleton for ListClass {
 				Intern::map => method funcs::map,
 				Intern::each => method funcs::each,
 				Intern::join => method funcs::join,
+				Intern::sum => method funcs::sum,
 			}
 		})
 	}
