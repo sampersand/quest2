@@ -1,4 +1,6 @@
-use crate::value::base::Attribute;
+use crate::value::base::{
+	Attribute, AttributesMut, AttributesRef, IntoParent, ParentsMut, ParentsRef,
+};
 // use crate::vm::Args;
 use crate::{ErrorKind, Result, ToValue, Value};
 
@@ -40,4 +42,17 @@ pub trait AttributedMut: Attributed {
 	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value>;
 	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()>;
 	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>>;
+}
+
+pub trait HasAttributes {
+	fn attributes(&self) -> AttributesRef<'_>;
+	fn attributes_mut(&mut self) -> AttributesMut<'_>;
+}
+
+pub trait HasParents {
+	fn parents(&self) -> ParentsRef<'_>;
+	fn parents_mut(&mut self) -> ParentsMut<'_>;
+	fn set_parents<T: IntoParent>(&mut self, parents: T) {
+		self.parents_mut().set(parents);
+	}
 }

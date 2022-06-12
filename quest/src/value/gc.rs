@@ -4,7 +4,7 @@ use crate::value::base::{
 	Attribute, AttributesMut, AttributesRef, Base, Flags, Header, IntoParent, ParentsMut, ParentsRef,
 };
 use crate::value::ty::{List, Wrap};
-use crate::value::{value::Any, Attributed, AttributedMut, Convertible};
+use crate::value::{value::Any, Attributed, AttributedMut, Convertible, HasAttributes, HasParents};
 use crate::{ErrorKind, Result, ToValue, Value};
 use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};
@@ -31,24 +31,34 @@ use std::sync::atomic::{AtomicU32, Ordering};
 ///
 /// # See Also
 /// - [`quest_type`] A macro that's used to create allocated types.
-pub unsafe trait Allocated: 'static {
+pub unsafe trait Allocated: Sized + 'static {
 	#[doc(hidden)]
 	type Inner;
 
-	/// Gets a reference to `self`'s internal [`Header`].
-	fn _header(&self) -> &Header {
-		unsafe { &*(self as *const Self).cast::<Header>() }
-	}
+	// /// Gets a reference to `self`'s internal [`Header`].
+	// fn _header(&self) -> &Header {
+	// 	unsafe { &*(self as *const Self).cast::<Header>() }
+	// }
 
-	/// Gets a mutable reference to `self`'s internal [`Header`].
-	fn _header_mut(&mut self) -> &mut Header {
-		unsafe { &mut *(self as *mut Self).cast::<Header>() }
-	}
+	// /// Gets a mutable reference to `self`'s internal [`Header`].
+	// fn _header_mut(&mut self) -> &mut Header {
+	// 	unsafe { &mut *(self as *mut Self).cast::<Header>() }
+	// }
 
 	/// Gets the list of flags for `self`.
 	fn flags(&self) -> &Flags {
-		self._header().flags()
+		allocated_header(self).flags()
 	}
+}
+
+fn allocated_header<T: Allocated>(alloc: &T) -> &Header {
+	// SAFETY: `T` is `Allocated` which guarantees it starts with a `Header`.
+	unsafe { &*(alloc as *const T).cast::<Header>() }
+}
+
+fn allocated_header_mut<T: Allocated>(alloc: &mut T) -> &mut Header {
+	// SAFETY: `T` is `Allocated` which guarantees it starts with a `Header`.
+	unsafe { &mut *(alloc as *mut T).cast::<Header>() }
 }
 
 impl<T: Allocated> Attributed for T {
@@ -57,21 +67,41 @@ impl<T: Allocated> Attributed for T {
 		attr: A,
 		checked: &mut Vec<Value>,
 	) -> Result<Option<Value>> {
-		self._header().get_unbound_attr_checked(attr, checked)
+		allocated_header(self).get_unbound_attr_checked(attr, checked)
 	}
 }
 
 impl<T: Allocated> AttributedMut for T {
 	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
-		self._header_mut().get_unbound_attr_mut(attr)
+		allocated_header_mut(self).get_unbound_attr_mut(attr)
 	}
 
 	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		self._header_mut().set_attr(attr, value)
+		allocated_header_mut(self).set_attr(attr, value)
 	}
 
 	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
-		self._header_mut().del_attr(attr)
+		allocated_header_mut(self).del_attr(attr)
+	}
+}
+
+impl<T: Allocated> HasAttributes for T {
+	fn attributes(&self) -> AttributesRef<'_> {
+		allocated_header(self).attributes()
+	}
+
+	fn attributes_mut(&mut self) -> AttributesMut<'_> {
+		allocated_header_mut(self).attributes_mut()
+	}
+}
+
+impl<T: Allocated> HasParents for T {
+	fn parents(&self) -> ParentsRef<'_> {
+		allocated_header(self).parents()
+	}
+
+	fn parents_mut(&mut self) -> ParentsMut<'_> {
+		allocated_header_mut(self).parents_mut()
 	}
 }
 
@@ -375,7 +405,7 @@ impl<T: Allocated> Gc<T> {
 	/// Technically this could be publicly visible, but outside the crate, you should get a reference
 	/// and go through the [`Header`].
 	fn flags(&self) -> &Flags {
-		unsafe { &*self.as_ptr() }._header().flags()
+		allocated_header(unsafe { &*self.as_ptr() }).flags()
 	}
 
 	/// Gets the header of `self`.
@@ -385,7 +415,7 @@ impl<T: Allocated> Gc<T> {
 	fn borrows(&self) -> &AtomicU32 {
 		// SAFETY: we know `self.as_ptr()` always points to a valid `Base<T>`, as that's a requirement
 		// for constructing it (via `new`).
-		unsafe { &*self.as_ptr() }._header().borrows()
+		allocated_header(unsafe { &*self.as_ptr() }).borrows()
 	}
 
 	/// Calls `attr` with the arguments `args`.
@@ -497,24 +527,24 @@ impl<T: Allocated> Ref<T> {
 	// 	attr: A,
 	// 	checked: &mut Vec<Value>,
 	// ) -> Result<Option<Value>> {
-	// 	self._header().get_unbound_attr_checked(attr, checked)
+	// 	allocated_header(self).get_unbound_attr_checked(attr, checked)
 	// }
 
 	#[must_use]
 	pub fn flags(&self) -> &Flags {
-		self._header().flags()
+		allocated_header(self.deref()).flags()
 	}
 
 	pub fn freeze(&self) {
-		self._header().freeze();
+		allocated_header(self.deref()).freeze();
 	}
 
 	pub fn parents(&self) -> ParentsRef<'_> {
-		self._header().parents()
+		allocated_header(self.deref()).parents()
 	}
 
 	pub fn attributes(&self) -> AttributesRef<'_> {
-		self._header().attributes()
+		allocated_header(self.deref()).attributes()
 	}
 }
 
@@ -565,11 +595,11 @@ impl<T: Debug + Allocated> Debug for Mut<T> {
 
 impl<T: Allocated> Mut<T> {
 	pub fn parents_mut(&mut self) -> ParentsMut<'_> {
-		self._header_mut().parents_mut()
+		allocated_header_mut(self.deref_mut()).parents_mut()
 	}
 
 	pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
-		self._header_mut().attributes_mut()
+		allocated_header_mut(self.deref_mut()).attributes_mut()
 	}
 
 	pub fn parents_list(&mut self) -> Gc<List> {
@@ -581,11 +611,11 @@ impl<T: Allocated> Mut<T> {
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		self._header_mut().set_attr(attr, value)
+		allocated_header_mut(self.deref_mut()).set_attr(attr, value)
 	}
 
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
-		self._header_mut().del_attr(attr)
+		allocated_header_mut(self.deref_mut()).del_attr(attr)
 	}
 }
 

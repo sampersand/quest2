@@ -328,14 +328,6 @@ impl Header {
 unsafe impl<T: 'static> super::gc::Allocated for Base<T> {
 	type Inner = T;
 
-	fn _header(&self) -> &Header {
-		&self.header
-	}
-
-	fn _header_mut(&mut self) -> &mut Header {
-		&mut self.header
-	}
-
 	fn flags(&self) -> &Flags {
 		&self.header.flags
 	}

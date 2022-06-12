@@ -9,7 +9,7 @@ pub mod gc;
 mod intern;
 mod value;
 
-pub use attributed::{Attributed, AttributedMut};
+pub use attributed::{Attributed, AttributedMut, HasAttributes, HasParents};
 pub use gc::Gc;
 pub use intern::Intern;
 pub use value::Value;

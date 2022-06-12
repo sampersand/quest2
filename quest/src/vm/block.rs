@@ -1,8 +1,9 @@
 //! Types relating to Quest [`Block`]s.
 use super::{Frame, SourceLocation};
-use crate::value::gc::{Allocated, Gc};
+use crate::value::base::Base;
+use crate::value::gc::Gc;
 use crate::value::ty::{List, Text};
-use crate::value::{base::Base, HasDefaultParent, Intern, ToValue};
+use crate::value::{AttributedMut, HasAttributes, HasDefaultParent, Intern, ToValue};
 use crate::vm::Args;
 use crate::{Result, Value};
 use std::fmt::{self, Debug, Display, Formatter};
@@ -82,7 +83,7 @@ impl Block {
 	/// # Errors
 	/// Returns any errors associated with [setting attributes](Value::set_attr).
 	pub fn set_name(&mut self, name: Gc<Text>) -> Result<()> {
-		self._header_mut().set_attr(Intern::__name__, name.to_value())
+		self.set_attr(Intern::__name__, name.to_value())
 	}
 
 	/// Fetches the name associated with this block, if it exists.
@@ -91,7 +92,6 @@ impl Block {
 	/// Returns any errors associated with [setting attributes](Value::set_attr).
 	pub fn name(&self) -> Result<Option<Gc<Text>>> {
 		Ok(self
-			._header()
 			.attributes()
 			.get_unbound_attr(Intern::__name__)?
 			.and_then(|x| x.downcast::<Gc<Text>>()))
@@ -130,7 +130,7 @@ impl Block {
 	/// Returns any errors associated with [setting attributes](Value::set_attr).
 	pub(super) fn deep_clone_from(&self, parent_scope: Gc<Frame>) -> Result<Gc<Self>> {
 		#[cfg(debug_assertions)] // needed otherwise `_is_just_single_and_identical` isnt defined?
-		debug_assert!(self._header().parents()._is_just_single_and_identical(Gc::<Self>::parent()));
+		debug_assert!(self.parents()._is_just_single_and_identical(Gc::<Self>::parent()));
 
 		// TODO: optimize me, eg maybe have shared attributes pointer or something
 		let inner = self.inner();
@@ -139,7 +139,7 @@ impl Block {
 		let cloned = Gc::<Self>::from_inner(Base::new(inner, parents));
 
 		let mut clonedmut = cloned.as_mut().unwrap();
-		for (attr, value) in self._header().attributes().iter() {
+		for (attr, value) in self.attributes().iter() {
 			clonedmut.set_attr(attr, value)?;
 		}
 

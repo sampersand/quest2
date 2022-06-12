@@ -44,9 +44,7 @@ impl Builder {
 impl crate::value::gc::Mut<Scope> {
 	#[doc(hidden)]
 	pub unsafe fn _set_parent_to(&mut self, parent: Value) {
-		use crate::value::gc::Allocated;
-
-		self._header_mut().parents_mut().set(parent);
+		self.set_parents(parent);
 	}
 }
 
