@@ -1075,8 +1075,9 @@ pub mod funcs {
 		let frame = crate::vm::frame::with_stackframes(|sfs| sfs.last().copied())
 			.expect("returning from nothing?");
 
-		frame.as_mut()?.convert_to_object()?;
-		frame.to_value().set_attr(text.to_value(), value)?;
+		let mut fmut = frame.as_mut()?;
+		fmut.convert_to_object()?;
+		fmut.set_attr(text.to_value(), value)?;
 
 		Ok(value)
 	}

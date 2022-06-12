@@ -62,9 +62,9 @@ fn allocated_header_mut<T: Allocated>(alloc: &mut T) -> &mut Header {
 	unsafe { &mut *(alloc as *mut T).cast::<Header>() }
 }
 
-impl<T: Allocated> Attributed for T {
+impl<T: Allocated> Attributed for &T {
 	fn get_unbound_attr_checked<A: Attribute>(
-		&self,
+		self,
 		attr: A,
 		checked: &mut Vec<Value>,
 	) -> Result<Option<Value>> {

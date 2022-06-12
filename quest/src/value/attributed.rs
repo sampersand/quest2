@@ -5,35 +5,34 @@ use crate::value::{ty, Gc, Intern};
 use crate::vm::Args;
 use crate::{ErrorKind, Result, ToValue, Value};
 
-pub trait Attributed {
+pub trait Attributed: Copy {
 	/// Get the unbound attribute `attr`, with a list of checked parents, `None` if it doesnt exist.
 	///
 	/// The `checked` parameter allows us to keep track of which parents have already been checked,
 	/// so as to prevent checking the same parents more than once.
 	fn get_unbound_attr_checked<A: Attribute>(
-		&self,
+		self,
 		attr: A,
 		checked: &mut Vec<Value>,
 	) -> Result<Option<Value>>;
 
 	/// Get the unbound attribute `attr`, returning `None` if it doesnt exist.
-	fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
+	fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<Value>> {
 		self.get_unbound_attr_checked(attr, &mut Vec::new())
 	}
 
 	/// Attempts to get the unbound attribute `attr`, returning `Err` if it doesn't exist.
 	fn try_get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Value>
 	where
-		Self: Clone + ToValue,
+		Self: ToValue,
 	{
 		self.get_unbound_attr(attr)?.ok_or_else(|| {
-			ErrorKind::UnknownAttribute { object: self.clone().to_value(), attribute: attr.to_value() }
-				.into()
+			ErrorKind::UnknownAttribute { object: self.to_value(), attribute: attr.to_value() }.into()
 		})
 	}
 
 	/// Checks to see if `self` has the attribute `attr`.
-	fn has_attr<A: Attribute>(&self, attr: A) -> Result<bool> {
+	fn has_attr<A: Attribute>(self, attr: A) -> Result<bool> {
 		self.get_unbound_attr(attr).map(|x| x.is_some())
 	}
 
@@ -41,9 +40,9 @@ pub trait Attributed {
 	///
 	/// For attributes which have [`Intern::op_call`] defined on them, this will create a new
 	/// [`BoundFn`]. For all other types, it just returns the attribute itself.
-	fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>>
+	fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<Value>>
 	where
-		Self: Clone + ToValue,
+		Self: ToValue,
 	{
 		let value = if let Some(value) = self.get_unbound_attr(attr)? {
 			value
@@ -58,20 +57,19 @@ pub trait Attributed {
 
 		// If the value is callable, wrap it in a bound fn. Short circuit for common ones.
 		if is_callable {
-			return Ok(Some(ty::BoundFn::new(self.clone().to_value(), value).to_value()));
+			return Ok(Some(ty::BoundFn::new(self.to_value(), value).to_value()));
 		}
 
 		Ok(Some(value))
 	}
 
 	/// Attempts to get the attribute `attr`, returning `Err` if it doesn't exist.
-	fn try_get_attr<A: Attribute>(&self, attr: A) -> Result<Value>
+	fn try_get_attr<A: Attribute>(self, attr: A) -> Result<Value>
 	where
-		Self: Clone + ToValue,
+		Self: ToValue,
 	{
 		self.get_attr(attr)?.ok_or_else(|| {
-			ErrorKind::UnknownAttribute { object: self.clone().to_value(), attribute: attr.to_value() }
-				.into()
+			ErrorKind::UnknownAttribute { object: self.to_value(), attribute: attr.to_value() }.into()
 		})
 	}
 }

@@ -1,4 +1,4 @@
-use crate::value::{base::Base, Gc, Intern, ToValue};
+use crate::value::{base::Base, Attributed, AttributedMut, Gc, Intern, ToValue};
 use crate::vm::Args;
 use crate::{Result, Value};
 
@@ -108,7 +108,7 @@ pub mod funcs {
 		Ok(obj)
 	}
 
-	pub fn __del_attr__(obj: Value, args: Args<'_>) -> Result<Value> {
+	pub fn __del_attr__(mut obj: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 

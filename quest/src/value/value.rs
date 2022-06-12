@@ -285,30 +285,13 @@ impl Value {
 	}
 }
 
-impl crate::value::Attributed for Value {
+impl Attributed for Value {
 	fn get_unbound_attr_checked<A: Attribute>(
-		&self,
+		self,
 		attr: A,
 		checked: &mut Vec<Self>,
 	) -> Result<Option<Self>> {
-		(*self).get_unbound_attr_checked(attr, checked)
-	}
-
-	fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
-		(*self).get_unbound_attr(attr)
-	}
-
-	fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
-		(*self).get_attr(attr)
-	}
-
-	fn has_attr<A: Attribute>(&self, attr: A) -> Result<bool> {
-		// (*self).has_attr(attr)
-		self.get_unbound_attr(attr).map(|opt| opt.is_some())
-	}
-
-	fn try_get_attr<A: Attribute>(&self, attr: A) -> Result<Value> {
-		(*self).try_get_attr(attr)
+		(self).get_unbound_attr_checked(attr, checked)
 	}
 }
 
@@ -319,63 +302,30 @@ impl AttributedMut for Value {
 	}
 
 	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		self.set_attr(attr, value)
+		self.assert_isnt_an_objectified_frame();
+
+		if !self.is_allocated() {
+			// SAFETY: `self` is unallocated, as we just verified
+			unsafe {
+				*self = self.allocate_self_and_copy_data_over();
+			}
+		}
+
+		unsafe { self.get_gc_any_unchecked() }.as_mut()?.set_attr(attr, value)
 	}
 
 	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
-		(*self).del_attr(attr)
+		self.assert_isnt_an_objectified_frame();
+
+		if self.is_allocated() {
+			unsafe { self.get_gc_any_unchecked() }.as_mut()?.del_attr(attr)
+		} else {
+			Ok(None) // we don't delete from unallocated things.
+		}
 	}
 }
 
 impl Value {
-	/// Checks to see if `self` has the attribute `attr`.
-	pub fn has_attr<A: Attribute>(self, attr: A) -> Result<bool> {
-		self.get_unbound_attr(attr).map(|opt| opt.is_some())
-	}
-
-	/// Attempts to get the attribute `attr`, returning `Err` if it doesn't exist.
-	pub fn try_get_attr<A: Attribute>(self, attr: A) -> Result<Self> {
-		self.get_attr(attr)?.ok_or_else(|| {
-			ErrorKind::UnknownAttribute { object: self, attribute: attr.to_value() }.into()
-		})
-	}
-
-	/// Get the attribute `attr`, returning `None` if it doesnt exist.
-	///
-	/// For attributes which have [`Intern::op_call`] defined on them, this will create a new
-	/// [`BoundFn`]. For all other types, it just returns the attribute itself.
-	pub fn get_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
-		let value = if let Some(value) = self.get_unbound_attr(attr)? {
-			value
-		} else {
-			return Ok(None);
-		};
-
-		let is_callable = value.is_a::<RustFn>()
-			|| value.is_a::<Gc<Block>>()
-			|| value.is_a::<Gc<BoundFn>>()
-			|| value.has_attr(Intern::op_call)?;
-
-		// If the value is callable, wrap it in a bound fn. Short circuit for common ones.
-		if is_callable {
-			return Ok(Some(BoundFn::new(self, value).to_value()));
-		}
-
-		Ok(Some(value))
-	}
-
-	/// Attempts to get the unbound attribute `attr`, returning `Err` if it doesn't exist.
-	pub fn try_get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Self> {
-		self.get_unbound_attr(attr)?.ok_or_else(|| {
-			ErrorKind::UnknownAttribute { object: self, attribute: attr.to_value() }.into()
-		})
-	}
-
-	/// Get the unbound attribute `attr`, returning `None` if it doesnt exist.
-	pub fn get_unbound_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
-		self.get_unbound_attr_checked(attr, &mut Vec::new())
-	}
-
 	fn assert_isnt_an_objectified_frame(self) {
 		#[cfg(debug_assertions)]
 		if let Some(frame) = self.downcast::<Gc<crate::vm::Frame>>() {
@@ -425,38 +375,6 @@ impl Value {
 			Ok(Some(gc.as_mut()?.parents_list().to_value()))
 		} else {
 			unreachable!("unknown special attribute: {attr:?}");
-		}
-	}
-
-	/// Sets the attribute `attr` on `self` to `value`.
-	///
-	/// Note that this takes a mutable reference to `self` in case `self` is not an allocated type:
-	/// If it isn't, `self` will be replaced with an allocated version, with the attribute set on
-	/// that type.
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Self) -> Result<()> {
-		self.assert_isnt_an_objectified_frame();
-
-		if !self.is_allocated() {
-			// SAFETY: `self` is unallocated, as we just verified
-			unsafe {
-				*self = self.allocate_self_and_copy_data_over();
-			}
-		}
-
-		unsafe { self.get_gc_any_unchecked() }.as_mut()?.set_attr(attr, value)
-	}
-
-	/// Deletes the attribute `attr` from `self`, returning whatever was there before.
-	///
-	/// Note that unallocated types don't actually have attributes defined on them, so they always
-	/// will return `Ok(None)`
-	pub fn del_attr<A: Attribute>(self, attr: A) -> Result<Option<Self>> {
-		self.assert_isnt_an_objectified_frame();
-
-		if self.is_allocated() {
-			unsafe { self.get_gc_any_unchecked() }.as_mut()?.del_attr(attr)
-		} else {
-			Ok(None) // we don't delete from unallocated things.
 		}
 	}
 

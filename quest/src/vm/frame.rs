@@ -2,7 +2,7 @@
 
 use crate::value::base::{Base, Flags};
 use crate::value::ty::{List, Text};
-use crate::value::{Callable, Gc, HasDefaultParent, Intern, ToValue};
+use crate::value::{Attributed, AttributedMut, Callable, Gc, HasDefaultParent, Intern, ToValue};
 use crate::vm::block::BlockInner;
 use crate::vm::{Args, Block, Opcode, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, NUM_ARGUMENT_REGISTERS};
 use crate::{Error, ErrorKind, Result, Value};
@@ -801,7 +801,7 @@ impl Gc<Frame> {
 
 				Opcode::DelAttr => without_this! {
 					// SAFETY: `self` is well-formed, so we know that the first two arguments exist.
-					let (object, attr) = unsafe { (args[0].assume_init(), args[1].assume_init()) };
+					let (mut object, attr) = unsafe { (args[0].assume_init(), args[1].assume_init()) };
 					object.del_attr(attr)?.unwrap_or_default()
 				},
 				Opcode::CallAttr => todo!(),
