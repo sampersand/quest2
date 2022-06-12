@@ -100,7 +100,7 @@ pub unsafe fn alloc_zeroed<T>(layout: std::alloc::Layout) -> std::ptr::NonNull<T
 
 		if PTR.is_null() {
 			PTR = std::alloc::alloc_zeroed(
-				std::alloc::Layout::from_size_align(1163177848 * 2, 16).unwrap(),
+				std::alloc::Layout::from_size_align(1163177848 * 8, 16).unwrap(),
 			);
 		}
 
