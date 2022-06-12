@@ -110,7 +110,7 @@ impl Block {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 				write!(f, "{} ", self.0)?;
 
-				if let Some(ref textref) = self.1 {
+				if let Some(textref) = self.1.as_ref() {
 					Display::fmt(&**textref, f)
 				} else {
 					f.write_str("<unnamed>")

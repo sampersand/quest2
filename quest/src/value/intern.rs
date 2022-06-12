@@ -128,11 +128,11 @@ define_interned! {
 	// String functions
 	join concat len
 
-	// Array functions
+	// List functions
 	push pop shift unshift
 
 	// Enumerator functions
-	map filter reduce each next
+	map filter reduce each next sum
 
 	// Integer functions
 	upto downto times chr
