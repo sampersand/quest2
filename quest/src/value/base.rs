@@ -2,6 +2,7 @@
 
 pub use super::HasDefaultParent;
 use crate::value::gc::Gc;
+use crate::value::{Attributed, AttributedMut, HasAttributes, HasParents};
 use std::any::TypeId;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::atomic::AtomicU32; // pub is deprecated here, just to fix other things.
@@ -23,7 +24,7 @@ pub use parents::{IntoParent, NoParents, ParentsMut, ParentsRef};
 /// actually knowing what type was allocated. Thus, you can, for example, lookup attributes on a
 /// type without actually knowing what type it is.
 #[repr(C)]
-pub struct Header {
+pub(super) struct Header {
 	flags: Flags,
 	borrows: AtomicU32,
 	attributes: attributes::Attributes,
@@ -111,18 +112,6 @@ impl<T> Base<T> {
 		unsafe { builder.finish() }
 	}
 
-	/// Gets a reference to the [`Header`] for `self`.
-	#[must_use]
-	pub fn header(&self) -> &Header {
-		&self.header
-	}
-
-	/// Gets a mutable reference to the [`Header`] for `self`.
-	#[must_use]
-	pub fn header_mut(&mut self) -> &mut Header {
-		&mut self.header
-	}
-
 	/// Gets a reference to the `data` for `self`.
 	pub fn data(&self) -> &T {
 		&self.data
@@ -131,14 +120,6 @@ impl<T> Base<T> {
 	/// Gets a mutable reference to the `data` for `self`.
 	pub fn data_mut(&mut self) -> &mut T {
 		&mut self.data
-	}
-
-	/// Gets a mutable reference to both the data and [`Header`] for `self`.
-	///
-	/// This function is required because calling [`header_mut`](Self::header_mut) followed by
-	/// [`data_mut`](Self::data_mut) angers the borrow checker.
-	pub fn header_data_mut(&mut self) -> (&mut Header, &mut T) {
-		(&mut self.header, &mut self.data)
 	}
 }
 
@@ -163,23 +144,23 @@ impl Header {
 	pub(crate) fn borrows(&self) -> &AtomicU32 {
 		&self.borrows
 	}
-
-	/// Retrieves `self`'s attribute `attr`, returning `None` if it doesn't exist.
-	///
-	/// If `search_parents` is `false`, this function will only search the attributes defined
-	/// directly on `self`. If `true`, it will also look through the parents for the attribute if it
-	/// does not exist within our immediate attributes.
-	///
-	/// # Errors
-	/// If the [`try_hash`](Value::try_hash) or [`try_eq`](Value::try_eq) functions on `attr`
-	/// return an error, that will be propagated upwards. Additionally, if the parents of `self`
-	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
-	///
-	/// # Example
-	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
-	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
-		self.get_unbound_attr_checked(attr, &mut Vec::new())
-	}
+	//
+	//	/// Retrieves `self`'s attribute `attr`, returning `None` if it doesn't exist.
+	//	///
+	//	/// If `search_parents` is `false`, this function will only search the attributes defined
+	//	/// directly on `self`. If `true`, it will also look through the parents for the attribute if it
+	//	/// does not exist within our immediate attributes.
+	//	///
+	//	/// # Errors
+	//	/// If the [`try_hash`](Value::try_hash) or [`try_eq`](Value::try_eq) functions on `attr`
+	//	/// return an error, that will be propagated upwards. Additionally, if the parents of `self`
+	//	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
+	//	///
+	//	/// # Example
+	//	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
+	//	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
+	//		self.get_unbound_attr_checked(attr, &mut Vec::new())
+	//	}
 
 	/// The same as [`get_bound_attr`](Self::get_unbound_attr), except with a list of values that
 	/// have already been checked.
@@ -330,5 +311,26 @@ unsafe impl<T: 'static> super::gc::Allocated for Base<T> {
 
 	fn flags(&self) -> &Flags {
 		&self.header.flags
+	}
+}
+
+// impl<T> HasAttributes for Base<T> {}
+
+impl<T> Base<T> {
+	/// Gets a mutable reference to `self`'s attributes.
+	pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
+		unsafe { self.header.attributes.guard_mut(&self.header.flags) }
+	}
+
+	/// Gets a mutable reference to `self`'s parents.
+	pub fn parents_mut(&mut self) -> ParentsMut<'_> {
+		unsafe { self.header.parents.guard_mut(&self.header.flags) }
+	}
+
+	pub fn deconstruct_mut(&mut self) -> (&mut T, AttributesMut<'_>, ParentsMut<'_>) {
+		let attributes = unsafe { self.header.attributes.guard_mut(&self.header.flags) };
+		let parents = unsafe { self.header.parents.guard_mut(&self.header.flags) };
+
+		(&mut self.data, attributes, parents)
 	}
 }

@@ -1,8 +1,11 @@
 //! Types associated with the [`Frame`] type.
 
 use crate::value::base::{Base, Flags};
+use crate::value::gc::Allocated;
 use crate::value::ty::{List, Text};
-use crate::value::{Attributed, AttributedMut, Callable, Gc, HasDefaultParent, Intern, ToValue};
+use crate::value::{
+	Attributed, AttributedMut, Callable, Gc, HasDefaultParent, HasParents, Intern, ToValue,
+};
 use crate::vm::block::BlockInner;
 use crate::vm::{Args, Block, Opcode, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, NUM_ARGUMENT_REGISTERS};
 use crate::{Error, ErrorKind, Result, Value};
@@ -173,28 +176,29 @@ impl Frame {
 	}
 
 	pub(crate) fn is_object(&self) -> bool {
-		self.0.header().flags().contains(FLAG_IS_OBJECT)
+		self.flags().contains(FLAG_IS_OBJECT)
 	}
 
 	pub(crate) fn convert_to_object(&mut self) -> Result<()> {
 		// If we're already an object, nothing else needed to be done.
-		if !self.0.header().flags().try_acquire_all_user(FLAG_IS_OBJECT) {
+		if !self.flags().try_acquire_all_user(FLAG_IS_OBJECT) {
 			return Ok(());
 		}
 
 		let block = self.0.data().block.to_value();
-		let (header, data) = self.0.header_data_mut();
 
 		// Once we start referencing the frame as an object, we no longer can longer use the "block is
 		// our only parent" optimization.
-		header.parents_mut().set(List::from_slice(&[Gc::<Self>::parent(), block]));
+		self.set_parents(List::from_slice(&[Gc::<Self>::parent(), block]));
+
+		let (data, mut attrs, _) = self.0.deconstruct_mut();
 
 		// OPTIMIZE: we could use `with_capacity`, but we'd need to move it out of the builder.
 		for i in 0..data.inner_block.named_locals.len() {
 			// SAFETY:
 			// We know that `i` is in bounds b/c we iterate over `data.inner_block.named_locals.len()`.
 			if let Some(value) = unsafe { *data.named_locals.add(i) } {
-				header.set_attr(data.inner_block.named_locals[i].to_value(), value)?;
+				attrs.set_attr(data.inner_block.named_locals[i].to_value(), value)?;
 			}
 		}
 
@@ -253,9 +257,7 @@ impl Frame {
 	unsafe fn get_object_local(&self, index: usize) -> Result<Value> {
 		let attr_name = *self.inner_block.named_locals.get_unchecked(index);
 
-		if let Some(attr) =
-			self.0.header().get_unbound_attr_checked(attr_name.to_value(), &mut Vec::new())?
-		{
+		if let Some(attr) = self.get_unbound_attr_checked(attr_name.to_value(), &mut Vec::new())? {
 			return Ok(attr);
 		}
 
@@ -302,7 +304,7 @@ impl Frame {
 	#[inline(never)]
 	unsafe fn set_object_local(&mut self, index: usize, value: Value) -> Result<()> {
 		let attr_name = *self.inner_block.named_locals.get_unchecked(index);
-		self.0.header_mut().set_attr(attr_name.to_value(), value)
+		self.set_attr(attr_name.to_value(), value)
 	}
 }
 
@@ -785,7 +787,7 @@ impl Gc<Frame> {
 							// valid local target.
 							let name =
 								unsafe { this.inner_block.named_locals.get_unchecked(index) }.to_value();
-							let object = this.0.header_mut().get_unbound_attr_mut(name)?;
+							let object = this.get_unbound_attr_mut(name)?;
 
 							if self.to_value().is_identical(*object) {
 								this.convert_to_object()?;

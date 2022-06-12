@@ -1,6 +1,6 @@
 use crate::value::base::{Attribute, Base, Builder as BaseBuilder};
 use crate::value::ty::Pristine;
-use crate::value::Gc;
+use crate::value::{AttributedMut, Gc, HasParents};
 use crate::{Result, Value};
 
 quest_type! {
@@ -18,11 +18,11 @@ pub struct Builder(BaseBuilder<Inner>);
 
 impl Builder {
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		unsafe { &mut *self.0.as_ptr().as_ptr() }.header_mut().set_attr(attr, value)
+		unsafe { &mut *self.0.as_ptr().as_ptr() }.set_attr(attr, value)
 	}
 
 	pub fn parent(&mut self, parent: Value) {
-		unsafe { &mut *self.0.as_ptr().as_ptr() }.header_mut().parents_mut().set(parent);
+		unsafe { &mut *self.0.as_ptr().as_ptr() }.set_parents(parent);
 	}
 
 	// pub fn function(&mut self, name: &'static str, value: fn(Value, Args<'_>) -> Result<Value>) {

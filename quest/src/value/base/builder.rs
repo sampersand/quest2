@@ -445,7 +445,7 @@ impl<T> Builder<T> {
 	/// // ... do stuff with `ptr`.
 	/// ```
 	#[must_use]
-	pub fn header(&self) -> *const Header {
+	fn header(&self) -> *const Header {
 		// SAFETY: `self.base()` is a valid pointer to a `Base<T>`.
 		unsafe { addr_of!((*self.base()).header) }
 	}
@@ -463,7 +463,7 @@ impl<T> Builder<T> {
 	/// // ... do stuff with `ptr`.
 	/// ```
 	#[must_use]
-	pub fn header_mut(&mut self) -> *mut Header {
+	fn header_mut(&mut self) -> *mut Header {
 		// SAFETY: `self.base_mut()` is a valid pointer to a `Base<T>`.
 		unsafe { addr_of_mut!((*self.base_mut()).header) }
 	}

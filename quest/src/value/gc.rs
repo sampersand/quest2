@@ -36,16 +36,6 @@ pub unsafe trait Allocated: Sized + 'static {
 	#[doc(hidden)]
 	type Inner;
 
-	// /// Gets a reference to `self`'s internal [`Header`].
-	// fn _header(&self) -> &Header {
-	// 	unsafe { &*(self as *const Self).cast::<Header>() }
-	// }
-
-	// /// Gets a mutable reference to `self`'s internal [`Header`].
-	// fn _header_mut(&mut self) -> &mut Header {
-	// 	unsafe { &mut *(self as *mut Self).cast::<Header>() }
-	// }
-
 	/// Gets the list of flags for `self`.
 	fn flags(&self) -> &Flags {
 		allocated_header(self).flags()
@@ -173,14 +163,6 @@ impl<T: Allocated> Pointer for Gc<T> {
 		Debug::fmt(&self.0, f)
 	}
 }
-
-/*
-impl<T: HasDefaultParent + Allocated> Gc<T> {
-	/// Helper function for `Base::allocate`. See it for safety.
-	pub(crate) unsafe fn allocate() -> Builder<T> {
-		Base::allocate()
-	}
-*/
 
 /// Sentinel value used to indicate the `Gc<T>` is mutably borrowed.
 const MUT_BORROW: u32 = u32::MAX;
