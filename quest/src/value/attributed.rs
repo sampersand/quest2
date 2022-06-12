@@ -1,8 +1,8 @@
 use crate::value::base::{
 	Attribute, AttributesMut, AttributesRef, IntoParent, ParentsMut, ParentsRef,
 };
-// use crate::vm::Args;
 use crate::value::{ty, Gc, Intern};
+use crate::vm::Args;
 use crate::{ErrorKind, Result, ToValue, Value};
 
 pub trait Attributed {
@@ -74,6 +74,11 @@ pub trait Attributed {
 				.into()
 		})
 	}
+}
+
+pub trait Callable {
+	/// Calls `self` with the given `args`.
+	fn call(self, args: Args<'_>) -> Result<Value>;
 }
 
 pub trait AttributedMut: Attributed {

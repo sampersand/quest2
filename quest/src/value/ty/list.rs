@@ -1,7 +1,7 @@
 use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 use crate::value::ty::{InstanceOf, Singleton};
-use crate::value::Intern;
+use crate::value::{Callable, Intern};
 use crate::Value;
 use std::alloc;
 use std::fmt::{self, Debug, Formatter};

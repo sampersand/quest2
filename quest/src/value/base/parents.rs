@@ -1,6 +1,6 @@
 use crate::value::base::{Attribute, Flags};
 use crate::value::ty::List;
-use crate::value::{Gc, Value};
+use crate::value::{Callable, Gc, Value};
 use crate::{ErrorKind, Result};
 use std::fmt::{self, Debug, Formatter};
 

@@ -1,5 +1,5 @@
 use crate::value::ty::{ConvertTo, Float, Integer, Text};
-use crate::value::{Convertible, Gc, HasDefaultParent};
+use crate::value::{Callable, Convertible, Gc, HasDefaultParent};
 use crate::vm::Args;
 use crate::{Result, Value};
 

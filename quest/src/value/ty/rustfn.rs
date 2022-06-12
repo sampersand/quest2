@@ -1,5 +1,5 @@
 use crate::value::ty::{InstanceOf, Singleton};
-use crate::value::Convertible;
+use crate::value::{Callable, Convertible};
 use crate::vm::Args;
 use crate::{Result, Value};
 use std::fmt::{self, Debug, Formatter};
@@ -72,9 +72,11 @@ impl RustFn {
 	pub fn func(self) -> Function {
 		self.0.func
 	}
+}
 
+impl Callable for RustFn {
 	#[inline]
-	pub fn call(self, args: Args<'_>) -> Result<Value> {
+	fn call(self, args: Args<'_>) -> Result<Value> {
 		(self.0.func)(args)
 	}
 }

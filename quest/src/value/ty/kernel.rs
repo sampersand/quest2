@@ -1,5 +1,5 @@
 use crate::value::ty::{self, Singleton};
-use crate::value::{Gc, HasDefaultParent};
+use crate::value::{Callable, Gc, HasDefaultParent};
 use crate::vm::Args;
 use crate::{Result, Value};
 

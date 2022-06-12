@@ -2,7 +2,9 @@ use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{
 	AttrConversionDefined, Boolean, BoundFn, Float, Integer, List, RustFn, Text, Wrap,
 };
-use crate::value::{Attributed, AttributedMut, Convertible, Gc, Intern, NamedType, ToValue};
+use crate::value::{
+	Attributed, AttributedMut, Callable, Convertible, Gc, Intern, NamedType, ToValue,
+};
 use crate::vm::{Args, Block};
 use crate::{ErrorKind, Result};
 use std::fmt::{self, Debug, Formatter};
@@ -470,12 +472,14 @@ impl Value {
 			.try_get_unbound_attr(attr)?
 			.call(args.with_this(self))
 	}
+}
 
+impl Callable for Value {
 	/// Calls `self` with the given `args`.
 	///
 	/// Equivalent to `self.call_attr(Intern::op_call, args)`, except with optimizations for common
 	/// types.
-	pub fn call(self, args: Args<'_>) -> Result<Self> {
+	fn call(self, args: Args<'_>) -> Result<Self> {
 		// there's a potential logic flaw here, as this may actually pass `self`
 		// when calling `Intern::op_call`. todo, check that out.
 		if let Some(rustfn) = self.downcast::<RustFn>() {
@@ -487,12 +491,14 @@ impl Value {
 		}
 
 		if let Some(boundfn) = self.downcast::<Gc<BoundFn>>() {
-			return boundfn.qs_call(args);
+			return boundfn.call(args);
 		}
 
 		self.call_attr(Intern::op_call, args)
 	}
+}
 
+impl Value {
 	/// Converts `self` to a [`Boolean`], but with optimizations for builtin types.
 	pub fn to_boolean(self) -> Result<Boolean> {
 		Ok(self.bits() != Value::NULL.bits() && self.bits() != Value::FALSE.bits())

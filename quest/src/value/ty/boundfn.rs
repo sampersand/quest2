@@ -1,4 +1,5 @@
-use crate::value::{Gc, ToValue};
+use crate::value::{Callable, Gc, ToValue};
+use crate::vm::Args;
 use crate::Value;
 use std::fmt::{self, Debug, Formatter};
 
@@ -46,13 +47,14 @@ impl BoundFn {
 		self.0.data().function
 	}
 
+	// TODO: deprecate me because `Callable` exists?
 	pub fn call(&self, args: crate::vm::Args<'_>) -> crate::Result<Value> {
 		self.function().call(args.with_this(self.object()))
 	}
 }
 
-impl Gc<BoundFn> {
-	pub fn qs_call(self, args: crate::vm::Args<'_>) -> crate::Result<Value> {
+impl Callable for Gc<BoundFn> {
+	fn call(self, args: Args<'_>) -> crate::Result<Value> {
 		let (func, obj) = {
 			let selfref = self.as_ref()?;
 			(selfref.function(), selfref.object())
@@ -60,7 +62,9 @@ impl Gc<BoundFn> {
 
 		func.call(args.with_this(obj))
 	}
+}
 
+impl Gc<BoundFn> {
 	pub fn dbg(self, args: crate::vm::Args<'_>) -> crate::Result<Value> {
 		args.assert_no_arguments()?;
 
@@ -88,6 +92,6 @@ singleton_object! {
 		parentof Gc<BoundFn>,
 		parent Callable;
 
-	Intern::op_call => method!(qs_call),
+	Intern::op_call => method!(call),
 	Intern::dbg => method!(dbg),
 }

@@ -4,7 +4,8 @@ use crate::value::base::{
 	Attribute, AttributesMut, AttributesRef, Base, Flags, Header, IntoParent, ParentsMut, ParentsRef,
 };
 use crate::value::ty::{List, Wrap};
-use crate::value::{value::Any, Attributed, AttributedMut, Convertible, HasAttributes, HasParents};
+use crate::value::value::Any;
+use crate::value::{Attributed, AttributedMut, Callable, Convertible, HasAttributes, HasParents};
 use crate::{ErrorKind, Result, ToValue, Value};
 use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};

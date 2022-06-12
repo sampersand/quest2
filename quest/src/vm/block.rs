@@ -3,7 +3,7 @@ use super::{Frame, SourceLocation};
 use crate::value::base::Base;
 use crate::value::gc::Gc;
 use crate::value::ty::{List, Text};
-use crate::value::{AttributedMut, HasAttributes, HasDefaultParent, Intern, ToValue};
+use crate::value::{AttributedMut, Callable, HasAttributes, HasDefaultParent, Intern, ToValue};
 use crate::vm::Args;
 use crate::{Result, Value};
 use std::fmt::{self, Debug, Display, Formatter};
@@ -145,6 +145,13 @@ impl Block {
 		}
 
 		Ok(cloned)
+	}
+}
+
+impl Callable for Gc<Block> {
+	#[inline]
+	fn call(self, args: Args<'_>) -> Result<Value> {
+		self.run(args)
 	}
 }
 
