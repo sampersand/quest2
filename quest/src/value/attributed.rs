@@ -81,7 +81,7 @@ pub trait Callable {
 	fn call(self, args: Args<'_>) -> Result<Value>;
 }
 
-pub trait AttributedMut: Attributed {
+pub trait AttributedMut {
 	/// Gets mutable access to the attribute `attr`, creating it if on `Self` if it doesn't exist.
 	///
 	/// This doesn't have an "checked" variant, as only attributes are looked at.
