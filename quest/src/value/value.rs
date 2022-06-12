@@ -2,7 +2,7 @@ use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{
 	AttrConversionDefined, Boolean, BoundFn, Float, Integer, List, RustFn, Text, Wrap,
 };
-use crate::value::{Convertible, Gc, Intern, NamedType, ToValue};
+use crate::value::{Attributed, AttributedMut, Convertible, Gc, Intern, NamedType, ToValue};
 use crate::vm::{Args, Block};
 use crate::{ErrorKind, Result};
 use std::fmt::{self, Debug, Formatter};
@@ -284,46 +284,43 @@ impl Value {
 }
 
 impl crate::value::Attributed for Value {
-	/// Get the unbound attribute `attr`, with a list of checked parents, `None` if it doesnt exist.
-	///
-	/// The `checked` parameter allows us to keep track of which parents have already been checked,
-	/// so as to prevent checking the same parents more than once.
 	fn get_unbound_attr_checked<A: Attribute>(
 		&self,
 		attr: A,
 		checked: &mut Vec<Self>,
 	) -> Result<Option<Self>> {
-		self.assert_isnt_an_objectified_frame();
+		(*self).get_unbound_attr_checked(attr, checked)
+	}
 
-		if !self.is_allocated() {
-			let parents = unsafe { self.parents_for_unallocated() };
+	fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
+		(*self).get_unbound_attr(attr)
+	}
 
-			// 99% of the time it's not special.
-			if !attr.is_special() {
-				return parents.get_unbound_attr_checked(attr, checked);
-			}
+	fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
+		(*self).get_attr(attr)
+	}
 
-			if attr.is_parents() {
-				// TODO: if this is modified, it wont reflect on the integer.
-				// so make `get_unbound_attr` require a reference?
-				return Ok(Some(List::from_slice(&[parents]).to_value()));
-			} else {
-				unreachable!("unknown special attribute: {attr:?}");
-			}
-		}
+	fn has_attr<A: Attribute>(&self, attr: A) -> Result<bool> {
+		(*self).has_attr(attr)
+	}
 
-		let gc = unsafe { self.get_gc_any_unchecked() };
+	fn try_get_attr<A: Attribute>(&self, attr: A) -> Result<Value> {
+		(*self).try_get_attr(attr)
+	}
+}
 
-		// 99% of the time it's not special.
-		if !attr.is_special() {
-			return gc.as_ref()?.get_unbound_attr_checked(attr, checked);
-		}
+impl AttributedMut for Value {
+	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
+		let _ = attr;
+		todo!();
+	}
 
-		if attr.is_parents() {
-			Ok(Some(gc.as_mut()?.parents_list().to_value()))
-		} else {
-			unreachable!("unknown special attribute: {attr:?}");
-		}
+	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
+		self.set_attr(attr, value)
+	}
+
+	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
+		(*self).del_attr(attr)
 	}
 }
 

@@ -343,10 +343,8 @@ impl Attribute for Value {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::value::{
-		ty::{Integer, Text},
-		Value,
-	};
+	use crate::value::ty::{Integer, Text};
+	use crate::value::{Attributed, Value};
 
 	#[test]
 	fn it_transitions_over_to_full_map() {

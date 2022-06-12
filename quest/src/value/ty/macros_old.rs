@@ -275,7 +275,7 @@ macro_rules! quest_type_attrs {
 					#[allow(unused_mut,unused_variables)]
 					let mut parent_mut = parent.as_mut().unwrap();
 					$(
-						_handle_quest_type_attrs!($type, parent_mut.header_mut(), $crate::value::Intern::$name, $func_kind $func);
+						_handle_quest_type_attrs!($type, parent_mut._header_mut(), $crate::value::Intern::$name, $func_kind $func);
 					)*
 					$(
 						unsafe {

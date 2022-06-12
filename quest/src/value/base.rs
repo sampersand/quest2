@@ -324,14 +324,15 @@ impl Header {
 	}
 }
 
+// TODO: remove me
 unsafe impl<T: 'static> super::gc::Allocated for Base<T> {
 	type Inner = T;
 
-	fn header(&self) -> &Header {
+	fn _header(&self) -> &Header {
 		&self.header
 	}
 
-	fn header_mut(&mut self) -> &mut Header {
+	fn _header_mut(&mut self) -> &mut Header {
 		&mut self.header
 	}
 

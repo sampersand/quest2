@@ -4,7 +4,7 @@ use crate::value::base::{
 	Attribute, AttributesMut, AttributesRef, Base, Flags, Header, IntoParent, ParentsMut, ParentsRef,
 };
 use crate::value::ty::{List, Wrap};
-use crate::value::{value::Any, Convertible};
+use crate::value::{value::Any, Attributed, AttributedMut, Convertible};
 use crate::{ErrorKind, Result, ToValue, Value};
 use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};
@@ -36,76 +36,43 @@ pub unsafe trait Allocated: 'static {
 	type Inner;
 
 	/// Gets a reference to `self`'s internal [`Header`].
-	fn header(&self) -> &Header {
+	fn _header(&self) -> &Header {
 		unsafe { &*(self as *const Self).cast::<Header>() }
 	}
 
 	/// Gets a mutable reference to `self`'s internal [`Header`].
-	fn header_mut(&mut self) -> &mut Header {
+	fn _header_mut(&mut self) -> &mut Header {
 		unsafe { &mut *(self as *mut Self).cast::<Header>() }
 	}
 
 	/// Gets the list of flags for `self`.
 	fn flags(&self) -> &Flags {
-		self.header().flags()
+		self._header().flags()
 	}
+}
 
+impl<T: Allocated> Attributed for T {
 	fn get_unbound_attr_checked<A: Attribute>(
 		&self,
 		attr: A,
 		checked: &mut Vec<Value>,
 	) -> Result<Option<Value>> {
-		self.header().get_unbound_attr_checked(attr, checked)
+		self._header().get_unbound_attr_checked(attr, checked)
+	}
+}
+
+impl<T: Allocated> AttributedMut for T {
+	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
+		self._header_mut().get_unbound_attr_mut(attr)
 	}
 
-	fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
-		self.get_unbound_attr_checked(attr, &mut Vec::new())
+	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
+		self._header_mut().set_attr(attr, value)
 	}
 
-	fn get_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
-		self.get_unbound_attr(attr)
+	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
+		self._header_mut().del_attr(attr)
 	}
-
-	fn has_attr<A: Attribute>(&self, attr: A) -> Result<bool> {
-		self.get_unbound_attr(attr).map(|x| x.is_some())
-	}
-
-	fn try_get_attr<A: Attribute>(&self, attr: A) -> Result<Value>
-	where
-		Self: Clone + ToValue,
-	{
-		self.get_attr(attr)?.ok_or_else(|| {
-			ErrorKind::UnknownAttribute { object: self.clone().to_value(), attribute: attr.to_value() }
-				.into()
-		})
-	}
-
-	// IDEA: make `Header` private, and just expose these methods
-
-	// /// Calls `attr` with the arguments `args`.
-	// pub fn call_attr<A: Attribute>(&self, attr: A, args: crate::vm::Args<'_>) -> Result<Value> {
-	// 	// try to get a function directly defined on `self`, which most likely wont exist.
-	// 	// then, if it doesnt, call the `parents.call_attr`, which is more specialized.
-	// 	let obj = self.as_gc().to_value();
-
-	// 	if let Some(func) = self.attributes().get_unbound_attr(attr)? {
-	// 		func.call(args.with_this(obj))
-	// 	} else {
-	// 		self.parents().call_attr(obj, attr, args)
-	// 	}
-	// }
-
-	// /// The gets an unbound attribute[`get_bound_attr`](Self::get_unbound_attr), except with a list of values that
-	// /// have already been checked.
-	// ///
-	// /// This function prevents duplicate checking of functions.
-	// pub fn get_unbound_attr_checked<A: Attribute>(
-	// 	&self,
-	// 	attr: A,
-	// 	checked: &mut Vec<Value>,
-	// ) -> Result<Option<Value>> {
-	// 	self.header().get_unbound_attr_checked(attr, checked)
-	// }
 }
 
 /// A garbage collected pointer to `T`.
@@ -408,7 +375,7 @@ impl<T: Allocated> Gc<T> {
 	/// Technically this could be publicly visible, but outside the crate, you should get a reference
 	/// and go through the [`Header`].
 	fn flags(&self) -> &Flags {
-		unsafe { &*self.as_ptr() }.header().flags()
+		unsafe { &*self.as_ptr() }._header().flags()
 	}
 
 	/// Gets the header of `self`.
@@ -418,7 +385,7 @@ impl<T: Allocated> Gc<T> {
 	fn borrows(&self) -> &AtomicU32 {
 		// SAFETY: we know `self.as_ptr()` always points to a valid `Base<T>`, as that's a requirement
 		// for constructing it (via `new`).
-		unsafe { &*self.as_ptr() }.header().borrows()
+		unsafe { &*self.as_ptr() }._header().borrows()
 	}
 
 	/// Calls `attr` with the arguments `args`.
@@ -521,33 +488,33 @@ impl<T: Allocated> Ref<T> {
 		}
 	}
 
-	/// The gets an unbound attribute[`get_bound_attr`](Self::get_unbound_attr), except with a list of values that
-	/// have already been checked.
-	///
-	/// This function prevents duplicate checking of functions.
-	pub fn get_unbound_attr_checked<A: Attribute>(
-		&self,
-		attr: A,
-		checked: &mut Vec<Value>,
-	) -> Result<Option<Value>> {
-		self.header().get_unbound_attr_checked(attr, checked)
-	}
+	// /// The gets an unbound attribute[`get_bound_attr`](Self::get_unbound_attr), except with a list of values that
+	// /// have already been checked.
+	// ///
+	// /// This function prevents duplicate checking of functions.
+	// pub fn get_unbound_attr_checked<A: Attribute>(
+	// 	&self,
+	// 	attr: A,
+	// 	checked: &mut Vec<Value>,
+	// ) -> Result<Option<Value>> {
+	// 	self._header().get_unbound_attr_checked(attr, checked)
+	// }
 
 	#[must_use]
 	pub fn flags(&self) -> &Flags {
-		self.header().flags()
+		self._header().flags()
 	}
 
 	pub fn freeze(&self) {
-		self.header().freeze();
+		self._header().freeze();
 	}
 
 	pub fn parents(&self) -> ParentsRef<'_> {
-		self.header().parents()
+		self._header().parents()
 	}
 
 	pub fn attributes(&self) -> AttributesRef<'_> {
-		self.header().attributes()
+		self._header().attributes()
 	}
 }
 
@@ -598,11 +565,11 @@ impl<T: Debug + Allocated> Debug for Mut<T> {
 
 impl<T: Allocated> Mut<T> {
 	pub fn parents_mut(&mut self) -> ParentsMut<'_> {
-		self.header_mut().parents_mut()
+		self._header_mut().parents_mut()
 	}
 
 	pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
-		self.header_mut().attributes_mut()
+		self._header_mut().attributes_mut()
 	}
 
 	pub fn parents_list(&mut self) -> Gc<List> {
@@ -614,11 +581,11 @@ impl<T: Allocated> Mut<T> {
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		self.header_mut().set_attr(attr, value)
+		self._header_mut().set_attr(attr, value)
 	}
 
 	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
-		self.header_mut().del_attr(attr)
+		self._header_mut().del_attr(attr)
 	}
 }
 
