@@ -173,6 +173,16 @@ pub struct Any {
 	_priv: (),
 }
 
+// todo: this is not actually safe, remove anny.
+unsafe impl crate::value::gc::Allocated for Any {
+	type Inner = ();
+}
+
+// also not safe
+unsafe impl crate::value::base::HasTypeFlag for Any {
+	const TYPE_FLAG: crate::value::base::TypeFlag = crate::value::base::TypeFlag::Text;
+}
+
 impl Value {
 	/// Gets a debug representation of `self`.
 	pub fn dbg_text(self) -> Result<Gc<Text>> {

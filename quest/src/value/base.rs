@@ -41,14 +41,14 @@ sa::assert_eq_size!(Header, [u64; 4]);
 /// This allows for looking up attributes, parents, flags, etc. without having to downcast a
 /// [`Gc<Any>`].
 #[repr(C, align(16))]
-pub(crate) struct Base<T: 'static> {
+pub(crate) struct Base<T: Allocated> {
 	header: Header,
-	data: T,
+	data: T::Inner,
 }
 
 // TODO: are these actually safe? idts, since theyre wrapped in `Gc`
-unsafe impl<T: Send + 'static> Send for Base<T> {}
-unsafe impl<T: Sync + 'static> Sync for Base<T> {}
+unsafe impl<T: Allocated> Send for Base<T> where T::Inner: Send + 'static {}
+unsafe impl<T: Allocated> Sync for Base<T> where T::Inner: Sync + 'static {}
 
 impl Debug for Header {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -69,7 +69,10 @@ impl Debug for Header {
 	}
 }
 
-impl<T: Debug> Debug for Base<T> {
+impl<T: Allocated> Debug for Base<T>
+where
+	T::Inner: Debug,
+{
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		if f.alternate() {
 			f.debug_struct("Base").field("header", &self.header).field("data", &self.data).finish()
@@ -115,16 +118,14 @@ impl<T: Allocated> Base<T> {
 
 		unsafe { builder.finish() }
 	}
-}
 
-impl<T> Base<T> {
 	/// Gets a reference to the `data` for `self`.
-	pub fn data(&self) -> &T {
+	pub fn data(&self) -> &T::Inner {
 		&self.data
 	}
 
 	/// Gets a mutable reference to the `data` for `self`.
-	pub fn data_mut(&mut self) -> &mut T {
+	pub fn data_mut(&mut self) -> &mut T::Inner {
 		&mut self.data
 	}
 }
@@ -137,7 +138,7 @@ impl Drop for Header {
 	}
 }
 
-impl<T> Drop for Base<T> {
+impl<T: Allocated> Drop for Base<T> {
 	fn drop(&mut self) {
 		// TODO: drop data.
 	}
@@ -303,7 +304,7 @@ impl Header {
 	}
 }
 
-impl<T> Base<T> {
+impl<T: Allocated> Base<T> {
 	/// Gets a mutable reference to `self`'s attributes.
 	pub fn _attributes_mut(&mut self) -> AttributesMut<'_> {
 		unsafe { self.header.attributes.guard_mut(&self.header.flags) }
@@ -314,7 +315,7 @@ impl<T> Base<T> {
 		unsafe { self.header.parents.guard_mut(&self.header.flags) }
 	}
 
-	pub fn deconstruct_mut(&mut self) -> (&mut T, AttributesMut<'_>, ParentsMut<'_>) {
+	pub fn deconstruct_mut(&mut self) -> (&mut T::Inner, AttributesMut<'_>, ParentsMut<'_>) {
 		let attributes = unsafe { self.header.attributes.guard_mut(&self.header.flags) };
 		let parents = unsafe { self.header.parents.guard_mut(&self.header.flags) };
 
@@ -322,7 +323,7 @@ impl<T> Base<T> {
 	}
 }
 
-impl<T> crate::value::Attributed for &Base<T> {
+impl<T: Allocated> crate::value::Attributed for &Base<T> {
 	fn get_unbound_attr_checked<A: Attribute>(
 		self,
 		attr: A,
@@ -332,7 +333,7 @@ impl<T> crate::value::Attributed for &Base<T> {
 	}
 }
 
-impl<T> crate::value::AttributedMut for Base<T> {
+impl<T: Allocated> crate::value::AttributedMut for Base<T> {
 	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
 		self.header.get_unbound_attr_mut(attr)
 	}
@@ -346,7 +347,7 @@ impl<T> crate::value::AttributedMut for Base<T> {
 	}
 }
 
-impl<T> crate::value::HasParents for Base<T> {
+impl<T: Allocated> crate::value::HasParents for Base<T> {
 	fn parents(&self) -> ParentsRef<'_> {
 		self.header.parents()
 	}
@@ -356,7 +357,7 @@ impl<T> crate::value::HasParents for Base<T> {
 	}
 }
 
-impl<T> crate::value::HasAttributes for Base<T> {
+impl<T: Allocated> crate::value::HasAttributes for Base<T> {
 	fn attributes(&self) -> AttributesRef<'_> {
 		self.header.attributes()
 	}

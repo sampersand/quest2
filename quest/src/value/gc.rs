@@ -414,7 +414,7 @@ impl<T: Allocated> Gc<T> {
 impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 	#[inline]
 	fn from(text: Gc<T>) -> Self {
-		sa::const_assert_eq!(std::mem::align_of::<Base<Any>>(), 16);
+		debug_assert_eq!(std::mem::align_of::<Base<T>>(), 16);
 
 		let bits = text.as_ptr() as usize as u64;
 		debug_assert_eq!(bits & 0b1111, 0, "somehow the `Base<T>` pointer was misaligned??");
@@ -445,7 +445,7 @@ unsafe impl<T: Allocated> Convertible for Gc<T> {
 		};
 
 		// Make sure the `typeid` matches that of `T`.
-		typeid == std::any::TypeId::of::<T::Inner>()
+		typeid == std::any::TypeId::of::<T>()
 	}
 
 	fn get(value: Value<Self>) -> Self {

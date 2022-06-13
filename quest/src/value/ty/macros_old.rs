@@ -168,7 +168,7 @@ macro_rules! quest_type {
 	) => {
 		$(#[$meta])*
 		#[repr(transparent)]
-		$vis struct $name $(<$($gen)*>)?($($innervis)? $crate::value::base::Base<$($inner)*>) $(where $($cond)*)?;
+		$vis struct $name $(<$($gen)*>)?($($innervis)? $crate::value::base::Base<Self>) $(where $($cond)*)?;
 
 		unsafe impl $(<$($gen),*>)? $crate::value::gc::Allocated for $name $(<$($gen),*>)?
 		$(where $($cond)*)? {

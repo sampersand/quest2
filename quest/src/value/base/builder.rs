@@ -51,16 +51,16 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 /// # quest::Result::Ok(())
 /// ```
 #[must_use]
-pub struct Builder<T: Allocated>(NonNull<Base<T::Inner>>);
+pub struct Builder<T: Allocated>(NonNull<Base<T>>);
 
 impl<T: Allocated> Builder<T> {
 	/// Creates a new `Builder` and initializes the typeid.
-	unsafe fn _new(ptr: NonNull<Base<T::Inner>>) -> Self {
+	unsafe fn _new(ptr: NonNull<Base<T>>) -> Self {
 		let mut builder = Self(ptr);
 
 		// We have to use `addr_of_mut` in case the entire header wasn't zero-initialized,
 		// as this function is also called from `new_uninit`.
-		addr_of_mut!((*builder.base_mut()).header.typeid).write(TypeId::of::<T::Inner>());
+		addr_of_mut!((*builder.base_mut()).header.typeid).write(TypeId::of::<T>());
 
 		builder
 	}
@@ -104,7 +104,7 @@ impl<T: Allocated> Builder<T> {
 	///     *gc.as_ref().expect("we hold the only reference").data()
 	/// );
 	/// ```
-	pub(crate) unsafe fn new_zeroed(ptr: NonNull<Base<T::Inner>>) -> Self {
+	pub(crate) unsafe fn new_zeroed(ptr: NonNull<Base<T>>) -> Self {
 		Self::_new(ptr)
 	}
 
@@ -148,7 +148,7 @@ impl<T: Allocated> Builder<T> {
 	///     *gc.as_ref().expect("we hold the only reference").data()
 	/// );
 	/// ```
-	pub(crate) unsafe fn new_uninit(ptr: NonNull<Base<T::Inner>>) -> Self {
+	pub(crate) unsafe fn new_uninit(ptr: NonNull<Base<T>>) -> Self {
 		let mut builder = Self::_new(ptr);
 
 		// These fields would normally be zero-initialized, but as we cannot assume `ptr` was
@@ -179,7 +179,7 @@ impl<T: Allocated> Builder<T> {
 	/// );
 	/// ```
 	pub fn allocate() -> Self {
-		let layout = std::alloc::Layout::new::<Base<T::Inner>>();
+		let layout = std::alloc::Layout::new::<Base<T>>();
 
 		// SAFETY:
 		// - For `alloc_zeroed`, we know `layout` is nonzero size, because `Base` alone is nonzero.
@@ -199,7 +199,7 @@ impl<T: Allocated> Builder<T> {
 	/// # let _: std::ptr::NonNull<Base<i64>> = ptr;
 	/// ```
 	#[must_use]
-	pub(crate) fn as_ptr(&self) -> NonNull<Base<T::Inner>> {
+	pub(crate) fn as_ptr(&self) -> NonNull<Base<T>> {
 		self.0
 	}
 
@@ -408,7 +408,7 @@ impl<T: Allocated> Builder<T> {
 	/// ```
 	#[inline]
 	#[must_use]
-	pub(crate) fn base(&self) -> *const Base<T::Inner> {
+	pub(crate) fn base(&self) -> *const Base<T> {
 		self.0.as_ptr()
 	}
 
@@ -426,7 +426,7 @@ impl<T: Allocated> Builder<T> {
 	/// ```
 	#[inline]
 	#[must_use]
-	pub(crate) fn base_mut(&mut self) -> *mut Base<T::Inner> {
+	pub(crate) fn base_mut(&mut self) -> *mut Base<T> {
 		self.0.as_ptr()
 	}
 
@@ -533,6 +533,6 @@ impl<T: Allocated> Builder<T> {
 		//
 		// lastly: This is valid, as `Allocated` guarantees that `T` and `Base<T>` are represented
 		// identically, and thus converting a `Gc` of the two is valid.
-		std::mem::transmute::<NonNull<Base<T::Inner>>, Gc<T>>(self.0)
+		std::mem::transmute::<NonNull<Base<T>>, Gc<T>>(self.0)
 	}
 }
