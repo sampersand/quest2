@@ -1,7 +1,7 @@
 //! Types relating to [`Base`], the type all allocated objects wrap.
 
 pub use super::HasDefaultParent;
-use crate::value::gc::Gc;
+use crate::value::gc::{Allocated, Gc};
 // use crate::value::{Attributed, AttributedMut, HasAttributes, HasParents};
 use std::any::TypeId;
 use std::fmt::{self, Debug, Formatter};
@@ -29,7 +29,7 @@ pub(super) struct Header {
 	borrows: AtomicU32,
 	attributes: attributes::Attributes,
 	parents: parents::Parents,
-	_ignore: u64,
+	typeid: TypeId,
 }
 
 sa::assert_eq_size!(Header, [u64; 4]);
@@ -60,6 +60,7 @@ impl Debug for Header {
 		}
 
 		f.debug_struct("Header")
+			.field("typeid", &TypeIdDebug(self.typeid))
 			.field("parents", &self.parents())
 			.field("attributes", &self.attributes())
 			.field("flags", &self.flags)
@@ -79,12 +80,12 @@ impl<T: Debug> Debug for Base<T> {
 }
 
 impl Base<crate::value::value::Any> {
-	pub(crate) unsafe fn _typeflags(this: *const Self) -> TypeFlag {
-		(*this).header.flags.type_flag()
+	pub(crate) unsafe fn _typeid(this: *const Self) -> TypeId {
+		(*this).header.typeid
 	}
 }
 
-impl<T: crate::value::gc::Allocated> Base<T> {
+impl<T: Allocated> Base<T> {
 	/// Returns a new [`Builder`] for [`Base`]s.
 	///
 	/// This is a convenience method around [`Builder::allocate`]. Most of the time you won't need
@@ -301,17 +302,6 @@ impl Header {
 		attrs_ptr.guard_mut(flags)
 	}
 }
-
-// TODO: remove me
-// unsafe impl<T: 'static> super::gc::Allocated for Base<T> {
-// 	type Inner = T;
-
-// 	fn flags(&self) -> &Flags {
-// 		&self.header.flags
-// 	}
-// }
-
-// impl<T> HasAttributes for Base<T> {}
 
 impl<T> Base<T> {
 	/// Gets a mutable reference to `self`'s attributes.

@@ -428,8 +428,7 @@ impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 // SAFETY: We correctly implemented `is_a` to only return true if the `Value` is a `Gc<T>`.
 // Additionally, `get` will always return a valid `Gc<T>` for any `Value<Gc<T>>`.
 unsafe impl<T: Allocated> Convertible for Gc<T> {
-	// #[inline]
-	#[inline(never)]
+	#[inline]
 	fn is_a(value: Value) -> bool {
 		// If the `value` isn't allocated, it's not a `Gc`.
 		if !value.is_allocated() {
@@ -440,15 +439,13 @@ unsafe impl<T: Allocated> Convertible for Gc<T> {
 		// such, converting the bits to a pointer will yield a non-zero pointer. Additionally, since
 		// the pointer points to _some_ `Gc` type, we're allowed to construct a `Gc<Any>` of it, as
 		// we're not accessing the `data` at all. (We're only getting the `typeid` from the header.)
-		let typeflags = unsafe {
+		let typeid = unsafe {
 			let gc = Gc::new_unchecked(value.bits() as usize as *mut Wrap<Any>);
-			Base::_typeflags(gc.as_ptr().cast())
+			Base::_typeid(gc.as_ptr().cast())
 		};
 
-		debug_assert_ne!(typeflags, crate::value::base::TypeFlag::Wrap);
-
-		// Make sure the `typeflags` matches that of `T`.
-		typeflags == T::TYPE_FLAG
+		// Make sure the `typeid` matches that of `T`.
+		typeid == std::any::TypeId::of::<T::Inner>()
 	}
 
 	fn get(value: Value<Self>) -> Self {

@@ -1,6 +1,7 @@
-use super::{Attribute, Base, Flags, HasTypeFlag, Header, IntoParent};
+use super::{Attribute, Base, Flags, Header, IntoParent};
 use crate::value::gc::{Allocated, Gc};
 use crate::Value;
+use std::any::TypeId;
 use std::ptr::{addr_of, addr_of_mut, NonNull};
 
 /// The builder used for fine-grained control over making [`Base`]s.
@@ -59,8 +60,7 @@ impl<T: Allocated> Builder<T> {
 
 		// We have to use `addr_of_mut` in case the entire header wasn't zero-initialized,
 		// as this function is also called from `new_uninit`.
-		(addr_of_mut!((*builder.base_mut()).header.flags))
-			.write(Flags::new(<T as HasTypeFlag>::TYPE_FLAG as u32));
+		addr_of_mut!((*builder.base_mut()).header.typeid).write(TypeId::of::<T::Inner>());
 
 		builder
 	}
@@ -154,6 +154,7 @@ impl<T: Allocated> Builder<T> {
 		// These fields would normally be zero-initialized, but as we cannot assume `ptr` was
 		// zero-initialized, we have to do it ourselves
 		addr_of_mut!((*builder.header_mut()).borrows).write(std::sync::atomic::AtomicU32::default());
+		addr_of_mut!((*builder.header_mut()).flags).write(Flags::default());
 
 		builder
 	}
