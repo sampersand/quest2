@@ -32,7 +32,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 ///
 /// # See Also
 /// - [`quest_type`] A macro that's used to create allocated types.
-pub unsafe trait Allocated: Sized + 'static /* + crate::value::base::HasTypeFlag*/ {
+pub unsafe trait Allocated: Sized + 'static + crate::value::base::HasTypeFlag {
 	#[doc(hidden)]
 	type Inner;
 
@@ -428,7 +428,8 @@ impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 // SAFETY: We correctly implemented `is_a` to only return true if the `Value` is a `Gc<T>`.
 // Additionally, `get` will always return a valid `Gc<T>` for any `Value<Gc<T>>`.
 unsafe impl<T: Allocated> Convertible for Gc<T> {
-	#[inline]
+	// #[inline]
+	#[inline(never)]
 	fn is_a(value: Value) -> bool {
 		// If the `value` isn't allocated, it's not a `Gc`.
 		if !value.is_allocated() {
@@ -439,13 +440,15 @@ unsafe impl<T: Allocated> Convertible for Gc<T> {
 		// such, converting the bits to a pointer will yield a non-zero pointer. Additionally, since
 		// the pointer points to _some_ `Gc` type, we're allowed to construct a `Gc<Any>` of it, as
 		// we're not accessing the `data` at all. (We're only getting the `typeid` from the header.)
-		let typeid = unsafe {
+		let typeflags = unsafe {
 			let gc = Gc::new_unchecked(value.bits() as usize as *mut Wrap<Any>);
-			Base::_typeid(gc.as_ptr().cast())
+			Base::_typeflags(gc.as_ptr().cast())
 		};
 
-		// Make sure the `typeid` matches that of `T`.
-		typeid == std::any::TypeId::of::<T::Inner>()
+		debug_assert_ne!(typeflags, crate::value::base::TypeFlag::Wrap);
+
+		// Make sure the `typeflags` matches that of `T`.
+		typeflags == T::TYPE_FLAG
 	}
 
 	fn get(value: Value<Self>) -> Self {

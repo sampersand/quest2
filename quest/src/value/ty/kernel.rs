@@ -138,6 +138,9 @@ pub mod funcs {
 
 		#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 		pub struct ThreadClass;
+		unsafe impl crate::value::base::HasTypeFlag for Thread {
+			const TYPE_FLAG: crate::value::base::TypeFlag = crate::value::base::TypeFlag::ThreadClass;
+		}
 
 		impl Singleton for ThreadClass {
 			fn instance() -> crate::Value {

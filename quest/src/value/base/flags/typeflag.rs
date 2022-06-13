@@ -7,7 +7,7 @@ const fn offset(count: u32) -> u32 {
 	count << Flags::TYPE_FLAG_BITSHIFT
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 #[non_exhaustive]
 pub enum TypeFlag {
@@ -26,6 +26,9 @@ pub enum TypeFlag {
 	Callable = offset(10),
 	Kernel = offset(11),
 	Pristine = offset(12),
+	ScopeClass = offset(13),
+	BoundFnClass = offset(14),
+	ThreadClass = offset(15),
 }
 
 impl TypeFlag {
@@ -51,6 +54,7 @@ impl TypeFlag {
 			_ if inp == Self::Callable as u32 => true,
 			_ if inp == Self::Kernel as u32 => true,
 			_ if inp == Self::Pristine as u32 => true,
+			_ if inp == Self::ScopeClass as u32 => true,
 			_ => false,
 		}
 	}
@@ -114,4 +118,12 @@ unsafe impl HasTypeFlag for ty::Kernel {
 
 unsafe impl HasTypeFlag for ty::Pristine {
 	const TYPE_FLAG: TypeFlag = TypeFlag::Pristine;
+}
+
+unsafe impl HasTypeFlag for ty::scope::ScopeClass {
+	const TYPE_FLAG: TypeFlag = TypeFlag::ScopeClass;
+}
+
+unsafe impl HasTypeFlag for ty::boundfn::BoundFnClass {
+	const TYPE_FLAG: TypeFlag = TypeFlag::BoundFnClass;
 }

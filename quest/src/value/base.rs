@@ -14,7 +14,7 @@ mod parents;
 
 pub use attributes::{Attribute, AttributesMut, AttributesRef};
 pub use builder::Builder;
-pub use flags::{Flags, HasTypeFlag};
+pub use flags::{Flags, HasTypeFlag, TypeFlag};
 pub use parents::{IntoParent, NoParents, ParentsMut, ParentsRef};
 
 /// The header for allocated [`Value`]s.
@@ -29,7 +29,7 @@ pub(super) struct Header {
 	borrows: AtomicU32,
 	attributes: attributes::Attributes,
 	parents: parents::Parents,
-	typeid: TypeId,
+	_ignore: u64,
 }
 
 sa::assert_eq_size!(Header, [u64; 4]);
@@ -60,7 +60,6 @@ impl Debug for Header {
 		}
 
 		f.debug_struct("Header")
-			.field("typeid", &TypeIdDebug(self.typeid))
 			.field("parents", &self.parents())
 			.field("attributes", &self.attributes())
 			.field("flags", &self.flags)
@@ -80,8 +79,8 @@ impl<T: Debug> Debug for Base<T> {
 }
 
 impl Base<crate::value::value::Any> {
-	pub(crate) unsafe fn _typeid(this: *const Self) -> TypeId {
-		(*this).header.typeid
+	pub(crate) unsafe fn _typeflags(this: *const Self) -> TypeFlag {
+		(*this).header.flags.type_flag()
 	}
 }
 
