@@ -4,10 +4,10 @@ use crate::value::gc::Gc;
 use crate::value::HasDefaultParent;
 
 #[must_use]
-pub(super) struct InternalBuilder(Builder<Inner>);
+pub(super) struct InternalBuilder(Builder<List>);
 
 impl InternalBuilder {
-	pub unsafe fn new(mut builder: Builder<Inner>) -> Self {
+	pub unsafe fn new(mut builder: Builder<List>) -> Self {
 		builder.set_parents(List::parent());
 
 		Self(builder)
@@ -49,6 +49,6 @@ impl InternalBuilder {
 
 	#[must_use]
 	pub unsafe fn finish(self) -> Gc<List> {
-		Gc::from_inner(self.0.finish())
+		self.0.finish()
 	}
 }

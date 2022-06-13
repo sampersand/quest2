@@ -14,7 +14,7 @@ impl Pristine {
 
 		INSTANCE
 			.get_or_init(|| {
-				let mut builder = Base::<()>::builder();
+				let mut builder = Base::<Pristine>::builder();
 
 				unsafe {
 					builder.allocate_attributes(7);
@@ -63,7 +63,7 @@ impl Pristine {
 						.unwrap();
 
 					// we don't set parents, as empty parents is default.
-					Gc::from_inner(builder.finish())
+					builder.finish()
 				}
 			})
 			.to_value()

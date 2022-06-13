@@ -1,4 +1,4 @@
-use crate::value::base::{Builder, HasDefaultParent, IntoParent};
+use crate::value::base::{Base, HasDefaultParent, IntoParent};
 use crate::value::gc::Gc;
 use std::fmt::{self, Debug, Formatter};
 
@@ -14,12 +14,7 @@ impl<T: HasDefaultParent + 'static> Wrap<T> {
 
 impl<T: 'static> Wrap<T> {
 	pub fn with_parent<P: IntoParent>(data: T, parent: P) -> Gc<Self> {
-		let mut builder = Builder::<T>::allocate();
-
-		builder.set_parents(parent);
-		builder.set_data(data);
-
-		Gc::from_inner(unsafe { builder.finish() })
+		Base::new(data, parent)
 	}
 }
 

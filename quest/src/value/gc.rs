@@ -186,18 +186,6 @@ impl<T: Allocated> Gc<T> {
 		Self(ptr)
 	}
 
-	/// Creates a new `Gc<T>` from a `Gc` referencing a base wrapping `T::Inner`.
-	///
-	/// As [`Base`] doesn't require an [`Allocated`] type, [`Base::new`] and friends return a
-	/// `Gc<Base<T>>`. As such, the way you convert from this `Gc` to a `Gc` of the outer type is
-	/// through this function.
-	#[must_use]
-	pub fn from_inner(inner: Gc<Base<T::Inner>>) -> Self {
-		// SAFETY: This is valid, as `Allocated` guarantees that `T` and `Base<T>` are represented
-		// identically, and thus converting a `Gc` of the two is valid.
-		unsafe { std::mem::transmute(inner) }
-	}
-
 	/// Creates a new `Gc<t>` from the raw pointer `ptr`.
 	///
 	/// This is identical to [`new`], except it assumes `ptr` is nonnull. It's just for convenience.

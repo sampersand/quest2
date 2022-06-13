@@ -14,7 +14,7 @@ pub struct Inner {
 	name: &'static str,
 }
 
-pub struct Builder(BaseBuilder<Inner>);
+pub struct Builder(BaseBuilder<Class>);
 
 impl Builder {
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
@@ -30,7 +30,7 @@ impl Builder {
 	// }
 	#[must_use]
 	pub fn finish(self) -> Gc<Class> {
-		unsafe { Gc::from_inner(self.0.finish()) }
+		unsafe { self.0.finish() }
 	}
 }
 

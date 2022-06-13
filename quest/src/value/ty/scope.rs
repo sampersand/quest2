@@ -15,7 +15,7 @@ pub struct Inner {
 }
 
 #[must_use]
-pub struct Builder(BaseBuilder<Inner>);
+pub struct Builder(BaseBuilder<Scope>);
 
 impl Builder {
 	pub fn with_capacity(cap: usize) -> Self {
@@ -37,7 +37,7 @@ impl Builder {
 	pub fn build(mut self, src_loc: crate::vm::SourceLocation) -> Gc<Scope> {
 		self.0.set_data(Inner { src_loc });
 
-		Gc::from_inner(unsafe { self.0.finish() })
+		unsafe { self.0.finish() }
 	}
 }
 

@@ -147,7 +147,7 @@ impl Frame {
 		}
 
 		// Fill out and finish the builder
-		let mut builder = Base::<Inner>::builder();
+		let mut builder = Base::<Frame>::builder();
 
 		builder.set_parents(block.to_value());
 		let data_ptr = builder.data_mut();
@@ -167,7 +167,7 @@ impl Frame {
 		debug_assert_eq!(unsafe { (*data_ptr).pos }, 0);
 
 		// SAFETY: We've finished creating a valid `Inner`, so we can call `.finish()`.
-		Ok(Gc::from_inner(unsafe { builder.finish() }))
+		Ok(unsafe { builder.finish() })
 	}
 
 	/// Fetches the block associated with this stackframe.

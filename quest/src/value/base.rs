@@ -41,7 +41,7 @@ sa::assert_eq_size!(Header, [u64; 4]);
 /// This allows for looking up attributes, parents, flags, etc. without having to downcast a
 /// [`Gc<Any>`].
 #[repr(C, align(16))]
-pub struct Base<T: 'static> {
+pub(crate) struct Base<T: 'static> {
 	header: Header,
 	data: T,
 }
@@ -85,7 +85,7 @@ impl Base<crate::value::value::Any> {
 	}
 }
 
-impl<T> Base<T> {
+impl<T: crate::value::gc::Allocated> Base<T> {
 	/// Returns a new [`Builder`] for [`Base`]s.
 	///
 	/// This is a convenience method around [`Builder::allocate`]. Most of the time you won't need
@@ -96,13 +96,17 @@ impl<T> Base<T> {
 
 	/// Creates a new [`Base`] with the given data and parents.
 	#[must_use]
-	pub fn new<P: IntoParent>(data: T, parent: P) -> Gc<Self> {
+	pub fn new<P: IntoParent>(data: T::Inner, parent: P) -> Gc<T> {
 		Self::new_with_capacity(data, parent, 0)
 	}
 
 	/// Creates a new [`Base`] with the given data, parents, and initial attribute capacity.
 	#[must_use]
-	pub fn new_with_capacity<P: IntoParent>(data: T, parent: P, attr_capacity: usize) -> Gc<Self> {
+	pub fn new_with_capacity<P: IntoParent>(
+		data: T::Inner,
+		parent: P,
+		attr_capacity: usize,
+	) -> Gc<T> {
 		let mut builder = Self::builder();
 
 		builder.set_parents(parent);
@@ -111,7 +115,9 @@ impl<T> Base<T> {
 
 		unsafe { builder.finish() }
 	}
+}
 
+impl<T> Base<T> {
 	/// Gets a reference to the `data` for `self`.
 	pub fn data(&self) -> &T {
 		&self.data
@@ -310,12 +316,12 @@ unsafe impl<T: 'static> super::gc::Allocated for Base<T> {
 
 impl<T> Base<T> {
 	/// Gets a mutable reference to `self`'s attributes.
-	pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
+	pub fn _attributes_mut(&mut self) -> AttributesMut<'_> {
 		unsafe { self.header.attributes.guard_mut(&self.header.flags) }
 	}
 
 	/// Gets a mutable reference to `self`'s parents.
-	pub fn parents_mut(&mut self) -> ParentsMut<'_> {
+	pub fn _parents_mut(&mut self) -> ParentsMut<'_> {
 		unsafe { self.header.parents.guard_mut(&self.header.flags) }
 	}
 

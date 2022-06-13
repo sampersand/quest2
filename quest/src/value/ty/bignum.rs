@@ -15,7 +15,7 @@ impl BigNum {
 	pub fn new(bigint: BigInt) -> Gc<Self> {
 		use crate::value::base::{Base, HasDefaultParent};
 
-		Gc::from_inner(Base::new(bigint, Gc::<Self>::parent()))
+		Base::new(bigint, Gc::<Self>::parent())
 	}
 
 	pub fn from_i64(num: i64) -> Gc<Self> {

@@ -5,7 +5,7 @@ use crate::value::gc::Gc;
 use std::ptr::NonNull;
 
 #[must_use]
-pub struct Builder(BaseBuilder<Inner>);
+pub struct Builder(BaseBuilder<Text>);
 
 impl Builder {
 	/// Creates a new [`Builder`] from the given `ptr`.
@@ -22,7 +22,7 @@ impl Builder {
 	}
 
 	pub fn allocate() -> Self {
-		let alloc_ptr = BaseBuilder::<Inner>::allocate().as_ptr();
+		let alloc_ptr = BaseBuilder::<Text>::allocate().as_ptr();
 
 		unsafe { Self::new(std::mem::transmute(alloc_ptr)) }
 	}
@@ -62,6 +62,6 @@ impl Builder {
 	pub fn finish(mut self) -> Gc<Text> {
 		self.text_mut().recalculate_hash(); // assign the hash.
 
-		unsafe { Gc::from_inner(self.0.finish()) }
+		unsafe { self.0.finish() }
 	}
 }

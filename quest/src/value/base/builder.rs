@@ -1,5 +1,5 @@
 use super::{Attribute, Base, Flags, Header, IntoParent};
-use crate::value::gc::Gc;
+use crate::value::gc::{Allocated, Gc};
 use crate::Value;
 use std::any::TypeId;
 use std::ptr::{addr_of, addr_of_mut, NonNull};
@@ -51,16 +51,16 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 /// # quest::Result::Ok(())
 /// ```
 #[must_use]
-pub struct Builder<T: 'static>(NonNull<Base<T>>);
+pub struct Builder<T: Allocated>(NonNull<Base<T::Inner>>);
 
-impl<T> Builder<T> {
+impl<T: Allocated> Builder<T> {
 	/// Creates a new `Builder` and initializes the typeid.
-	unsafe fn _new(ptr: NonNull<Base<T>>) -> Self {
+	unsafe fn _new(ptr: NonNull<Base<T::Inner>>) -> Self {
 		let mut builder = Self(ptr);
 
 		// We have to use `addr_of_mut` in case the entire header wasn't zero-initialized,
 		// as this function is also called from `new_uninit`.
-		addr_of_mut!((*builder.base_mut()).header.typeid).write(TypeId::of::<T>());
+		addr_of_mut!((*builder.base_mut()).header.typeid).write(TypeId::of::<T::Inner>());
 
 		builder
 	}
@@ -104,7 +104,7 @@ impl<T> Builder<T> {
 	///     *gc.as_ref().expect("we hold the only reference").data()
 	/// );
 	/// ```
-	pub unsafe fn new_zeroed(ptr: NonNull<Base<T>>) -> Self {
+	pub(crate) unsafe fn new_zeroed(ptr: NonNull<Base<T::Inner>>) -> Self {
 		Self::_new(ptr)
 	}
 
@@ -148,7 +148,7 @@ impl<T> Builder<T> {
 	///     *gc.as_ref().expect("we hold the only reference").data()
 	/// );
 	/// ```
-	pub unsafe fn new_uninit(ptr: NonNull<Base<T>>) -> Self {
+	pub(crate) unsafe fn new_uninit(ptr: NonNull<Base<T::Inner>>) -> Self {
 		let mut builder = Self::_new(ptr);
 
 		// These fields would normally be zero-initialized, but as we cannot assume `ptr` was
@@ -179,7 +179,7 @@ impl<T> Builder<T> {
 	/// );
 	/// ```
 	pub fn allocate() -> Self {
-		let layout = std::alloc::Layout::new::<Base<T>>();
+		let layout = std::alloc::Layout::new::<Base<T::Inner>>();
 
 		// SAFETY:
 		// - For `alloc_zeroed`, we know `layout` is nonzero size, because `Base` alone is nonzero.
@@ -199,7 +199,7 @@ impl<T> Builder<T> {
 	/// # let _: std::ptr::NonNull<Base<i64>> = ptr;
 	/// ```
 	#[must_use]
-	pub fn as_ptr(&self) -> NonNull<Base<T>> {
+	pub(crate) fn as_ptr(&self) -> NonNull<Base<T::Inner>> {
 		self.0
 	}
 
@@ -359,7 +359,7 @@ impl<T> Builder<T> {
 	///         .data()
 	/// );
 	/// ```
-	pub fn set_data(&mut self, data: T) {
+	pub fn set_data(&mut self, data: T::Inner) {
 		// SAFETY: We know the pointer is aligned and can be written to b/c of Builder's invariants.
 		unsafe {
 			self.data_mut().write(data);
@@ -408,7 +408,7 @@ impl<T> Builder<T> {
 	/// ```
 	#[inline]
 	#[must_use]
-	pub fn base(&self) -> *const Base<T> {
+	pub(crate) fn base(&self) -> *const Base<T::Inner> {
 		self.0.as_ptr()
 	}
 
@@ -426,7 +426,7 @@ impl<T> Builder<T> {
 	/// ```
 	#[inline]
 	#[must_use]
-	pub fn base_mut(&mut self) -> *mut Base<T> {
+	pub(crate) fn base_mut(&mut self) -> *mut Base<T::Inner> {
 		self.0.as_ptr()
 	}
 
@@ -479,9 +479,9 @@ impl<T> Builder<T> {
 	/// // ... do stuff with `ptr`.
 	/// ```
 	#[must_use]
-	pub fn data(&self) -> *const T {
+	pub fn data(&self) -> *const T::Inner {
 		// SAFETY: `self.base()` is a valid pointer to a `Base<T>`.
-		unsafe { addr_of!((*self.base()).data).cast::<T>() }
+		unsafe { addr_of!((*self.base()).data).cast::<T::Inner>() }
 	}
 
 	/// Get a mutable pointer to the underlying `T`.
@@ -497,9 +497,9 @@ impl<T> Builder<T> {
 	/// // ... do stuff with `ptr`.
 	/// ```
 	#[must_use]
-	pub fn data_mut(&mut self) -> *mut T {
+	pub fn data_mut(&mut self) -> *mut T::Inner {
 		// SAFETY: `self.base_mut()` is a valid pointer to a `Base<T>`.
-		unsafe { addr_of_mut!((*self.base_mut()).data).cast::<T>() }
+		unsafe { addr_of_mut!((*self.base_mut()).data).cast::<T::Inner>() }
 	}
 
 	/// Finish building the `Base<T>` and return a garbage collected reference ([`Gc`]) to it.
@@ -527,9 +527,12 @@ impl<T> Builder<T> {
 	/// [`new_zeroed`]: Self::new_zeroed
 	/// [`allocate`]: Self::allocate
 	#[must_use]
-	pub unsafe fn finish(self) -> Gc<Base<T>> {
+	pub unsafe fn finish(self) -> Gc<T> {
 		// SAFETY: The requirement for `new` was that the pointer was allocated via `crate::alloc` or
 		// `crate::realloc`. Additionally, the caller ensures that the entire base was initialized.
-		Gc::new(self.0)
+		//
+		// lastly: This is valid, as `Allocated` guarantees that `T` and `Base<T>` are represented
+		// identically, and thus converting a `Gc` of the two is valid.
+		std::mem::transmute(Gc::new(self.0))
 	}
 }

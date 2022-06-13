@@ -170,7 +170,7 @@ pub mod funcs {
 		let func = args[0];
 
 		let thread = thread::spawn(move || func.call(Args::default()));
-		Ok(Gc::<Thread>::from_inner(Base::new(Some(thread), Gc::<Thread>::parent())).to_value())
+		Ok(Base::<Thread>::new(Some(thread), Gc::<Thread>::parent()).to_value())
 	}
 }
 

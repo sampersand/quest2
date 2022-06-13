@@ -62,7 +62,7 @@ impl Block {
 			named_locals,
 		});
 
-		Gc::from_inner(Base::new(inner, Gc::<Self>::parent()))
+		Base::new(inner, Gc::<Self>::parent())
 	}
 
 	pub(crate) fn inner(&self) -> Arc<BlockInner> {
@@ -137,7 +137,7 @@ impl Block {
 		let inner = self.inner();
 		let parents = List::from_slice(&[Gc::<Self>::parent(), parent_scope.to_value()]);
 		// this
-		let cloned = Gc::<Self>::from_inner(Base::new(inner, parents));
+		let cloned = Base::<Self>::new(inner, parents);
 
 		let mut clonedmut = cloned.as_mut().unwrap();
 		for (attr, value) in self.attributes().iter() {

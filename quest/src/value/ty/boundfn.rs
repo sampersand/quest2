@@ -36,7 +36,7 @@ impl BoundFn {
 	pub fn new(object: Value, function: Value) -> Gc<Self> {
 		use crate::value::base::{Base, HasDefaultParent};
 
-		Gc::from_inner(Base::new(Inner { object, function }, Gc::<Self>::parent()))
+		Base::new(Inner { object, function }, Gc::<Self>::parent())
 	}
 
 	pub fn object(&self) -> Value {
