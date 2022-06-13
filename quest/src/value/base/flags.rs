@@ -1,6 +1,9 @@
 use std::fmt::{self, Binary, Debug, Formatter};
 use std::sync::atomic::{AtomicU32, Ordering};
 
+mod typeflag;
+pub use typeflag::{HasTypeFlag, TypeFlag};
+
 /// Flags corresponding to a [`Header`](crate::value::base::Header).
 ///
 /// [`Flags`] is split up into two parts: internal flags and user-definable flags. User-definable
@@ -13,6 +16,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// marking, whether the object is frozen, etc.)
 #[derive(Default)]
 pub struct Flags(AtomicU32); // This entire type needs to be reworked with unsafety rules.
+
+sa::const_assert_eq!(1 << Flags::TYPE_FLAG_BITSHIFT, Flags::TYPE_FLAG1);
 
 impl Flags {
 	/// User flag 0.
@@ -67,15 +72,27 @@ impl Flags {
 	const _UNUSED_25: u32 = 1 << 25;
 	const _UNUSED_26: u32 = 1 << 26;
 	const _UNUSED_27: u32 = 1 << 27;
-	const _UNUSED_28: u32 = 1 << 28;
-	const _UNUSED_29: u32 = 1 << 29;
-	const _UNUSED_30: u32 = 1 << 30;
-	const _UNUSED_31: u32 = 1 << 31;
+
+	const TYPE_FLAG_BITSHIFT: u32 = 28;
+	const TYPE_FLAG1: u32 = 1 << 28;
+	const TYPE_FLAG2: u32 = 1 << 29;
+	const TYPE_FLAG3: u32 = 1 << 30;
+	const TYPE_FLAG4: u32 = 1 << 31;
+	const TYPE_FLAG_MASK: u32 =
+		Self::TYPE_FLAG1 | Self::TYPE_FLAG2 | Self::TYPE_FLAG3 | Self::TYPE_FLAG4;
 
 	/// Creates new [`Flags`].
 	#[must_use]
 	pub const fn new(flags: u32) -> Self {
 		Self(AtomicU32::new(flags))
+	}
+
+	pub fn type_flag(&self) -> TypeFlag {
+		let bits = self.mask(Self::TYPE_FLAG_MASK);
+
+		// SAFETY: We know `bits` are a valid TypeFlag representation, as there's no way to create
+		// an invalid one.
+		unsafe { TypeFlag::from_bits_unchecked(bits) }
 	}
 
 	/// Inserts a user-defined flag.
@@ -179,7 +196,7 @@ impl Debug for Flags {
 			USER10 USER11 USER12 USER13 USER14 USER15
 			FROZEN NOFREE GCMARK ATTR_MAP MULTI_PARENT
 			_UNUSED_21 _UNUSED_22 _UNUSED_23 _UNUSED_24 _UNUSED_25 _UNUSED_26 _UNUSED_27
-			_UNUSED_28 _UNUSED_29 _UNUSED_30 _UNUSED_31
+			TYPE_FLAG1 TYPE_FLAG2 TYPE_FLAG3 TYPE_FLAG4
 		);
 
 		let _ = is_first;

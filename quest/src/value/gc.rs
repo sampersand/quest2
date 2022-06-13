@@ -32,7 +32,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 ///
 /// # See Also
 /// - [`quest_type`] A macro that's used to create allocated types.
-pub unsafe trait Allocated: Sized + 'static {
+pub unsafe trait Allocated: Sized + 'static /* + crate::value::base::HasTypeFlag*/ {
 	#[doc(hidden)]
 	type Inner;
 

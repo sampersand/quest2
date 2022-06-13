@@ -14,7 +14,7 @@ mod parents;
 
 pub use attributes::{Attribute, AttributesMut, AttributesRef};
 pub use builder::Builder;
-pub use flags::Flags;
+pub use flags::{Flags, HasTypeFlag};
 pub use parents::{IntoParent, NoParents, ParentsMut, ParentsRef};
 
 /// The header for allocated [`Value`]s.
@@ -304,13 +304,13 @@ impl Header {
 }
 
 // TODO: remove me
-unsafe impl<T: 'static> super::gc::Allocated for Base<T> {
-	type Inner = T;
+// unsafe impl<T: 'static> super::gc::Allocated for Base<T> {
+// 	type Inner = T;
 
-	fn flags(&self) -> &Flags {
-		&self.header.flags
-	}
-}
+// 	fn flags(&self) -> &Flags {
+// 		&self.header.flags
+// 	}
+// }
 
 // impl<T> HasAttributes for Base<T> {}
 
@@ -330,5 +330,49 @@ impl<T> Base<T> {
 		let parents = unsafe { self.header.parents.guard_mut(&self.header.flags) };
 
 		(&mut self.data, attributes, parents)
+	}
+}
+
+impl<T> crate::value::Attributed for &Base<T> {
+	fn get_unbound_attr_checked<A: Attribute>(
+		self,
+		attr: A,
+		checked: &mut Vec<Value>,
+	) -> Result<Option<Value>> {
+		self.header.get_unbound_attr_checked(attr, checked)
+	}
+}
+
+impl<T> crate::value::AttributedMut for Base<T> {
+	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
+		self.header.get_unbound_attr_mut(attr)
+	}
+
+	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
+		self.header.set_attr(attr, value)
+	}
+
+	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
+		self.header.del_attr(attr)
+	}
+}
+
+impl<T> crate::value::HasParents for Base<T> {
+	fn parents(&self) -> ParentsRef<'_> {
+		self.header.parents()
+	}
+
+	fn parents_mut(&mut self) -> ParentsMut<'_> {
+		self.header.parents_mut()
+	}
+}
+
+impl<T> crate::value::HasAttributes for Base<T> {
+	fn attributes(&self) -> AttributesRef<'_> {
+		self.header.attributes()
+	}
+
+	fn attributes_mut(&mut self) -> AttributesMut<'_> {
+		self.header.attributes_mut()
 	}
 }

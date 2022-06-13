@@ -533,6 +533,6 @@ impl<T: Allocated> Builder<T> {
 		//
 		// lastly: This is valid, as `Allocated` guarantees that `T` and `Base<T>` are represented
 		// identically, and thus converting a `Gc` of the two is valid.
-		std::mem::transmute(Gc::new(self.0))
+		std::mem::transmute::<NonNull<Base<T::Inner>>, Gc<T>>(self.0)
 	}
 }
