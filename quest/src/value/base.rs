@@ -2,7 +2,7 @@
 
 pub use super::HasDefaultParent;
 use crate::value::gc::Gc;
-use crate::value::{Attributed, AttributedMut, HasAttributes, HasParents};
+// use crate::value::{Attributed, AttributedMut, HasAttributes, HasParents};
 use std::any::TypeId;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::atomic::AtomicU32; // pub is deprecated here, just to fix other things.
@@ -281,15 +281,7 @@ impl Header {
 	}
 
 	/// <TODO: is this required?>
-	pub unsafe fn parents_raw<'a>(ptr: *const Self) -> ParentsRef<'a> {
-		let parents = &(*ptr).parents;
-		let flags = &(*ptr).flags;
-
-		parents.guard_ref(flags)
-	}
-
-	/// <TODO: is this required?>
-	pub unsafe fn parents_raw_mut<'a>(ptr: *mut Self) -> ParentsMut<'a> {
+	unsafe fn parents_raw_mut<'a>(ptr: *mut Self) -> ParentsMut<'a> {
 		let parents = &mut (*ptr).parents;
 		let flags = &(*ptr).flags;
 
@@ -297,7 +289,7 @@ impl Header {
 	}
 
 	/// <TODO: is this required?>
-	pub unsafe fn attributes_raw_mut<'a>(ptr: *mut Self) -> AttributesMut<'a> {
+	unsafe fn attributes_raw_mut<'a>(ptr: *mut Self) -> AttributesMut<'a> {
 		let attrs_ptr = &mut (*ptr).attributes;
 		let flags = &(*ptr).flags;
 

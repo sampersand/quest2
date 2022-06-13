@@ -344,7 +344,7 @@ impl Attribute for Value {
 mod tests {
 	use super::*;
 	use crate::value::ty::{Integer, Text};
-	use crate::value::{Attributed, Value};
+	use crate::value::{Attributed, AttributedMut, Value};
 
 	#[test]
 	fn it_transitions_over_to_full_map() {

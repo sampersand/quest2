@@ -11,7 +11,7 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 ///
 /// # Example
 /// ```
-/// use quest::value::{ToValue, Gc};
+/// use quest::value::{ToValue, Gc, Attributed};
 /// use quest::value::ty::{Pristine, Text};
 /// use quest::value::base::{Base, Flags};
 ///
@@ -34,13 +34,13 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 /// builder.insert_user_flags(FLAG_IS_SPECIAL);
 ///
 /// // SAFETY: Since `builder` was zero-initialized, we only had to set `data`.
-/// let base = unsafe { builder.finish() };
-/// let baseref = base.as_ref().expect("we hold the only reference");
+/// let gc = unsafe { builder.finish() };
+/// let gcref = gc.as_ref().expect("we hold the only reference");
 ///
-/// assert_eq!(*baseref.data(), 0x1234);
+/// assert_eq!(*gcref.data(), 0x1234);
 /// assert_eq!(
 ///    "bar",
-///    baseref.header()
+///    gcref
 ///        .get_unbound_attr("foo".to_value())?
 ///        .unwrap()
 ///        .downcast::<Gc<Text>>()
@@ -97,11 +97,11 @@ impl<T> Builder<T> {
 	/// builder.set_data(12u8);
 	///
 	/// // SAFETY: Since it's zero-initialized, we only had to initialize the `data` field.
-	/// let base = unsafe { builder.finish() };
+	/// let gc = unsafe { builder.finish() };
 	///
 	/// assert_eq!(
 	///     12u8,
-	///     *base.as_ref().expect("we hold the only reference").data()
+	///     *gc.as_ref().expect("we hold the only reference").data()
 	/// );
 	/// ```
 	pub unsafe fn new_zeroed(ptr: NonNull<Base<T>>) -> Self {
@@ -141,11 +141,11 @@ impl<T> Builder<T> {
 	/// builder.set_parents(quest::value::base::NoParents);
 	///
 	/// // SAFETY: We just initialized the data, attributes, and parents fields.
-	/// let base = unsafe { builder.finish() };
+	/// let gc = unsafe { builder.finish() };
 	///
 	/// assert_eq!(
 	///     12u8,
-	///     *base.as_ref().expect("we hold the only reference").data()
+	///     *gc.as_ref().expect("we hold the only reference").data()
 	/// );
 	/// ```
 	pub unsafe fn new_uninit(ptr: NonNull<Base<T>>) -> Self {
@@ -172,10 +172,10 @@ impl<T> Builder<T> {
 	/// builder.set_data(34u8);
 	///
 	/// // SAFETY: Since it's zero-initialized, we only had to initialize the `data` field.
-	/// let base = unsafe { builder.finish() };
+	/// let gc = unsafe { builder.finish() };
 	/// assert_eq!(
 	///     34u8,
-	///     *base.as_ref().expect("we hold the only reference").data()
+	///     *gc.as_ref().expect("we hold the only reference").data()
 	/// );
 	/// ```
 	pub fn allocate() -> Self {
@@ -210,7 +210,7 @@ impl<T> Builder<T> {
 	/// # Examples
 	/// ```
 	/// # use quest::value::base::Base;
-	/// use quest::value::{ToValue, Gc};
+	/// use quest::value::{ToValue, Gc, Attributed};
 	/// use quest::value::ty::Text;
 	///
 	/// let mut builder = Base::<()>::builder();
@@ -224,12 +224,11 @@ impl<T> Builder<T> {
 	/// }
 	///
 	/// // SAFETY: Since `builder` was zero-initialized to a ZST, we didn't have to do anything.
-	/// let base = unsafe { builder.finish() };
+	/// let gc = unsafe { builder.finish() };
 	///
 	/// assert_eq!(
 	///    "bar",
-	///     base.as_ref().expect("we hold the only reference")
-	///         .header()
+	///     gc.as_ref().expect("we hold the only reference")
 	///         .get_unbound_attr("foo".to_value())?
 	///         .unwrap()
 	///         .downcast::<Gc<Text>>()
@@ -249,6 +248,7 @@ impl<T> Builder<T> {
 	/// ```
 	/// # use quest::value::base::Base;
 	/// use quest::value::ty::{Kernel, Object, List, Singleton};
+	/// use quest::value::HasParents;
 	///
 	/// let parents = List::from_slice(&[
 	///     Kernel::instance(),
@@ -259,13 +259,11 @@ impl<T> Builder<T> {
 	/// builder.set_parents(parents);
 	///
 	/// // SAFETY: Since `builder` was zero-initialized to a ZST, we didn't have to do anything.
-	/// let base = unsafe { builder.finish() };
+	/// let gc = unsafe { builder.finish() };
 	///
 	/// assert!(
-	///     base.as_mut().expect("we hold the only reference")
-	///         .header_mut()
-	///         .parents_mut()
-	///         .as_list()
+	///     gc.as_mut().expect("we hold the only reference")
+	///         .parents_list()
 	///         .ptr_eq(parents)
 	/// );
 	/// ```
@@ -438,7 +436,7 @@ impl<T> Builder<T> {
 	/// base may not have been fully initialized yet.
 	///
 	/// # Basic usage
-	/// ```
+	/// ```text
 	/// # use quest::value::base::{Base, Header};
 	/// let builder = Base::<i32>::builder();
 	/// let ptr: *const Header = builder.header();
@@ -456,7 +454,7 @@ impl<T> Builder<T> {
 	/// base may not have been fully initialized yet.
 	///
 	/// # Basic usage
-	/// ```
+	/// ```text
 	/// # use quest::value::base::{Base, Header};
 	/// let mut builder = Base::<i32>::builder();
 	/// let ptr: *mut Header = builder.header_mut();
