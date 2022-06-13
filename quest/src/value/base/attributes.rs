@@ -4,10 +4,8 @@ use crate::{Result, Value};
 use std::fmt::{self, Debug, Formatter};
 use std::mem::ManuallyDrop;
 
-mod internkey;
 mod list;
 mod map;
-use internkey::InternKey;
 use list::ListMap;
 use map::Map;
 
