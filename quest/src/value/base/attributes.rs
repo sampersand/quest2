@@ -256,7 +256,7 @@ pub trait Attribute: Copy + Debug + ToValue {
 	fn try_hash(self) -> Result<u64>;
 
 	/// Get the raw data corresponding to `self`.
-	fn to_repr(self) -> u64;
+	fn bits(self) -> u64;
 
 	/// Checks to see if self is a "special" attribute
 	///
@@ -291,8 +291,8 @@ impl Attribute for Intern {
 		Ok(Some(self))
 	}
 
-	fn to_repr(self) -> u64 {
-		self as u64
+	fn bits(self) -> u64 {
+		self.bits()
 	}
 
 	fn is_parents(self) -> bool {
@@ -325,7 +325,7 @@ impl Attribute for Value {
 		}
 	}
 
-	fn to_repr(self) -> u64 {
+	fn bits(self) -> u64 {
 		self.bits()
 	}
 

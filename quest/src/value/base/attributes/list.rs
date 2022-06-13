@@ -1,5 +1,5 @@
 use super::Attribute;
-use crate::value::{ToValue, Intern};
+use crate::value::{Intern, ToValue};
 use crate::{Result, Value};
 use std::fmt::{self, Debug, Formatter};
 
@@ -113,7 +113,7 @@ impl ListMap {
 
 				*value = new_value;
 			} else {
-				self.data[idx] = Some((Key { raw_data: attr.to_repr() }, new_value));
+				self.data[idx] = Some((Key { raw_data: attr.bits() }, new_value));
 			}
 
 			return Ok(());

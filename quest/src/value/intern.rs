@@ -27,13 +27,14 @@ macro_rules! define_interned {
 		/// Since these strings are known ahead of time, and are usually frequently used, interning
 		/// them allows for extremely fast lookups and comparisons.
 		#[derive(Debug, Clone, Copy)]
-		#[allow(non_camel_case_types)]
-		#[repr(u64)]
-		#[non_exhaustive]
-		pub enum Intern {
+		#[repr(transparent)]
+		pub struct Intern(u64);
+
+		#[allow(non_upper_case_globals)]
+		impl Intern {
 			$(
 				#[doc = concat!("Represents the `\"", variant_name!($name $($value)?), "\"` string in Quest")]
-				$name = offset(__InternHelper::$name as _),
+				pub const $name: Self = Self(offset(__InternHelper::$name as _));
 			)*
 		}
 
@@ -147,7 +148,7 @@ define_interned! {
 impl Eq for Intern {}
 impl PartialEq for Intern {
 	fn eq(&self, rhs: &Self) -> bool {
-		*self as u64 == *rhs as u64
+		self.bits() == rhs.bits()
 	}
 }
 impl Hash for Intern {
@@ -157,8 +158,12 @@ impl Hash for Intern {
 }
 
 impl Intern {
+	pub const fn bits(self) -> u64 {
+		self.0
+	}
+
 	const fn as_index(self) -> usize {
-		((self as u64) >> 7) as usize
+		(self.bits() >> 7) as usize
 	}
 
 	pub(crate) const fn try_from_repr(repr: u64) -> Option<Self> {
