@@ -944,6 +944,7 @@ mod tests {
 	use super::*;
 
 	#[test]
+	#[cfg_attr(miri, ignore)]
 	fn test_fibonacci() {
 		let fib = {
 			let mut builder = crate::vm::block::Builder::new(1, Default::default());

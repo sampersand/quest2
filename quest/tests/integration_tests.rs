@@ -53,6 +53,7 @@ fn square_root() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)]
 fn fib_set_attr() {
 	// NOTE: I'm not sure these semantics are what we want, ie setting an attr on the function means
 	// the block its in inherits those attrs.
@@ -74,6 +75,7 @@ fn fib_set_attr() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)]
 fn fib_set_parent() {
 	// NOTE: This won't be necessary later when i get auto inheritance working.
 	let result = run_code(
@@ -94,6 +96,7 @@ fn fib_set_parent() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)]
 fn fib_pass_function() {
 	let result = run_code(
 		r#"
@@ -112,6 +115,7 @@ fn fib_pass_function() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)]
 fn fib_normal() {
 	let result = run_code(
 		r#"

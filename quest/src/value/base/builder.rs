@@ -1,7 +1,6 @@
 use super::{Attribute, Base, Flags, Header, IntoParent};
 use crate::value::gc::{Allocated, Gc};
 use crate::Value;
-use std::any::TypeId;
 use std::ptr::{addr_of, addr_of_mut, NonNull};
 
 /// The builder used for fine-grained control over making [`Base`]s.
@@ -10,7 +9,8 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 /// [`Base::new_with_capacity`] instead.
 ///
 /// # Example
-/// ```
+/// ```text
+/// // this is `text` because i plan on overhauling the builder.
 /// use quest::value::{ToValue, Gc, Attributed};
 /// use quest::value::ty::{Pristine, Text};
 /// use quest::value::base::{Base, Flags};
@@ -55,12 +55,13 @@ pub struct Builder<T: Allocated>(NonNull<Base<T>>);
 
 impl<T: Allocated> Builder<T> {
 	/// Creates a new `Builder` and initializes the typeid.
+	// #[inline(never)]
 	unsafe fn _new(ptr: NonNull<Base<T>>) -> Self {
 		let mut builder = Self(ptr);
 
 		// We have to use `addr_of_mut` in case the entire header wasn't zero-initialized,
 		// as this function is also called from `new_uninit`.
-		addr_of_mut!((*builder.base_mut()).header.typeid).write(TypeId::of::<T>());
+		addr_of_mut!((*builder.header_mut()).flags).write(Flags::new(T::TYPE_FLAG as u32));
 
 		builder
 	}
@@ -83,7 +84,8 @@ impl<T: Allocated> Builder<T> {
 	/// [`quest::realloc`]: crate::realloc
 	/// [`quest::alloc_zeroed`]: crate::alloc_zeroed
 	/// # Example
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::{Builder, Base};
 	/// let layout = std::alloc::Layout::new::<Base<u8>>();
 	///
@@ -108,6 +110,7 @@ impl<T: Allocated> Builder<T> {
 		Self::_new(ptr)
 	}
 
+	/*
 	/// Creates a new [`Builder`] from a pointer to an uninitialized [`Base<T>`].
 	///
 	/// Note that if `ptr` was allocated via [`quest::alloc_zeroed`](crate::alloc_zeroed), you should
@@ -123,7 +126,8 @@ impl<T: Allocated> Builder<T> {
 	/// [`quest::realloc`]: crate::realloc
 	/// [`quest::alloc_zeroed`]: crate::alloc_zeroed
 	/// # Example
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::{Builder, Base};
 	/// let layout = std::alloc::Layout::new::<Base<u8>>();
 	///
@@ -148,7 +152,7 @@ impl<T: Allocated> Builder<T> {
 	///     *gc.as_ref().expect("we hold the only reference").data()
 	/// );
 	/// ```
-	pub(crate) unsafe fn new_uninit(ptr: NonNull<Base<T>>) -> Self {
+	unsafe fn new_uninit(ptr: NonNull<Base<T>>) -> Self {
 		let mut builder = Self::_new(ptr);
 
 		// These fields would normally be zero-initialized, but as we cannot assume `ptr` was
@@ -158,6 +162,7 @@ impl<T: Allocated> Builder<T> {
 
 		builder
 	}
+	*/
 
 	/// Allocates a new, zero-initialized [`Base`].
 	///
@@ -166,7 +171,8 @@ impl<T: Allocated> Builder<T> {
 	/// [`Base::builder`] is simply a convenience function for this.
 	///
 	/// # Example
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::Builder;
 	/// let mut builder = Builder::<u8>::allocate();
 	/// builder.set_data(34u8);
@@ -191,7 +197,8 @@ impl<T: Allocated> Builder<T> {
 	/// Gets a reference to the internal pointer.
 	///
 	/// # Basic usage
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::Base;
 	/// let builder = Base::builder();
 	/// let ptr = builder.as_ptr();
@@ -208,7 +215,8 @@ impl<T: Allocated> Builder<T> {
 	/// Note that while calling this function multiple times is not `unsafe`, it will leak memory.
 	///
 	/// # Examples
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::Base;
 	/// use quest::value::{ToValue, Gc, Attributed};
 	/// use quest::value::ty::Text;
@@ -245,7 +253,8 @@ impl<T: Allocated> Builder<T> {
 	/// Sets the parents for the base.
 	///
 	/// # Examples
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::Base;
 	/// use quest::value::ty::{Kernel, Object, List, Singleton};
 	/// use quest::value::HasParents;
@@ -280,7 +289,8 @@ impl<T: Allocated> Builder<T> {
 	/// general.
 	///
 	/// # Examples
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::{Base, Flags};
 	/// let mut builder = Base::<()>::builder();
 	///
@@ -296,6 +306,7 @@ impl<T: Allocated> Builder<T> {
 	///         .flags()
 	///         .contains(FLAG_IS_SUPER_DUPER_COOL)
 	/// );
+	/// ```
 	#[must_use]
 	pub fn flags(&self) -> &Flags {
 		#[allow(clippy::deref_addrof)]
@@ -311,7 +322,8 @@ impl<T: Allocated> Builder<T> {
 	/// Self::flags). See [`Flags`] for more details on custom flags in general.
 	///
 	/// # Examples
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::{Base, Flags};
 	/// let mut builder = Base::<()>::builder();
 	///
@@ -327,6 +339,7 @@ impl<T: Allocated> Builder<T> {
 	///         .flags()
 	///         .contains(FLAG_IS_SUPER_DUPER_COOL)
 	/// );
+	/// ```
 	pub fn insert_user_flags(&self, flag: u32) {
 		self.flags().insert_user(flag);
 	}
@@ -340,7 +353,8 @@ impl<T: Allocated> Builder<T> {
 	/// value, without running `T`'s destructor.
 	///
 	/// # Example
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::{Base, Flags};
 	/// use std::num::NonZeroU64;
 	/// let mut builder = Base::<NonZeroU64>::builder();
@@ -400,7 +414,8 @@ impl<T: Allocated> Builder<T> {
 	/// base may not have been fully initialized yet.
 	///
 	/// # Basic usage
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::Base;
 	/// let builder = Base::<i32>::builder();
 	/// let base_ptr: *const Base<i32> = builder.base();
@@ -418,7 +433,8 @@ impl<T: Allocated> Builder<T> {
 	/// base may not have been fully initialized yet.
 	///
 	/// # Basic usage
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::Base;
 	/// let mut builder = Base::<i32>::builder();
 	/// let ptr: *mut Base<i32> = builder.base_mut();
@@ -472,7 +488,8 @@ impl<T: Allocated> Builder<T> {
 	/// base may not have been fully initialized yet.
 	///
 	/// # Basic usage
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::Base;
 	/// let builder = Base::<i32>::builder();
 	/// let ptr: *const i32 = builder.data();
@@ -490,7 +507,8 @@ impl<T: Allocated> Builder<T> {
 	/// base may not have been fully initialized yet.
 	///
 	/// # Basic usage
-	/// ```
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::Base;
 	/// let mut builder = Base::<i32>::builder();
 	/// let ptr: *mut i32 = builder.data_mut();

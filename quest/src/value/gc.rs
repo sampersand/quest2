@@ -16,19 +16,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 ///
 /// # Safety
 /// To safely implement this trait, you must guarantee that your type is a `#[repr(transparent)]`
-/// wrapper around a `Base<T::Inner>`. That is, your struct must look like this:
-/// ```no_run
-/// use quest::value::{gc::Allocated, base::Base};
-///
-/// #[repr(transparent)]
-/// struct MyStruct(Base<Inner>);
-///
-/// struct Inner { /* ... */ }
-///
-/// unsafe impl Allocated for MyStruct {
-///     type Inner = Inner;
-/// }
-/// ```
+/// wrapper around a `Base<T::Inner>`. Additionally, you must uphold the [`HasTypeFlag`] reqs.
 ///
 /// # See Also
 /// - [`quest_type`] A macro that's used to create allocated types.
@@ -438,14 +426,14 @@ unsafe impl<T: Allocated> Convertible for Gc<T> {
 		// SAFETY: Since `value` is allocated, we know it could only have come from a valid `Gc`. As
 		// such, converting the bits to a pointer will yield a non-zero pointer. Additionally, since
 		// the pointer points to _some_ `Gc` type, we're allowed to construct a `Gc<Any>` of it, as
-		// we're not accessing the `data` at all. (We're only getting the `typeid` from the header.)
-		let typeid = unsafe {
-			let gc = Gc::new_unchecked(value.bits() as usize as *mut Wrap<Any>);
-			Base::_typeid(gc.as_ptr().cast())
+		// we're not accessing the `data` at all. (We're only getting the `typeflag` from the header.)
+		let typeflag = unsafe {
+			let gc = Gc::new_unchecked(value.bits() as usize as *mut Wrap<Any>).as_ptr().cast();
+			Base::_typeflag(gc)
 		};
 
-		// Make sure the `typeid` matches that of `T`.
-		typeid == std::any::TypeId::of::<T>()
+		// Make sure the `typeflag` matches that of `T`.
+		typeflag == T::TYPE_FLAG
 	}
 
 	fn get(value: Value<Self>) -> Self {

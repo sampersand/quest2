@@ -14,7 +14,7 @@ impl Builder {
 	/// - `ptr` must be properly aligned and writable.
 	/// - `ptr` must be zero initialized.
 	pub unsafe fn new(ptr: NonNull<Text>) -> Self {
-		let mut builder = BaseBuilder::new_uninit(ptr.cast());
+		let mut builder = BaseBuilder::new_zeroed(ptr.cast());
 
 		builder.set_parents(Gc::<Text>::parent());
 

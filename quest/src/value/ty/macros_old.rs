@@ -178,26 +178,6 @@ macro_rules! quest_type {
 }
 
 #[macro_export]
-macro_rules! quest_type_alias {
-	(
-		$(#[$meta:meta])*
-		$vis:vis struct $name:ident $(<$($gen:ident),*>)? ($($inner:tt)*) $(where {$($cond:tt)*})?;
-	) => {
-		$(#[$meta])*
-		#[repr(transparent)]
-		$vis struct $name $(<$($gen)*>)?($($inner)*) $(where $($cond)*)?;
-
-		unsafe impl $(<$($gen),*>)? $crate::value::gc::Allocated for $name $(<$($gen),*>)?
-		$(where $($cond)*)? {
-			#[inline(always)]
-			fn _inner_typeid() -> ::std::any::TypeId {
-				::std::any::TypeId::of::<$name $(<$($gen),*>)?>()
-			}
-		}
-	};
-}
-
-#[macro_export]
 macro_rules! _handle_quest_type_attrs {
 	($ty:ty, $builder:expr, $name:expr, meth $func:expr) => {
 		_handle_quest_type_attrs!($ty, $builder, $name, func |args| {

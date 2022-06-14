@@ -2,8 +2,7 @@
 
 pub use super::HasDefaultParent;
 use crate::value::gc::{Allocated, Gc};
-// use crate::value::{Attributed, AttributedMut, HasAttributes, HasParents};
-use std::any::TypeId;
+use crate::value::{Attributed, AttributedMut, HasAttributes, HasParents};
 use std::fmt::{self, Debug, Formatter};
 use std::sync::atomic::AtomicU32; // pub is deprecated here, just to fix other things.
 
@@ -29,7 +28,7 @@ pub(super) struct Header {
 	borrows: AtomicU32,
 	attributes: attributes::Attributes,
 	parents: parents::Parents,
-	typeid: TypeId,
+	_unused: [u8; 8],
 }
 
 sa::assert_eq_size!(Header, [u64; 4]);
@@ -52,15 +51,7 @@ unsafe impl<T: Allocated> Sync for Base<T> where T::Inner: Sync + 'static {}
 
 impl Debug for Header {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		struct TypeIdDebug(TypeId);
-		impl Debug for TypeIdDebug {
-			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-				write!(f, "{:?}", self.0)
-			}
-		}
-
 		f.debug_struct("Header")
-			.field("typeid", &TypeIdDebug(self.typeid))
 			.field("parents", &self.parents())
 			.field("attributes", &self.attributes())
 			.field("flags", &self.flags)
@@ -83,8 +74,8 @@ where
 }
 
 impl Base<crate::value::value::Any> {
-	pub(crate) unsafe fn _typeid(this: *const Self) -> TypeId {
-		(*this).header.typeid
+	pub(crate) unsafe fn _typeflag(this: *const Self) -> TypeFlag {
+		(*this).header.flags.type_flag()
 	}
 }
 
@@ -323,7 +314,7 @@ impl<T: Allocated> Base<T> {
 	}
 }
 
-impl<T: Allocated> crate::value::Attributed for &Base<T> {
+impl<T: Allocated> Attributed for &Base<T> {
 	fn get_unbound_attr_checked<A: Attribute>(
 		self,
 		attr: A,
@@ -333,7 +324,7 @@ impl<T: Allocated> crate::value::Attributed for &Base<T> {
 	}
 }
 
-impl<T: Allocated> crate::value::AttributedMut for Base<T> {
+impl<T: Allocated> AttributedMut for Base<T> {
 	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
 		self.header.get_unbound_attr_mut(attr)
 	}
@@ -347,7 +338,7 @@ impl<T: Allocated> crate::value::AttributedMut for Base<T> {
 	}
 }
 
-impl<T: Allocated> crate::value::HasParents for Base<T> {
+impl<T: Allocated> HasParents for Base<T> {
 	fn parents(&self) -> ParentsRef<'_> {
 		self.header.parents()
 	}
@@ -357,7 +348,7 @@ impl<T: Allocated> crate::value::HasParents for Base<T> {
 	}
 }
 
-impl<T: Allocated> crate::value::HasAttributes for Base<T> {
+impl<T: Allocated> HasAttributes for Base<T> {
 	fn attributes(&self) -> AttributesRef<'_> {
 		self.header.attributes()
 	}
