@@ -1,6 +1,6 @@
-use crate::value::{Callable, Intern, ToValue};
+use crate::value::{Callable, ToValue};
 use crate::vm::Args;
-use crate::{Error, ErrorKind, Result, Value};
+use crate::{Error, ErrorKind, Intern, Result, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Object;

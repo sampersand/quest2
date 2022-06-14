@@ -4,9 +4,8 @@ use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 #[allow(unused)]
 use crate::value::ty::List;
-use crate::value::Intern;
 use crate::vm::Args;
-use crate::{Result, ToValue, Value};
+use crate::{Intern, Result, ToValue, Value};
 use std::alloc;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};

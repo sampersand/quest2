@@ -1,9 +1,9 @@
 use crate::value::base::{
 	Attribute, AttributesMut, AttributesRef, IntoParent, ParentsMut, ParentsRef,
 };
-use crate::value::{ty, Gc, Intern};
+use crate::value::{ty, Gc};
 use crate::vm::Args;
-use crate::{ErrorKind, Result, ToValue, Value};
+use crate::{ErrorKind, Intern, Result, ToValue, Value};
 
 pub trait Attributed: Copy {
 	/// Get the unbound attribute `attr`, with a list of checked parents, `None` if it doesnt exist.

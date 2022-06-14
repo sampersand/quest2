@@ -2,11 +2,9 @@ use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{
 	AttrConversionDefined, Boolean, BoundFn, Float, Integer, List, RustFn, Text, Wrap,
 };
-use crate::value::{
-	Attributed, AttributedMut, Callable, Convertible, Gc, Intern, NamedType, ToValue,
-};
+use crate::value::{Attributed, AttributedMut, Callable, Convertible, Gc, NamedType, ToValue};
 use crate::vm::{Args, Block};
-use crate::{ErrorKind, Result};
+use crate::{ErrorKind, Intern, Result};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::num::NonZeroU64;

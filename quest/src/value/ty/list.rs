@@ -1,8 +1,8 @@
 use crate::value::base::Flags;
 use crate::value::gc::{Allocated, Gc};
 use crate::value::ty::{InstanceOf, Singleton};
-use crate::value::{Callable, Intern};
-use crate::Value;
+use crate::value::Callable;
+use crate::{Intern, Value};
 use std::alloc;
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};

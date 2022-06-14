@@ -1,7 +1,4 @@
 #[macro_use]
-mod macros_old;
-
-#[macro_use]
 mod macros;
 
 #[macro_use]
@@ -42,7 +39,7 @@ pub use text::Text;
 pub use wrap::Wrap;
 
 pub trait AttrConversionDefined {
-	const ATTR_NAME: crate::value::Intern;
+	const ATTR_NAME: crate::Intern;
 }
 
 pub trait ConvertTo<T> {

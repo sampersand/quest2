@@ -6,12 +6,10 @@ pub mod ty;
 mod attributed;
 pub mod base;
 pub mod gc;
-mod intern;
 mod value;
 
 pub use attributed::{Attributed, AttributedMut, Callable, HasAttributes, HasParents};
 pub use gc::Gc;
-pub use intern::Intern;
 pub use value::Value;
 
 /// A trait that indicates that a type has a default parent associated with it.

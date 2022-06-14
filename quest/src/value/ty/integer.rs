@@ -1,7 +1,7 @@
 use crate::value::ty::{ConvertTo, Float, InstanceOf, List, Singleton, Text};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
-use crate::{ErrorKind, Result, ToValue, Value};
+use crate::{ErrorKind, Intern, Result, ToValue, Value};
 use num_bigint::BigInt;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -117,7 +117,7 @@ unsafe impl Convertible for Integer {
 }
 
 impl super::AttrConversionDefined for Integer {
-	const ATTR_NAME: crate::value::Intern = crate::value::Intern::to_int;
+	const ATTR_NAME: Intern = Intern::to_int;
 }
 
 impl ConvertTo<Gc<Text>> for Integer {

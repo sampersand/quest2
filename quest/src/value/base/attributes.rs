@@ -1,6 +1,6 @@
 use crate::value::ty::Text;
-use crate::value::{base::Flags, Gc, Intern, ToValue};
-use crate::{Result, Value};
+use crate::value::{base::Flags, Gc, ToValue};
+use crate::{Intern, Result, Value};
 use std::fmt::{self, Debug, Formatter};
 use std::mem::ManuallyDrop;
 

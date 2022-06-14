@@ -1,6 +1,5 @@
 use super::Attribute;
-use crate::value::{Intern, ToValue};
-use crate::{Result, Value};
+use crate::{Intern, Result, ToValue, Value};
 use std::fmt::{self, Debug, Formatter};
 
 pub const MAX_LISTMAP_LEN: usize = 8;

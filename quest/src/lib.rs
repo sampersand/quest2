@@ -56,10 +56,12 @@ fn run_code(code: &str) -> Result<Value> {
 #[macro_use]
 pub mod value;
 pub mod error;
+mod intern;
 pub mod parse;
 pub mod vm;
 
 pub use error::{Error, ErrorKind, Result};
+pub use intern::Intern;
 pub use value::{ToValue, Value};
 
 #[cfg(miri)]

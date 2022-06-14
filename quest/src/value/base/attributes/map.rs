@@ -1,6 +1,5 @@
 use super::Attribute;
-use crate::value::Intern;
-use crate::{Result, ToValue, Value};
+use crate::{Intern, Result, ToValue, Value};
 use hashbrown::hash_map::{Iter as HashBrownIter, RawEntryMut};
 use hashbrown::HashMap;
 

@@ -4,11 +4,11 @@ use crate::value::base::{Base, Flags};
 use crate::value::gc::Allocated;
 use crate::value::ty::{List, Text};
 use crate::value::{
-	Attributed, AttributedMut, Callable, Gc, HasDefaultParent, HasParents, Intern, ToValue,
+	Attributed, AttributedMut, Callable, Gc, HasDefaultParent, HasParents, ToValue,
 };
 use crate::vm::block::BlockInner;
 use crate::vm::{Args, Block, Opcode, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, NUM_ARGUMENT_REGISTERS};
-use crate::{Error, ErrorKind, Result, Value};
+use crate::{Error, ErrorKind, Intern, Result, Value};
 use std::alloc::Layout;
 use std::cell::RefCell;
 use std::fmt::{self, Debug, Formatter};
