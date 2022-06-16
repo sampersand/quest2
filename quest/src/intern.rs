@@ -1,9 +1,8 @@
-use crate::value::ty::Text;
+use crate::value::ty::{text, Text};
 use crate::value::Gc;
 use crate::{ToValue, Value};
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::ops::Deref;
 
 const TAG: u64 = 0b100_0100;
 
@@ -11,13 +10,10 @@ const fn offset(x: u64) -> u64 {
 	(x << 7) | TAG
 }
 
+#[rustfmt::skip]
 macro_rules! variant_name {
-	($name:ident) => {
-		stringify!($name)
-	};
-	($_name:ident $value:literal) => {
-		$value
-	};
+	($name:ident) => (stringify!($name));
+	($_name:ident $value:literal) => ($value);
 }
 
 macro_rules! define_interned {
@@ -26,7 +22,7 @@ macro_rules! define_interned {
 		///
 		/// Since these strings are known ahead of time, and are usually frequently used, interning
 		/// them allows for extremely fast lookups and comparisons.
-		#[derive(Debug, Clone, Copy)]
+		#[derive(Clone, Copy)]
 		#[repr(transparent)]
 		pub struct Intern(u64);
 
@@ -50,9 +46,7 @@ macro_rules! define_interned {
 			#[inline]
 			#[must_use]
 			pub const fn as_str(self) -> &'static str {
-				const STRINGS: [&'static str; INTERN_LENGTH] = [
-					$(variant_name!($name $($value)?)),*
-				];
+				const STRINGS: [&'static str; INTERN_LENGTH] = [ $(variant_name!($name $($value)?)),* ];
 
 				STRINGS[self.as_index()]
 			}
@@ -61,9 +55,7 @@ macro_rules! define_interned {
 			/// [string representation](Self::as_str).
 			#[must_use]
 			pub const fn fast_hash(self) -> u64 {
-				const HASHES: [u64; INTERN_LENGTH] = [
-					$(crate::value::ty::text::fast_hash(Intern::$name.as_str())),*
-				];
+				const HASHES: [u64; INTERN_LENGTH] = [ $(text::fast_hash(Intern::$name.as_str())),* ];
 
 				HASHES[self.as_index()]
 			}
@@ -151,6 +143,7 @@ impl PartialEq for Intern {
 		self.bits() == rhs.bits()
 	}
 }
+
 impl Hash for Intern {
 	fn hash<H: Hasher>(&self, h: &mut H) {
 		h.write_u64(self.fast_hash());
@@ -158,6 +151,10 @@ impl Hash for Intern {
 }
 
 impl Intern {
+	pub unsafe fn from_bits(bits: u64) -> Self {
+		Self(bits)
+	}
+
 	pub const fn bits(self) -> u64 {
 		self.0
 	}
@@ -207,16 +204,18 @@ impl ToValue for Intern {
 	}
 }
 
-impl Display for Intern {
+impl Debug for Intern {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		f.write_str(self.as_str())
+		if f.alternate() {
+			f.debug_tuple("Intern").field(&self.as_str()).finish()
+		} else {
+			f.write_str(self.as_str())
+		}
 	}
 }
 
-impl Deref for Intern {
-	type Target = str;
-
-	fn deref(&self) -> &Self::Target {
-		self.as_str()
+impl Display for Intern {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		f.write_str(self.as_str())
 	}
 }
