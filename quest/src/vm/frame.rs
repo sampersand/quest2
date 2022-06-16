@@ -147,7 +147,7 @@ impl Frame {
 		}
 
 		// Fill out and finish the builder
-		let mut builder = Base::<Frame>::builder();
+		let mut builder = Base::<Frame>::builder(0);
 
 		builder.set_parents(block.to_value());
 		let data_ptr = builder.data_mut();

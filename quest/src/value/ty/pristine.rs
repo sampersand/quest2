@@ -14,57 +14,53 @@ impl Pristine {
 
 		INSTANCE
 			.get_or_init(|| {
-				let mut builder = Base::<Pristine>::builder();
+				let mut builder = Base::<Pristine>::builder(7);
 
-				unsafe {
-					builder.allocate_attributes(7);
+				builder
+					.set_attr(
+						Intern::__get_attr__,
+						RustFn_new!("__get_attr__", function funcs::__get_attr__).to_value(),
+					)
+					.unwrap();
 
-					builder
-						.set_attr(
-							Intern::__get_attr__,
-							RustFn_new!("__get_attr__", function funcs::__get_attr__).to_value(),
-						)
-						.unwrap();
+				builder
+					.set_attr(
+						Intern::__get_unbound_attr__,
+						RustFn_new!("__get_unbound_attr__", function funcs::__get_unbound_attr__)
+							.to_value(),
+					)
+					.unwrap();
 
-					builder
-						.set_attr(
-							Intern::__get_unbound_attr__,
-							RustFn_new!("__get_unbound_attr__", function funcs::__get_unbound_attr__)
-								.to_value(),
-						)
-						.unwrap();
+				builder
+					.set_attr(
+						Intern::__set_attr__,
+						RustFn_new!("__set_attr__", function funcs::__set_attr__).to_value(),
+					)
+					.unwrap();
 
-					builder
-						.set_attr(
-							Intern::__set_attr__,
-							RustFn_new!("__set_attr__", function funcs::__set_attr__).to_value(),
-						)
-						.unwrap();
+				builder
+					.set_attr(
+						Intern::__del_attr__,
+						RustFn_new!("__del_attr__", function funcs::__del_attr__).to_value(),
+					)
+					.unwrap();
 
-					builder
-						.set_attr(
-							Intern::__del_attr__,
-							RustFn_new!("__del_attr__", function funcs::__del_attr__).to_value(),
-						)
-						.unwrap();
+				builder
+					.set_attr(
+						Intern::__has_attr__,
+						RustFn_new!("__has_attr__", function funcs::__has_attr__).to_value(),
+					)
+					.unwrap();
 
-					builder
-						.set_attr(
-							Intern::__has_attr__,
-							RustFn_new!("__has_attr__", function funcs::__has_attr__).to_value(),
-						)
-						.unwrap();
+				builder
+					.set_attr(
+						Intern::__call_attr__,
+						RustFn_new!("__call_attr__", function funcs::__call_attr__).to_value(),
+					)
+					.unwrap();
 
-					builder
-						.set_attr(
-							Intern::__call_attr__,
-							RustFn_new!("__call_attr__", function funcs::__call_attr__).to_value(),
-						)
-						.unwrap();
-
-					// we don't set parents, as empty parents is default.
-					builder.finish()
-				}
+				// we don't set parents, as empty parents is default.
+				unsafe { builder.finish() }
 			})
 			.to_value()
 	}

@@ -1,7 +1,8 @@
-use super::{Base, Flags, Header, IntoParent};
-use crate::value::base::{AttributesMut, AttributesRef, ParentsMut, ParentsRef};
+use super::{Base, Flags, Header};
+use crate::value::base::{Attribute, AttributesMut, AttributesRef, ParentsMut, ParentsRef};
 use crate::value::gc::{Allocated, Gc};
-use crate::value::{HasAttributes, HasParents};
+use crate::value::{AttributedMut, HasAttributes, HasParents};
+use crate::{Result, Value};
 
 use std::ptr::{addr_of, addr_of_mut, NonNull};
 
@@ -111,78 +112,6 @@ impl<T: Allocated> Builder<T> {
 	#[must_use]
 	pub(crate) fn as_ptr(&self) -> NonNull<Base<T>> {
 		self.0
-	}
-
-	/// Reserves enough space to store at least `attr_capacity` attributes within the `base`.
-	///
-	/// Note that while calling this function multiple times is not `unsafe`, it will leak memory.
-	///
-	/// # Examples
-	/// ```text
-	/// // this is `text` because i plan on overhauling the builder.
-	/// # use quest::value::base::Base;
-	/// use quest::value::{ToValue, Gc, Attributed};
-	/// use quest::value::ty::Text;
-	///
-	/// let mut builder = Base::<()>::builder();
-	/// builder.allocate_attributes(3);
-	///
-	/// // SAFETY: we just allocated the attributes the line above.
-	/// unsafe {
-	///    builder.set_attr("foo".to_value(), "bar".to_value())?;
-	///    builder.set_attr("baz".to_value(), "quux".to_value())?;
-	///    builder.set_attr(12.to_value(), 34.to_value())?;
-	/// }
-	///
-	/// // SAFETY: Since `builder` was zero-initialized to a ZST, we didn't have to do anything.
-	/// let gc = unsafe { builder.finish() };
-	///
-	/// assert_eq!(
-	///    "bar",
-	///     gc.as_ref().expect("we hold the only reference")
-	///         .get_unbound_attr("foo".to_value())?
-	///         .unwrap()
-	///         .downcast::<Gc<Text>>()
-	///         .unwrap()
-	///         .as_ref()?
-	///         .as_str()
-	/// );
-	/// # quest::Result::Ok(())
-	/// ```
-	pub fn allocate_attributes(&mut self, attr_capacity: usize) {
-		unsafe { Header::attributes_raw_mut(self.header_mut()) }.allocate(attr_capacity);
-	}
-
-	/// Sets the parents for the base.
-	///
-	/// # Examples
-	/// ```text
-	/// // this is `text` because i plan on overhauling the builder.
-	/// # use quest::value::base::Base;
-	/// use quest::value::ty::{Kernel, Object, List, Singleton};
-	/// use quest::value::HasParents;
-	///
-	/// let parents = List::from_slice(&[
-	///     Kernel::instance(),
-	///     Object::instance(),
-	/// ]);
-	///
-	/// let mut builder = Base::<()>::builder();
-	/// builder.set_parents(parents);
-	///
-	/// // SAFETY: Since `builder` was zero-initialized to a ZST, we didn't have to do anything.
-	/// let gc = unsafe { builder.finish() };
-	///
-	/// assert!(
-	///     gc.as_mut().expect("we hold the only reference")
-	///         .parents_list()
-	///         .ptr_eq(parents)
-	/// );
-	/// ```
-	pub fn set_parents<P: IntoParent>(&mut self, parent: P) {
-		unsafe {
-			Header::parents_raw_mut(self.header_mut()).set(parent);
-		}
 	}
 
 	/// Access the flags in the header.
@@ -421,5 +350,19 @@ impl<T: Allocated> HasParents for Builder<T> {
 
 	fn parents_mut(&mut self) -> ParentsMut<'_> {
 		self.header_mut().parents_mut()
+	}
+}
+
+impl<T: Allocated> AttributedMut for Builder<T> {
+	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
+		self.attributes_mut().get_unbound_attr_mut(attr)
+	}
+
+	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
+		self.attributes_mut().set_attr(attr, value)
+	}
+
+	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
+		self.attributes_mut().del_attr(attr)
 	}
 }

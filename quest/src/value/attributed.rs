@@ -120,16 +120,16 @@ pub trait HasParents {
 	}
 }
 
-impl<T: HasAttributes> AttributedMut for T {
-	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
-		self.attributes_mut().get_unbound_attr_mut(attr)
-	}
+// impl<T: HasAttributes> AttributedMut for T {
+// 	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
+// 		self.attributes_mut().get_unbound_attr_mut(attr)
+// 	}
 
-	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		self.attributes_mut().set_attr(attr, value)
-	}
+// 	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
+// 		self.attributes_mut().set_attr(attr, value)
+// 	}
 
-	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
-		self.attributes_mut().del_attr(attr)
-	}
-}
+// 	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
+// 		self.attributes_mut().del_attr(attr)
+// 	}
+// }

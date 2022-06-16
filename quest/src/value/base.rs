@@ -2,7 +2,7 @@
 
 pub use super::HasDefaultParent;
 use crate::value::gc::{Allocated, Gc};
-use crate::value::{Attributed, HasAttributes, HasParents};
+use crate::value::{Attributed, AttributedMut, HasAttributes, HasParents};
 use std::fmt::{self, Debug, Formatter};
 use std::sync::atomic::AtomicU32; // pub is deprecated here, just to fix other things.
 
@@ -84,8 +84,8 @@ impl<T: Allocated> Base<T> {
 	///
 	/// This is a convenience method around [`Builder::allocate`]. Most of the time you won't need
 	/// such fine control, and instead [`Base::new`]/[`Base::new_with_capacity`] can be used.
-	pub fn builder() -> Builder<T> {
-		Builder::new()
+	pub fn builder(capacity: usize) -> Builder<T> {
+		Builder::with_capacity(capacity)
 	}
 
 	/// Creates a new [`Base`] with the given data and parents.
@@ -101,11 +101,10 @@ impl<T: Allocated> Base<T> {
 		parent: P,
 		attr_capacity: usize,
 	) -> Gc<T> {
-		let mut builder = Self::builder();
+		let mut builder = Self::builder(attr_capacity);
 
 		builder.set_parents(parent);
 		builder.set_data(data);
-		builder.allocate_attributes(attr_capacity);
 
 		unsafe { builder.finish() }
 	}
@@ -139,45 +138,12 @@ use crate::{value::Value, Result};
 
 impl Header {
 	/// Gets the borrows for `self`.
-	pub(crate) fn borrows(&self) -> &AtomicU32 {
+	pub(super) fn borrows(&self) -> &AtomicU32 {
 		&self.borrows
-	}
-	//
-	//	/// Retrieves `self`'s attribute `attr`, returning `None` if it doesn't exist.
-	//	///
-	//	/// If `search_parents` is `false`, this function will only search the attributes defined
-	//	/// directly on `self`. If `true`, it will also look through the parents for the attribute if it
-	//	/// does not exist within our immediate attributes.
-	//	///
-	//	/// # Errors
-	//	/// If the [`try_hash`](Value::try_hash) or [`try_eq`](Value::try_eq) functions on `attr`
-	//	/// return an error, that will be propagated upwards. Additionally, if the parents of `self`
-	//	/// are represented by a `Gc<List>`, which is currently mutably borrowed, this will also fail.
-	//	///
-	//	/// # Example
-	//	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
-	//	pub fn get_unbound_attr<A: Attribute>(&self, attr: A) -> Result<Option<Value>> {
-	//		self.get_unbound_attr_checked(attr, &mut Vec::new())
-	//	}
-
-	/// The same as [`get_bound_attr`](Self::get_unbound_attr), except with a list of values that
-	/// have already been checked.
-	///
-	/// This function prevents duplicate checking of functions.
-	pub fn get_unbound_attr_checked<A: Attribute>(
-		&self,
-		attr: A,
-		checked: &mut Vec<Value>,
-	) -> Result<Option<Value>> {
-		if let Some(value) = self.attributes().get_unbound_attr(attr)? {
-			Ok(Some(value))
-		} else {
-			self.parents().get_unbound_attr_checked(attr, checked)
-		}
 	}
 
 	/// Gets the flags associated with the current object.
-	pub fn flags(&self) -> &Flags {
+	pub(super) fn flags(&self) -> &Flags {
 		&self.flags
 	}
 
@@ -197,6 +163,26 @@ impl Header {
 	pub fn freeze(&self) {
 		self.flags().insert_internal(Flags::FROZEN);
 	}
+}
+
+impl Attributed for Header {
+	fn get_unbound_attr_checked<A: Attribute>(
+		&self,
+		attr: A,
+		checked: &mut Vec<Value>,
+	) -> Result<Option<Value>> {
+		if let Some(value) = self.attributes().get_unbound_attr(attr)? {
+			Ok(Some(value))
+		} else {
+			self.parents().get_unbound_attr_checked(attr, checked)
+		}
+	}
+}
+
+impl AttributedMut for Header {
+	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
+		self.attributes_mut().get_unbound_attr_mut(attr)
+	}
 
 	/// Sets the `self`'s attribute `attr` to `value`.
 	///
@@ -207,19 +193,15 @@ impl Header {
 	///
 	/// # Example
 	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
+	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
 		if !attr.is_special() {
 			return self.attributes_mut().set_attr(attr, value);
 		}
 
 		if attr.is_parents() {
-			if let Some(list) = value.downcast::<Gc<crate::value::ty::List>>() {
-				self.parents_mut().set(list);
+			self.set_parents(value.try_downcast::<Gc<crate::value::ty::List>>()?);
 
-				Ok(())
-			} else {
-				Err("can only set __parents__ to a List".to_string().into())
-			}
+			Ok(())
 		} else {
 			unreachable!("unknown special attribute {attr:?}");
 		}
@@ -234,44 +216,28 @@ impl Header {
 	///
 	/// # Example
 	/// TODO: examples (happy path, `try_hash` failing, `gc<list>` mutably borrowed).
-	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
+	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
 		self.attributes_mut().del_attr(attr)
 	}
+}
 
-	/// Gets an immutable reference to `self`'s parents.
-	pub fn parents(&self) -> ParentsRef<'_> {
+impl HasParents for Header {
+	fn parents(&self) -> ParentsRef<'_> {
 		unsafe { self.parents.guard_ref(&self.flags) }
 	}
 
-	/// Gets a mutable reference to `self`'s parents.
-	pub fn parents_mut(&mut self) -> ParentsMut<'_> {
+	fn parents_mut(&mut self) -> ParentsMut<'_> {
 		unsafe { self.parents.guard_mut(&self.flags) }
 	}
+}
 
-	/// Gets an immutable reference to `self`'s attributes.
-	pub fn attributes(&self) -> AttributesRef<'_> {
+impl HasAttributes for Header {
+	fn attributes(&self) -> AttributesRef<'_> {
 		unsafe { self.attributes.guard_ref(&self.flags) }
 	}
 
-	/// Gets a mutable reference to `self`'s attributes.
-	pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
+	fn attributes_mut(&mut self) -> AttributesMut<'_> {
 		unsafe { self.attributes.guard_mut(&self.flags) }
-	}
-
-	/// <TODO: is this required?>
-	unsafe fn parents_raw_mut<'a>(ptr: *mut Self) -> ParentsMut<'a> {
-		let parents = &mut (*ptr).parents;
-		let flags = &(*ptr).flags;
-
-		parents.guard_mut(flags)
-	}
-
-	/// <TODO: is this required?>
-	unsafe fn attributes_raw_mut<'a>(ptr: *mut Self) -> AttributesMut<'a> {
-		let attrs_ptr = &mut (*ptr).attributes;
-		let flags = &(*ptr).flags;
-
-		attrs_ptr.guard_mut(flags)
 	}
 }
 

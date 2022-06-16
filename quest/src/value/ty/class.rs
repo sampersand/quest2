@@ -18,7 +18,7 @@ pub struct Builder(BaseBuilder<Class>);
 
 impl Builder {
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		unsafe { &mut *self.0.as_ptr().as_ptr() }.set_attr(attr, value)
+		self.0.set_attr(attr, value)
 	}
 
 	pub fn parent(&mut self, parent: Value) {
@@ -37,11 +37,10 @@ impl Builder {
 impl Class {
 	#[must_use]
 	pub fn builder(name: &'static str, attr_capacity: usize) -> Builder {
-		let mut builder = Base::builder();
+		let mut builder = Base::builder(attr_capacity);
 
 		builder.set_data(Inner { name });
 		builder.set_parents(Pristine::instance());
-		builder.allocate_attributes(attr_capacity);
 
 		Builder(builder)
 	}
