@@ -230,21 +230,21 @@ mod tests {
 
 	#[test]
 	fn test_is_a() {
-		assert!(Float::is_a(Value::from(0.0).to_value()));
-		assert!(Float::is_a(Value::from(1.0).to_value()));
-		assert!(Float::is_a(Value::from(-123.456).to_value()));
-		assert!(Float::is_a(Value::from(14.0).to_value()));
-		assert!(Float::is_a(Value::from(f64::NAN).to_value()));
-		assert!(Float::is_a(Value::from(f64::INFINITY).to_value()));
-		assert!(Float::is_a(Value::from(f64::NEG_INFINITY).to_value()));
+		assert!(Float::is_a(0.0.to_value()));
+		assert!(Float::is_a(1.0.to_value()));
+		assert!(Float::is_a((-123.456).to_value()));
+		assert!(Float::is_a(14.0.to_value()));
+		assert!(Float::is_a(f64::NAN.to_value()));
+		assert!(Float::is_a(f64::INFINITY.to_value()));
+		assert!(Float::is_a(f64::NEG_INFINITY.to_value()));
 
 		assert!(!Float::is_a(Value::TRUE.to_value()));
 		assert!(!Float::is_a(Value::FALSE.to_value()));
 		assert!(!Boolean::is_a(Value::NULL.to_value()));
 		assert!(!Float::is_a(Value::ZERO.to_value()));
 		assert!(!Float::is_a(Value::ONE.to_value()));
-		assert!(!Float::is_a(Value::from("hello").to_value()));
-		assert!(!Float::is_a(Value::from(RustFn::NOOP).to_value()));
+		assert!(!Float::is_a("hello".to_value()));
+		assert!(!Float::is_a(RustFn::NOOP.to_value()));
 	}
 
 	#[test]

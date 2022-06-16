@@ -2,7 +2,7 @@
 
 pub use super::HasDefaultParent;
 use crate::value::gc::{Allocated, Gc};
-use crate::value::{Attributed, AttributedMut, HasAttributes, HasParents};
+use crate::value::{Attributed, AttributedMut, HasAttributes, HasFlags, HasParents};
 use std::fmt::{self, Debug, Formatter};
 use std::sync::atomic::AtomicU32; // pub is deprecated here, just to fix other things.
 
@@ -73,12 +73,6 @@ where
 	}
 }
 
-impl Base<crate::value::value::Any> {
-	pub(crate) unsafe fn _typeflag(this: *const Self) -> TypeFlag {
-		(*this).header.flags.type_flag()
-	}
-}
-
 impl<T: Allocated> Base<T> {
 	/// Returns a new [`Builder`] for [`Base`]s.
 	///
@@ -142,11 +136,6 @@ impl Header {
 		&self.borrows
 	}
 
-	/// Gets the flags associated with the current object.
-	pub(super) fn flags(&self) -> &Flags {
-		&self.flags
-	}
-
 	/// Freezes the object, so that any future attempts to call [`Gc::as_mut`] will result in a
 	/// [`ErrorKind::ValueFrozen`](crate::ErrorKind::ValueFrozen) being returned.
 	///
@@ -162,6 +151,12 @@ impl Header {
 	/// ```
 	pub fn freeze(&self) {
 		self.flags().insert_internal(Flags::FROZEN);
+	}
+}
+
+impl HasFlags for Header {
+	fn flags(&self) -> &Flags {
+		&self.flags
 	}
 }
 
@@ -260,7 +255,13 @@ impl<T: Allocated> Base<T> {
 	}
 }
 
-impl<T: Allocated> Attributed for &Base<T> {
+impl<T: Allocated> HasFlags for Base<T> {
+	fn flags(&self) -> &Flags {
+		self.header.flags()
+	}
+}
+
+impl<T: Allocated> Attributed for Base<T> {
 	fn get_unbound_attr_checked<A: Attribute>(
 		&self,
 		attr: A,

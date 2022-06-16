@@ -1,7 +1,7 @@
 use super::{Inner, List, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
 use crate::value::base::Builder;
 use crate::value::gc::Gc;
-use crate::value::{HasDefaultParent, HasParents};
+use crate::value::{HasDefaultParent, HasFlags, HasParents};
 
 #[must_use]
 pub(super) struct InternalBuilder(Builder<List>);
@@ -18,7 +18,7 @@ impl InternalBuilder {
 	}
 
 	pub fn insert_flags(&mut self, flag: u32) {
-		self.0.insert_user_flags(flag);
+		self.0.flags().insert_user(flag);
 	}
 
 	pub unsafe fn inner_mut(&mut self) -> &mut Inner {

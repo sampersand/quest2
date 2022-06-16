@@ -1,10 +1,10 @@
 //! Types associated with the [`Frame`] type.
 
 use crate::value::base::{Base, Flags};
-use crate::value::gc::Allocated;
 use crate::value::ty::{List, Text};
 use crate::value::{
-	Attributed, AttributedMut, Callable, Gc, HasDefaultParent, HasParents, ToValue, TryAttributed,
+	Attributed, AttributedMut, Callable, Gc, HasAttributes, HasDefaultParent, HasFlags, HasParents,
+	ToValue, TryAttributed,
 };
 use crate::vm::block::BlockInner;
 use crate::vm::{Args, Block, Opcode, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, NUM_ARGUMENT_REGISTERS};

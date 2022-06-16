@@ -1,7 +1,7 @@
 use super::{Base, Flags, Header};
 use crate::value::base::{Attribute, AttributesMut, AttributesRef, ParentsMut, ParentsRef};
 use crate::value::gc::{Allocated, Gc};
-use crate::value::{AttributedMut, HasAttributes, HasParents};
+use crate::value::{AttributedMut, HasAttributes, HasFlags, HasParents};
 use crate::{Result, Value};
 
 use std::ptr::{addr_of, addr_of_mut, NonNull};
@@ -112,68 +112,6 @@ impl<T: Allocated> Builder<T> {
 	#[must_use]
 	pub(crate) fn as_ptr(&self) -> NonNull<Base<T>> {
 		self.0
-	}
-
-	/// Access the flags in the header.
-	///
-	/// If you simply want to set flags, you can use the [`insert_user_flags`](
-	/// Self::insert_user_flags) shorthand. See [`Flags`] for more details on custom flags in
-	/// general.
-	///
-	/// # Examples
-	/// ```text
-	/// // this is `text` because i plan on overhauling the builder.
-	/// # use quest::value::base::{Base, Flags};
-	/// let mut builder = Base::<()>::builder();
-	///
-	/// const FLAG_IS_SUPER_DUPER_COOL: u32 = Flags::USER0;
-	/// assert!(!builder.flags().contains(FLAG_IS_SUPER_DUPER_COOL));
-	/// builder.insert_user_flags(FLAG_IS_SUPER_DUPER_COOL);
-	///
-	/// // SAFETY: Since `builder` was zero-initialized to a ZST, we didn't have to do anything.
-	/// let base = unsafe { builder.finish() };
-	///
-	/// assert!(
-	///     base.as_ref().expect("we hold the only reference")
-	///         .flags()
-	///         .contains(FLAG_IS_SUPER_DUPER_COOL)
-	/// );
-	/// ```
-	#[must_use]
-	pub fn flags(&self) -> &Flags {
-		#[allow(clippy::deref_addrof)]
-		// SAFETY: We know the pointer is aligned and can be read from b/c of Builder's invariants.
-		unsafe {
-			&*addr_of!((*self.header()).flags)
-		}
-	}
-
-	/// Sets flags in the header's [`Flags`].
-	///
-	/// If you want to _access_ the flags, i.e. don't want to set them, then use [`flags`](
-	/// Self::flags). See [`Flags`] for more details on custom flags in general.
-	///
-	/// # Examples
-	/// ```text
-	/// // this is `text` because i plan on overhauling the builder.
-	/// # use quest::value::base::{Base, Flags};
-	/// let mut builder = Base::<()>::builder();
-	///
-	/// // Set custom flags, if you attribute meanings to them.
-	/// const FLAG_IS_SUPER_DUPER_COOL: u32 = Flags::USER0;
-	/// builder.insert_user_flags(FLAG_IS_SUPER_DUPER_COOL);
-	///
-	/// // SAFETY: Since `builder` was zero-initialized to a ZST, we didn't have to do anything.
-	/// let base = unsafe { builder.finish() };
-	///
-	/// assert!(
-	///     base.as_ref().expect("we hold the only reference")
-	///         .flags()
-	///         .contains(FLAG_IS_SUPER_DUPER_COOL)
-	/// );
-	/// ```
-	pub fn insert_user_flags(&self, flag: u32) {
-		self.flags().insert_user(flag);
 	}
 
 	/// Assigns the data for the underlying `Base<T>`.
@@ -364,5 +302,37 @@ impl<T: Allocated> AttributedMut for Builder<T> {
 
 	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
 		self.attributes_mut().del_attr(attr)
+	}
+}
+
+impl<T: Allocated> HasFlags for Builder<T> {
+	/// Access the flags in the header.
+	///
+	/// If you simply want to set flags, you can use the [`insert_user_flags`](
+	/// Self::insert_user_flags) shorthand. See [`Flags`] for more details on custom flags in
+	/// general.
+	///
+	/// # Examples
+	/// ```text
+	/// // this is `text` because i plan on overhauling the builder.
+	/// # use quest::value::base::{Base, Flags};
+	/// let mut builder = Base::<()>::builder();
+	///
+	/// const FLAG_IS_SUPER_DUPER_COOL: u32 = Flags::USER0;
+	/// assert!(!builder.flags().contains(FLAG_IS_SUPER_DUPER_COOL));
+	/// builder.insert_user_flags(FLAG_IS_SUPER_DUPER_COOL);
+	///
+	/// // SAFETY: Since `builder` was zero-initialized to a ZST, we didn't have to do anything.
+	/// let base = unsafe { builder.finish() };
+	///
+	/// assert!(
+	///     base.as_ref().expect("we hold the only reference")
+	///         .flags()
+	///         .contains(FLAG_IS_SUPER_DUPER_COOL)
+	/// );
+	/// ```
+	#[must_use]
+	fn flags(&self) -> &Flags {
+		&self.header().flags
 	}
 }

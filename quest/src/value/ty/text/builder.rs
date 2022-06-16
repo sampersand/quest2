@@ -1,7 +1,7 @@
 use super::{Inner, Text, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
 use crate::value::base::{Builder as BaseBuilder, HasDefaultParent};
 use crate::value::gc::Gc;
-use crate::value::HasParents;
+use crate::value::{HasFlags, HasParents};
 
 #[must_use]
 pub struct Builder(BaseBuilder<Text>);
@@ -25,7 +25,7 @@ impl Builder {
 	}
 
 	pub fn insert_flags(&mut self, flag: u32) {
-		self.0.insert_user_flags(flag);
+		self.0.flags().insert_user(flag);
 	}
 
 	// SAFETY: not actually unsafe, because `new` is the worrisome

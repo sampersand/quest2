@@ -169,15 +169,15 @@ mod tests {
 
 	#[test]
 	fn test_is_a() {
-		assert!(RustFn::is_a(Value::from(RustFn::NOOP).to_value()));
+		assert!(RustFn::is_a(RustFn::NOOP.to_value()));
 
 		assert!(!RustFn::is_a(Value::TRUE.to_value()));
 		assert!(!RustFn::is_a(Value::FALSE.to_value()));
 		assert!(!RustFn::is_a(Value::NULL.to_value()));
 		assert!(!RustFn::is_a(Value::ONE.to_value()));
 		assert!(!RustFn::is_a(Value::ZERO.to_value()));
-		assert!(!RustFn::is_a(Value::from(1.0).to_value()));
-		assert!(!RustFn::is_a(Value::from("hello").to_value()));
+		assert!(!RustFn::is_a(1.0.to_value()));
+		assert!(!RustFn::is_a("hello".to_value()));
 	}
 
 	#[test]

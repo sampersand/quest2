@@ -1,9 +1,9 @@
 //! The string representation within quest.
 
 use crate::value::base::Flags;
-use crate::value::gc::{Allocated, Gc};
 #[allow(unused)]
 use crate::value::ty::List;
+use crate::value::{AttributedMut, Gc, HasFlags};
 use crate::vm::Args;
 use crate::{Intern, Result, ToValue, Value};
 use std::alloc;
@@ -1120,18 +1120,18 @@ mod tests {
 
 	#[test]
 	fn test_is_a() {
-		assert!(<Gc<Text>>::is_a(Value::from("").to_value()));
-		assert!(<Gc<Text>>::is_a(Value::from("x").to_value()));
-		assert!(<Gc<Text>>::is_a(Value::from("yesseriie").to_value()));
-		assert!(<Gc<Text>>::is_a(Value::from(JABBERWOCKY).to_value()));
+		assert!(<Gc<Text>>::is_a("".to_value()));
+		assert!(<Gc<Text>>::is_a("x".to_value()));
+		assert!(<Gc<Text>>::is_a("yesseriie".to_value()));
+		assert!(<Gc<Text>>::is_a(JABBERWOCKY.to_value()));
 
 		assert!(!<Gc<Text>>::is_a(Value::TRUE.to_value()));
 		assert!(!<Gc<Text>>::is_a(Value::FALSE.to_value()));
 		assert!(!<Gc<Text>>::is_a(Value::NULL.to_value()));
 		assert!(!<Gc<Text>>::is_a(Value::ONE.to_value()));
 		assert!(!<Gc<Text>>::is_a(Value::ZERO.to_value()));
-		assert!(!<Gc<Text>>::is_a(Value::from(1.0).to_value()));
-		assert!(!<Gc<Text>>::is_a(Value::from(RustFn::NOOP).to_value()));
+		assert!(!<Gc<Text>>::is_a(1.0.to_value()));
+		assert!(!<Gc<Text>>::is_a(RustFn::NOOP.to_value()));
 	}
 
 	#[test]

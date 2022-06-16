@@ -655,10 +655,7 @@ mod tests {
 
 		assert!(ConvertTo::<Gc<Text>>::convert(
 			&Integer::ZERO,
-			Args::new(
-				&[Value::TRUE.to_value()],
-				&[("base", Value::from(Integer::new_truncate(2)).to_value())]
-			)
+			Args::new(&[Value::TRUE.to_value()], &[("base", Integer::new(2).unwrap().to_value())])
 		)
 		.is_err());
 
@@ -666,10 +663,7 @@ mod tests {
 			&Integer::ZERO,
 			Args::new(
 				&[Value::TRUE.to_value()],
-				&[
-					("base", Value::from(Integer::new_truncate(2)).to_value()),
-					("A", Value::TRUE.to_value())
-				]
+				&[("base", Integer::new(2).unwrap().to_value()), ("A", Value::TRUE.to_value())]
 			)
 		)
 		.is_err());
@@ -678,10 +672,7 @@ mod tests {
 			&Integer::ONE,
 			Args::new(
 				&[],
-				&[
-					("base", Value::from(Integer::new_truncate(2)).to_value()),
-					("A", Value::TRUE.to_value())
-				]
+				&[("base", Integer::new(2).unwrap().to_value()), ("A", Value::TRUE.to_value())]
 			)
 		)
 		.is_err());
@@ -694,10 +685,7 @@ mod tests {
 			($num:expr, $radix:expr) => {
 				ConvertTo::<Gc<Text>>::convert(
 					&$num,
-					Args::new(
-						&[],
-						&[("base", Value::from(Integer::new_truncate($radix as Inner)).to_value())],
-					),
+					Args::new(&[], &[("base", Integer::new($radix as Inner).unwrap().to_value())]),
 				)
 				.unwrap()
 				.as_ref()

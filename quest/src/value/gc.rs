@@ -1,11 +1,11 @@
 //! Types related to allocated Quest types.
 
 use crate::value::base::{
-	Attribute, AttributesMut, AttributesRef, Base, Flags, Header, IntoParent, ParentsMut, ParentsRef,
+	Attribute, AttributesMut, AttributesRef, Base, Flags, Header, ParentsMut, ParentsRef,
 };
-use crate::value::ty::{List, Wrap};
-use crate::value::value::Any;
-use crate::value::{Attributed, AttributedMut, Callable, Convertible, HasAttributes, HasParents};
+use crate::value::{
+	Attributed, AttributedMut, Callable, Convertible, HasAttributes, HasFlags, HasParents,
+};
 use crate::{ErrorKind, Result, ToValue, Value};
 use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};
@@ -23,11 +23,6 @@ use std::sync::atomic::{AtomicU32, Ordering};
 pub unsafe trait Allocated: Sized + 'static + crate::value::base::HasTypeFlag {
 	#[doc(hidden)]
 	type Inner;
-
-	/// Gets the list of flags for `self`.
-	fn flags(&self) -> &Flags {
-		allocated_header(self).flags()
-	}
 }
 
 fn allocated_header<T: Allocated>(alloc: &T) -> &Header {
@@ -47,6 +42,12 @@ impl<T: Allocated> Attributed for T {
 		checked: &mut Vec<Value>,
 	) -> Result<Option<Value>> {
 		allocated_header(self).get_unbound_attr_checked(attr, checked)
+	}
+}
+
+impl<T: Allocated> HasFlags for T {
+	fn flags(&self) -> &Flags {
+		allocated_header(self).flags()
 	}
 }
 
@@ -105,7 +106,7 @@ impl<T: Allocated> HasParents for T {
 /// # quest::Result::<()>::Ok(())
 /// ```
 #[repr(transparent)]
-pub struct Gc<T: Allocated>(NonNull<T>);
+pub struct Gc<T>(NonNull<T>);
 
 unsafe impl<T: Allocated + Send> Send for Gc<T> {}
 unsafe impl<T: Allocated + Sync> Sync for Gc<T> {}
@@ -222,9 +223,7 @@ impl<T: Allocated> Gc<T> {
 	/// # quest::Result::<()>::Ok(())
 	/// ```
 	pub fn as_ref(self) -> Result<Ref<T>> {
-		self
-			.as_ref_option()
-			.ok_or_else(|| ErrorKind::AlreadyLocked(Value::from(self).to_value()).into())
+		self.as_ref_option().ok_or_else(|| ErrorKind::AlreadyLocked(self.to_value()).into())
 	}
 
 	/// Tries to convert `self` to a reference, returning `None` if we can't.
@@ -359,14 +358,6 @@ impl<T: Allocated> Gc<T> {
 		self.0.as_ptr()
 	}
 
-	/// Gets the flags of `self`.
-	///
-	/// Technically this could be publicly visible, but outside the crate, you should get a reference
-	/// and go through the [`Header`].
-	fn flags(&self) -> &Flags {
-		allocated_header(unsafe { &*self.as_ptr() }).flags()
-	}
-
 	/// Gets the header of `self`.
 	///
 	/// Technically this could be publicly visible, but outside the crate, you should get a reference
@@ -399,6 +390,12 @@ impl<T: Allocated> Gc<T> {
 	}
 }
 
+impl<T: Allocated> HasFlags for Gc<T> {
+	fn flags(&self) -> &Flags {
+		allocated_header(unsafe { &*self.as_ptr() }).flags()
+	}
+}
+
 impl<T: Allocated> From<Gc<T>> for Value<Gc<T>> {
 	#[inline]
 	fn from(text: Gc<T>) -> Self {
@@ -427,13 +424,7 @@ unsafe impl<T: Allocated> Convertible for Gc<T> {
 		// such, converting the bits to a pointer will yield a non-zero pointer. Additionally, since
 		// the pointer points to _some_ `Gc` type, we're allowed to construct a `Gc<Any>` of it, as
 		// we're not accessing the `data` at all. (We're only getting the `typeflag` from the header.)
-		let typeflag = unsafe {
-			let gc = Gc::new_unchecked(value.bits() as usize as *mut Wrap<Any>).as_ptr().cast();
-			Base::_typeflag(gc)
-		};
-
-		// Make sure the `typeflag` matches that of `T`.
-		typeflag == T::TYPE_FLAG
+		unsafe { (*(value.bits() as *const () as *const Header)).flags().type_flag() == T::TYPE_FLAG }
 	}
 
 	fn get(value: Value<Self>) -> Self {
@@ -488,22 +479,8 @@ impl<T: Allocated> Ref<T> {
 	// ) -> Result<Option<Value>> {
 	// 	allocated_header(self).get_unbound_attr_checked(attr, checked)
 	// }
-
-	#[must_use]
-	pub fn flags(&self) -> &Flags {
-		allocated_header(self.deref()).flags()
-	}
-
 	pub fn freeze(&self) {
 		allocated_header(self.deref()).freeze();
-	}
-
-	pub fn parents(&self) -> ParentsRef<'_> {
-		allocated_header(self.deref()).parents()
-	}
-
-	pub fn attributes(&self) -> AttributesRef<'_> {
-		allocated_header(self.deref()).attributes()
 	}
 }
 
@@ -529,6 +506,10 @@ impl<T: Allocated> Deref for Ref<T> {
 
 impl<T: Allocated> Drop for Ref<T> {
 	fn drop(&mut self) {
+		if cfg!(feature = "unsafe-no-locking") {
+			return;
+		}
+
 		let prev = self.0.borrows().fetch_sub(1, Ordering::Release);
 
 		// Sanity check, as it's impossible for us to have a `MUT_BORROW` after a `Ref` is created.
@@ -552,62 +533,6 @@ impl<T: Debug + Allocated> Debug for Mut<T> {
 	}
 }
 
-impl<T: Allocated> Mut<T> {
-	pub fn parents_mut(&mut self) -> ParentsMut<'_> {
-		allocated_header_mut(self.deref_mut()).parents_mut()
-	}
-
-	pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
-		allocated_header_mut(self.deref_mut()).attributes_mut()
-	}
-
-	pub fn parents_list(&mut self) -> Gc<List> {
-		self.parents_mut().as_list()
-	}
-
-	pub fn set_parents<P: IntoParent>(&mut self, parents: P) {
-		self.parents_mut().set(parents);
-	}
-
-	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		allocated_header_mut(self.deref_mut()).set_attr(attr, value)
-	}
-
-	pub fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
-		allocated_header_mut(self.deref_mut()).del_attr(attr)
-	}
-}
-
-/*impl<T: Allocated> Mut<T> {
-	/// Converts a [`Mut`] to a [`Ref`].
-	///
-	/// Just as you're able to downgrade mutable references to immutable ones in Rust (eg you can do
-	/// `(&mut myvec).len()`), you're able to downgrade mutable [`Gc`] references to immutable ones.
-	/// However, since Mut implements both [`Deref<Target=T>`] and [`DerefMut<Target=T>`], Rust
-	/// won't let us _also_ have [`Deref<Target=Ref<T>>`]; this method exists to provide that
-	/// functionality. (The short name is intended to make it as painless as possible to cast to a
-	/// [`Ref<T>`].)
-	///
-	/// # Examples
-	/// ```
-	/// # use quest::value::ty::Text;
-	/// let text = Text::from_static_str("Quest is cool");
-	/// let mut textmut = text.as_mut()?;
-	/// textmut.push('!');
-	///
-	/// // Text only defines `len` on `Ref<Text>`. Thus, we
-	/// // need to convert reference before we can call `len`.
-	/// assert_eq!(textmut.r().len(), 14);
-	/// # quest::Result::<()>::Ok(())
-	/// ```
-	#[inline]
-	pub fn r(&self) -> &Ref<T> {
-		// SAFETY: both `Mut` and `Ref` have the same internal layout. Additionally, since we
-		// return a reference to the `Ref`, its `Drop` won't be called.
-		unsafe { &*(self as *const Self).cast() }
-	}
-}*/
-
 impl<T: Allocated> Deref for Mut<T> {
 	type Target = T;
 
@@ -621,12 +546,16 @@ impl<T: Allocated> DerefMut for Mut<T> {
 		// SAFETY: When a `Gc` is constructed, it must have been passed an initialized `Base<T>`,
 		// which means that its `data` must also have been initialized. Additionally, we have unique
 		// access over `data`, so we can mutably borrow it
-		unsafe { &mut *(self.0.as_ptr() as *mut Self::Target) }
+		unsafe { &mut *(self.0.as_ptr() as *mut _) }
 	}
 }
 
 impl<T: Allocated> Drop for Mut<T> {
 	fn drop(&mut self) {
+		if cfg!(feature = "unsafe-no-locking") {
+			return;
+		}
+
 		if cfg!(debug_assertions) {
 			// Sanity check to ensure that the value was previously `MUT_BORROW`
 			debug_assert_eq!(MUT_BORROW, self.0.borrows().swap(0, Ordering::Release));

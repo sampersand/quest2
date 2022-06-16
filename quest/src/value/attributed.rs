@@ -1,5 +1,5 @@
 use crate::value::base::{
-	Attribute, AttributesMut, AttributesRef, IntoParent, ParentsMut, ParentsRef,
+	Attribute, AttributesMut, AttributesRef, Flags, IntoParent, ParentsMut, ParentsRef,
 };
 use crate::value::{ty, Gc};
 use crate::vm::Args;
@@ -94,6 +94,40 @@ pub trait AttributedMut {
 	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>>;
 }
 
+pub trait HasFlags {
+	/// Gets the flags associated with the current object.
+	#[must_use]
+	fn flags(&self) -> &Flags;
+
+	/// Sets flags in the header's [`Flags`].
+	///
+	/// If you want to _access_ the flags, i.e. don't want to set them, then use [`flags`](
+	/// Self::flags). See [`Flags`] for more details on custom flags in general.
+	///
+	//	/// # Examples
+	//	/// ```text
+	//	/// // this is `text` because i plan on overhauling the builder.
+	//	/// # use quest::value::base::{Base, Flags};
+	//	/// let mut builder = Base::<()>::builder();
+	//	///
+	//	/// // Set custom flags, if you attribute meanings to them.
+	//	/// const FLAG_IS_SUPER_DUPER_COOL: u32 = Flags::USER0;
+	//	/// builder.insert_user_flags(FLAG_IS_SUPER_DUPER_COOL);
+	//	///
+	//	/// // SAFETY: Since `builder` was zero-initialized to a ZST, we didn't have to do anything.
+	//	/// let base = unsafe { builder.finish() };
+	//	///
+	//	/// assert!(
+	//	///     base.as_ref().expect("we hold the only reference")
+	//	///         .flags()
+	//	///         .contains(FLAG_IS_SUPER_DUPER_COOL)
+	//	/// );
+	//	/// ```
+	fn insert_user_flags(&self, flag: u32) {
+		self.flags().insert_user(flag);
+	}
+}
+
 pub trait HasAttributes {
 	/// Gets an immutable reference to `self`'s attributes.
 	fn attributes(&self) -> AttributesRef<'_>;
@@ -115,21 +149,8 @@ pub trait HasParents {
 	}
 
 	/// Gets the list of parents associated with `self`, converting non-list parents into one.
+	#[must_use]
 	fn parents_list(&mut self) -> crate::value::Gc<crate::value::ty::List> {
 		self.parents_mut().as_list()
 	}
 }
-
-// impl<T: HasAttributes> AttributedMut for T {
-// 	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
-// 		self.attributes_mut().get_unbound_attr_mut(attr)
-// 	}
-
-// 	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-// 		self.attributes_mut().set_attr(attr, value)
-// 	}
-
-// 	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
-// 		self.attributes_mut().del_attr(attr)
-// 	}
-// }

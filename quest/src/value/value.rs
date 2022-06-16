@@ -3,7 +3,8 @@ use crate::value::ty::{
 	AttrConversionDefined, Boolean, BoundFn, Float, Integer, List, RustFn, Text, Wrap,
 };
 use crate::value::{
-	Attributed, AttributedMut, Callable, Convertible, Gc, NamedType, ToValue, TryAttributed,
+	Attributed, AttributedMut, Callable, Convertible, Gc, HasParents, NamedType, ToValue,
+	TryAttributed,
 };
 use crate::vm::{Args, Block};
 use crate::{ErrorKind, Intern, Result};
@@ -171,16 +172,6 @@ impl<T> Value<T> {
 /// This is created via [`ToValue::to_value`].
 pub struct Any {
 	_priv: (),
-}
-
-// todo: this is not actually safe, remove anny.
-unsafe impl crate::value::gc::Allocated for Any {
-	type Inner = ();
-}
-
-// also not safe
-unsafe impl crate::value::base::HasTypeFlag for Any {
-	const TYPE_FLAG: crate::value::base::TypeFlag = crate::value::base::TypeFlag::Text;
 }
 
 impl Value {

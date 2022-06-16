@@ -266,7 +266,7 @@ macro_rules! quest_type_attrs {
 					)?
 				}
 
-				crate::Value::from(parent).to_value()
+				parent.to_value()
 			}
 		}
 	};

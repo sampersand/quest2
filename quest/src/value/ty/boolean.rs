@@ -221,9 +221,9 @@ mod tests {
 		assert!(!Boolean::is_a(Value::NULL.to_value()));
 		assert!(!Boolean::is_a(Value::ZERO.to_value()));
 		assert!(!Boolean::is_a(Value::ONE.to_value()));
-		assert!(!Boolean::is_a(Value::from(12.0).to_value()));
-		assert!(!Boolean::is_a(Value::from("hello").to_value()));
-		assert!(!Boolean::is_a(Value::from(RustFn::NOOP).to_value()));
+		assert!(!Boolean::is_a(12.0.to_value()));
+		assert!(!Boolean::is_a("hello".to_value()));
+		assert!(!Boolean::is_a(RustFn::NOOP.to_value()));
 	}
 
 	#[test]

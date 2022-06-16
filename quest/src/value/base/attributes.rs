@@ -352,7 +352,7 @@ mod tests {
 			let mut textmut = text.as_mut().unwrap();
 
 			for i in 0..=list::MAX_LISTMAP_LEN * 2 {
-				let value = Value::from(Integer::new(i as i64).unwrap()).to_value_const();
+				let value = Integer::new(i as i64).unwrap().to_value();
 				textmut.set_attr(value, value).unwrap();
 
 				// assert!(textmut.r().get_unbound_attr(value).unwrap().unwrap().try_eq(value).unwrap());
@@ -361,7 +361,7 @@ mod tests {
 
 		let textref = text.as_ref().unwrap();
 
-		let value = Value::from(Integer::new(3).unwrap()).to_value_const();
+		let value = Integer::new(3).unwrap().to_value();
 		assert!(textref
 			.get_unbound_attr_checked(value, &mut vec![])
 			.unwrap()
@@ -371,7 +371,7 @@ mod tests {
 
 		// now it should be a full `map`, let's go over all of them again.
 		for i in 0..=list::MAX_LISTMAP_LEN * 2 {
-			let value = Value::from(Integer::new(i as i64).unwrap()).to_value_const();
+			let value = Integer::new(i as i64).unwrap().to_value();
 			assert!(textref
 				.get_unbound_attr_checked(value, &mut vec![])
 				.unwrap()
@@ -389,11 +389,7 @@ mod tests {
 		assert_matches!(text.as_ref().unwrap().get_unbound_attr_checked(ONE, &mut vec![]), Ok(None));
 		assert_matches!(text.as_mut().unwrap().del_attr(ONE), Ok(None));
 
-		text
-			.as_mut()
-			.unwrap()
-			.set_attr(ONE, Value::from(Integer::new(23).unwrap()).to_value_const())
-			.unwrap();
+		text.as_mut().unwrap().set_attr(ONE, Integer::new(23).unwrap().to_value()).unwrap();
 
 		assert_eq!(
 			text
@@ -407,11 +403,7 @@ mod tests {
 			Integer::new(23).unwrap()
 		);
 
-		text
-			.as_mut()
-			.unwrap()
-			.set_attr(ONE, Value::from(Integer::new(45).unwrap()).to_value_const())
-			.unwrap();
+		text.as_mut().unwrap().set_attr(ONE, Integer::new(45).unwrap().to_value()).unwrap();
 		assert_eq!(
 			text
 				.as_ref()
@@ -440,8 +432,8 @@ mod tests {
 	fn parents_work() {
 		const ATTR: Value = Value::TRUE.to_value_const();
 
-		let mut parent = Value::from("hello, world").to_value_const();
-		parent.set_attr(ATTR, Value::from(Integer::new(123).unwrap()).to_value_const()).unwrap();
+		let mut parent = "hello, world".to_value();
+		parent.set_attr(ATTR, Integer::new(123).unwrap().to_value()).unwrap();
 		assert_eq!(
 			parent
 				.get_unbound_attr_checked(ATTR, &mut vec![])
@@ -452,7 +444,7 @@ mod tests {
 			Integer::new(123).unwrap()
 		);
 
-		let mut child = Value::ONE.to_value_const();
+		let mut child = Value::ONE.to_value();
 		assert!(!child.has_attr(ATTR).unwrap());
 
 		child.parents_list().unwrap().as_mut().unwrap().push(parent);
@@ -466,7 +458,7 @@ mod tests {
 			Integer::new(123).unwrap()
 		);
 
-		child.set_attr(ATTR, Value::from(Integer::new(456).unwrap()).to_value_const()).unwrap();
+		child.set_attr(ATTR, Integer::new(456).unwrap().to_value()).unwrap();
 		assert_eq!(
 			child
 				.get_unbound_attr_checked(ATTR, &mut vec![])

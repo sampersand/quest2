@@ -145,9 +145,9 @@ mod tests {
 		assert!(!Null::is_a(Value::FALSE.to_value()));
 		assert!(!Null::is_a(Value::ZERO.to_value()));
 		assert!(!Null::is_a(Value::ONE.to_value()));
-		assert!(!Null::is_a(Value::from(1.0).to_value()));
-		assert!(!Null::is_a(Value::from("hello").to_value()));
-		assert!(!Null::is_a(Value::from(RustFn::NOOP).to_value()));
+		assert!(!Null::is_a(1.0.to_value()));
+		assert!(!Null::is_a("hello".to_value()));
+		assert!(!Null::is_a(RustFn::NOOP.to_value()));
 	}
 
 	#[test]
