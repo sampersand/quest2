@@ -1,6 +1,8 @@
-use super::{Attribute, Base, Flags, Header, IntoParent};
+use super::{Base, Flags, Header, IntoParent};
+use crate::value::base::{AttributesMut, AttributesRef, ParentsMut, ParentsRef};
 use crate::value::gc::{Allocated, Gc};
-use crate::Value;
+use crate::value::{HasAttributes, HasParents};
+
 use std::ptr::{addr_of, addr_of_mut, NonNull};
 
 /// The builder used for fine-grained control over making [`Base`]s.
@@ -54,116 +56,6 @@ use std::ptr::{addr_of, addr_of_mut, NonNull};
 pub struct Builder<T: Allocated>(NonNull<Base<T>>);
 
 impl<T: Allocated> Builder<T> {
-	/// Creates a new `Builder` and initializes the typeid.
-	// #[inline(never)]
-	unsafe fn _new(ptr: NonNull<Base<T>>) -> Self {
-		let mut builder = Self(ptr);
-
-		// We have to use `addr_of_mut` in case the entire header wasn't zero-initialized,
-		// as this function is also called from `new_uninit`.
-		addr_of_mut!((*builder.header_mut()).flags).write(Flags::new(T::TYPE_FLAG as u32));
-
-		builder
-	}
-
-	/// Creates a new [`Builder`] from a pointer to a zero-initialized [`Base<T>`].
-	///
-	/// Note that [`Self::new_zeroed`] is preferred if you don't already have an allocated pointer,
-	/// as it will zero allocate for you.
-	///
-	/// # Safety
-	/// For this function to be safe to use, you must ensure the following invariants hold:
-	/// - `ptr` was allocated via [`quest::alloc_zeroed`](crate::alloc_zeroed).
-	/// - `ptr` is a properly aligned for `Base<T>`.
-	/// - `ptr` can be written to.
-	///
-	/// *Technically*, `ptr` can be allocated via [`quest::alloc`]/[`quest::realloc`], however you
-	/// would need to zero out the contents first. (At which point, just [`quest::alloc_zeroed`].)
-	///
-	/// [`quest::alloc`]: crate::alloc
-	/// [`quest::realloc`]: crate::realloc
-	/// [`quest::alloc_zeroed`]: crate::alloc_zeroed
-	/// # Example
-	/// ```text
-	/// // this is `text` because i plan on overhauling the builder.
-	/// # use quest::value::base::{Builder, Base};
-	/// let layout = std::alloc::Layout::new::<Base<u8>>();
-	///
-	/// // SAFETY: we're guaranteed `layout` is not zero-sized,
-	/// // as `Base<T>` is nonzero sized.
-	/// let ptr = unsafe { quest::alloc_zeroed::<Base<u8>>(layout) };
-	///
-	/// // SAFETY: It was just zero allocated with the proper layout, which
-	/// // also means we can write to it.
-	/// let mut builder = unsafe { Builder::new_zeroed(ptr) };
-	/// builder.set_data(12u8);
-	///
-	/// // SAFETY: Since it's zero-initialized, we only had to initialize the `data` field.
-	/// let gc = unsafe { builder.finish() };
-	///
-	/// assert_eq!(
-	///     12u8,
-	///     *gc.as_ref().expect("we hold the only reference").data()
-	/// );
-	/// ```
-	pub(crate) unsafe fn new_zeroed(ptr: NonNull<Base<T>>) -> Self {
-		Self::_new(ptr)
-	}
-
-	/*
-	/// Creates a new [`Builder`] from a pointer to an uninitialized [`Base<T>`].
-	///
-	/// Note that if `ptr` was allocated via [`quest::alloc_zeroed`](crate::alloc_zeroed), you should
-	/// use [`new_zeroed`](Self::new_zeroed) instead, as it won't do unnecessary writes.
-	///
-	/// # Safety
-	/// For this function to be safe to use, you must ensure the following invariants hold:
-	/// - `ptr` was allocated via [`quest::alloc`]/[`quest::realloc`]/[`quest::alloc_zeroed`].
-	/// - `ptr` is a properly aligned for `Base<T>`.
-	/// - `ptr` can be written to.
-	///
-	/// [`quest::alloc`]: crate::alloc
-	/// [`quest::realloc`]: crate::realloc
-	/// [`quest::alloc_zeroed`]: crate::alloc_zeroed
-	/// # Example
-	/// ```text
-	/// // this is `text` because i plan on overhauling the builder.
-	/// # use quest::value::base::{Builder, Base};
-	/// let layout = std::alloc::Layout::new::<Base<u8>>();
-	///
-	/// // SAFETY: we're guaranteed `layout` is not zero-sized,
-	/// // as `Base<T>` is nonzero sized.
-	/// let ptr = unsafe { quest::alloc::<Base<u8>>(layout) };
-	///
-	/// // SAFETY: It was just allocated with the proper layout, which
-	/// // also means we can write to it.
-	/// let mut builder = unsafe { Builder::new_uninit(ptr) };
-	///
-	/// // As we didn't zero-initialize it, we need to call these three methods.
-	/// builder.set_data(12u8);
-	/// builder.allocate_attributes(0); // No attrs needed.
-	/// builder.set_parents(quest::value::base::NoParents);
-	///
-	/// // SAFETY: We just initialized the data, attributes, and parents fields.
-	/// let gc = unsafe { builder.finish() };
-	///
-	/// assert_eq!(
-	///     12u8,
-	///     *gc.as_ref().expect("we hold the only reference").data()
-	/// );
-	/// ```
-	unsafe fn new_uninit(ptr: NonNull<Base<T>>) -> Self {
-		let mut builder = Self::_new(ptr);
-
-		// These fields would normally be zero-initialized, but as we cannot assume `ptr` was
-		// zero-initialized, we have to do it ourselves
-		addr_of_mut!((*builder.header_mut()).borrows).write(std::sync::atomic::AtomicU32::default());
-		addr_of_mut!((*builder.header_mut()).flags).write(Flags::default());
-
-		builder
-	}
-	*/
-
 	/// Allocates a new, zero-initialized [`Base`].
 	///
 	/// This is a helper function which both zero allocates enough memory and constructs `Self`.
@@ -174,7 +66,7 @@ impl<T: Allocated> Builder<T> {
 	/// ```text
 	/// // this is `text` because i plan on overhauling the builder.
 	/// # use quest::value::base::Builder;
-	/// let mut builder = Builder::<u8>::allocate();
+	/// let mut builder = Builder::<u8>::new();
 	/// builder.set_data(34u8);
 	///
 	/// // SAFETY: Since it's zero-initialized, we only had to initialize the `data` field.
@@ -184,14 +76,25 @@ impl<T: Allocated> Builder<T> {
 	///     *gc.as_ref().expect("we hold the only reference").data()
 	/// );
 	/// ```
-	pub fn allocate() -> Self {
+	pub fn new() -> Self {
+		Self::with_capacity(0)
+	}
+
+	pub fn with_capacity(attr_capacity: usize) -> Self {
 		let layout = std::alloc::Layout::new::<Base<T>>();
 
 		// SAFETY:
 		// - For `alloc_zeroed`, we know `layout` is nonzero size, because `Base` alone is nonzero.
 		// - For `new_uninit`, we know we can write to it and it is properly aligned because we just
 		//   allocated it.
-		unsafe { Self::new_zeroed(crate::alloc_zeroed(layout)) }
+		unsafe {
+			let mut builder = Self(crate::alloc_zeroed(layout));
+
+			builder.header_mut().flags = Flags::new(T::TYPE_FLAG as u32);
+			builder.attributes_mut().allocate(attr_capacity);
+
+			builder
+		}
 	}
 
 	/// Gets a reference to the internal pointer.
@@ -380,34 +283,6 @@ impl<T: Allocated> Builder<T> {
 		}
 	}
 
-	/// Sets the attribute `attr` to `value` in the header.
-	///
-	/// If you know how many attributes you'll need beforehand, it's recommended that you call the
-	/// [`allocate_attributes`] method first to ensure that you won't cause intermittent
-	/// reallocations.
-	///
-	/// Note that this will overwrite any previous value associated with `attr` without warning.
-	///
-	/// # Safety
-	/// If `self` was zero-initialized (eg via [`Base::builder`], [`allocate`], or [`new_zeroed`]),
-	/// then there are no safety concerns. If you created `self` via [`new_uninit`] however, you must
-	/// initialize the attributes field (eg via [`allocate_attributes`]) before calling this method.
-	///
-	/// # Example
-	/// See [`allocate_attributes`] for examples.
-	///
-	/// [`allocate_attributes`]: Self::allocate_attributes
-	/// [`allocate`]: Self::allocate
-	/// [`new_zeroed`]: Self::new_zeroed
-	/// [`new_uninit`]: Self::new_uninit
-	pub unsafe fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> crate::Result<()> {
-		// SAFETY:
-		// - `flags` is initialized in the constructors (`new_uninit` initializes to zero, and
-		//   `new_zeroed` starts off with it at zero). The caller
-		// - The caller guarantees that the attributes are initialized.
-		Header::set_attr_raw(self.header_mut(), attr, value)
-	}
-
 	/// Get an immutable pointer to the underlying [`Base<T>`].
 	///
 	/// Note that the pointer may be pointing to uninitialized or invalid memory, as the underlying
@@ -446,40 +321,14 @@ impl<T: Allocated> Builder<T> {
 		self.0.as_ptr()
 	}
 
-	/// Get an immutable pointer to the underlying [`Header`].
-	///
-	/// Note that the pointer may be pointing to uninitialized or invalid memory, as the underlying
-	/// base may not have been fully initialized yet.
-	///
-	/// # Basic usage
-	/// ```text
-	/// # use quest::value::base::{Base, Header};
-	/// let builder = Base::<i32>::builder();
-	/// let ptr: *const Header = builder.header();
-	/// // ... do stuff with `ptr`.
-	/// ```
-	#[must_use]
-	fn header(&self) -> *const Header {
+	fn header(&self) -> &Header {
 		// SAFETY: `self.base()` is a valid pointer to a `Base<T>`.
-		unsafe { addr_of!((*self.base()).header) }
+		unsafe { &*addr_of!((*self.base()).header) }
 	}
 
-	/// Get a mutable pointer to the underlying [`Header`].
-	///
-	/// Note that the pointer may be pointing to uninitialized or invalid memory, as the underlying
-	/// base may not have been fully initialized yet.
-	///
-	/// # Basic usage
-	/// ```text
-	/// # use quest::value::base::{Base, Header};
-	/// let mut builder = Base::<i32>::builder();
-	/// let ptr: *mut Header = builder.header_mut();
-	/// // ... do stuff with `ptr`.
-	/// ```
-	#[must_use]
-	fn header_mut(&mut self) -> *mut Header {
+	fn header_mut(&mut self) -> &mut Header {
 		// SAFETY: `self.base_mut()` is a valid pointer to a `Base<T>`.
-		unsafe { addr_of_mut!((*self.base_mut()).header) }
+		unsafe { &mut *addr_of_mut!((*self.base_mut()).header) }
 	}
 
 	/// Get an immutable pointer to the underlying `T`.
@@ -552,5 +401,25 @@ impl<T: Allocated> Builder<T> {
 		// lastly: This is valid, as `Allocated` guarantees that `T` and `Base<T>` are represented
 		// identically, and thus converting a `Gc` of the two is valid.
 		std::mem::transmute::<NonNull<Base<T>>, Gc<T>>(self.0)
+	}
+}
+
+impl<T: Allocated> HasAttributes for Builder<T> {
+	fn attributes(&self) -> AttributesRef<'_> {
+		self.header().attributes()
+	}
+
+	fn attributes_mut(&mut self) -> AttributesMut<'_> {
+		self.header_mut().attributes_mut()
+	}
+}
+
+impl<T: Allocated> HasParents for Builder<T> {
+	fn parents(&self) -> ParentsRef<'_> {
+		self.header().parents()
+	}
+
+	fn parents_mut(&mut self) -> ParentsMut<'_> {
+		self.header_mut().parents_mut()
 	}
 }

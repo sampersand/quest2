@@ -2,29 +2,26 @@ use super::{Inner, Text, FLAG_EMBEDDED, MAX_EMBEDDED_LEN};
 use crate::value::base::Builder as BaseBuilder;
 use crate::value::base::HasDefaultParent;
 use crate::value::gc::Gc;
-use std::ptr::NonNull;
 
 #[must_use]
 pub struct Builder(BaseBuilder<Text>);
 
 impl Builder {
-	/// Creates a new [`Builder`] from the given `ptr`.
-	///
-	/// # Safety
-	/// - `ptr` must be properly aligned and writable.
-	/// - `ptr` must be zero initialized.
-	pub unsafe fn new(ptr: NonNull<Text>) -> Self {
-		let mut builder = BaseBuilder::new_zeroed(ptr.cast());
+	// /// Creates a new [`Builder`] from the given `ptr`.
+	// ///
+	// /// # Safety
+	// /// - `ptr` must be properly aligned and writable.
+	// /// - `ptr` must be zero initialized.
+	// pub unsafe fn new(ptr: NonNull<Text>) -> Self {
+	// 	let mut builder = BaseBuilder::new_zeroed(ptr.cast());
 
-		builder.set_parents(Gc::<Text>::parent());
-
-		Self(builder)
-	}
+	// 	Self(builder)
+	// }
 
 	pub fn allocate() -> Self {
-		let alloc_ptr = BaseBuilder::<Text>::allocate().as_ptr();
-
-		unsafe { Self::new(std::mem::transmute(alloc_ptr)) }
+		let mut builder = BaseBuilder::<Text>::new();
+		builder.set_parents(Gc::<Text>::parent());
+		Self(builder)
 	}
 
 	pub fn insert_flags(&mut self, flag: u32) {

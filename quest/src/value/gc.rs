@@ -5,7 +5,7 @@ use crate::value::base::{
 };
 use crate::value::ty::{List, Wrap};
 use crate::value::value::Any;
-use crate::value::{Attributed, AttributedMut, Callable, Convertible, HasAttributes, HasParents};
+use crate::value::{Attributed, Callable, Convertible, HasAttributes, HasParents};
 use crate::{ErrorKind, Result, ToValue, Value};
 use std::fmt::{self, Debug, Formatter, Pointer};
 use std::ops::{Deref, DerefMut};
@@ -40,27 +40,13 @@ fn allocated_header_mut<T: Allocated>(alloc: &mut T) -> &mut Header {
 	unsafe { &mut *(alloc as *mut T).cast::<Header>() }
 }
 
-impl<T: Allocated> Attributed for &T {
+impl<T: Allocated> Attributed for T {
 	fn get_unbound_attr_checked<A: Attribute>(
-		self,
+		&self,
 		attr: A,
 		checked: &mut Vec<Value>,
 	) -> Result<Option<Value>> {
 		allocated_header(self).get_unbound_attr_checked(attr, checked)
-	}
-}
-
-impl<T: Allocated> AttributedMut for T {
-	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
-		allocated_header_mut(self).get_unbound_attr_mut(attr)
-	}
-
-	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		allocated_header_mut(self).set_attr(attr, value)
-	}
-
-	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
-		allocated_header_mut(self).del_attr(attr)
 	}
 }
 

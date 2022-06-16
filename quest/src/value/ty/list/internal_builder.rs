@@ -14,7 +14,7 @@ impl InternalBuilder {
 	}
 
 	pub fn allocate() -> Self {
-		unsafe { Self::new(Builder::allocate()) }
+		unsafe { Self::new(Builder::new()) }
 	}
 
 	pub fn insert_flags(&mut self, flag: u32) {

@@ -2,7 +2,9 @@ use crate::value::base::{Attribute, HasDefaultParent};
 use crate::value::ty::{
 	AttrConversionDefined, Boolean, BoundFn, Float, Integer, List, RustFn, Text, Wrap,
 };
-use crate::value::{Attributed, AttributedMut, Callable, Convertible, Gc, NamedType, ToValue};
+use crate::value::{
+	Attributed, AttributedMut, Callable, Convertible, Gc, NamedType, ToValue, TryAttributed,
+};
 use crate::vm::{Args, Block};
 use crate::{ErrorKind, Intern, Result};
 use std::fmt::{self, Debug, Formatter};
@@ -295,11 +297,11 @@ impl Value {
 
 impl Attributed for Value {
 	fn get_unbound_attr_checked<A: Attribute>(
-		self,
+		&self,
 		attr: A,
 		checked: &mut Vec<Self>,
 	) -> Result<Option<Self>> {
-		(self).get_unbound_attr_checked(attr, checked)
+		(*self).get_unbound_attr_checked(attr, checked)
 	}
 }
 

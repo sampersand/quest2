@@ -2,7 +2,7 @@
 
 pub use super::HasDefaultParent;
 use crate::value::gc::{Allocated, Gc};
-use crate::value::{Attributed, AttributedMut, HasAttributes, HasParents};
+use crate::value::{Attributed, HasAttributes, HasParents};
 use std::fmt::{self, Debug, Formatter};
 use std::sync::atomic::AtomicU32; // pub is deprecated here, just to fix other things.
 
@@ -85,7 +85,7 @@ impl<T: Allocated> Base<T> {
 	/// This is a convenience method around [`Builder::allocate`]. Most of the time you won't need
 	/// such fine control, and instead [`Base::new`]/[`Base::new_with_capacity`] can be used.
 	pub fn builder() -> Builder<T> {
-		Builder::allocate()
+		Builder::new()
 	}
 
 	/// Creates a new [`Base`] with the given data and parents.
@@ -176,13 +176,6 @@ impl Header {
 		}
 	}
 
-	/// Gets mutable access to the attribute `attr`.
-	///
-	/// This doesn't have an "checked" variant, as only attributes are looked at.
-	pub fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
-		self.attributes_mut().get_unbound_attr_mut(attr)
-	}
-
 	/// Gets the flags associated with the current object.
 	pub fn flags(&self) -> &Flags {
 		&self.flags
@@ -203,19 +196,6 @@ impl Header {
 	/// ```
 	pub fn freeze(&self) {
 		self.flags().insert_internal(Flags::FROZEN);
-	}
-
-	/// Sets the the attribute, but on a possibly-uninitialized `ptr`.
-	///
-	/// # Safety
-	/// - `ptr` must be a valid pointer to a `Self` for read & writes
-	/// - The `attribute`s field must have been initialized.
-	/// - The `flags` field must have been initialized.
-	unsafe fn set_attr_raw<A: Attribute>(ptr: *mut Self, attr: A, value: Value) -> Result<()> {
-		let attrs_ptr = &mut (*ptr).attributes;
-		let flags = &(*ptr).flags;
-
-		attrs_ptr.guard_mut(flags).set_attr(attr, value)
 	}
 
 	/// Sets the `self`'s attribute `attr` to `value`.
@@ -316,25 +296,11 @@ impl<T: Allocated> Base<T> {
 
 impl<T: Allocated> Attributed for &Base<T> {
 	fn get_unbound_attr_checked<A: Attribute>(
-		self,
+		&self,
 		attr: A,
 		checked: &mut Vec<Value>,
 	) -> Result<Option<Value>> {
 		self.header.get_unbound_attr_checked(attr, checked)
-	}
-}
-
-impl<T: Allocated> AttributedMut for Base<T> {
-	fn get_unbound_attr_mut<A: Attribute>(&mut self, attr: A) -> Result<&mut Value> {
-		self.header.get_unbound_attr_mut(attr)
-	}
-
-	fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		self.header.set_attr(attr, value)
-	}
-
-	fn del_attr<A: Attribute>(&mut self, attr: A) -> Result<Option<Value>> {
-		self.header.del_attr(attr)
 	}
 }
 

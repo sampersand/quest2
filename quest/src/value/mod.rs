@@ -8,7 +8,9 @@ pub mod base;
 pub mod gc;
 mod value;
 
-pub use attributed::{Attributed, AttributedMut, Callable, HasAttributes, HasParents};
+pub use attributed::{
+	Attributed, AttributedMut, Callable, HasAttributes, HasParents, TryAttributed,
+};
 pub use gc::Gc;
 pub use value::Value;
 

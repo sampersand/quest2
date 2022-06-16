@@ -1,5 +1,5 @@
 use crate::value::base::{Attribute, Builder as BaseBuilder};
-use crate::value::Gc;
+use crate::value::{AttributedMut, Gc};
 use crate::{Result, Value};
 
 quest_type! {
@@ -19,13 +19,13 @@ pub struct Builder(BaseBuilder<Scope>);
 
 impl Builder {
 	pub fn with_capacity(cap: usize) -> Self {
-		let mut builder = BaseBuilder::allocate();
+		let mut builder = BaseBuilder::new();
 		builder.allocate_attributes(cap);
 		Self(builder)
 	}
 
 	pub fn set_attr<A: Attribute>(&mut self, attr: A, value: Value) -> Result<()> {
-		unsafe { self.0.set_attr(attr, value) }
+		self.0.set_attr(attr, value)
 	}
 
 	pub fn set_parents<P: crate::value::base::IntoParent>(mut self, parents: P) -> Self {
