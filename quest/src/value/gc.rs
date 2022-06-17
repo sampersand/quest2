@@ -186,6 +186,11 @@ impl<T: Allocated> Gc<T> {
 		Self::new(NonNull::new_unchecked(ptr))
 	}
 
+	// tells the gc you shouldn't free `self`
+	pub fn do_not_free(self) {
+		// TODO
+	}
+
 	/// Attempts to get an immutable reference to `self`'s contents, returning an error if it's
 	/// currently mutably borrowed.
 	///

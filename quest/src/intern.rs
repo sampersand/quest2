@@ -1,8 +1,11 @@
 use crate::value::ty::{text, Text};
 use crate::value::Gc;
 use crate::{ToValue, Value};
+use dashmap::DashMap;
+use once_cell::sync::OnceCell;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::sync::RwLock;
 
 const TAG: u64 = 0b100_0100;
 
@@ -39,14 +42,14 @@ macro_rules! define_interned {
 			$($name,)* __LAST
 		}
 
-		const INTERN_LENGTH: usize = __InternHelper::__LAST as usize;
+		const BUILTIN_LENGTH: usize = __InternHelper::__LAST as usize;
 
 		impl Intern {
 			/// Converts `self` to its string representation.
 			#[inline]
 			#[must_use]
 			pub const fn as_str(self) -> &'static str {
-				const STRINGS: [&'static str; INTERN_LENGTH] = [ $(variant_name!($name $($value)?)),* ];
+				const STRINGS: [&'static str; BUILTIN_LENGTH] = [ $(variant_name!($name $($value)?)),* ];
 
 				STRINGS[self.as_index()]
 			}
@@ -55,7 +58,7 @@ macro_rules! define_interned {
 			/// [string representation](Self::as_str).
 			#[must_use]
 			pub const fn fast_hash(self) -> u64 {
-				const HASHES: [u64; INTERN_LENGTH] = [ $(text::fast_hash(Intern::$name.as_str())),* ];
+				const HASHES: [u64; BUILTIN_LENGTH] = [ $(text::fast_hash(Intern::$name.as_str())),* ];
 
 				HASHES[self.as_index()]
 			}
@@ -74,7 +77,7 @@ macro_rules! define_interned {
 
 				match text.fast_hash() as u8 {
 					$($name if *text == Intern::$name => Ok(Self::$name),)*
-					_ => Err(())
+					_ => text_to_intern().get(text.as_ref()).map(|x| *x.value()).ok_or(())
 				}
 			}
 		}
@@ -133,7 +136,6 @@ define_interned! {
 
 	// Float functions
 	is_whole
-
 }
 
 // Note that this has to be implemented like this because we manually implement `Hash`.
@@ -150,9 +152,46 @@ impl Hash for Intern {
 	}
 }
 
+fn intern_to_text() -> &'static RwLock<Vec<Gc<Text>>> {
+	static INTERN_TO_TEXT: OnceCell<RwLock<Vec<Gc<Text>>>> = OnceCell::new();
+
+	INTERN_TO_TEXT.get_or_init(Default::default)
+}
+
+fn text_to_intern() -> &'static DashMap<&'static str, Intern> {
+	static TEXT_TO_INTERN: OnceCell<DashMap<&'static str, Intern>> = OnceCell::new();
+
+	TEXT_TO_INTERN.get_or_init(Default::default)
+}
+
 impl Intern {
+	pub fn new(text: Gc<Text>) -> crate::Result<Self> {
+		let textref = text.as_ref()?;
+
+		if let Ok(intern) = Self::try_from(&*textref) {
+			return Ok(intern);
+		}
+
+		textref.freeze();
+		text.do_not_free();
+
+		// SAFETY: Since `text` will never be freed, and is frozen, we know that it's contents will
+		// always be the same value for the remainder of the program. Thus, we can extend its lifetime.
+		let string = unsafe { std::mem::transmute::<&str, &'static str>(textref.as_str()) };
+		let intern = Self(offset((BUILTIN_LENGTH + text_to_intern().len()) as u64));
+
+		text_to_intern().insert(string, intern);
+		intern_to_text().write().unwrap().push(text);
+
+		Ok(intern)
+	}
+
 	pub unsafe fn from_bits(bits: u64) -> Self {
 		Self(bits)
+	}
+
+	fn is_builtin(self) -> bool {
+		(self.0 as usize >> 7) < BUILTIN_LENGTH
 	}
 
 	pub const fn bits(self) -> u64 {
@@ -163,11 +202,10 @@ impl Intern {
 		(self.bits() >> 7) as usize
 	}
 
-	pub(crate) const fn try_from_repr(repr: u64) -> Option<Self> {
-		if repr & 0b111_1111 == TAG {
-			debug_assert!(repr <= offset(INTERN_LENGTH as u64));
-
-			Some(unsafe { std::mem::transmute::<u64, Self>(repr) })
+	pub(crate) unsafe fn try_from_repr(bits: u64) -> Option<Self> {
+		if bits & 0b111_1111 == TAG {
+			debug_assert!((bits as usize >> 7) < (BUILTIN_LENGTH + text_to_intern().len()));
+			Some(Self::from_bits(bits))
 		} else {
 			None
 		}
@@ -176,15 +214,18 @@ impl Intern {
 	/// Converts `self` to its `Text` representation.
 	#[must_use]
 	pub fn as_text(self) -> Gc<Text> {
-		use once_cell::sync::OnceCell;
-
 		// We only need the const for the `TEXTS` initializer
 		#[allow(clippy::declare_interior_mutable_const)]
 		const BLANK_TEXT: OnceCell<Gc<Text>> = OnceCell::new();
+		static TEXTS: [OnceCell<Gc<Text>>; BUILTIN_LENGTH] = [BLANK_TEXT; BUILTIN_LENGTH];
 
-		static TEXTS: [OnceCell<Gc<Text>>; INTERN_LENGTH] = [BLANK_TEXT; INTERN_LENGTH];
+		let index = self.as_index();
 
-		*TEXTS[self.as_index()].get_or_init(|| {
+		if !self.is_builtin() {
+			return intern_to_text().read().unwrap()[index];
+		}
+
+		*TEXTS[index].get_or_init(|| {
 			let text = Text::from_static_str(self.as_str());
 			text.as_ref().unwrap().freeze();
 			text

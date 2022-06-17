@@ -19,7 +19,7 @@ macro_rules! if_intern {
 	($key:expr, |$intern:ident| $ifi:expr, |$value:ident| $ifv:expr) => {{
 		let key = $key;
 
-		if let Some($intern) = Intern::try_from_repr(unsafe { key.raw_data }) {
+		if let Some($intern) = unsafe { Intern::try_from_repr(key.raw_data) } {
 			$ifi
 		} else {
 			let $value = unsafe { key.value };

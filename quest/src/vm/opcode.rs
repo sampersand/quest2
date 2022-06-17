@@ -1,10 +1,22 @@
-// opcode format: V_CCCCC_AA
-// `V` is whether it's variable, `C` is count, `A` is arity
-const fn opcode_fmt(takes_variable: bool, fixed_arity: u8, count: u8) -> u8 {
-	debug_assert!(fixed_arity <= 3);
-	debug_assert!(count <= 31);
+#[repr(u8)]
+enum Variable {
+	Yes = 1 << 7,
+	No = 0,
+}
+#[repr(u8)]
+enum Interned {
+	Yes = 1 << 6,
+	No = 0,
+}
 
-	(count << 2) | fixed_arity | if takes_variable { 128 } else { 0 }
+// opcode format: VI_CCCC_AA
+// `V` is whether it's variable, `C` is count, `A` is arity
+// `I` is whether it takes an interned variable
+const fn opcode_fmt(variable: Variable, interned: Interned, fixed_arity: u8, count: u8) -> u8 {
+	assert!(fixed_arity <= 0b11);
+	assert!(count <= 0b1111);
+
+	variable as u8 | interned as u8 | (count << 2) | fixed_arity
 }
 
 /// The list of opcodes the Quest interpreter supports.
@@ -26,87 +38,142 @@ pub enum Opcode {
 	/// `CreateList(dst, count, ...)` Create a list of size `count` of trailing locals and stores it
 	/// into `dst`. (For short lists, use [`CreateListSimple`](Self::CreateListSimple), as it uses an
 	/// internal buffer).
-	CreateList = opcode_fmt(false, 0, 0),
+	CreateList = opcode_fmt(Variable::No, Interned::No, 0, 0),
+
 	/// `CreateListSimple(dst, count, ...)` Create a list of size `count` of trailing locals and
 	/// stores it into `dst`. (For longer lists, use [`CreateList`](Self::CreateList))
-	CreateListSimple = opcode_fmt(true, 0, 0),
+	CreateListSimple = opcode_fmt(Variable::Yes, Interned::No, 0, 0),
+
 	/// `ConstLoad(dst, count)` Loads the constant at `count` into `dst`.
-	ConstLoad = opcode_fmt(false, 0, 1),
+	ConstLoad = opcode_fmt(Variable::No, Interned::No, 0, 1),
+
 	/// `LoadImmediate(dst, <8 bytes>)` interprets the following 8 bytes as a [`Value`].
-	LoadImmediate = opcode_fmt(false, 0, 2),
+	LoadImmediate = opcode_fmt(Variable::No, Interned::No, 0, 2),
+
 	/// `LoadImmediate(dst, <1 byte>)` interprets the following `i8` as a [`Value`], sign-extending.
-	LoadSmallImmediate = opcode_fmt(false, 0, 3),
+	LoadSmallImmediate = opcode_fmt(Variable::No, Interned::No, 0, 3),
+
 	/// `LoadBlock(dst, <8 bytes>)` interprets the following 8 bytes as a [`Gc<Block>`], adding the
 	/// currently executing frame as a parent.
-	LoadBlock = opcode_fmt(false, 0, 4),
+	LoadBlock = opcode_fmt(Variable::No, Interned::No, 0, 4),
+
 	/// `Stackframe(dst, count)` Gets the `count`th stackframe. Can be negative.
-	Stackframe = opcode_fmt(false, 0, 5),
+	Stackframe = opcode_fmt(Variable::No, Interned::No, 0, 5),
 
 	/// `Mov(dst, src)` Copies `src` into `dst`.
-	Mov = opcode_fmt(false, 1, 0),
+	Mov = opcode_fmt(Variable::No, Interned::No, 1, 0),
+
 	/// `Call(dst, fn, ???)` todo comeback later
-	Call = opcode_fmt(false, 1, 1),
+	Call = opcode_fmt(Variable::No, Interned::No, 1, 1),
+
 	/// `CallSimple(dst, fn, count, ...)` Calls `fn` with `count` positional arguments.
-	CallSimple = opcode_fmt(true, 1, 0),
+	CallSimple = opcode_fmt(Variable::Yes, Interned::No, 1, 0),
+
 	/// `Index(dst, ary, count, ...)` Indexes into `ary` with `count` arguments.
-	Index = opcode_fmt(true, 1, 1),
+	Index = opcode_fmt(Variable::Yes, Interned::No, 1, 1),
+
 	/// `IndexAssign(dst, ary, count, ...)` Index-assigns `ary` with `count` arguments.
 	/// Note that this doesn't have a separate "value to store" operand, as that's simply the last
 	/// positional argument.
-	IndexAssign = opcode_fmt(true, 1, 2),
+	IndexAssign = opcode_fmt(Variable::Yes, Interned::No, 1, 2),
+
 	/// `Not(dst, src)` Logically negates `src`, pushing it into `dst`.
-	Not = opcode_fmt(false, 1, 2),
+	Not = opcode_fmt(Variable::No, Interned::No, 1, 2),
+
 	/// `Negate(dst, src)` Numerically negates `src`, pushing it into `dst`.
-	Negate = opcode_fmt(false, 1, 3),
+	Negate = opcode_fmt(Variable::No, Interned::No, 1, 3),
+
+	/** MATH OPS **/
 
 	/// `Add(dst, lhs, rhs)` Sets `dst` to the result of adding `lhs + rhs`.
-	Add = opcode_fmt(false, 2, 0),
-	/// `Subtract(dst, lhs, rhs)` Sets `dst` to the result of `lhs - rhs`.
-	Subtract = opcode_fmt(false, 2, 1),
-	/// `Multiply(dst, lhs, rhs)` Sets `dst` to the result of `lhs * rhs`.
-	Multiply = opcode_fmt(false, 2, 2),
-	/// `Divide(dst, lhs, rhs)` Sets `dst` to the result of `lhs / rhs`.
-	Divide = opcode_fmt(false, 2, 3),
-	/// `Modulo(dst, lhs, rhs)` Sets `dst` to the result of `lhs % rhs`.
-	Modulo = opcode_fmt(false, 2, 4),
-	/// `Power(dst, lhs, rhs)` Sets `dst` to the result of `lhs ** rhs`.
-	Power = opcode_fmt(false, 2, 5),
-	/// `Equal(dst, lhs, rhs)` Sets `dst` to the result of `lhs == rhs`.
-	Equal = opcode_fmt(false, 2, 6),
-	/// `NotEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs != rhs`.
-	NotEqual = opcode_fmt(false, 2, 7),
-	/// `LessThan(dst, lhs, rhs)` Sets `dst` to the result of `lhs < rhs`.
-	LessThan = opcode_fmt(false, 2, 8),
-	/// `GreaterThan(dst, lhs, rhs)` Sets `dst` to the result of `lhs > rhs`.
-	GreaterThan = opcode_fmt(false, 2, 9),
-	/// `LessEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs <= rhs`.
-	LessEqual = opcode_fmt(false, 2, 10),
-	/// `GreaterEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs >= rhs`.
-	GreaterEqual = opcode_fmt(false, 2, 11),
-	/// `Compare(dst, lhs, rhs)` Sets `dst` to the result of `lhs <=> rhs`.
-	Compare = opcode_fmt(false, 2, 12),
+	Add = opcode_fmt(Variable::No, Interned::No, 2, 0),
 
+	/// `Subtract(dst, lhs, rhs)` Sets `dst` to the result of `lhs - rhs`.
+	Subtract = opcode_fmt(Variable::No, Interned::No, 2, 1),
+
+	/// `Multiply(dst, lhs, rhs)` Sets `dst` to the result of `lhs * rhs`.
+	Multiply = opcode_fmt(Variable::No, Interned::No, 2, 2),
+
+	/// `Divide(dst, lhs, rhs)` Sets `dst` to the result of `lhs / rhs`.
+	Divide = opcode_fmt(Variable::No, Interned::No, 2, 3),
+
+	/// `Modulo(dst, lhs, rhs)` Sets `dst` to the result of `lhs % rhs`.
+	Modulo = opcode_fmt(Variable::No, Interned::No, 2, 4),
+
+	/// `Power(dst, lhs, rhs)` Sets `dst` to the result of `lhs ** rhs`.
+	Power = opcode_fmt(Variable::No, Interned::No, 2, 5),
+
+	/// `Equal(dst, lhs, rhs)` Sets `dst` to the result of `lhs == rhs`.
+	Equal = opcode_fmt(Variable::No, Interned::No, 2, 6),
+
+	/// `NotEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs != rhs`.
+	NotEqual = opcode_fmt(Variable::No, Interned::No, 2, 7),
+
+	/// `LessThan(dst, lhs, rhs)` Sets `dst` to the result of `lhs < rhs`.
+	LessThan = opcode_fmt(Variable::No, Interned::No, 2, 8),
+
+	/// `GreaterThan(dst, lhs, rhs)` Sets `dst` to the result of `lhs > rhs`.
+	GreaterThan = opcode_fmt(Variable::No, Interned::No, 2, 9),
+
+	/// `LessEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs <= rhs`.
+	LessEqual = opcode_fmt(Variable::No, Interned::No, 2, 10),
+
+	/// `GreaterEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs >= rhs`.
+	GreaterEqual = opcode_fmt(Variable::No, Interned::No, 2, 11),
+
+	/// `Compare(dst, lhs, rhs)` Sets `dst` to the result of `lhs <=> rhs`.
+	Compare = opcode_fmt(Variable::No, Interned::No, 2, 12),
+
+	/* ATTRIBUTES */
 	/// `GetAttr(dst, obj, attr)` Gets the attribute `attr` on `obj`, storing the result into `dst`.
-	GetAttr = opcode_fmt(false, 2, 13),
+	GetAttr = opcode_fmt(Variable::No, Interned::No, 2, 13),
+
 	/// `GetUnboundAttr(dst, obj, attr)` Gets the unbound attribute `attr` on `obj`, storing the
 	/// result into `dst`.
-	GetUnboundAttr = opcode_fmt(false, 2, 14),
+	GetUnboundAttr = opcode_fmt(Variable::No, Interned::No, 2, 14),
+
 	/// `HasAttr(dst, obj, attr)` Checks to see if the attribute `attr` on `obj`, storing the result
 	/// into `dst`.
-	HasAttr = opcode_fmt(false, 2, 15),
-	/// `SetAttr(dst, attr, value[, obj])` Sets the attribute `attr` on `obj` to `value`.
+	HasAttr = opcode_fmt(Variable::No, Interned::No, 2, 15),
+
+	/// `SetAttr(dst, value, attr[, obj])` Sets the attribute `attr` on `obj` to `value`.
 	/// Note that `obj` is not actually read as part of the bytecode, as we may be assigning to an
 	/// [`Integer`](crate::value::ty::Integer) (or another type), which means we may need to mutably
 	/// get the attribute.
-	SetAttr = opcode_fmt(false, 2, 16),
+	SetAttr = opcode_fmt(Variable::No, Interned::No, 2, 16),
+
 	/// `DelAttr(dst, obj, attr)` Deletes the attribute `attr` from `obj`, storing its previous
 	/// value into `dst` (if it doesnt exist, [`Null`](crate::value::ty::Null) is used).
-	DelAttr = opcode_fmt(false, 2, 17),
+	DelAttr = opcode_fmt(Variable::No, Interned::No, 2, 17),
+
 	/// `CallAttr(dst, fn, ???)` todo comeback later
-	CallAttr = opcode_fmt(false, 2, 18),
+	CallAttr = opcode_fmt(Variable::No, Interned::No, 2, 18),
+
 	/// `CallAttrSimple(dst, obj, attr, count, ...)` Calls `obj`'s attribute `attr` with `count`
 	/// positional arguments, storing the result into `dst`.
-	CallAttrSimple = opcode_fmt(true, 2, 0),
+	CallAttrSimple = opcode_fmt(Variable::Yes, Interned::No, 2, 19),
+
+	/// `GetAttr(dst, obj, <intern attr>)`
+	GetAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 0),
+
+	/// `GetUnboundAttrIntern(dst, obj, <intern attr>)`
+	GetUnboundAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 1),
+
+	/// `HasAttrIntern(dst, obj, <intern attr>)`
+	HasAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 2),
+
+	/// `SetAttrIntern(dst, value, <intern attr>[, obj])`. See `SEtAttr` for details
+	SetAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 3),
+
+	/// `DelAttrIntern(dst, obj, <intern attr>)`
+	DelAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 4),
+
+	/// `CallAttr(dst, fn, ???)` todo comeback later
+	CallAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 5),
+
+	/// `CallAttrSimple(dst, obj, attr, count, ...)` Calls `obj`'s attribute `attr` with `count`
+	/// positional arguments, storing the result into `dst`.
+	CallAttrSimpleIntern = opcode_fmt(Variable::Yes, Interned::Yes, 1, 6),
 }
 
 impl Opcode {
@@ -193,6 +260,13 @@ impl Opcode {
 			_ if byte == Self::DelAttr as u8 => true,
 			_ if byte == Self::CallAttr as u8 => true,
 			_ if byte == Self::CallAttrSimple as u8 => true,
+			_ if byte == Self::GetAttrIntern as u8 => true,
+			_ if byte == Self::GetUnboundAttrIntern as u8 => true,
+			_ if byte == Self::HasAttrIntern as u8 => true,
+			_ if byte == Self::SetAttrIntern as u8 => true,
+			_ if byte == Self::DelAttrIntern as u8 => true,
+			_ if byte == Self::CallAttrIntern as u8 => true,
+			_ if byte == Self::CallAttrSimpleIntern as u8 => true,
 
 			_ if byte == Self::Not as u8 => true,
 			_ if byte == Self::Negate as u8 => true,
