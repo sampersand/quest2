@@ -310,7 +310,7 @@ impl Debug for CodeDebugger<'_> {
 
 		macro_rules! writeln_len {
 			($($tt:tt)*) => {{
-				for _ in 0..(30-len) {
+				for _ in 0..(40-len) {
 					write!(f, " ")?;
 				}
 				writeln!($($tt)*)

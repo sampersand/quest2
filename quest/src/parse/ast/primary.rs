@@ -14,6 +14,7 @@ pub enum Primary<'a> {
 	UnaryOp(&'a str, Box<Primary<'a>>),
 	// TODO: attribute call.
 	FnCall(Box<Primary<'a>>, FnArgs<'a>),
+	AttrCall(Box<Primary<'a>>, Atom<'a>, FnArgs<'a>),
 	Index(Box<Primary<'a>>, FnArgs<'a>),
 	AttrAccess(Box<Primary<'a>>, AttrAccessKind, Atom<'a>),
 	HasAttr(Box<Primary<'a>>, Atom<'a>),
@@ -50,7 +51,12 @@ impl<'a> Primary<'a> {
 		loop {
 			primary = if parser.take_if_contents(TokenContents::LeftParen(ParenType::Round))?.is_some()
 			{
-				Self::FnCall(Box::new(primary), FnArgs::parse(parser, ParenType::Round)?)
+				let args = FnArgs::parse(parser, ParenType::Round)?;
+				if let Primary::AttrAccess(obj, AttrAccessKind::Period, attr) = primary {
+					Self::AttrCall(obj, attr, args)
+				} else {
+					Self::FnCall(Box::new(primary), args)
+				}
 			} else if parser.take_if_contents(TokenContents::LeftParen(ParenType::Square))?.is_some() {
 				Self::Index(Box::new(primary), FnArgs::parse(parser, ParenType::Square)?)
 			} else if parser.take_if_contents(TokenContents::Symbol(".?"))?.is_some() {
@@ -142,6 +148,57 @@ impl Compile for Primary<'_> {
 				}
 				builder.index(source_local, &argument_locals, dst);
 			}
+			Self::AttrCall(function, attribute, arguments) => {
+				let function_local = builder.unnamed_local();
+				function.compile(builder, function_local);
+				if let Atom::Identifier(ident) = attribute {
+					let mut argument_locals = Vec::with_capacity(arguments.arguments.len());
+					for argument in &arguments.arguments {
+						let local = builder.unnamed_local();
+						argument.compile(builder, local);
+						argument_locals.push(local);
+					}
+					if argument_locals.len() <= crate::vm::block::Builder::MAX_CALL_SIMPLE_ARGUMENTS {
+						let attr = Intern::new(Text::from_str(ident)).unwrap();
+						builder.call_attr_simple_intern(function_local, attr, &argument_locals, dst);
+					} else {
+						todo!();
+					}
+				} else {
+					let attribute_local = builder.unnamed_local();
+					attribute.compile(builder, attribute_local);
+					let mut argument_locals = Vec::with_capacity(arguments.arguments.len());
+					for argument in &arguments.arguments {
+						let local = builder.unnamed_local();
+						argument.compile(builder, local);
+						argument_locals.push(local);
+					}
+					if argument_locals.len() <= crate::vm::block::Builder::MAX_CALL_SIMPLE_ARGUMENTS {
+						builder.call_attr_simple(function_local, attribute_local, &argument_locals, dst);
+					} else {
+						todo!();
+					}
+				}
+
+				// // don't parse identifiers straight up
+				// if let Atom::Identifier(ident) = attribute {
+				// 	source.compile(builder, dst);
+				// 	let attr = Intern::new(Text::from_str(ident)).unwrap();
+				// 	match kind {
+				// 		AttrAccessKind::ColonColon => builder.get_unbound_attr_intern(dst, attr, dst),
+				// 		AttrAccessKind::Period => builder.get_attr_intern(dst, attr, dst),
+				// 	}
+				// } else {
+				// 	let local = builder.unnamed_local();
+				// 	source.compile(builder, local);
+				// 	attribute.compile(builder, dst);
+				// 	match kind {
+				// 		AttrAccessKind::ColonColon => builder.get_unbound_attr(local, dst, dst),
+				// 		AttrAccessKind::Period => builder.get_attr(local, dst, dst),
+				// 	}
+				// }
+			}
+
 			Self::AttrAccess(source, kind, attribute) => {
 				// don't parse identifiers straight up
 				if let Atom::Identifier(ident) = attribute {

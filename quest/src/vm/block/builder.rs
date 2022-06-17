@@ -506,10 +506,10 @@ impl Builder {
 
 		// SAFETY: This is the definition of the `CallAttrSimple` opcode.
 		unsafe {
-			self.opcode(Opcode::CallAttrSimple, dst);
+			self.opcode(Opcode::CallAttrSimpleIntern, dst);
 			self.local(obj);
-			self.locals(args);
 			self.intern(attr);
+			self.locals(args);
 		}
 	}
 
