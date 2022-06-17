@@ -1,7 +1,7 @@
 use super::Block;
-use crate::value::ToValue;
 use crate::value::{ty::Text, Gc, Value};
 use crate::vm::{Opcode, SourceLocation, COUNT_IS_NOT_ONE_BYTE_BUT_USIZE, NUM_ARGUMENT_REGISTERS};
+use crate::{Intern, ToValue};
 use std::num::NonZeroUsize;
 
 /// A builder for [`Block`].
@@ -74,6 +74,11 @@ impl Builder {
 	}
 
 	// SAFETY: You need to make sure this isn't being used when an `opcode` is expected.
+	unsafe fn intern(&mut self, intern: Intern) {
+		self.code.extend(intern.bits().to_ne_bytes());
+	}
+
+	// SAFETY: You need to make sure this isn't being used when an `opcode` is expected.
 	unsafe fn local(&mut self, local: Local) {
 		// debug!(target: "block_builder", "self[{}].local = 0 (scratch)", self.code.len());
 		match local {
@@ -111,6 +116,17 @@ impl Builder {
 		}
 	}
 
+	// SAFETY: You need to make sure this isn't being used when an `opcode` is expected, and the right
+	// amount of locals are there
+	unsafe fn locals(&mut self, locals: &[Local]) {
+		debug_assert!(locals.len() <= NUM_ARGUMENT_REGISTERS);
+
+		self.count(locals.len());
+		for &local in locals {
+			self.local(local);
+		}
+	}
+
 	// SAFETY: You need to make sure this isn't being used when an `opcode` is expected.
 	unsafe fn count(&mut self, count: usize) {
 		// TODO: verify this is sound.
@@ -133,7 +149,7 @@ impl Builder {
 		let args = args.into_iter();
 		let len = args.len();
 
-		assert!(
+		debug_assert!(
 			len <= NUM_ARGUMENT_REGISTERS,
 			"too many arguments given for simple_opcode: {len}, max {NUM_ARGUMENT_REGISTERS}",
 		);
@@ -296,6 +312,7 @@ impl Builder {
 				Opcode::CreateList
 			};
 			self.opcode(opcode, dst);
+			// we cant use `locals`, as it has the debug assert.
 			self.count(args.len());
 			for &arg in args {
 				self.local(arg);
@@ -333,10 +350,7 @@ impl Builder {
 		unsafe {
 			self.opcode(Opcode::CallSimple, dst);
 			self.local(what);
-			self.count(args.len());
-			for &arg in args {
-				self.local(arg);
-			}
+			self.locals(args);
 		}
 	}
 
@@ -357,11 +371,31 @@ impl Builder {
 		}
 	}
 
+	/// Gets the unbound attribute `attr` from `obj`, storing the result in `dst`.
+	pub fn get_unbound_attr_intern(&mut self, obj: Local, attr: Intern, dst: Local) {
+		// SAFETY: This is the definition of the `GetUnboundAttrIntern` opcode.
+		unsafe {
+			self.opcode(Opcode::GetUnboundAttrIntern, dst);
+			self.local(obj);
+			self.intern(attr);
+		}
+	}
+
 	/// Gets the attribute `attr` from `obj`, storing the result in `dst`.
 	pub fn get_attr(&mut self, obj: Local, attr: Local, dst: Local) {
 		// SAFETY: This is the definition of the `GetAttr` opcode.
 		unsafe {
 			self.simple_opcode(Opcode::GetAttr, dst, [obj, attr]);
+		}
+	}
+
+	/// Gets the attribute `attr` from `obj`, storing the result in `dst`.
+	pub fn get_attr_intern(&mut self, obj: Local, attr: Intern, dst: Local) {
+		// SAFETY: This is the definition of the `GetAttrIntern` opcode.
+		unsafe {
+			self.opcode(Opcode::GetAttrIntern, dst);
+			self.local(obj);
+			self.intern(attr);
 		}
 	}
 
@@ -373,12 +407,34 @@ impl Builder {
 		}
 	}
 
+	/// Checks to see if `obj` has the attribute `attr`, storing the result in `dst`.
+	pub fn has_attr_intern(&mut self, obj: Local, attr: Intern, dst: Local) {
+		// SAFETY: This is the definition of the `HasAttrIntern` opcode.
+		unsafe {
+			self.opcode(Opcode::HasAttrIntern, dst);
+			self.local(obj);
+			self.intern(attr);
+		}
+	}
+
 	/// Sets the attribute `attr` on `obj` to `value`, storing `value` back into `dst`.
 	pub fn set_attr(&mut self, obj: Local, attr: Local, value: Local, dst: Local) {
 		// SAFETY: This is the definition of the `SetAttr` opcode.
 		unsafe {
 			// NOTE: this puts `obj` last b/c it allows for optimizations on `attr` and `value` parsing
-			self.simple_opcode(Opcode::SetAttr, dst, [attr, value, obj]);
+			self.simple_opcode(Opcode::SetAttr, dst, [value, attr, obj]);
+		}
+	}
+
+	/// Sets the attribute `attr` on `obj` to `value`, storing `value` back into `dst`.
+	pub fn set_attr_intern(&mut self, obj: Local, attr: Intern, value: Local, dst: Local) {
+		// SAFETY: This is the definition of the `SetAttrIntern` opcode.
+		unsafe {
+			// NOTE: this puts `obj` last b/c it allows for optimizations on `attr` and `value` parsing
+			self.opcode(Opcode::SetAttrIntern, dst);
+			self.local(value);
+			self.intern(attr);
+			self.local(obj);
 		}
 	}
 
@@ -386,13 +442,32 @@ impl Builder {
 	pub fn del_attr(&mut self, obj: Local, attr: Local, dst: Local) {
 		// SAFETY: This is the definition of the `DelAttr` opcode.
 		unsafe {
-			self.simple_opcode(Opcode::DelAttr, dst, [obj, attr]);
+			self.opcode(Opcode::DelAttr, dst);
+			self.local(obj);
+			self.locals(&[attr]); // this is needed because `DelAttr` is variable
+		}
+	}
+
+	/// Deletes the attribute `attr` from `obj`, storing what was deleted into `dst`
+	pub fn del_attr_intern(&mut self, obj: Local, attr: Intern, dst: Local) {
+		// SAFETY: This is the definition of the `DelAttrIntern` opcode.
+		unsafe {
+			self.opcode(Opcode::DelAttrIntern, dst);
+			self.local(obj);
+			self.intern(attr);
 		}
 	}
 
 	/// <under construction, come back later>
 	#[allow(clippy::missing_panics_doc)] // TODO
 	pub fn call_attr(&mut self, _dst: Local) {
+		// self.opcode(Opcode::CallAttr, dst);
+		todo!();
+	}
+
+	/// <under construction, come back later>
+	#[allow(clippy::missing_panics_doc)] // TODO
+	pub fn call_attr_intern(&mut self, _dst: Local) {
 		// self.opcode(Opcode::CallAttr, dst);
 		todo!();
 	}
@@ -421,10 +496,24 @@ impl Builder {
 			self.opcode(Opcode::CallAttrSimple, dst);
 			self.local(obj);
 			self.local(attr);
-			self.count(args.len());
-			for &arg in args {
-				self.local(arg);
-			}
+			self.locals(args);
+		}
+	}
+
+	pub fn call_attr_simple_intern(&mut self, obj: Local, attr: Intern, args: &[Local], dst: Local) {
+		assert!(
+			args.len() <= Self::MAX_CALL_ATTR_SIMPLE_ARGUMENTS,
+			"too many arguments given for call_attr_simple_intern: {}, max {}",
+			args.len(),
+			Self::MAX_CALL_ATTR_SIMPLE_ARGUMENTS
+		);
+
+		// SAFETY: This is the definition of the `CallAttrSimple` opcode.
+		unsafe {
+			self.opcode(Opcode::CallAttrSimple, dst);
+			self.local(obj);
+			self.locals(args);
+			self.intern(attr);
 		}
 	}
 
@@ -470,9 +559,11 @@ impl Builder {
 
 	/// Exponentiates `lhs` by `rhs`, storing the result into `dst`.
 	pub fn power(&mut self, lhs: Local, rhs: Local, dst: Local) {
-		// SAFETY: This is the definition of the `Power` opcode.
+		// SAFETY: This is the definition of the `Power` opcode, which does use the "variable" bit.
 		unsafe {
-			self.simple_opcode(Opcode::Power, dst, [lhs, rhs]);
+			self.opcode(Opcode::Power, dst);
+			self.local(lhs);
+			self.locals(&[rhs]);
 		}
 	}
 
@@ -542,9 +633,11 @@ impl Builder {
 
 	/// Compares `lhs` and `rhs`, storing the result into `dst`.
 	pub fn compare(&mut self, lhs: Local, rhs: Local, dst: Local) {
-		// SAFETY: This is the definition of the `Compare` opcode.
+		// SAFETY: This is the definition of the `Compare` opcode, which does use the "variable" bit.
 		unsafe {
-			self.simple_opcode(Opcode::Compare, dst, [lhs, rhs]);
+			self.opcode(Opcode::Compare, dst);
+			self.local(lhs);
+			self.locals(&[rhs]);
 		}
 	}
 
@@ -570,10 +663,7 @@ impl Builder {
 		unsafe {
 			self.opcode(Opcode::Index, dst);
 			self.local(source);
-			self.count(index.len());
-			for &arg in index {
-				self.local(arg);
-			}
+			self.locals(index);
 		}
 	}
 

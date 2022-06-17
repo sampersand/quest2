@@ -45,22 +45,45 @@ macro_rules! define_interned {
 		const BUILTIN_LENGTH: usize = __InternHelper::__LAST as usize;
 
 		impl Intern {
+			pub const fn as_str_const(self) -> &'static str {
+				const STRINGS: [&'static str; BUILTIN_LENGTH] = [
+					$(variant_name!($name $($value)?)),*
+				];
+
+				debug_assert!(self.is_builtin());
+				STRINGS[self.as_index()]
+			}
+
 			/// Converts `self` to its string representation.
 			#[inline]
 			#[must_use]
-			pub const fn as_str(self) -> &'static str {
-				const STRINGS: [&'static str; BUILTIN_LENGTH] = [ $(variant_name!($name $($value)?)),* ];
+			pub fn as_str(self) -> &'static str {
+				if self.is_builtin() {
+					self.as_str_const()
+				} else {
+					let text = intern_to_text().read().unwrap()[self.as_index() - BUILTIN_LENGTH];
+					unsafe {
+						std::mem::transmute::<&str, &'static str>(text.as_ref().unwrap().as_str())
+					}
+				}
+			}
 
-				STRINGS[self.as_index()]
+			const fn fast_hash_builtin(self) -> u64 {
+				const HASHES: [u64; BUILTIN_LENGTH] = [ $(text::fast_hash(Intern::$name.as_str_const())),* ];
+
+				debug_assert!(self.is_builtin());
+				HASHES[self.as_index()]
 			}
 
 			/// Gets the [fast hash](crate::value::ty::text::fast_hash) corresponding to `self`'s
 			/// [string representation](Self::as_str).
 			#[must_use]
-			pub const fn fast_hash(self) -> u64 {
-				const HASHES: [u64; BUILTIN_LENGTH] = [ $(text::fast_hash(Intern::$name.as_str())),* ];
-
-				HASHES[self.as_index()]
+			pub fn fast_hash(self) -> u64 {
+				if self.is_builtin() {
+					self.fast_hash_builtin()
+				} else {
+					intern_to_text().read().unwrap()[self.as_index() - BUILTIN_LENGTH].as_ref().unwrap().fast_hash()
+				}
 			}
 		}
 
@@ -72,7 +95,7 @@ macro_rules! define_interned {
 			#[allow(non_upper_case_globals)]
 			fn try_from(text: &Text) -> Result<Self, Self::Error> {
 				$(
-					const $name: u8 = Intern::$name.fast_hash() as u8;
+					const $name: u8 = Intern::$name.fast_hash_builtin() as u8;
 				)*
 
 				match text.fast_hash() as u8 {
@@ -186,12 +209,12 @@ impl Intern {
 		Ok(intern)
 	}
 
-	pub unsafe fn from_bits(bits: u64) -> Self {
+	pub unsafe fn from_bits_unchecked(bits: u64) -> Self {
 		Self(bits)
 	}
 
-	fn is_builtin(self) -> bool {
-		(self.0 as usize >> 7) < BUILTIN_LENGTH
+	const fn is_builtin(self) -> bool {
+		self.as_index() < BUILTIN_LENGTH
 	}
 
 	pub const fn bits(self) -> u64 {
@@ -205,7 +228,7 @@ impl Intern {
 	pub(crate) unsafe fn try_from_repr(bits: u64) -> Option<Self> {
 		if bits & 0b111_1111 == TAG {
 			debug_assert!((bits as usize >> 7) < (BUILTIN_LENGTH + text_to_intern().len()));
-			Some(Self::from_bits(bits))
+			Some(Self::from_bits_unchecked(bits))
 		} else {
 			None
 		}

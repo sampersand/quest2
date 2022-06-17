@@ -551,7 +551,8 @@ impl Gc<Frame> {
 	fn run_inner(self) -> Result<()> {
 		let mut args = [MaybeUninit::<Value>::uninit(); NUM_ARGUMENT_REGISTERS];
 		let mut this = self.as_mut()?;
-		let mut variable_args_count = MaybeUninit::uninit();
+		let mut variable_args_count = MaybeUninit::<usize>::uninit();
+		let mut interned = MaybeUninit::<Intern>::uninit();
 
 		macro_rules! without_this {
 			($($code:tt)*) => {{
@@ -583,6 +584,7 @@ impl Gc<Frame> {
 				}
 
 				variable_args_count = MaybeUninit::uninit();
+				interned = MaybeUninit::uninit();
 			}
 
 			// SAFETY: we're guaranteed the next byte, if it exists, is valid, because `Frame`s can
@@ -591,7 +593,6 @@ impl Gc<Frame> {
 
 			{
 				let arity = op.fixed_arity();
-				let is_variable_simple = op.is_variable_simple();
 				let mut ptr = args.as_mut_ptr().cast::<Value>();
 
 				debug_assert!(arity <= NUM_ARGUMENT_REGISTERS);
@@ -605,7 +606,11 @@ impl Gc<Frame> {
 					}
 				}
 
-				if is_variable_simple {
+				if op.takes_intern() {
+					interned.write(unsafe { Intern::from_bits_unchecked(this.next_u64()) });
+				}
+
+				if op.is_variable_simple() {
 					// SAFETY: we're guaranteed the next byte exists, because `Frame`s can only be
 					// created with valid bytecode.
 					let count = unsafe { this.next_byte() } as usize;
@@ -669,7 +674,7 @@ impl Gc<Frame> {
 				// SAFETY: `self` is well-formed, so we know the first argument to `Mov` is present
 				Opcode::Mov => unsafe { args[0].assume_init() },
 
-				Opcode::Call => todo!(), //self.op_call(),
+				Opcode::Call => todo!(),
 
 				// SAFETY: `self` is well-formed, so we know the first argument to `CallSimple` exists,
 				// and is followed by a slice of locals.
@@ -739,9 +744,19 @@ impl Gc<Frame> {
 					let (object, attr) = unsafe { (args[0].assume_init(), args[1].assume_init()) };
 					object.try_get_attr(attr)?
 				},
+				Opcode::GetAttrIntern => without_this! {
+					// SAFETY: `self` is well-formed, so we know that the first two arguments exist.
+					let (object, attr) = unsafe { (args[0].assume_init(), interned.assume_init()) };
+					object.try_get_attr(attr)?
+				},
 				Opcode::GetUnboundAttr => without_this! {
 					// SAFETY: `self` is well-formed, so we know that the first two arguments exist.
 					let (object, attr) = unsafe { (args[0].assume_init(), args[1].assume_init()) };
+					object.try_get_unbound_attr(attr)?
+				},
+				Opcode::GetUnboundAttrIntern => without_this! {
+					// SAFETY: `self` is well-formed, so we know that the first two arguments exist.
+					let (object, attr) = unsafe { (args[0].assume_init(), interned.assume_init()) };
 					object.try_get_unbound_attr(attr)?
 				},
 				Opcode::HasAttr => without_this! {
@@ -749,9 +764,14 @@ impl Gc<Frame> {
 					let (object, attr) = unsafe { (args[0].assume_init(), args[1].assume_init()) };
 					object.has_attr(attr)?.to_value()
 				},
+				Opcode::HasAttrIntern => without_this! {
+					// SAFETY: `self` is well-formed, so we know that the first two arguments exist.
+					let (object, attr) = unsafe { (args[0].assume_init(), interned.assume_init()) };
+					object.has_attr(attr)?.to_value()
+				},
 				Opcode::SetAttr => {
 					// SAFETY: `self` is well-formed, so we know that the first two arguments exist.
-					let (attr, value) = unsafe { (args[0].assume_init(), args[1].assume_init()) };
+					let (value, attr) = unsafe { (args[0].assume_init(), args[1].assume_init()) };
 
 					// SAFETY: `self` is well-formed, so we know that after the first two arguments is
 					// a local target
@@ -800,18 +820,82 @@ impl Gc<Frame> {
 
 					value
 				}
+				Opcode::SetAttrIntern => {
+					// SAFETY: `self` is well-formed, so we know that the first two arguments exist.
+					let (value, attr) = unsafe { (args[0].assume_init(), interned.assume_init()) };
 
+					// SAFETY: `self` is well-formed, so we know that after the first two arguments is
+					// a local target
+					let index = unsafe { this.next_local_target() };
+
+					/*
+					Because you can assign indices onto any object, we need to be able to dynamically
+					convert immediates (eg integers, floats, booleans, etc) into a heap-allocated form if
+					we want to assign attributes. This is done by having `Value::set_attr` take a mutable
+					reference to self. However, the only time this is useful is if we're talking about a
+					named attribute---if we're assigning to an unnamed local, that means it'll just get
+					thrown away immediately.
+
+					As such, if it's an unnamed local, we still call the `set_attr`, in case it has a
+					side effect, but we don't actually assign the `object` to anything. On the other
+					hand, we have to box the `object` if it's not already a box.
+					*/
+					match index {
+						LocalTarget::Unnamed(index) => {
+							// SAFETY: `self` is well-formed, so we we're guaranteed `index` is a
+							// valid local target.
+							let mut object = unsafe { this.get_unnamed_local(index) };
+
+							// the only way for a local to be `self` is if it is an object.
+							if cfg!(debug_assertions) && self.to_value().is_identical(object) {
+								debug_assert!(this.is_object());
+							}
+
+							object.set_attr(attr, value)?;
+						}
+						LocalTarget::Named(index) => {
+							// SAFETY: `self` is well-formed, so we we're guaranteed `index` is a
+							// valid local target.
+							let name =
+								unsafe { this.inner_block.named_locals.get_unchecked(index) }.to_value();
+							let object = this.get_unbound_attr_mut(name)?;
+
+							if self.to_value().is_identical(*object) {
+								this.convert_to_object()?;
+								this.set_attr(attr, value)?;
+							} else {
+								object.set_attr(attr, value)?;
+							}
+						}
+					}
+
+					value
+				}
 				Opcode::DelAttr => without_this! {
 					// SAFETY: `self` is well-formed, so we know that the first two arguments exist.
 					let (mut object, attr) = unsafe { (args[0].assume_init(), args[1].assume_init()) };
 					object.del_attr(attr)?.unwrap_or_default()
 				},
-				Opcode::CallAttr => todo!(),
+				Opcode::DelAttrIntern => without_this! {
+					// SAFETY: `self` is well-formed, so we know that the first two arguments exist.
+					let (mut object, attr) = unsafe { (args[0].assume_init(), interned.assume_init()) };
+					object.del_attr(attr)?.unwrap_or_default()
+				},
+				Opcode::CallAttr | Opcode::CallAttrIntern => todo!(),
 				Opcode::CallAttrSimple => without_this! {
 					// SAFETY: `self` is well-formed, so we know that the first two arguments exist, and
 					// are followed by an argument slice
 					let (object, attr, args_slice) = unsafe {
 						(args[0].assume_init(), args[1].assume_init(), args_slice!(start=2))
+					};
+
+					object.call_attr(attr, args_slice)?
+				},
+				Opcode::CallAttrSimpleIntern => without_this! {
+					// SAFETY: `self` is well-formed, so we know that the first two arguments exist, and
+					// are followed by an argument slice
+					let (object, attr, args_slice) = unsafe {
+						(args[0].assume_init(), interned.assume_init(), args_slice!(start=1))
 					};
 
 					object.call_attr(attr, args_slice)?
@@ -836,7 +920,6 @@ impl Gc<Frame> {
 						Intern::op_mul,
 						Intern::op_div,
 						Intern::op_mod,
-						Intern::op_pow,
 						Intern::op_eql,
 						Intern::op_neq,
 						Intern::op_lth,
@@ -844,6 +927,7 @@ impl Gc<Frame> {
 						Intern::op_leq,
 						Intern::op_geq,
 						Intern::op_cmp,
+						Intern::op_pow,
 					];
 
 					// SAFETY: `self` is well-formed, so we know that the first argument exists, and is

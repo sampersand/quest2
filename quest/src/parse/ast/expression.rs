@@ -2,6 +2,7 @@ use super::{Assignment, Compile, Primary};
 use crate::parse::token::TokenContents;
 use crate::parse::{Parser, Result};
 use crate::vm::block::{Builder, Local};
+use crate::vm::Opcode;
 
 #[derive(Debug)]
 pub enum Expression<'a> {
@@ -58,10 +59,24 @@ impl Compile for Expression<'_> {
 				let lhs_local = builder.unnamed_local();
 				lhs.compile(builder, lhs_local);
 
-				if let Some(opcode) = crate::vm::Opcode::binary_from_symbol(op) {
+				if let Some(opcode) = Opcode::binary_from_symbol(op) {
 					rhs.compile(builder, dst);
-					unsafe {
-						builder.simple_opcode(opcode, dst, [lhs_local, dst]);
+					match opcode {
+						Opcode::Add => builder.add(lhs_local, dst, dst),
+						Opcode::Subtract => builder.subtract(lhs_local, dst, dst),
+						Opcode::Multiply => builder.multiply(lhs_local, dst, dst),
+						Opcode::Divide => builder.divide(lhs_local, dst, dst),
+						Opcode::Modulo => builder.modulo(lhs_local, dst, dst),
+						Opcode::Power => builder.power(lhs_local, dst, dst),
+
+						Opcode::Equal => builder.equal(lhs_local, dst, dst),
+						Opcode::NotEqual => builder.not_equal(lhs_local, dst, dst),
+						Opcode::LessThan => builder.less_than(lhs_local, dst, dst),
+						Opcode::GreaterThan => builder.greater_than(lhs_local, dst, dst),
+						Opcode::LessEqual => builder.less_equal(lhs_local, dst, dst),
+						Opcode::GreaterEqual => builder.greater_equal(lhs_local, dst, dst),
+						Opcode::Compare => builder.compare(lhs_local, dst, dst),
+						_ => unreachable!(),
 					}
 				} else {
 					let op_local = builder.unnamed_local();

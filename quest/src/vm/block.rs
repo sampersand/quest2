@@ -278,6 +278,12 @@ impl Debug for CodeDebugger<'_> {
 			}};
 		}
 
+		macro_rules! intern {
+			() => {
+				unsafe { Intern::from_bits_unchecked(u64!()) }
+			};
+		}
+
 		macro_rules! usize {
 			() => {{
 				let bytes = &self.0.code[i..i + std::mem::size_of::<usize>()];
@@ -394,20 +400,47 @@ impl Debug for CodeDebugger<'_> {
 
 				Opcode::GetAttr | Opcode::GetUnboundAttr | Opcode::HasAttr | Opcode::DelAttr => {
 					let obj = local!();
+					if op == Opcode::DelAttr {
+						assert_eq!(1, byte!()); // get rid of the count
+					}
 					let attr = local!();
 					writeln_len!(f, "{op:?}: dst={dst}, obj={obj}, attr={attr}")?;
 				}
+				Opcode::GetAttrIntern
+				| Opcode::GetUnboundAttrIntern
+				| Opcode::HasAttrIntern
+				| Opcode::DelAttrIntern => {
+					let obj = local!();
+					let attr = intern!();
+					writeln_len!(f, "{op:?}: dst={dst}, obj={obj}, attr={attr}")?;
+				}
 				Opcode::SetAttr => {
-					let attr = local!();
 					let value = local!();
+					let attr = local!();
 					let obj = local!();
 					writeln_len!(f, "{op:?}: dst={dst}, obj={obj}, attr={attr}, value={value}")?;
 				}
-
+				Opcode::SetAttrIntern => {
+					let value = local!();
+					let attr = intern!();
+					let obj = local!();
+					writeln_len!(f, "{op:?}: dst={dst}, obj={obj}, attr={attr}, value={value}")?;
+				}
 				Opcode::CallAttr => todo!(),
+				Opcode::CallAttrIntern => todo!(),
 				Opcode::CallAttrSimple => {
 					let obj = local!();
 					let attr = local!();
+					let count = count!();
+					let mut args = Vec::with_capacity(count as usize);
+					for _ in 0..count {
+						args.push(local!());
+					}
+					writeln_len!(f, "{op:?}: dst={dst}, obj={obj}, attr={attr}, args={args:?}")?;
+				}
+				Opcode::CallAttrSimpleIntern => {
+					let obj = local!();
+					let attr = intern!();
 					let count = count!();
 					let mut args = Vec::with_capacity(count as usize);
 					for _ in 0..count {
@@ -429,6 +462,9 @@ impl Debug for CodeDebugger<'_> {
 				| Opcode::GreaterEqual
 				| Opcode::Compare => {
 					let lhs = local!();
+					if op == Opcode::Power || op == Opcode::Compare {
+						assert_eq!(1, byte!());
+					}
 					let rhs = local!();
 					writeln_len!(f, "{op:?}: dst={dst}, lhs={lhs}, rhs={rhs}")?;
 				}

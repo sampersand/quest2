@@ -2,6 +2,7 @@ use super::{Atom, AttrAccessKind, Block, Compile, FnArgs};
 use crate::parse::token::{ParenType, TokenContents};
 use crate::parse::{ErrorKind, Parser, Result};
 use crate::vm::block::{Builder, Local};
+use crate::vm::Opcode;
 
 #[derive(Debug)]
 pub enum Primary<'a> {
@@ -97,8 +98,13 @@ impl Compile for Primary<'_> {
 				builder.create_list(&element_locals, dst);
 			}
 			Self::UnaryOp(op, primary) => {
-				if let Some(opcode) = crate::vm::Opcode::unary_from_symbol(op) {
+				if let Some(opcode) = Opcode::unary_from_symbol(op) {
 					primary.compile(builder, dst);
+					match opcode {
+						Opcode::Negate => builder.negate(dst, dst),
+						Opcode::Not => builder.not(dst, dst),
+						_ => unreachable!(),
+					}
 					unsafe {
 						builder.simple_opcode(opcode, dst, [dst]);
 					}

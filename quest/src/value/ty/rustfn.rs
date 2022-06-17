@@ -41,7 +41,7 @@ macro_rules! RustFn_new {
 	}};
 	($name:expr, justargs $func:expr) => {{
 		const INNER: &'static $crate::value::ty::rustfn::Inner = &$crate::value::ty::rustfn::Inner {
-			name: $name.as_str(),
+			name: $name.as_str_const(),
 			func: $func,
 		};
 

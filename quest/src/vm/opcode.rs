@@ -10,8 +10,10 @@ enum Interned {
 }
 
 // opcode format: VI_CCCC_AA
-// `V` is whether it's variable, `C` is count, `A` is arity
-// `I` is whether it takes an interned variable
+// `V` is whether it takes a variable amount of arguments
+// `I` is whether it takes an interned variable after all positional (and variable) arguments
+// `C` is its count
+// `A` is arity
 const fn opcode_fmt(variable: Variable, interned: Interned, fixed_arity: u8, count: u8) -> u8 {
 	assert!(fixed_arity <= 0b11);
 	assert!(count <= 0b1111);
@@ -33,7 +35,6 @@ const fn opcode_fmt(variable: Variable, interned: Interned, fixed_arity: u8, cou
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 #[repr(u8)]
-#[allow(clippy::unusual_byte_groupings)]
 pub enum Opcode {
 	/// `CreateList(dst, count, ...)` Create a list of size `count` of trailing locals and stores it
 	/// into `dst`. (For short lists, use [`CreateListSimple`](Self::CreateListSimple), as it uses an
@@ -60,6 +61,7 @@ pub enum Opcode {
 	/// `Stackframe(dst, count)` Gets the `count`th stackframe. Can be negative.
 	Stackframe = opcode_fmt(Variable::No, Interned::No, 0, 5),
 
+	/* ARITY ONE */
 	/// `Mov(dst, src)` Copies `src` into `dst`.
 	Mov = opcode_fmt(Variable::No, Interned::No, 1, 0),
 
@@ -100,80 +102,87 @@ pub enum Opcode {
 	/// `Modulo(dst, lhs, rhs)` Sets `dst` to the result of `lhs % rhs`.
 	Modulo = opcode_fmt(Variable::No, Interned::No, 2, 4),
 
-	/// `Power(dst, lhs, rhs)` Sets `dst` to the result of `lhs ** rhs`.
-	Power = opcode_fmt(Variable::No, Interned::No, 2, 5),
-
 	/// `Equal(dst, lhs, rhs)` Sets `dst` to the result of `lhs == rhs`.
-	Equal = opcode_fmt(Variable::No, Interned::No, 2, 6),
+	Equal = opcode_fmt(Variable::No, Interned::No, 2, 5),
 
 	/// `NotEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs != rhs`.
-	NotEqual = opcode_fmt(Variable::No, Interned::No, 2, 7),
+	NotEqual = opcode_fmt(Variable::No, Interned::No, 2, 6),
 
 	/// `LessThan(dst, lhs, rhs)` Sets `dst` to the result of `lhs < rhs`.
-	LessThan = opcode_fmt(Variable::No, Interned::No, 2, 8),
+	LessThan = opcode_fmt(Variable::No, Interned::No, 2, 7),
 
 	/// `GreaterThan(dst, lhs, rhs)` Sets `dst` to the result of `lhs > rhs`.
-	GreaterThan = opcode_fmt(Variable::No, Interned::No, 2, 9),
+	GreaterThan = opcode_fmt(Variable::No, Interned::No, 2, 8),
 
 	/// `LessEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs <= rhs`.
-	LessEqual = opcode_fmt(Variable::No, Interned::No, 2, 10),
+	LessEqual = opcode_fmt(Variable::No, Interned::No, 2, 9),
 
 	/// `GreaterEqual(dst, lhs, rhs)` Sets `dst` to the result of `lhs >= rhs`.
-	GreaterEqual = opcode_fmt(Variable::No, Interned::No, 2, 11),
+	GreaterEqual = opcode_fmt(Variable::No, Interned::No, 2, 10),
 
-	/// `Compare(dst, lhs, rhs)` Sets `dst` to the result of `lhs <=> rhs`.
-	Compare = opcode_fmt(Variable::No, Interned::No, 2, 12),
+	/// `Compare(dst, lhs, <number 1>, rhs)` Sets `dst` to the result of `lhs <=> rhs`.
+	/// Note that this uses a variable amount of arguments, as there's not enough room in the
+	/// non-variable argument count to support it. However, the arity will always be one.
+	Compare = opcode_fmt(Variable::Yes, Interned::No, 1, 11),
+
+	/// `Power(dst, lhs, <number 1>, rhs)` Sets `dst` to the result of `lhs ** rhs`.
+	/// Note that this uses a variable amount of arguments, as there's not enough room in the
+	/// non-variable argument count to support it. However, the arity will always be one.
+	Power = opcode_fmt(Variable::Yes, Interned::No, 1, 12),
 
 	/* ATTRIBUTES */
 	/// `GetAttr(dst, obj, attr)` Gets the attribute `attr` on `obj`, storing the result into `dst`.
-	GetAttr = opcode_fmt(Variable::No, Interned::No, 2, 13),
+	GetAttr = opcode_fmt(Variable::No, Interned::No, 2, 11),
 
 	/// `GetUnboundAttr(dst, obj, attr)` Gets the unbound attribute `attr` on `obj`, storing the
 	/// result into `dst`.
-	GetUnboundAttr = opcode_fmt(Variable::No, Interned::No, 2, 14),
+	GetUnboundAttr = opcode_fmt(Variable::No, Interned::No, 2, 12),
 
 	/// `HasAttr(dst, obj, attr)` Checks to see if the attribute `attr` on `obj`, storing the result
 	/// into `dst`.
-	HasAttr = opcode_fmt(Variable::No, Interned::No, 2, 15),
+	HasAttr = opcode_fmt(Variable::No, Interned::No, 2, 13),
 
 	/// `SetAttr(dst, value, attr[, obj])` Sets the attribute `attr` on `obj` to `value`.
 	/// Note that `obj` is not actually read as part of the bytecode, as we may be assigning to an
 	/// [`Integer`](crate::value::ty::Integer) (or another type), which means we may need to mutably
 	/// get the attribute.
-	SetAttr = opcode_fmt(Variable::No, Interned::No, 2, 16),
+	SetAttr = opcode_fmt(Variable::No, Interned::No, 2, 14),
 
-	/// `DelAttr(dst, obj, attr)` Deletes the attribute `attr` from `obj`, storing its previous
-	/// value into `dst` (if it doesnt exist, [`Null`](crate::value::ty::Null) is used).
-	DelAttr = opcode_fmt(Variable::No, Interned::No, 2, 17),
+	/// `DelAttr(dst, obj, <number 1>, attr)` Deletes the attribute `rhs` from `lhs`.
+	/// Note that this uses a variable amount of arguments, as there's not enough room in the
+	/// non-variable argument count to support it. However, the arity will always be one.
+	DelAttr = opcode_fmt(Variable::Yes, Interned::No, 1, 5),
 
 	/// `CallAttr(dst, fn, ???)` todo comeback later
-	CallAttr = opcode_fmt(Variable::No, Interned::No, 2, 18),
+	CallAttr = opcode_fmt(Variable::No, Interned::No, 2, 15),
 
 	/// `CallAttrSimple(dst, obj, attr, count, ...)` Calls `obj`'s attribute `attr` with `count`
 	/// positional arguments, storing the result into `dst`.
-	CallAttrSimple = opcode_fmt(Variable::Yes, Interned::No, 2, 19),
+	CallAttrSimple = opcode_fmt(Variable::Yes, Interned::No, 2, 3),
 
+	/* INTERNED ATTRIBUTES */
 	/// `GetAttr(dst, obj, <intern attr>)`
-	GetAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 0),
+	GetAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 11),
 
 	/// `GetUnboundAttrIntern(dst, obj, <intern attr>)`
-	GetUnboundAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 1),
+	GetUnboundAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 12),
 
 	/// `HasAttrIntern(dst, obj, <intern attr>)`
-	HasAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 2),
+	HasAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 13),
 
-	/// `SetAttrIntern(dst, value, <intern attr>[, obj])`. See `SEtAttr` for details
-	SetAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 3),
+	/// `SetAttrIntern(dst, value, <intern attr>[, obj])`. See `SetAttr` for details
+	SetAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 14),
 
-	/// `DelAttrIntern(dst, obj, <intern attr>)`
-	DelAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 4),
+	// <TODO>
+	CallAttrIntern = opcode_fmt(Variable::Yes, Interned::Yes, 1, 15),
 
-	/// `CallAttr(dst, fn, ???)` todo comeback later
-	CallAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 5),
+	/// `CallAttrSimpleIntern(dst, obj, <intern>, count, ...)` Calls `obj`'s attribute `attr` with
+	/// `count` positional arguments, storing the result into `dst`.
+	CallAttrSimpleIntern = opcode_fmt(Variable::Yes, Interned::Yes, 1, 3),
 
-	/// `CallAttrSimple(dst, obj, attr, count, ...)` Calls `obj`'s attribute `attr` with `count`
-	/// positional arguments, storing the result into `dst`.
-	CallAttrSimpleIntern = opcode_fmt(Variable::Yes, Interned::Yes, 1, 6),
+	/// `DelAttrIntern(dst, obj, <intern>)` Deletes `<intern>` from `obj`. If you want to dynamically
+	/// delete variables, you must use a `CallAttrSimpleIntern` with a `__del_attr__` argument.
+	DelAttrIntern = opcode_fmt(Variable::No, Interned::Yes, 1, 0),
 }
 
 impl Opcode {
@@ -181,6 +190,11 @@ impl Opcode {
 	#[inline]
 	pub const fn fixed_arity(self) -> usize {
 		(self as u8 & 0b11) as usize
+	}
+
+	#[inline]
+	pub const fn takes_intern(self) -> bool {
+		((self as u8) & 0b01_0000_00) != 0
 	}
 
 	/// Gets whether `self` takes a variable amount of arguments.
@@ -192,7 +206,7 @@ impl Opcode {
 	/// <DOC: TODO>
 	#[inline]
 	pub const fn count_within_arity(self) -> usize {
-		((self as u8 & 0b0_11111_00) >> 2) as usize
+		((self as u8 & 0b00_1111_00) >> 2) as usize
 	}
 
 	/// Gets the `Opcode` corresponding to the unary operator `symbol`, if one exists.
