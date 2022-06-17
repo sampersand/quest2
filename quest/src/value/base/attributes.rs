@@ -242,7 +242,7 @@ impl Iterator for AttributesIter<'_> {
 /// A helper trait which allows for indexing with more than just `Value`s.
 ///
 /// This may become a sealed trait at some point.
-pub trait Attribute: Copy + Debug + ToValue {
+pub trait Attribute: Copy + Debug + ToValue + 'static {
 	/// See if `self` is equal to the [`Value`] rhs.
 	fn try_eq_value(self, rhs: Value) -> Result<bool>;
 

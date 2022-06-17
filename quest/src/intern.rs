@@ -142,7 +142,7 @@ define_interned! {
 	spawn dump // both are temporary
 
 	// Frame and Block Functions
-	resume restart create_frame
+	resume restart create_frame __block__ __args__
 
 	// String functions
 	join concat len
@@ -242,13 +242,11 @@ impl Intern {
 		const BLANK_TEXT: OnceCell<Gc<Text>> = OnceCell::new();
 		static TEXTS: [OnceCell<Gc<Text>>; BUILTIN_LENGTH] = [BLANK_TEXT; BUILTIN_LENGTH];
 
-		let index = self.as_index();
-
 		if !self.is_builtin() {
-			return intern_to_text().read().unwrap()[index];
+			return intern_to_text().read().unwrap()[self.as_index() - BUILTIN_LENGTH];
 		}
 
-		*TEXTS[index].get_or_init(|| {
+		*TEXTS[self.as_index()].get_or_init(|| {
 			let text = Text::from_static_str(self.as_str());
 			text.as_ref().unwrap().freeze();
 			text

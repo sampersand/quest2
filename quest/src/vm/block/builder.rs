@@ -15,7 +15,7 @@ pub struct Builder {
 	code: Vec<u8>,
 	constants: Vec<Value>,
 	num_of_unnamed_locals: NonZeroUsize,
-	named_locals: Vec<Gc<Text>>,
+	named_locals: Vec<Intern>,
 }
 
 impl Default for Builder {
@@ -40,8 +40,7 @@ impl Builder {
 	pub fn new(arity: usize, source_location: SourceLocation) -> Self {
 		// These are present in every block
 		// OPTIMIZE: maybe make these things once and freeze them?
-		let named_locals =
-			vec![Text::from_static_str("__block__"), Text::from_static_str("__args__")];
+		let named_locals = vec![Intern::__block__, Intern::__args__];
 
 		Self {
 			arity,
@@ -180,8 +179,7 @@ impl Builder {
 	#[allow(clippy::missing_panics_doc)] // the `.unwrap()` should never panic.
 	pub fn named_local(&mut self, name: &str) -> Local {
 		for (idx, named_local) in self.named_locals.iter().enumerate() {
-			// We created the `Gc<Text>` so no one else should be able to mutate them rn.
-			if *named_local.as_ref().unwrap() == name {
+			if named_local.as_str() == name {
 				trace!(target: "block_builder", ?idx, ?name, "found named local");
 				return Local::Named(idx);
 			}
@@ -192,9 +190,7 @@ impl Builder {
 
 		trace!(target: "block_builder", ?idx, ?name, "created new local");
 
-		let named_local = Text::from_str(name);
-		named_local.as_ref().unwrap().freeze();
-		self.named_locals.push(named_local);
+		self.named_locals.push(Intern::new(Text::from_str(name)).unwrap());
 		Local::Named(idx)
 	}
 

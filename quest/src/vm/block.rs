@@ -23,7 +23,7 @@ quest_type! {
 pub struct BlockInner {
 	pub(super) arity: usize,
 	pub(super) location: SourceLocation,
-	pub(super) named_locals: Vec<Gc<Text>>,
+	pub(super) named_locals: Vec<Intern>,
 	pub(super) code: Vec<u8>,
 	pub(super) constants: Vec<Value>,
 	pub(super) num_of_unnamed_locals: NonZeroUsize,
@@ -51,7 +51,7 @@ impl Block {
 		location: SourceLocation,
 		constants: Vec<Value>,
 		num_of_unnamed_locals: NonZeroUsize,
-		named_locals: Vec<Gc<Text>>,
+		named_locals: Vec<Intern>,
 	) -> Gc<Self> {
 		let inner = Arc::new(BlockInner {
 			arity,
@@ -237,12 +237,7 @@ impl Debug for CodeDebugger<'_> {
 		impl Display for LclDbg<'_> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 				if self.0 < 0 {
-					write!(
-						f,
-						"{} ({})",
-						self.0,
-						*self.1.named_locals[!self.0 as usize].as_ref().unwrap()
-					)
+					write!(f, "{} ({})", self.0, self.1.named_locals[!self.0 as usize])
 				} else {
 					write!(f, "{}", self.0)
 				}

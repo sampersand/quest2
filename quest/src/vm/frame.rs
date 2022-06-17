@@ -198,7 +198,7 @@ impl Frame {
 			// SAFETY:
 			// We know that `i` is in bounds b/c we iterate over `data.inner_block.named_locals.len()`.
 			if let Some(value) = unsafe { *data.named_locals.add(i) } {
-				attrs.set_attr(data.inner_block.named_locals[i].to_value(), value)?;
+				attrs.set_attr(data.inner_block.named_locals[i], value)?;
 			}
 		}
 
@@ -257,7 +257,7 @@ impl Frame {
 	unsafe fn get_object_local(&self, index: usize) -> Result<Value> {
 		let attr_name = *self.inner_block.named_locals.get_unchecked(index);
 
-		if let Some(attr) = self.get_unbound_attr_checked(attr_name.to_value(), &mut Vec::new())? {
+		if let Some(attr) = self.get_unbound_attr_checked(attr_name, &mut Vec::new())? {
 			return Ok(attr);
 		}
 
@@ -265,7 +265,7 @@ impl Frame {
 		// when we are an object, the frame and block (in that order) are checked in the previous
 		// function.
 		if !self.is_object() {
-			if let Some(attr) = Gc::<Self>::parent().get_unbound_attr(attr_name.to_value())? {
+			if let Some(attr) = Gc::<Self>::parent().get_unbound_attr(attr_name)? {
 				return Ok(attr);
 			}
 		}
@@ -304,7 +304,7 @@ impl Frame {
 	#[inline(never)]
 	unsafe fn set_object_local(&mut self, index: usize, value: Value) -> Result<()> {
 		let attr_name = *self.inner_block.named_locals.get_unchecked(index);
-		self.set_attr(attr_name.to_value(), value)
+		self.set_attr(attr_name, value)
 	}
 }
 
@@ -459,7 +459,7 @@ impl Frame {
 				"somehow assigning a name twice?"
 			);
 
-			block.as_mut().unwrap().set_name(name)?;
+			block.as_mut().unwrap().set_name(name.as_text())?;
 		}
 
 		Ok(block.to_value())
@@ -805,8 +805,7 @@ impl Gc<Frame> {
 						LocalTarget::Named(index) => {
 							// SAFETY: `self` is well-formed, so we we're guaranteed `index` is a
 							// valid local target.
-							let name =
-								unsafe { this.inner_block.named_locals.get_unchecked(index) }.to_value();
+							let name = unsafe { *this.inner_block.named_locals.get_unchecked(index) };
 							let object = this.get_unbound_attr_mut(name)?;
 
 							if self.to_value().is_identical(*object) {
@@ -856,8 +855,7 @@ impl Gc<Frame> {
 						LocalTarget::Named(index) => {
 							// SAFETY: `self` is well-formed, so we we're guaranteed `index` is a
 							// valid local target.
-							let name =
-								unsafe { this.inner_block.named_locals.get_unchecked(index) }.to_value();
+							let name = unsafe { *this.inner_block.named_locals.get_unchecked(index) };
 							let object = this.get_unbound_attr_mut(name)?;
 
 							if self.to_value().is_identical(*object) {
