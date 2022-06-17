@@ -141,7 +141,7 @@ impl Builder {
 	}
 
 	/// SAFETY: requires `args` and `dst` to correctly correspond to `op`, per `op`'s definition
-	pub(crate) unsafe fn simple_opcode<A, I>(&mut self, op: Opcode, dst: Local, args: A)
+	unsafe fn simple_opcode<A, I>(&mut self, op: Opcode, dst: Local, args: A)
 	where
 		A: IntoIterator<Item = Local, IntoIter = I>,
 		I: ExactSizeIterator<Item = Local>,

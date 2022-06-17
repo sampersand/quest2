@@ -1,8 +1,10 @@
 use super::{Atom, AttrAccessKind, Block, Compile, FnArgs};
 use crate::parse::token::{ParenType, TokenContents};
 use crate::parse::{ErrorKind, Parser, Result};
+use crate::value::ty::Text;
 use crate::vm::block::{Builder, Local};
 use crate::vm::Opcode;
+use crate::Intern;
 
 #[derive(Debug)]
 pub enum Primary<'a> {
@@ -105,9 +107,6 @@ impl Compile for Primary<'_> {
 						Opcode::Not => builder.not(dst, dst),
 						_ => unreachable!(),
 					}
-					unsafe {
-						builder.simple_opcode(opcode, dst, [dst]);
-					}
 				} else {
 					let op_local = builder.unnamed_local();
 					builder.str_constant(op, op_local);
@@ -144,46 +143,49 @@ impl Compile for Primary<'_> {
 				builder.index(source_local, &argument_locals, dst);
 			}
 			Self::AttrAccess(source, kind, attribute) => {
-				let local = builder.unnamed_local();
-				source.compile(builder, local);
-
 				// don't parse identifiers straight up
 				if let Atom::Identifier(ident) = attribute {
-					builder.str_constant(ident, dst);
+					source.compile(builder, dst);
+					let attr = Intern::new(Text::from_str(ident)).unwrap();
+					match kind {
+						AttrAccessKind::ColonColon => builder.get_unbound_attr_intern(dst, attr, dst),
+						AttrAccessKind::Period => builder.get_attr_intern(dst, attr, dst),
+					}
 				} else {
+					let local = builder.unnamed_local();
+					source.compile(builder, local);
 					attribute.compile(builder, dst);
-				}
-
-				match kind {
-					AttrAccessKind::ColonColon => builder.get_unbound_attr(local, dst, dst),
-					AttrAccessKind::Period => builder.get_attr(local, dst, dst),
+					match kind {
+						AttrAccessKind::ColonColon => builder.get_unbound_attr(local, dst, dst),
+						AttrAccessKind::Period => builder.get_attr(local, dst, dst),
+					}
 				}
 			}
 			Self::HasAttr(source, attribute) => {
-				let local = builder.unnamed_local();
-				source.compile(builder, local);
-
 				// don't parse identifiers straight up
 				if let Atom::Identifier(ident) = attribute {
-					builder.str_constant(ident, dst);
+					let attr = Intern::new(Text::from_str(ident)).unwrap();
+					source.compile(builder, dst);
+					builder.has_attr_intern(dst, attr, dst);
 				} else {
+					let local = builder.unnamed_local();
+					source.compile(builder, local);
 					attribute.compile(builder, dst);
+					builder.has_attr(local, dst, dst);
 				}
-
-				builder.has_attr(local, dst, dst)
 			}
 			Self::DelAttr(source, attribute) => {
-				let local = builder.unnamed_local();
-				source.compile(builder, local);
-
 				// don't parse identifiers straight up
 				if let Atom::Identifier(ident) = attribute {
-					builder.str_constant(ident, dst);
+					let attr = Intern::new(Text::from_str(ident)).unwrap();
+					source.compile(builder, dst);
+					builder.del_attr_intern(dst, attr, dst);
 				} else {
 					attribute.compile(builder, dst);
+					let local = builder.unnamed_local();
+					source.compile(builder, local);
+					builder.del_attr(local, dst, dst)
 				}
-
-				builder.del_attr(local, dst, dst)
 			}
 		}
 	}

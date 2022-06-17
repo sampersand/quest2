@@ -502,3 +502,33 @@ fn assertion_fails() {
 		err
 	);
 }
+
+#[test]
+fn all_attr_methods() {
+	run! {
+		r#"
+			x = {:0}();
+
+			assert(!x.?y);
+			assert(!x.?"y");
+
+			x.y = (a,b)->{a.q - b};
+			x."q" = 4;
+
+
+			assert(x.?y);
+			assert(x.?"q");
+
+			assert(3 == x.y(1));
+			assert(-1 == x."y"(5));
+
+			assert(4 == x.~q);
+			assert(null != x.~"y");
+			assert(null == x.~"q");
+			assert(null == x.~y);
+
+			assert(!x.?y);
+			assert(!x.?"y");
+		"#
+	}
+}
