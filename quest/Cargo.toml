@@ -19,6 +19,7 @@ qvm-macros = { path = "../macros" }
 tracing = { version = "0.1.34", features = ["release_max_level_warn"] }
 num-bigint = "0.4"
 num-traits = "0.2"
+rand = "0.8"
 
 env_logger = "0.9" # only for `main`
 tracing-subscriber = "0.3" # ^^^

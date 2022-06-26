@@ -133,12 +133,12 @@ define_interned! {
 	// `Object` functions
 	hash clone itself
 	tap pipe then and_then r#else "else" or_else or and
-	display freeze
+	display freeze dup
 
 	// Kernel functions
 	if_cascade ifl r#if "if"
 	r#while "while" r#return "return"
-	exit abort assert object print
+	exit abort assert object print rand
 	spawn dump // both are temporary
 
 	// Frame and Block Functions
@@ -148,7 +148,7 @@ define_interned! {
 	join concat len
 
 	// List functions
-	push pop shift unshift
+	push pop shift unshift product shuffle is_empty
 
 	// Enumerator functions
 	map filter reduce each next sum

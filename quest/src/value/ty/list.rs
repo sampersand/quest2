@@ -544,9 +544,53 @@ pub mod funcs {
 		Ok(true.to_value())
 	}
 
+	pub fn add(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let lhs = list.as_ref()?;
+		let rhs = args[0].try_downcast::<Gc<List>>()?.as_ref()?;
+
+		let mut sum = List::with_capacity(lhs.len() + rhs.len());
+
+		sum.extend(lhs.as_slice().iter().copied());
+		sum.extend(rhs.as_slice().iter().copied());
+
+		Ok(sum.to_value())
+	}
+
+	pub fn cmp(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let lhs = list.as_ref()?;
+		let rhs = args[0].try_downcast::<Gc<List>>()?.as_ref()?;
+
+		for (&l, &r) in lhs.as_slice().iter().zip(rhs.as_slice().iter()) {
+			let cmp = l.call_attr(Intern::op_cmp, Args::new(&[r], &[]))?;
+
+			if cmp.is_a::<crate::value::ty::Null>() {
+				panic!("todo: what do we do with null in compare?")
+			}
+
+			let cmp = cmp.try_downcast::<crate::value::ty::Integer>()?;
+
+			if cmp.get() != 0 {
+				return Ok(cmp.to_value());
+			}
+		}
+
+		Ok(lhs.len().cmp(&rhs.len()).to_value())
+	}
+
+	pub fn lth(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		// cop out
+		Ok((cmp(list, args)?.try_downcast::<crate::value::ty::Integer>()?.get() < 0).to_value())
+	}
+
 	pub fn index(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
-		args.assert_positional_len(1)?; // todo: more positional args for slicing
+		args.idx_err_unless(|args| args.len() == 1 || args.len() == 2)?;
 
 		let listref = list.as_ref()?;
 		let mut index = args[0].to_integer()?.get();
@@ -558,8 +602,18 @@ pub mod funcs {
 				return Err("todo: error for out of bounds".to_string().into());
 			}
 		}
+		let index = index as usize;
 
-		Ok(*listref.as_slice().get(index as usize).expect("todo: error for out of bounds"))
+		if let Some(amnt) = args.get(1) {
+			Ok(List::from_slice(
+				(*listref.as_slice())
+					.get(index..index + amnt.to_integer()?.get() as usize)
+					.expect("todo: error for our of bounds"),
+			)
+			.to_value())
+		} else {
+			Ok(*listref.as_slice().get(index).expect("todo: error for out of bounds"))
+		}
 	}
 
 	pub fn index_assign(list: Gc<List>, args: Args<'_>) -> Result<Value> {
@@ -583,6 +637,26 @@ pub mod funcs {
 		listmut.as_mut()[index as usize] = value;
 
 		Ok(value)
+	}
+
+	pub fn concat(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let rhs = args[0].try_downcast::<Gc<List>>()?;
+
+		if list.ptr_eq(rhs) {
+			todo!("push identical");
+		}
+
+		list.as_mut()?.extend_from_slice(rhs.as_ref()?.as_slice());
+
+		Ok(list.to_value())
+	}
+
+	pub fn is_empty(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+		Ok(list.as_ref()?.is_empty().to_value())
 	}
 
 	pub fn push(list: Gc<List>, args: Args<'_>) -> Result<Value> {
@@ -735,6 +809,42 @@ pub mod funcs {
 
 		Ok(builder.finish().to_value())
 	}
+
+	pub fn product(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let lhsref = list.as_ref()?;
+		let rhsref = args[0].try_downcast::<Gc<List>>()?.as_ref()?;
+
+		let mut builder = List::with_capacity(lhsref.len() * rhsref.len());
+
+		for &l in lhsref.as_slice() {
+			for &r in rhsref.as_slice() {
+				builder.push(List::from_slice(&[l, r]).to_value());
+			}
+		}
+
+		Ok(builder.to_value())
+	}
+
+	pub fn dup(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		Ok(list.as_ref()?.dup().to_value())
+	}
+
+	pub fn shuffle(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+		use rand::seq::SliceRandom;
+		use rand::thread_rng;
+
+		let mut rng = thread_rng();
+
+		list.as_mut()?.as_mut_slice().shuffle(&mut rng);
+
+		Ok(list.to_value())
+	}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -749,8 +859,13 @@ impl Singleton for ListClass {
 		*INSTANCE.get_or_init(|| {
 			create_class! { "List", parent Object::instance();
 				Intern::op_eql => method funcs::eql,
+				Intern::op_add => method funcs::add,
+				Intern::op_cmp => method funcs::cmp,
+				Intern::op_lth => method funcs::lth,
 				Intern::op_index => method funcs::index,
 				Intern::op_index_assign => method funcs::index_assign,
+				Intern::concat => method funcs::concat,
+				Intern::is_empty => method funcs::is_empty,
 				Intern::len => method funcs::len,
 				Intern::push => method funcs::push,
 				Intern::pop => method funcs::pop,
@@ -762,6 +877,9 @@ impl Singleton for ListClass {
 				Intern::each => method funcs::each,
 				Intern::join => method funcs::join,
 				Intern::sum => method funcs::sum,
+				Intern::product => method funcs::product,
+				Intern::dup => method funcs::dup,
+				Intern::shuffle => method funcs::shuffle,
 			}
 		})
 	}

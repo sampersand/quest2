@@ -27,8 +27,10 @@ impl Stacktrace {
 
 			// We skip the first one, as it's the "global frame," which doesn't have a location.
 			for frame in frames.iter().skip(1) {
-				locations
-					.push(frame.as_ref_option().expect("<todo: get block without needing ref?").block());
+				if let Some(frame) = frame.as_ref_option() {
+					locations.push(frame.block())
+				}
+				// locations.push(frame.as_ref_option().expect("<todo: get block without needing ref?").block());
 			}
 
 			Self(locations)

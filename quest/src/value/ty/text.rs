@@ -397,6 +397,14 @@ impl Text {
 		builder.finish()
 	}
 
+	#[must_use]
+	pub fn from_char(chr: char) -> Gc<Self> {
+		let mut builder = Self::builder();
+		builder.allocate_buffer(chr.len_utf8());
+		builder.text_mut().push(chr);
+		builder.finish()
+	}
+
 	fn is_embedded(&self) -> bool {
 		self.flags().contains(FLAG_EMBEDDED)
 	}
@@ -1086,6 +1094,17 @@ pub mod funcs {
 
 		Ok(Text::from_string(format!("{:?}", text.as_ref()?.as_str())).to_value())
 	}
+
+	pub fn to_list(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		let textref = text.as_ref()?;
+
+		let mut list = List::with_capacity(textref.len());
+		list.extend(textref.as_str().chars().map(|x| Text::from_char(x).to_value()));
+
+		Ok(list.to_value())
+	}
 }
 
 quest_type_attrs! { for Gc<Text>,
@@ -1096,6 +1115,7 @@ quest_type_attrs! { for Gc<Text>,
 	op_add => meth funcs::op_add,
 	op_assign => meth funcs::op_assign,
 	dbg => meth funcs::dbg,
+	to_list => meth funcs::to_list,
 }
 
 // quest_type! {

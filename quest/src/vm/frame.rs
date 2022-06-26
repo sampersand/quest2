@@ -778,16 +778,16 @@ impl Gc<Frame> {
 					let index = unsafe { this.next_local_target() };
 
 					/*
-					Because you can assign indices onto any object, we need to be able to dynamically
-					convert immediates (eg integers, floats, booleans, etc) into a heap-allocated form if
-					we want to assign attributes. This is done by having `Value::set_attr` take a mutable
-					reference to self. However, the only time this is useful is if we're talking about a
-					named attribute---if we're assigning to an unnamed local, that means it'll just get
-					thrown away immediately.
+						Because you can assign indices onto any object, we need to be able to dynamically
+						convert immediates (eg integers, floats, booleans, etc) into a heap-allocated form if
+						we want to assign attributes. This is done by having `Value::set_attr` take a mutable
+						reference to self. However, the only time this is useful is if we're talking about a
+						named attribute---if we're assigning to an unnamed local, that means it'll just get
+						thrown away immediately.
 
-					As such, if it's an unnamed local, we still call the `set_attr`, in case it has a
-					side effect, but we don't actually assign the `object` to anything. On the other
-					hand, we have to box the `object` if it's not already a box.
+						As such, if it's an unnamed local, we still call the `set_attr`, in case it has a
+						side effect, but we don't actually assign the `object` to anything. On the other
+						hand, we have to box the `object` if it's not already a box.
 					*/
 					match index {
 						LocalTarget::Unnamed(index) => {
@@ -810,7 +810,9 @@ impl Gc<Frame> {
 
 							if self.to_value().is_identical(*object) {
 								this.convert_to_object()?;
-								this.set_attr(attr, value)?;
+								without_this! {
+									self.to_value().set_attr(attr, value)?;
+								}
 							} else {
 								object.set_attr(attr, value)?;
 							}
@@ -846,11 +848,14 @@ impl Gc<Frame> {
 							let mut object = unsafe { this.get_unnamed_local(index) };
 
 							// the only way for a local to be `self` is if it is an object.
-							if cfg!(debug_assertions) && self.to_value().is_identical(object) {
+							if self.to_value().is_identical(object) {
 								debug_assert!(this.is_object());
+								without_this! {
+									self.to_value().set_attr(attr, value)?;
+								}
+							} else {
+								object.set_attr(attr, value)?;
 							}
-
-							object.set_attr(attr, value)?;
 						}
 						LocalTarget::Named(index) => {
 							// SAFETY: `self` is well-formed, so we we're guaranteed `index` is a
@@ -860,7 +865,9 @@ impl Gc<Frame> {
 
 							if self.to_value().is_identical(*object) {
 								this.convert_to_object()?;
-								this.set_attr(attr, value)?;
+								without_this! {
+									self.to_value().set_attr(attr, value)?;
+								}
 							} else {
 								object.set_attr(attr, value)?;
 							}
