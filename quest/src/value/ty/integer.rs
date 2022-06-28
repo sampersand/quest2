@@ -1,7 +1,7 @@
-use crate::value::ty::{ConvertTo, Float, InstanceOf, List, Singleton, Text};
+use crate::value::ty::{ConvertTo, Float, InstanceOf, Singleton, Text};
 use crate::value::{Convertible, Gc};
 use crate::vm::Args;
-use crate::{ErrorKind, Intern, Result, ToValue, Value};
+use crate::{iterator, ErrorKind, Intern, Result, ToValue, Value};
 use num_bigint::BigInt;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -417,19 +417,18 @@ pub mod funcs {
 		args.assert_positional_len(1)?;
 
 		let max = args[0].try_downcast::<Integer>()?.get();
-		let int = int.get();
+		let mut current = int.get();
 
-		if max < int {
-			return Ok(List::new().to_value());
+		Ok(iterator! { "Integer::upto";
+			if current < max {
+				let tmp = current;
+				current += 1;
+				Ok(tmp.to_value())
+			} else {
+				Err(StopIteration.into())
+			}
 		}
-
-		let mut list = List::with_capacity((max - int) as usize);
-
-		for i in int..=max {
-			list.push(i.to_value());
-		}
-
-		Ok(list.to_value())
+		.to_value())
 	}
 
 	pub fn downto(int: Integer, args: Args<'_>) -> Result<Value> {
@@ -437,25 +436,36 @@ pub mod funcs {
 		args.assert_positional_len(1)?;
 
 		let min = args[0].try_downcast::<Integer>()?.get();
-		let int = int.get();
+		let mut current = int.get();
 
-		if min > int {
-			return Ok(List::new().to_value());
+		Ok(iterator! { "Integer::downto";
+			if min < current {
+				let tmp = current;
+				current -= 1;
+				Ok(tmp.to_value())
+			} else {
+				Err(StopIteration.into())
+			}
 		}
-
-		let mut list = List::with_capacity((int - min) as usize);
-
-		for i in (min..=int).rev() {
-			list.push(i.to_value());
-		}
-
-		Ok(list.to_value())
+		.to_value())
 	}
 
 	pub fn times(int: Integer, args: Args<'_>) -> Result<Value> {
 		args.assert_no_arguments()?;
 
-		upto(Integer::ZERO, Args::new(&[(int.get() - 1).to_value()], &[]))
+		let max = int.get() - 1;
+		let mut current = 0;
+
+		Ok(iterator! { "Integer::times";
+			if current < max {
+				let tmp = current;
+				current += 1;
+				Ok(tmp.to_value())
+			} else {
+				Err(StopIteration.into())
+			}
+		}
+		.to_value())
 	}
 
 	pub fn chr(int: Integer, args: Args<'_>) -> Result<Value> {

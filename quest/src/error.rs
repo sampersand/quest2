@@ -61,6 +61,9 @@ pub enum ErrorKind {
 		from_frame: Option<Value>,
 	},
 
+	/// Indicates that iteration should be stopped.
+	StopIteration,
+
 	/// A function expected no keyword arguments but they were given.
 	KeywordsGivenWhenNotExpected,
 
@@ -111,6 +114,7 @@ impl Display for ErrorKind {
 			Self::Return { value, from_frame } => {
 				write!(f, "returning value {value:?} from frame {from_frame:?}")
 			}
+			Self::StopIteration => write!(f, "Iteration should be stopped"),
 			Self::KeywordsGivenWhenNotExpected => {
 				write!(f, "keyword arguments given when none expected")
 			}
@@ -142,7 +146,13 @@ impl From<String> for Error {
 
 impl From<ErrorKind> for Error {
 	fn from(kind: ErrorKind) -> Self {
-		Self { kind, stacktrace: Stacktrace::current() }
+		let stacktrace = if matches!(kind, ErrorKind::Return { .. } | ErrorKind::StopIteration) {
+			Stacktrace::empty()
+		} else {
+			Stacktrace::current()
+		};
+
+		Self { kind, stacktrace }
 	}
 }
 

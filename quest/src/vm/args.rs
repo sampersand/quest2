@@ -16,6 +16,12 @@ impl<'a> Args<'a> {
 		Self { positional, keyword, this: None }
 	}
 
+	/// Creates a new [`Args`] with only a `this`
+	#[must_use]
+	pub const fn new_this(this: Value) -> Self {
+		Self { this: Some(this), positional: &[], keyword: &[] }
+	}
+
 	/// Creates a new [`Args`] with the same positional and keyword arguments as `self`, except with
 	/// the `this` field set to `this`.
 	///

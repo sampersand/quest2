@@ -4,6 +4,9 @@ mod macros;
 #[macro_use]
 pub mod rustfn;
 
+#[macro_use]
+pub mod iterable;
+
 pub mod bignum;
 pub mod boolean;
 pub mod boundfn;
@@ -11,7 +14,7 @@ pub mod callable;
 pub mod class;
 pub mod float;
 pub mod integer;
-// pub mod iterable;
+pub mod iterator;
 pub mod kernel;
 pub mod list;
 pub mod null;
@@ -28,6 +31,8 @@ pub use callable::Callable;
 pub use class::Class;
 pub use float::Float;
 pub use integer::Integer;
+pub use iterable::Iterable;
+pub use iterator::Iterator;
 pub use kernel::Kernel;
 pub use list::List;
 pub use null::Null;

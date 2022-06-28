@@ -84,6 +84,14 @@ impl List {
 		Self::with_capacity(0).finish()
 	}
 
+	/// Creates a new [`Builder`] with no given starting capacity.
+	///
+	/// This is a convenience wrapper around [`Builder::new`].
+	#[inline]
+	pub fn simple_builder() -> Builder {
+		Builder::new()
+	}
+
 	/// Creates a new [`Builder`] with the given starting capacity.
 	///
 	/// This is a convenience wrapper around [`Builder::with_capacity`].
@@ -639,6 +647,11 @@ pub mod funcs {
 		Ok(value)
 	}
 
+	pub fn to_list(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+		Ok(list.to_value())
+	}
+
 	pub fn concat(list: Gc<List>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
@@ -845,6 +858,20 @@ pub mod funcs {
 
 		Ok(list.to_value())
 	}
+
+	pub fn iter(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		let list = list.as_ref()?;
+		let mut i = 0;
+
+		Ok(crate::iterator! { "List::iter";
+			let value = list.as_slice().get(i).ok_or(crate::ErrorKind::StopIteration)?;
+			i += 1;
+			Ok(*value)
+		}
+		.to_value())
+	}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -857,13 +884,14 @@ impl Singleton for ListClass {
 		static INSTANCE: OnceCell<crate::Value> = OnceCell::new();
 
 		*INSTANCE.get_or_init(|| {
-			create_class! { "List", parent Object::instance();
+			create_class! { "List", parent Iterable::instance();
 				Intern::op_eql => method funcs::eql,
 				Intern::op_add => method funcs::add,
 				Intern::op_cmp => method funcs::cmp,
 				Intern::op_lth => method funcs::lth,
 				Intern::op_index => method funcs::index,
 				Intern::op_index_assign => method funcs::index_assign,
+				Intern::to_list => method funcs::to_list,
 				Intern::concat => method funcs::concat,
 				Intern::is_empty => method funcs::is_empty,
 				Intern::len => method funcs::len,
@@ -880,6 +908,7 @@ impl Singleton for ListClass {
 				Intern::product => method funcs::product,
 				Intern::dup => method funcs::dup,
 				Intern::shuffle => method funcs::shuffle,
+				Intern::iter => method funcs::iter,
 			}
 		})
 	}

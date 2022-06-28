@@ -1,6 +1,6 @@
 use crate::value::{Callable, ToValue};
 use crate::vm::Args;
-use crate::{Error, ErrorKind, Intern, Result, Value};
+use crate::{ErrorKind, Intern, Result, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Object;
@@ -88,10 +88,7 @@ pub mod funcs {
 		args.assert_no_keyword()?;
 		args.idx_err_unless(|a| a.positional().len() <= 1)?;
 
-		Err(Error {
-			kind: ErrorKind::Return { value: obj, from_frame: args.get(0) },
-			stacktrace: crate::error::Stacktrace::empty(),
-		})
+		Err(ErrorKind::Return { value: obj, from_frame: args.get(0) }.into())
 	}
 
 	pub fn tap(obj: Value, args: Args<'_>) -> Result<Value> {

@@ -3,9 +3,55 @@ use crate::value::{Callable, Gc, HasDefaultParent, HasParents};
 use crate::vm::Args;
 use crate::{Result, Value};
 
-quest_type! {
-	#[derive(Debug, NamedType)]
-	pub struct Kernel(());
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct Kernel;
+
+impl crate::value::NamedType for Kernel {
+	const TYPENAME: crate::value::Typename = "Kernel";
+}
+
+impl Kernel {
+	#[must_use]
+	pub fn instance() -> Value {
+		use once_cell::sync::OnceCell;
+
+		static INSTANCE: OnceCell<crate::Value> = OnceCell::new();
+
+		*INSTANCE.get_or_init(|| {
+			create_class! { "Kernel", parent Pristine::instance();
+				Intern::print => justargs funcs::print,
+				Intern::dump => justargs funcs::dump,
+				Intern::exit => justargs funcs::exit,
+				Intern::abort => justargs funcs::abort,
+				Intern::object => justargs funcs::object,
+				Intern::r#if => justargs funcs::r#if,
+				Intern::ifl => justargs funcs::ifl,
+				Intern::if_cascade => justargs funcs::if_cascade,
+				Intern::r#while => justargs funcs::r#while,
+				Intern::Integer => constant ty::Integer::parent(),
+				Intern::Float => constant ty::Float::parent(),
+				Intern::Boolean => constant ty::Boolean::parent(),
+				Intern::Text => constant Gc::<ty::Text>::parent(),
+				Intern::BoundFn => constant Gc::<ty::BoundFn>::parent(),
+				Intern::Callable => constant Gc::<ty::Callable>::parent(),
+				// Intern::Class => constant ty::Class::parent(),
+				Intern::List => constant ty::List::parent(),
+				Intern::Null => constant ty::Null::parent(),
+				Intern::RustFn => constant ty::RustFn::parent(),
+				Intern::Scope => constant Gc::<ty::Scope>::parent(),
+				Intern::Object => constant ty::Object::instance(),
+				// Intern::Frame => constant Gc::<crate::vm::Frame>::parent(),
+				Intern::Block => constant Gc::<crate::vm::Block>::parent(),
+				Intern::List => constant ty::List::parent(),
+				// TODO: Other types
+				Intern::r#true => constant true.to_value(),
+				Intern::r#false => constant false.to_value(),
+				Intern::r#null => constant ty::Null.to_value(),
+
+				Intern::spawn => justargs funcs::spawn,
+			}
+		})
+	}
 }
 
 pub mod funcs {
@@ -174,48 +220,5 @@ pub mod funcs {
 
 		let thread = thread::spawn(move || func.call(Args::default()));
 		Ok(Base::<Thread>::new(Some(thread), Gc::<Thread>::parent()).to_value())
-	}
-}
-
-impl Singleton for Kernel {
-	fn instance() -> crate::Value {
-		use once_cell::sync::OnceCell;
-
-		static INSTANCE: OnceCell<crate::Value> = OnceCell::new();
-
-		*INSTANCE.get_or_init(|| {
-			create_class! { "Kernel", parent Pristine::instance();
-				Intern::print => justargs funcs::print,
-				Intern::dump => justargs funcs::dump,
-				Intern::exit => justargs funcs::exit,
-				Intern::abort => justargs funcs::abort,
-				Intern::object => justargs funcs::object,
-				Intern::r#if => justargs funcs::r#if,
-				Intern::ifl => justargs funcs::ifl,
-				Intern::if_cascade => justargs funcs::if_cascade,
-				Intern::r#while => justargs funcs::r#while,
-				Intern::Integer => constant ty::Integer::parent(),
-				Intern::Float => constant ty::Float::parent(),
-				Intern::Boolean => constant ty::Boolean::parent(),
-				Intern::Text => constant Gc::<ty::Text>::parent(),
-				Intern::BoundFn => constant Gc::<ty::BoundFn>::parent(),
-				Intern::Callable => constant Gc::<ty::Callable>::parent(),
-				// Intern::Class => constant ty::Class::parent(),
-				Intern::List => constant ty::List::parent(),
-				Intern::Null => constant ty::Null::parent(),
-				Intern::RustFn => constant ty::RustFn::parent(),
-				Intern::Scope => constant Gc::<ty::Scope>::parent(),
-				Intern::Object => constant ty::Object::instance(),
-				// Intern::Frame => constant Gc::<crate::vm::Frame>::parent(),
-				Intern::Block => constant Gc::<crate::vm::Block>::parent(),
-				Intern::List => constant ty::List::parent(),
-				// TODO: Other types
-				Intern::r#true => constant true.to_value(),
-				Intern::r#false => constant false.to_value(),
-				Intern::r#null => constant ty::Null.to_value(),
-
-				Intern::spawn => justargs funcs::spawn,
-			}
-		})
 	}
 }

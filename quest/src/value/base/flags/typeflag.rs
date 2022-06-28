@@ -23,8 +23,8 @@ pub enum TypeFlag {
 	Block = offset(9),
 
 	// TODO: should these be their own types, or inherit from some "base object" type?
+	Iterator = offset(11),
 	Callable = offset(10),
-	Kernel = offset(11),
 	Pristine = offset(12),
 	ScopeClass = offset(13),
 	BoundFnClass = offset(14),
@@ -52,7 +52,7 @@ impl TypeFlag {
 			_ if inp == Self::Frame as u32 => true,
 			_ if inp == Self::Block as u32 => true,
 			_ if inp == Self::Callable as u32 => true,
-			_ if inp == Self::Kernel as u32 => true,
+			_ if inp == Self::Iterator as u32 => true,
 			_ if inp == Self::Pristine as u32 => true,
 			_ if inp == Self::ScopeClass as u32 => true,
 			_ => false,
@@ -112,8 +112,8 @@ unsafe impl HasTypeFlag for ty::Callable {
 	const TYPE_FLAG: TypeFlag = TypeFlag::Callable;
 }
 
-unsafe impl HasTypeFlag for ty::Kernel {
-	const TYPE_FLAG: TypeFlag = TypeFlag::Kernel;
+unsafe impl HasTypeFlag for ty::Iterator {
+	const TYPE_FLAG: TypeFlag = TypeFlag::Iterator;
 }
 
 unsafe impl HasTypeFlag for ty::Pristine {

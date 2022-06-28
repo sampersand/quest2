@@ -1011,7 +1011,7 @@ pub mod funcs {
 		// TODO: maybe cache this in the future?
 		let mut builder = Text::simple_builder();
 		builder.push_str("<Frame:");
-		builder.push_str(&format!("{:p}", frame.to_value().bits() as *const u8));
+		builder.push_str(&format!("{frame:p}"));
 		builder.push(':');
 		builder.push_str(&frame.as_ref()?.inner_block.location.to_string());
 		builder.push('>');
