@@ -98,7 +98,7 @@ impl Compile for Block<'_> {
 
 		let arity = self.args.as_ref().map_or(0, |a| a.args.len());
 
-		let mut inner_builder = Builder::new(arity, location);
+		let mut inner_builder = Builder::new(arity, self.args.is_none(), location);
 		let scratch = Local::Scratch;
 
 		let span = debug_span!(target: "block_builder", "new block", src=?crate::vm::SourceLocation::from(self.body.start));

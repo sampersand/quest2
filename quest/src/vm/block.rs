@@ -27,6 +27,7 @@ pub struct BlockInner {
 	pub(super) code: Vec<u8>,
 	pub(super) constants: Vec<Value>,
 	pub(super) num_of_unnamed_locals: NonZeroUsize,
+	pub(super) is_lambda: bool,
 }
 
 impl Debug for Block {
@@ -38,6 +39,7 @@ impl Debug for Block {
 		let inner = self.inner();
 		f.debug_struct("Block")
 			.field("arity", &inner.arity)
+			.field("lambda", &inner.is_lambda)
 			.field("location", &inner.location)
 			.field("code", &CodeDebugger(&inner))
 			.finish()
@@ -52,6 +54,7 @@ impl Block {
 		constants: Vec<Value>,
 		num_of_unnamed_locals: NonZeroUsize,
 		named_locals: Vec<Intern>,
+		is_lambda: bool,
 	) -> Gc<Self> {
 		let inner = Arc::new(BlockInner {
 			arity,
@@ -60,6 +63,7 @@ impl Block {
 			constants,
 			num_of_unnamed_locals,
 			named_locals,
+			is_lambda,
 		});
 
 		Base::new(inner, Gc::<Self>::parent())
@@ -67,6 +71,10 @@ impl Block {
 
 	pub(crate) fn inner(&self) -> Arc<BlockInner> {
 		self.0.data().clone()
+	}
+
+	pub fn is_lambda(&self) -> bool {
+		self.0.data().is_lambda
 	}
 
 	pub fn arity(&self) -> usize {

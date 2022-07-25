@@ -37,6 +37,7 @@ pub struct Inner {
 	// it is through the builder, which guarantees creation of well-defined bytecode
 	inner_block: Arc<BlockInner>,
 	pos: usize,
+	lambda_parent: Option<Gc<Frame>>,
 
 	// note that both of these are actually from the same allocation;
 	// `unnamed_locals` points to the base and `named_locals` is simply an offset.
@@ -157,6 +158,11 @@ impl Frame {
 		// - We know `(*data_ptr).xxx` is valid because we got `data_ptr` from `builder`, which we
 		//   validly allocated
 		unsafe {
+			if inner_block.is_lambda {
+				std::ptr::addr_of_mut!((*data_ptr).lambda_parent)
+					.write(Some(last_function_stackframe()?));
+			}
+
 			std::ptr::addr_of_mut!((*data_ptr).unnamed_locals).write(unnamed_locals);
 			std::ptr::addr_of_mut!((*data_ptr).named_locals).write(named_locals);
 			std::ptr::addr_of_mut!((*data_ptr).inner_block).write(inner_block);
@@ -173,6 +179,10 @@ impl Frame {
 	/// Fetches the block associated with this stackframe.
 	pub fn block(&self) -> Gc<Block> {
 		self.block
+	}
+
+	pub fn is_lambda(&self) -> bool {
+		self.0.data().inner_block.is_lambda
 	}
 
 	pub(crate) fn is_object(&self) -> bool {
@@ -290,6 +300,11 @@ impl Frame {
 				Ok(())
 			}
 			LocalTarget::Named(index) => {
+				if let Some(lambda_parent) = self.0.data().lambda_parent {
+					let attr_name = *self.inner_block.named_locals.get_unchecked(index);
+					return lambda_parent.as_mut()?.set_attr(attr_name, value);
+				}
+
 				if !self.is_object() {
 					self.named_locals.add(index).write(Some(value));
 					Ok(())
@@ -478,6 +493,18 @@ thread_local! {
 /// Provides access to the stackframe.
 pub fn with_stackframes<F: FnOnce(&[Gc<Frame>]) -> T, T>(func: F) -> T {
 	STACKFRAMES.with(|sf| func(&sf.borrow()))
+}
+
+fn last_function_stackframe() -> Result<Gc<Frame>> {
+	with_stackframes(|sfs| {
+		for sf in sfs.iter().rev() {
+			if !sf.as_ref()?.is_lambda() {
+				return Ok(*sf);
+			}
+		}
+
+		unreachable!("we should always have a parent running?");
+	})
 }
 
 impl Gc<Frame> {
@@ -1036,7 +1063,7 @@ mod tests {
 	#[cfg_attr(miri, ignore)]
 	fn test_fibonacci() {
 		let fib = {
-			let mut builder = crate::vm::block::Builder::new(1, Default::default());
+			let mut builder = crate::vm::block::Builder::new(1, false, Default::default());
 
 			let n = builder.named_local("n");
 			let fib = builder.named_local("fib");

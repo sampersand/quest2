@@ -16,11 +16,12 @@ pub struct Builder {
 	constants: Vec<Value>,
 	num_of_unnamed_locals: NonZeroUsize,
 	named_locals: Vec<Intern>,
+	is_lambda: bool,
 }
 
 impl Default for Builder {
 	fn default() -> Self {
-		Self::new(0, SourceLocation::default())
+		Self::new(0, false, SourceLocation::default())
 	}
 }
 
@@ -37,7 +38,7 @@ pub enum Local {
 
 impl Builder {
 	/// Creates a new [`Builder`] for a block at the given `source_location`.
-	pub fn new(arity: usize, source_location: SourceLocation) -> Self {
+	pub fn new(arity: usize, is_lambda: bool, source_location: SourceLocation) -> Self {
 		// These are present in every block
 		// OPTIMIZE: maybe make these things once and freeze them?
 		let named_locals = vec![Intern::__block__, Intern::__args__];
@@ -49,6 +50,7 @@ impl Builder {
 			constants: Vec::default(),
 			num_of_unnamed_locals: NonZeroUsize::new(1).unwrap(), // The first register is `Scratch`.
 			named_locals,
+			is_lambda,
 		}
 	}
 
@@ -62,6 +64,7 @@ impl Builder {
 			self.constants,
 			self.num_of_unnamed_locals,
 			self.named_locals,
+			self.is_lambda,
 		)
 	}
 
