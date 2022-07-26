@@ -1,4 +1,4 @@
-Car = object(() -> {
+Car = object(()->{
 	# todo: optional parameters, eg wheels = 4.
 	'()' = (class, maker, wheels) -> {
 		:0.__parents__ = [class];

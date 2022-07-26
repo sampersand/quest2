@@ -2,7 +2,7 @@
 Null.and_then = (_, _) -> { null };
 Object.and_then = (self, op) -> { op(self) };
 
-Card = object({
+Card = object(() -> {
 	'()' = (class, rank_int, suit) -> {
 		rank = ifl(rank_int == 10, '10', '234567890JQKA'.to_list()[rank_int - 2]);
 
@@ -18,10 +18,11 @@ Card = object({
 	ALL_CARDS = 
 		2.upto(14)
 			.product("♧♢♡♤".to_list())
-			.map(list -> { :1(list[0], list[1]) });
+			.map(list -> { print(1); :1(list[0], list[1]) });
 });
+__EOF__
 
-Pile = object({
+Pile = object(() -> {
 	'()' = (class, name, cards) -> {
 		:0.__parents__ = [class];
 		:0
