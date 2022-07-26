@@ -10,3 +10,14 @@ for x in [1,2,3,4] {
 }
 
 print(sum);
+
+$syntax {
+	for ${$!; $init:tt} ; ${$!; $cond:tt} ${$!; $incr:tt} $body:block
+} = {
+	${$init};
+	while({ ${$cond} }, { ${$body}; ${$incr} });
+};
+
+for x=0; x < 10; x=x+1; {
+	print(x);
+}
