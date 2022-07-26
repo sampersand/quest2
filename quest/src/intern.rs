@@ -155,7 +155,7 @@ define_interned! {
 
 	// Integer functions
 	upto downto times chr
-	is_even is_odd is_zero is_positive is_negative
+	is_even is_odd is_zero is_positive is_negative factorial
 
 	// Float functions
 	is_whole
