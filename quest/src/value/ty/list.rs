@@ -592,8 +592,25 @@ pub mod funcs {
 	}
 
 	pub fn lth(list: Gc<List>, args: Args<'_>) -> Result<Value> {
-		// cop out
+		// cop out for now
 		Ok((cmp(list, args)?.try_downcast::<crate::value::ty::Integer>()?.get() < 0).to_value())
+	}
+
+	pub fn mul(list: Gc<List>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let amnt = usize::try_from(args[0].to_integer()?.get())
+			.map_err(|_| "todo: bounds error".to_string())?;
+
+		let listref = list.as_ref()?;
+		let mut ret = List::with_capacity(amnt * listref.len());
+
+		for _ in 0..amnt {
+			ret.extend(listref.as_slice().iter().copied());
+		}
+
+		Ok(ret.finish().to_value())
 	}
 
 	pub fn index(list: Gc<List>, args: Args<'_>) -> Result<Value> {
@@ -889,6 +906,7 @@ impl Singleton for ListClass {
 				Intern::op_add => method funcs::add,
 				Intern::op_cmp => method funcs::cmp,
 				Intern::op_lth => method funcs::lth,
+				Intern::op_mul => method funcs::mul,
 				Intern::op_index => method funcs::index,
 				Intern::op_index_assign => method funcs::index_assign,
 				Intern::to_list => method funcs::to_list,

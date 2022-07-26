@@ -156,7 +156,7 @@ pub mod funcs {
 		Ok(count.to_value())
 	}
 
-	pub fn is_any(iterable: Value, args: Args<'_>) -> Result<Value> {
+	pub fn any(iterable: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -171,7 +171,7 @@ pub mod funcs {
 		Ok(false.to_value())
 	}
 
-	pub fn are_all(iterable: Value, args: Args<'_>) -> Result<Value> {
+	pub fn all(iterable: Value, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
 
@@ -184,6 +184,21 @@ pub mod funcs {
 		});
 
 		Ok(true.to_value())
+	}
+
+	pub fn includes(iterable: Value, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let arg = args[0];
+
+		for_each!(value in iterable {
+			if value.try_eq(arg)? {
+				return Ok(true.to_value())
+			}
+		});
+
+		Ok(false.to_value())
 	}
 }
 
@@ -205,8 +220,9 @@ impl Iterable {
 				Intern::product => function funcs::product,
 				Intern::sum => function funcs::sum,
 				Intern::count => function funcs::count,
-				Intern::is_any => function funcs::is_any,
-				Intern::are_all => function funcs::are_all,
+				Intern::any => function funcs::any,
+				Intern::all => function funcs::all,
+				Intern::includes => function funcs::includes,
 			}
 		})
 	}

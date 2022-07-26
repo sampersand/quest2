@@ -976,6 +976,12 @@ impl ToValue for &'static str {
 	}
 }
 
+impl ToValue for char {
+	fn to_value(self) -> Value {
+		Text::from_char(self).to_value()
+	}
+}
+
 impl ToValue for String {
 	fn to_value(self) -> Value {
 		Gc::<Text>::from(self).to_value()
@@ -1105,6 +1111,20 @@ pub mod funcs {
 
 		Ok(list.to_value())
 	}
+
+	pub fn iter(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		let text = text.as_ref()?;
+		let mut i = 0;
+
+		Ok(crate::iterator! { "Text::iter";
+			let value = text.as_str().chars().nth(i).ok_or(crate::ErrorKind::StopIteration)?;
+			i += 1;
+			Ok(value.to_value())
+		}
+		.to_value())
+	}
 }
 
 quest_type_attrs! { for Gc<Text>,
@@ -1116,6 +1136,7 @@ quest_type_attrs! { for Gc<Text>,
 	op_assign => meth funcs::op_assign,
 	dbg => meth funcs::dbg,
 	to_list => meth funcs::to_list,
+	iter => meth funcs::iter,
 }
 
 // quest_type! {

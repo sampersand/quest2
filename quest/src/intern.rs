@@ -151,7 +151,7 @@ define_interned! {
 	push pop shift unshift product shuffle is_empty
 
 	// Enumerator functions
-	map filter reduce each next sum iter tap_each count is_any are_all
+	map filter reduce each next sum iter tap_each count any all includes
 
 	// Integer functions
 	upto downto times chr
