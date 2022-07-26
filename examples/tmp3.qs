@@ -1,12 +1,4 @@
-Integer.factorial = (n) -> {
-	i = 1;
-	while({ n != 0 }, {
-		:1.i = i * n;
-		:1.n = n - 1;
-	});
-	i
-};
-
+Integer.factorial = (n) -> { n.downto(1).reduce(Integer::'*') };
 
 Integer.'!!' = Integer::factorial;
 Integer.nCk = (n, k) -> { (!!n) / (!!k * !!(n - k)) };

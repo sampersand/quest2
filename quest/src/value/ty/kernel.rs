@@ -20,6 +20,7 @@ impl Kernel {
 		*INSTANCE.get_or_init(|| {
 			create_class! { "Kernel", parent Pristine::instance();
 				Intern::print => justargs funcs::print,
+				Intern::print_no_newline => justargs funcs::print_no_newline,
 				Intern::dump => justargs funcs::dump,
 				Intern::exit => justargs funcs::exit,
 				Intern::abort => justargs funcs::abort,
@@ -66,6 +67,17 @@ pub mod funcs {
 		}
 
 		println!();
+
+		Ok(Value::default())
+	}
+
+	// temporary until i get keyword args in `print` working
+	pub fn print_no_newline(args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+
+		for arg in args.positional() {
+			print!("{}", *arg.to_text()?.as_ref()?);
+		}
 
 		Ok(Value::default())
 	}

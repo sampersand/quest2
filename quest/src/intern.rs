@@ -139,7 +139,7 @@ define_interned! {
 	if_cascade ifl r#if "if"
 	r#while "while" r#return "return"
 	exit abort assert object print rand
-	spawn dump // both are temporary
+	spawn dump print_no_newline // temporary
 
 	// Frame and Block Functions
 	resume restart create_frame __block__ __args__

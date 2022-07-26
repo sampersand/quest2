@@ -567,7 +567,8 @@ impl Gc<Frame> {
 				unsafe { this.get_unnamed_local(0) }
 			}),
 			Err(Error { kind: ErrorKind::Return { value, from_frame }, .. })
-				if from_frame.map_or(true, |ff| ff.is_identical(self.to_value())) =>
+				if !self.as_ref()?.is_lambda()
+					&& from_frame.map_or(true, |ff| ff.is_identical(self.to_value())) =>
 			{
 				Ok(value)
 			}
