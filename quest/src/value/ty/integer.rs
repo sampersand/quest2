@@ -215,6 +215,22 @@ impl Integer {
 		Ok((self.to_bigint() % &rhs.get()).to_value())
 	}
 
+	pub fn checked_factorial(self) -> Result<Value> {
+		let mut n: Inner = 1;
+
+		for i in 2..=self.get() {
+			if let Some(integer) = n.checked_mul(i) {
+				n = integer;
+			} else {
+				panic!("todo: conversion to bigint");
+			}
+		}
+
+		Ok(Self::new(n)
+			.expect("Todo: conversion to bigint (if there is a factorial that does this)")
+			.to_value())
+	}
+
 	pub fn checked_pow(self, rhs: Self) -> Value {
 		// TODO!
 		self.get().pow(rhs.get().try_into().expect("todo: exception for not valid number")).to_value()
@@ -386,6 +402,12 @@ pub mod funcs {
 		Ok(int.checked_bitneg())
 	}
 
+	pub fn factorial(int: Integer, args: Args<'_>) -> Result<Value> {
+		args.assert_no_arguments()?;
+
+		int.checked_factorial()
+	}
+
 	pub fn to_text(int: Integer, args: Args<'_>) -> Result<Value> {
 		ConvertTo::<Gc<Text>>::convert(&int, args).map(ToValue::to_value)
 	}
@@ -550,6 +572,8 @@ impl Singleton for IntegerClass {
 				Intern::op_bitor => method funcs::op_bitor,
 				Intern::op_bitxor => method funcs::op_bitxor,
 				Intern::op_bitneg => method funcs::op_bitneg,
+
+				Intern::factorial => method funcs::factorial,
 
 				Intern::times => method funcs::times,
 				Intern::upto => method funcs::upto,
