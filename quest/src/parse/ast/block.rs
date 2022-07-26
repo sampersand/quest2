@@ -26,6 +26,7 @@ impl<'a> Block<'a> {
 #[derive(Debug)]
 struct BlockArgs<'a> {
 	args: Vec<&'a str>,
+	is_lambda: bool,
 }
 
 impl<'a> BlockArgs<'a> {
@@ -39,17 +40,21 @@ impl<'a> BlockArgs<'a> {
 			};
 
 			if parser.take_if_contents(TokenContents::Symbol("->"))?.is_some() {
-				return Ok(Some(Self { args: vec![ident] }));
+				return Ok(Some(Self { args: vec![ident], is_lambda: false }));
 			}
 
 			parser.untake(token);
 			return Ok(None);
 		}
 
-		let left_paren = if let Some(token) =
+		let (left_paren, paren_type) = if let Some(token) =
 			parser.take_if_contents(TokenContents::LeftParen(ParenType::Round))?
 		{
-			token
+			(token, ParenType::Round)
+		} else if let Some(token) =
+			parser.take_if_contents(TokenContents::LeftParen(ParenType::Square))?
+		{
+			(token, ParenType::Square)
 		} else {
 			return Ok(None);
 		};
@@ -68,7 +73,7 @@ impl<'a> BlockArgs<'a> {
 			}
 		}
 
-		if let Some(token) = parser.take_if_contents(TokenContents::RightParen(ParenType::Round))? {
+		if let Some(token) = parser.take_if_contents(TokenContents::RightParen(paren_type))? {
 			if parser.take_if_contents(TokenContents::Symbol("->"))?.is_some() {
 				let mut args = Vec::with_capacity(arg_tokens.len());
 				for token in arg_tokens {
@@ -77,7 +82,7 @@ impl<'a> BlockArgs<'a> {
 					}
 				}
 
-				return Ok(Some(Self { args }));
+				return Ok(Some(Self { args, is_lambda: paren_type == ParenType::Square }));
 			}
 
 			parser.untake(token);
@@ -98,7 +103,9 @@ impl Compile for Block<'_> {
 
 		let arity = self.args.as_ref().map_or(0, |a| a.args.len());
 
-		let mut inner_builder = Builder::new(arity, self.args.is_none(), location);
+		let mut inner_builder =
+			Builder::new(arity, self.args.as_ref().map_or(true, |a| a.is_lambda), location);
+
 		let scratch = Local::Scratch;
 
 		let span = debug_span!(target: "block_builder", "new block", src=?crate::vm::SourceLocation::from(self.body.start));

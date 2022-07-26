@@ -51,7 +51,7 @@ impl Display for Stacktrace {
 			return Ok(());
 		}
 
-		for (i, block) in self.0.iter().enumerate() {
+		for (i, block) in self.0.iter().enumerate().rev() {
 			write!(f, "#{} ", i + 1)?;
 
 			if let Some(blockref) = block.as_ref_option() {
