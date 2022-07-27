@@ -1,4 +1,5 @@
 # Normal for loop
+
 $syntax {
 	for $var:ident in $val:tt $body:block
 } = {
@@ -13,12 +14,19 @@ print(sum);
 
 # For loop with `;`.
 $syntax {
-	for ${$!; $init:token} ; ${$!; $cond:token} ; ${$!; $incr:token}; $body:block
+	for
+		${$!; $init:token} ;
+		${$!; $cond:token} ;
+		${$!$_:block $incr:($_:tt $| $_:token)}
+		$body:block
 } = {
 	${$init};
-	while({ ${$cond} }, { $body(); ${$incr} });
+	while({ ${$cond} }, {
+		$body();
+		${$incr}
+	});
 };
 
-for x=0; x < 10; x = x + 1; {
+for x=0; x < 10; x=x+1 {
 	print(x);
 }
