@@ -1,8 +1,8 @@
 Car = object(() -> {
 	# todo: optional parameters, eg wheels = 4.
 	'()' = (class, maker, wheels) -> {
-		:0.__parents__ = [class];
-		:0
+		__parents__ = [class];
+		__frame__
 	};
 
 	to_text = self -> {
@@ -17,3 +17,4 @@ Car = object(() -> {
 car = Car('honda', 4);
 print(car);
 car.drive(10);
+

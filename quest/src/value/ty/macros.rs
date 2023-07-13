@@ -57,7 +57,7 @@ macro_rules! new_quest_scope {
 	 $($attr:expr => $value:expr),*
 	 $(,)?
 	) => {
-		#[allow(clippy::redundant_closure_call)]
+		// #[allow(clippy::redundant_closure_call)]
 		(|| -> $crate::Result<_> {
 			#[allow(unused_mut)]
 			let mut builder = {

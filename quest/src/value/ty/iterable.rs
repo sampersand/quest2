@@ -36,7 +36,7 @@ where
 		match next(iterable) {
 			Ok(value) => current = func(value, current)?,
 			Err(err) if matches!(err.kind, ErrorKind::StopIteration) => return Ok(current),
-			Err(err) => return Err(err),
+			Err(err) => return Err(dbg!(err)),
 		}
 	}
 }
@@ -67,6 +67,24 @@ pub mod funcs {
 				let ele = next(iterable)?;
 
 				if filter_function.call(Args::new(&[ele], &[]))?.is_truthy() {
+					return Ok(ele);
+				}
+			}
+		}
+		.to_value())
+	}
+
+	pub fn reject(iterable: Value, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let filter_function = args[0];
+
+		Ok(iterator! { "Iterable::reject";
+			loop {
+				let ele = next(iterable)?;
+
+				if !filter_function.call(Args::new(&[ele], &[]))?.is_truthy() {
 					return Ok(ele);
 				}
 			}
@@ -213,6 +231,7 @@ impl Iterable {
 			create_class! { "Iterable", parent Object::instance();
 				Intern::map => function funcs::map,
 				Intern::filter => function funcs::filter,
+				Intern::reject => function funcs::reject,
 				Intern::reduce => function funcs::reduce,
 				Intern::each => function funcs::each,
 				Intern::to_list => function funcs::to_list,

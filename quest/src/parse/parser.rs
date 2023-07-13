@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
 			if syntax.group().is_none() {
 				warn!(?syntax, "syntax encountered with nomatch and no group name");
 			}
-			todo!("nomatch is currently not working and is unsupported");
+		// todo!("nomatch is currently not working and is unsupported");
 		} else {
 			self.syntaxes[syntax.priority()].insert(0, syntax);
 		}
@@ -107,7 +107,37 @@ impl<'a> Parser<'a> {
 			return self.expand_syntax();
 		}
 
+		if self.expand_import()? {
+			return self.expand_syntax();
+		}
+
 		Ok(())
+	}
+
+	fn expand_import(&mut self) -> Result<'a, bool> {
+		match self.take_bypass_syntax()? {
+			Some(Token { contents: TokenContents::SyntaxIdentifier(0, "import"), .. }) => {}
+			Some(token) => {
+				self.untake(token);
+				return Ok(false);
+			}
+			None => return Ok(false),
+		}
+
+		match self.take_bypass_syntax()? {
+			Some(Token { contents: TokenContents::Text(text), .. }) => {
+				self.import(text.as_ref().unwrap().as_str().as_ref())?;
+				return Ok(true);
+			}
+			_ => panic!("todo: error for not importing"),
+		}
+	}
+
+	fn import(&mut self, path: &std::path::Path) -> Result<'a, ()> {
+		let contents = std::fs::read_to_string(path).expect("todo: error for not reading path");
+		let parser = Parser::new(&contents, Some(path));
+		let _ = parser;
+		todo!();
 	}
 
 	pub fn peek(&mut self) -> Result<'a, Option<Token<'a>>> {

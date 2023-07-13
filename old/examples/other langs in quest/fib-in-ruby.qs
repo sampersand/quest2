@@ -2,12 +2,12 @@
 $syntax { do } = { \{ };
 $syntax { end } = { \} };
 $syntax { def $name:ident ($arg:ident) } = { $name = ($arg) -> \{ } ;
-$syntax { $func:(fizzbuzz$|upto) $arg:literal } = { $func($arg) } ;
+$syntax { $func:(fizzbuzz$|upto) $arg:($_:ident$|$_:literal) } = { $func($arg) } ;
 $syntax { \) do | $n:ident | } = { \).each \( $n -> \{ } ;
 $syntax { end end fizzbuzz } = { \}\); \}; fizzbuzz };
 $syntax { case } = { \(\{ } ;
 $syntax { when } = { \( } ;
-$syntax { then $val:literal } = { \).then($val.return); };
+$syntax { then $val:literal } = { \).then({ print($val); $val.return(:2) }); };
 $syntax { else $val:tt } = { $val \}()\); \{ };
 #EOS
 puts = print;

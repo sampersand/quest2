@@ -1,5 +1,5 @@
 $syntax { $l:tt .. $r:tt } = { $l.upto($r) };
-Integer."|" = (b, a) -> { 0 == a % b };
+Integer.'|' = (b, a) -> { 0 == a % b };
 
 fizzbuzz = max -> {
 	(1..max).map(n -> {
@@ -11,3 +11,4 @@ fizzbuzz = max -> {
 };
 
 fizzbuzz(100).each(print);
+

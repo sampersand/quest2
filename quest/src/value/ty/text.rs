@@ -1064,6 +1064,16 @@ pub mod funcs {
 		Ok(text.to_value())
 	}
 
+	pub fn op_mul(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
+		args.assert_no_keyword()?;
+		args.assert_positional_len(1)?;
+
+		let rhs = args[0].to_integer()?;
+
+		// TODO: allocate a new string
+		Ok(text.as_ref()?.as_str().repeat(rhs.get() as usize).to_value())
+	}
+
 	pub fn op_eql(text: Gc<Text>, args: Args<'_>) -> Result<Value> {
 		args.assert_no_keyword()?;
 		args.assert_positional_len(1)?;
@@ -1133,6 +1143,7 @@ quest_type_attrs! { for Gc<Text>,
 	len => meth funcs::len,
 	op_eql => meth funcs::op_eql,
 	op_add => meth funcs::op_add,
+	op_mul => meth funcs::op_mul,
 	op_assign => meth funcs::op_assign,
 	dbg => meth funcs::dbg,
 	to_list => meth funcs::to_list,

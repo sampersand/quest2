@@ -8,7 +8,7 @@ pub struct Matcher<'tkn, 'vec, 'caps> {
 	all_tokens: &'vec mut Vec<Token<'tkn>>,
 	start_index: usize, // into `all_tokens`
 	captures: Shared<'caps, HashMap<&'tkn str, Vec<Matches<'tkn>>>>,
-	sequences: Shared<'caps, HashMap<&'tkn str, Vec<Rc<Vec<Matches<'tkn>>>>>>,
+	sequences: Shared<'caps, HashMap<&'tkn str, Vec<Rc<[Matches<'tkn>]>>>>,
 }
 
 #[derive(Debug)]
@@ -114,7 +114,7 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 	}
 
 	pub fn declare_submatches(&mut self, submatches: Vec<Matches<'tkn>>) -> Result<'tkn, ()> {
-		let submatches = Rc::new(submatches);
+		let submatches = Rc::<[Matches<'tkn>]>::from(submatches);
 
 		for submatch in submatches.iter() {
 			// only look thru keys, subsubmatches dont count for new vars
@@ -163,7 +163,7 @@ impl<'tkn, 'vec, 'caps> Matcher<'tkn, 'vec, 'caps> {
 pub struct Matches<'tkn> {
 	all_tokens: Vec<Token<'tkn>>,
 	captures: HashMap<&'tkn str, Vec<Matches<'tkn>>>,
-	sequences: HashMap<&'tkn str, Vec<Rc<Vec<Matches<'tkn>>>>>,
+	sequences: HashMap<&'tkn str, Vec<Rc<[Matches<'tkn>]>>>,
 }
 
 impl<'tkn> Matches<'tkn> {
@@ -183,7 +183,7 @@ impl<'tkn> Matches<'tkn> {
 		self.captures.get(name).map(Vec::as_slice)
 	}
 
-	pub fn get_submatches_with(&self, name: &str) -> Option<&[Rc<Vec<Matches<'tkn>>>]> {
+	pub fn get_submatches_with(&self, name: &str) -> Option<&[Rc<[Matches<'tkn>]>]> {
 		self.sequences.get(name).map(|x| x.as_slice())
 	}
 }
