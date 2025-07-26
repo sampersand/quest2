@@ -1,4 +1,4 @@
-#![allow(unused)]
+#![allow(unused, unused_mut)]
 #![allow(clippy::all, clippy::nursery, clippy::pedantic)]
 
 #[macro_use]

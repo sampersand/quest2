@@ -14,6 +14,7 @@
 	clippy::module_inception,
 	clippy::module_name_repetitions,
 )]
+#![allow(unused_mut)] // TODO
 
 extern crate static_assertions as sa;
 
